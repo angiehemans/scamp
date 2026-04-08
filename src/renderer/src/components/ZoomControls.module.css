@@ -1,0 +1,52 @@
+.controls {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  background: #1f1f1f;
+  border-radius: 6px;
+  padding: 2px;
+  margin-right: 8px;
+}
+
+.button {
+  background: none;
+  border: none;
+  color: #c0c0c0;
+  font-size: 14px;
+  font-weight: 500;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.button:hover {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.label {
+  background: none;
+  border: none;
+  color: #c0c0c0;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.label:hover {
+  background: #2c2c2c;
+  color: #fff;
+}

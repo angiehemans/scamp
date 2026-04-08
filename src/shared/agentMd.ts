@@ -1,0 +1,129 @@
+/**
+ * The contents of the agent.md file written into every new project.
+ * Documented in prd-scamp-poc.md §8.
+ */
+export const AGENT_MD_CONTENT = `# Scamp Project — Agent Instructions
+
+You are editing files in a Scamp project. Scamp is a local design tool
+that bidirectionally syncs canvas state with real \`.tsx\` + CSS module
+files. Anything you write here is parsed and re-rendered on the canvas.
+
+## Critical rules
+- Never remove \`data-scamp-id\` attributes from any element
+- Never rename CSS classes that follow the \`[type]_XXXX\` pattern
+- Never combine multiple selectors into one rule block
+- Never add media queries to generated class blocks
+- One class = one rule block, always
+
+## Project structure
+Each page is two files: \`[page-name].tsx\` and \`[page-name].module.css\`.
+Do not rename, move, or split these files.
+
+## Component conventions
+- Each page exports a single default React component.
+- The root element uses \`styles.root\` and \`data-scamp-id="root"\`.
+- Every other element needs both:
+  - a \`data-scamp-id="[4-char-id]"\` attribute
+  - a className following \`[type]_[4-char-id]\` where type is either
+    \`rect\` (for any container) or \`text\` (for any text-bearing element)
+- The classname prefix is the source of truth for the element type.
+  Scamp uses it — not the HTML tag — to decide what's text vs. a
+  container, so you can pick whatever semantic tag makes sense without
+  changing how scamp models the element.
+- Do not add inline styles — all styles live in the CSS module.
+
+## HTML tags
+Use semantic HTML. Scamp captures the actual tag name and renders it
+on the canvas, so the design preview matches what ships.
+
+- Text elements (\`text_xxxx\` className) can be any of:
+  \`p\`, \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`h5\`, \`h6\`, \`span\`, \`a\`,
+  \`label\`, \`strong\`, \`em\`, \`blockquote\`, \`code\`, \`small\`.
+  Default if you don't care: \`p\`.
+- Container elements (\`rect_xxxx\` className) can be any block-level
+  HTML tag — \`div\`, \`section\`, \`header\`, \`nav\`, \`footer\`,
+  \`article\`, \`aside\`, \`main\`, \`form\`, etc. Default: \`div\`.
+- Pick the tag that best describes the content. A page hero is a
+  \`<header>\`. A page title is an \`<h1>\`. A paragraph of body copy
+  is a \`<p>\`. The user will thank you (and so will their accessibility
+  audit).
+
+Example:
+
+\`\`\`tsx
+<div data-scamp-id="root" className={styles.root}>
+  <header data-scamp-id="hdr0" className={styles.rect_hdr0}>
+    <h1 data-scamp-id="t1a2" className={styles.text_t1a2}>About</h1>
+    <p data-scamp-id="t3b4" className={styles.text_t3b4}>I'm Angie...</p>
+  </header>
+  <section data-scamp-id="s5c6" className={styles.rect_s5c6}>
+    <h2 data-scamp-id="t7d8" className={styles.text_t7d8}>What I do</h2>
+  </section>
+</div>
+\`\`\`
+
+## CSS conventions
+- One property per line.
+- Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
+- The page root uses \`min-height\` (NOT \`height\`) so the page can
+  grow vertically with its content. Do not change \`min-height\` to
+  \`height\` on \`.root\`.
+- Width / height values:
+  - \`width: 100%\` and \`height: 100%\` mean stretch to fill the parent.
+  - \`width: fit-content\` and \`height: fit-content\` mean shrink to content.
+  - \`width: auto\` / \`height: auto\` (or simply omitting the
+    declaration) leaves the dimension up to normal CSS layout.
+  - Pixel values (\`width: 320px\`) are explicit fixed sizes.
+- For free-form (non-flex) container layouts, scamp positions children
+  with \`position: absolute; left: Xpx; top: Ypx;\`. You can write these
+  manually, but inside a flex parent the layout engine takes over and
+  positional declarations are ignored.
+
+## CSS properties
+Use any CSS property you'd use in a real stylesheet. Scamp renders
+**every** valid CSS property on the canvas — there's no allow-list.
+
+Internally scamp routes a small set of properties (\`background\`,
+\`border\`, \`border-radius\`, \`color\`, \`display\`, \`flex-direction\`,
+\`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
+\`padding\`, \`font-size\`, \`font-weight\`, \`text-align\`) into typed
+fields it can later expose via UI controls. Everything else
+(\`box-shadow\`, \`transform\`, \`letter-spacing\`, \`line-height\`,
+\`font-family\`, \`margin\`, \`opacity\`, animations, gradients, …)
+round-trips through the file untouched AND is applied to the rendered
+element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules
+(\`@media\`, \`@keyframes\`) are not parsed and should not be added.
+
+## What NOT to change
+- Do not alter the import line at the top of the TSX file.
+- Do not rename the default export function.
+- Do not add new \`.tsx\` / \`.module.css\` files unless the user asks
+  for a new page.
+- Do not strip the \`min-height\` / \`width\` / \`position\` lines from
+  \`.root\` — they're load-bearing for how the canvas renders the page.
+`;
+
+/**
+ * Default home.tsx content for a freshly created page.
+ */
+export const defaultPageTsx = (componentName: string, moduleName: string): string => {
+  return `import styles from './${moduleName}.module.css';
+
+export default function ${componentName}() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+    </div>
+  );
+}
+`;
+};
+
+/**
+ * Default page CSS module content.
+ */
+export const DEFAULT_PAGE_CSS = `.root {
+  width: 1440px;
+  min-height: 900px;
+  position: relative;
+}
+`;

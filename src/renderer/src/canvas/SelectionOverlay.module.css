@@ -1,0 +1,27 @@
+.outline {
+  position: absolute;
+  /* The selection outline itself now lives on the element via
+     ElementRenderer's `selected` class, so this div is just a positioning
+     anchor for the resize handles. Keeping it transparent means flex
+     children (whose absolute offset can't be computed without measuring
+     the DOM) don't show a stale rectangle. */
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 1px solid #3b82f6;
+  pointer-events: auto;
+}
+
+.handleNw { left: -4px; top: -4px; cursor: nwse-resize; }
+.handleN  { left: 50%; top: -4px; transform: translateX(-50%); cursor: ns-resize; }
+.handleNe { right: -4px; top: -4px; cursor: nesw-resize; }
+.handleE  { right: -4px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.handleSe { right: -4px; bottom: -4px; cursor: nwse-resize; }
+.handleS  { left: 50%; bottom: -4px; transform: translateX(-50%); cursor: ns-resize; }
+.handleSw { left: -4px; bottom: -4px; cursor: nesw-resize; }
+.handleW  { left: -4px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }

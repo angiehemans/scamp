@@ -1,0 +1,20 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  /* Sits above elements so it can capture all pointer events. Children
+     (selection overlay, draw preview) inherit pointer-events: none unless
+     they need to be interactive (resize handles). */
+  z-index: 100;
+  cursor: inherit;
+}
+
+/* Drop indicator drawn while dragging a flex child to a new position in
+ * its parent's flex flow. A 2px blue bar between siblings. */
+.dropIndicator {
+  position: absolute;
+  background: #3b82f6;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+  pointer-events: none;
+  z-index: 150;
+}

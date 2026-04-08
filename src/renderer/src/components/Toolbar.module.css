@@ -1,0 +1,48 @@
+.toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: #1f1f1f;
+  border-radius: 8px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #c0c0c0;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.active {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.active:hover {
+  background: #3b82f6;
+}
+
+.shortcut {
+  font-size: 10px;
+  color: #888;
+  background: #0f0f0f;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.active .shortcut {
+  background: rgba(0, 0, 0, 0.25);
+  color: #cfe0fb;
+}

@@ -1,0 +1,20 @@
+.element {
+  /* Base class kept minimal — runtime styles come from element state. */
+}
+
+/* Selection highlight lives on the element itself rather than as a separate
+ * overlay div, so it works for any layout (flex children included) and
+ * always sits at the element's true rendered position. `outline-offset:
+ * -2px` draws the outline 2px inside the element bounds. */
+.selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Text-edit mode lives on the element itself now (the dynamic tag IS
+ * the contentEditable target), so the dashed indicator goes there. */
+.textEditing {
+  outline: 1px dashed #3b82f6 !important;
+  outline-offset: 2px !important;
+  cursor: text;
+}

@@ -1,0 +1,114 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 280px;
+  background: #0f0f0f;
+  border-top: 1px solid #2c2c2c;
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: #1f1f1f;
+  border-bottom: 1px solid #2c2c2c;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin-right: 4px;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #161616;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #c0c0c0;
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: #232323;
+}
+
+.tabActive {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.tabClose {
+  background: none;
+  border: none;
+  color: #777;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.tabClose:hover {
+  color: #fff;
+}
+
+.addTab {
+  background: none;
+  border: 1px dashed #444;
+  color: #777;
+  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.addTab:hover {
+  border-color: #666;
+  color: #fff;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.closePanel {
+  background: none;
+  border: none;
+  color: #777;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.closePanel:hover {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.body {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.tabContent {
+  position: absolute;
+  inset: 0;
+}

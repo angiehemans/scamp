@@ -1,0 +1,94 @@
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.rowWrap {
+  position: relative;
+}
+
+/* "Drop into" highlight — the row's background turns blue while the user
+   is dragging another element over its middle band. */
+.rowDropInside .row {
+  background: #1d3a6e;
+  color: #fff;
+}
+
+/* "Drop before / after" line — a 2px blue line above or below the row. */
+.dropLine {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: #3b82f6;
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.rowWrap > .dropLine:first-child {
+  top: -1px;
+}
+
+.rowWrap > .dropLine:last-child {
+  bottom: -1px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #c0c0c0;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.row:hover {
+  background: #262626;
+  color: #fff;
+}
+
+.rowSelected {
+  background: #1d3a6e;
+  color: #fff;
+}
+
+.rowSelected:hover {
+  background: #1d3a6e;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 10px;
+  color: #777;
+  flex-shrink: 0;
+}
+
+.rowSelected .icon {
+  color: #cfe0fb;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
