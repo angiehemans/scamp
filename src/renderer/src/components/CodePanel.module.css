@@ -16,7 +16,7 @@
 }
 
 .title {
-  font-size: 11px;
+font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -31,7 +31,7 @@
   background: none;
   border: none;
   color: #777;
-  font-size: 16px;
+font-size: 17px;
   cursor: pointer;
   padding: 0 6px;
   border-radius: 4px;
@@ -63,12 +63,12 @@
   padding: 4px 10px;
   background: #1a1a1a;
   border-bottom: 1px solid #2c2c2c;
-  font-size: 11px;
+font-size: 12px;
 }
 
 .paneHeader code {
   color: #888;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'Ubuntu Mono', monospace;
 }
 
 .editorWrap {
@@ -79,9 +79,9 @@
 
 .editorWrap :global(.cm-editor) {
   height: 100%;
-  font-size: 12px;
+font-size: 13px;
 }
 
 .editorWrap :global(.cm-scroller) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'Ubuntu Mono', monospace;
 }

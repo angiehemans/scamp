@@ -24,7 +24,14 @@ const FRAME_PADDING = 48;
  * All canvas interactions (draw, select, move, resize) are mounted as
  * overlays on top of this frame.
  */
-export const Viewport = (): JSX.Element => {
+type Props = {
+  /** Background color of the artboard — the area behind the canvas. */
+  artboardBackground?: string;
+};
+
+export const Viewport = ({
+  artboardBackground,
+}: Props): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -85,7 +92,11 @@ export const Viewport = (): JSX.Element => {
   }, [selectElement]);
 
   return (
-    <div ref={containerRef} className={styles.container}>
+    <div
+      ref={containerRef}
+      className={styles.container}
+      style={artboardBackground ? { backgroundColor: artboardBackground } : undefined}
+    >
       <div
         ref={frameRef}
         className={styles.frame}

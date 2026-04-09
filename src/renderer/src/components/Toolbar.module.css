@@ -13,7 +13,7 @@
   background: none;
   border: none;
   color: #c0c0c0;
-  font-size: 12px;
+font-size: 13px;
   font-weight: 500;
   padding: 6px 12px;
   border-radius: 6px;
@@ -34,8 +34,12 @@
   background: #3b82f6;
 }
 
+.spacer {
+  flex: 1;
+}
+
 .shortcut {
-  font-size: 10px;
+font-size: 11px;
   color: #888;
   background: #0f0f0f;
   padding: 1px 5px;

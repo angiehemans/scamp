@@ -1,24 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ProjectData, RecentProject, Settings } from '@shared/types';
-import { suggestProjectName, validateProjectName } from '@shared/projectName';
 import { basename } from '../lib/path';
+import { CreateProjectModal } from './CreateProjectModal';
 import styles from './StartScreen.module.css';
 
 type RecentProjectWithExistence = RecentProject & { exists: boolean };
 
 type Props = {
   onProjectOpened: (project: ProjectData) => void;
+  onOpenSettings: () => void;
 };
 
-type CreateMode = 'idle' | 'naming';
-
-export const StartScreen = ({ onProjectOpened }: Props): JSX.Element => {
+export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Element => {
   const [recents, setRecents] = useState<RecentProjectWithExistence[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [createMode, setCreateMode] = useState<CreateMode>('idle');
-  const [draftName, setDraftName] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const refreshRecents = useCallback(async (): Promise<void> => {
     const list = await window.scamp.getRecentProjects();
@@ -43,8 +40,6 @@ export const StartScreen = ({ onProjectOpened }: Props): JSX.Element => {
       const result = await window.scamp.chooseFolder();
       if (result.canceled || !result.path) return;
       const next = await window.scamp.setDefaultProjectsFolder(result.path);
-      // Defensive: if the IPC ever returns something unexpected, refetch
-      // from the source of truth so the UI is never out of sync with disk.
       if (next && typeof next === 'object' && 'defaultProjectsFolder' in next) {
         setSettings(next);
       } else {
@@ -64,48 +59,18 @@ export const StartScreen = ({ onProjectOpened }: Props): JSX.Element => {
       } else {
         await refreshSettings();
       }
-      setCreateMode('idle');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const handleStartCreate = (): void => {
+  const handleCreateProject = async (name: string): Promise<void> => {
     if (!defaultFolder) return;
-    setError(null);
-    setDraftName('');
-    setCreateMode('naming');
-  };
-
-  const handleCancelCreate = (): void => {
-    setCreateMode('idle');
-    setDraftName('');
-    setError(null);
-  };
-
-  const handleSubmitCreate = async (
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
-    e.preventDefault();
-    if (!defaultFolder) return;
-    const validation = validateProjectName(draftName);
-    if (!validation.ok) {
-      setError(validation.error);
-      return;
-    }
-    setError(null);
-    setCreating(true);
-    try {
-      const project = await window.scamp.createProject({
-        parentPath: defaultFolder,
-        name: validation.value,
-      });
-      onProjectOpened(project);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setCreating(false);
-    }
+    const project = await window.scamp.createProject({
+      parentPath: defaultFolder,
+      name,
+    });
+    onProjectOpened(project);
   };
 
   const handleOpenProject = async (): Promise<void> => {
@@ -136,129 +101,35 @@ export const StartScreen = ({ onProjectOpened }: Props): JSX.Element => {
     await refreshRecents();
   };
 
-  // First-run state: no default folder yet. Show a focused setup card.
-  if (settings && !defaultFolder) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <h1 className={styles.title}>Welcome to Scamp</h1>
-          <p className={styles.subtitle}>
-            Pick a default folder where new projects will live. Each project gets its own
-            subfolder inside it. You can change this later.
+  // ---- Render ----
+
+  const renderMain = (): JSX.Element => {
+    // First-run: no default folder yet.
+    if (settings && !defaultFolder) {
+      return (
+        <div className={styles.welcomeState}>
+          <h2 className={styles.welcomeHeading}>Welcome to Scamp</h2>
+          <p className={styles.welcomeText}>
+            Pick a default folder where new projects will live. Each project
+            gets its own subfolder inside it. You can change this later.
           </p>
-          {error && <div className={styles.error}>{error}</div>}
-          <div className={styles.actions}>
-            <button
-              className={styles.primary}
-              onClick={handlePickDefaultFolder}
-              type="button"
-            >
-              Choose Folder
-            </button>
-            <button className={styles.secondary} onClick={handleOpenProject} type="button">
-              Open Existing Project
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <h1 className={styles.title}>Scamp</h1>
-        <p className={styles.subtitle}>Local design tool — draw, get real code.</p>
-
-        {createMode === 'idle' ? (
-          <div className={styles.actions}>
-            <button
-              className={styles.primary}
-              onClick={handleStartCreate}
-              type="button"
-              disabled={!defaultFolder}
-            >
-              New Project
-            </button>
-            <button className={styles.secondary} onClick={handleOpenProject} type="button">
-              Open Project
-            </button>
-          </div>
-        ) : (
-          <form className={styles.createForm} onSubmit={handleSubmitCreate}>
-            <label className={styles.formLabel} htmlFor="project-name-input">
-              Project name
-            </label>
-            <input
-              id="project-name-input"
-              className={styles.input}
-              type="text"
-              value={draftName}
-              onChange={(e) => {
-                setDraftName(e.target.value);
-                setError(null);
-              }}
-              onBlur={(e) => {
-                // Soft-suggest a valid name from whatever the user typed.
-                const suggestion = suggestProjectName(e.target.value);
-                if (suggestion && suggestion !== e.target.value) {
-                  setDraftName(suggestion);
-                }
-              }}
-              placeholder="my-portfolio"
-              autoFocus
-              disabled={creating}
-            />
-            <p className={styles.formHint}>
-              Will be created at{' '}
-              <code className={styles.pathHint}>
-                {defaultFolder}/{draftName || '<name>'}
-              </code>
-            </p>
-            {error && <div className={styles.error}>{error}</div>}
-            <div className={styles.formActions}>
-              <button
-                className={styles.secondary}
-                type="button"
-                onClick={handleCancelCreate}
-                disabled={creating}
-              >
-                Cancel
-              </button>
-              <button className={styles.primary} type="submit" disabled={creating}>
-                {creating ? 'Creating…' : 'Create Project'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {createMode === 'idle' && error && <div className={styles.error}>{error}</div>}
-
-        <div className={styles.defaultFolderRow}>
-          <span className={styles.defaultFolderLabel}>Default folder</span>
-          <code className={styles.defaultFolderPath} title={defaultFolder ?? ''}>
-            {defaultFolder}
-          </code>
           <button
-            className={styles.linkButton}
+            className={styles.welcomeButton}
             onClick={handlePickDefaultFolder}
             type="button"
           >
-            Change
-          </button>
-          <button
-            className={styles.linkButton}
-            onClick={handleClearDefaultFolder}
-            type="button"
-            title="Forget the default folder"
-          >
-            Clear
+            Choose Folder
           </button>
         </div>
+      );
+    }
 
+    return (
+      <>
         <h2 className={styles.recentTitle}>Recent Projects</h2>
+        {error && <div className={styles.error}>{error}</div>}
         {recents.length === 0 ? (
-          <p className={styles.empty}>No recent projects yet.</p>
+          <div className={styles.emptyState}>No recent projects yet.</div>
         ) : (
           <ul className={styles.recentList}>
             {recents.map((recent) => (
@@ -274,7 +145,9 @@ export const StartScreen = ({ onProjectOpened }: Props): JSX.Element => {
                 >
                   <span className={styles.recentName}>{recent.name}</span>
                   <span className={styles.recentPath}>{recent.path}</span>
-                  {!recent.exists && <span className={styles.recentLabel}>Folder not found</span>}
+                  {!recent.exists && (
+                    <span className={styles.recentLabel}>Folder not found</span>
+                  )}
                 </button>
                 <button
                   className={styles.recentRemove}
@@ -282,17 +155,88 @@ export const StartScreen = ({ onProjectOpened }: Props): JSX.Element => {
                   title="Remove from list"
                   type="button"
                 >
-                  ×
+                  x
                 </button>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </>
+    );
+  };
+
+  return (
+    <div className={styles.screen}>
+      <aside className={styles.sidebar}>
+        <h1 className={styles.sidebarTitle}>Scamp</h1>
+        <p className={styles.sidebarSubtitle}>Local design tool — draw, get real code.</p>
+
+        <div className={styles.sidebarActions}>
+          <button
+            className={styles.primary}
+            onClick={() => setShowCreateModal(true)}
+            type="button"
+            disabled={!defaultFolder}
+          >
+            New Project
+          </button>
+          <button
+            className={styles.secondary}
+            onClick={handleOpenProject}
+            type="button"
+          >
+            Open Project
+          </button>
+        </div>
+
+        <div className={styles.sidebarSpacer} />
+
+        <button
+          className={styles.linkButton}
+          onClick={onOpenSettings}
+          type="button"
+          style={{ marginBottom: 16 }}
+        >
+          Settings
+        </button>
+
+        {defaultFolder && (
+          <div className={styles.sidebarFooter}>
+            <span className={styles.footerLabel}>Default folder</span>
+            <span className={styles.footerPath} title={defaultFolder}>
+              {defaultFolder}
+            </span>
+            <div className={styles.footerLinks}>
+              <button
+                className={styles.linkButton}
+                onClick={handlePickDefaultFolder}
+                type="button"
+              >
+                Change
+              </button>
+              <button
+                className={styles.linkButton}
+                onClick={handleClearDefaultFolder}
+                type="button"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+      </aside>
+
+      <main className={styles.main}>{renderMain()}</main>
+
+      {showCreateModal && defaultFolder && (
+        <CreateProjectModal
+          defaultFolder={defaultFolder}
+          onSubmit={handleCreateProject}
+          onCancel={() => setShowCreateModal(false)}
+        />
+      )}
     </div>
   );
 };
 
-// Re-export for any consumer that wants to compute a fallback project display
-// name from a free-form folder path.
 export const projectNameFromPath = (p: string): string => basename(p);

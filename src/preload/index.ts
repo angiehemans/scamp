@@ -64,6 +64,9 @@ const api = {
   setDefaultProjectsFolder: (path: string | null): Promise<Settings> =>
     ipcRenderer.invoke(IPC.SettingsSetDefaultFolder, { path }),
 
+  updateSettings: (patch: Partial<Settings>): Promise<Settings> =>
+    ipcRenderer.invoke(IPC.SettingsUpdate, patch),
+
   onFileChanged: (handler: (payload: FileChangedPayload) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, payload: FileChangedPayload): void => handler(payload);
     ipcRenderer.on(IPC.FileChanged, listener);

@@ -75,11 +75,18 @@ const elementToStyle = (
   if (pt || pr || pb || pl) {
     base.padding = `${pt}px ${pr}px ${pb}px ${pl}px`;
   }
+  const [mt, mr, mb, ml] = el.margin;
+  if (mt || mr || mb || ml) {
+    base.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
+  }
   if (el.type === 'text') {
+    if (el.fontFamily !== undefined) base.fontFamily = el.fontFamily;
     if (el.fontSize !== undefined) base.fontSize = el.fontSize;
     if (el.fontWeight !== undefined) base.fontWeight = el.fontWeight;
     if (el.color !== undefined) base.color = el.color;
     if (el.textAlign !== undefined) base.textAlign = el.textAlign;
+    if (el.lineHeight !== undefined) base.lineHeight = el.lineHeight;
+    if (el.letterSpacing !== undefined) base.letterSpacing = el.letterSpacing;
   }
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually

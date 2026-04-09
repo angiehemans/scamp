@@ -10,6 +10,39 @@ type Props = {
   elementId: string;
 };
 
+/**
+ * Font options. The `value` is the full `font-family` CSS value including
+ * generic fallback, so the browser picks the right category even when the
+ * exact font isn't installed (common on Linux). The label is the
+ * human-friendly display name in the dropdown.
+ */
+const FONT_FAMILY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: '', label: 'System font' },
+  // ---- Sans-serif (Google Fonts) ----
+  { value: 'Inter, sans-serif', label: 'Inter' },
+  { value: 'Roboto, sans-serif', label: 'Roboto' },
+  { value: 'Open Sans, sans-serif', label: 'Open Sans' },
+  { value: 'Lato, sans-serif', label: 'Lato' },
+  { value: 'Montserrat, sans-serif', label: 'Montserrat' },
+  { value: 'Poppins, sans-serif', label: 'Poppins' },
+  { value: 'Source Sans 3, sans-serif', label: 'Source Sans 3' },
+  { value: 'Nunito, sans-serif', label: 'Nunito' },
+  { value: 'Raleway, sans-serif', label: 'Raleway' },
+  { value: 'Ubuntu, sans-serif', label: 'Ubuntu' },
+  // ---- Sans-serif (web-safe) ----
+  { value: 'Arial, Helvetica, sans-serif', label: 'Arial / Helvetica' },
+  { value: 'Verdana, Geneva, sans-serif', label: 'Verdana' },
+  // ---- Serif (Google Fonts) ----
+  { value: 'Playfair Display, serif', label: 'Playfair Display' },
+  { value: 'Merriweather, serif', label: 'Merriweather' },
+  // ---- Serif (web-safe) ----
+  { value: 'Georgia, serif', label: 'Georgia' },
+  { value: 'Times New Roman, Times, serif', label: 'Times New Roman' },
+  // ---- Monospace ----
+  { value: 'Courier New, Courier, monospace', label: 'Courier New' },
+  { value: 'Ubuntu Mono, monospace', label: 'Ubuntu Mono' },
+];
+
 const FONT_WEIGHT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: '400', label: '400 Regular' },
   { value: '500', label: '500 Medium' },
@@ -33,6 +66,15 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Typography">
+      <Row label="Font">
+        <EnumSelect
+          value={element.fontFamily ?? ''}
+          options={FONT_FAMILY_OPTIONS}
+          onChange={(value) =>
+            patchElement(elementId, { fontFamily: value.length > 0 ? value : undefined })
+          }
+        />
+      </Row>
       <Row label="Size">
         <NumberInput
           value={element.fontSize}

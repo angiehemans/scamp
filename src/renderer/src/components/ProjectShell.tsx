@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { ProjectData, PageFile } from '@shared/types';
+import { useCallback, useEffect, useState } from 'react';
+import type { ProjectData, PageFile, Settings } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
 import { Viewport } from '../canvas/Viewport';
@@ -14,12 +14,22 @@ import styles from './ProjectShell.module.css';
 type Props = {
   project: ProjectData;
   onClose: () => void;
+  onOpenSettings?: () => void;
 };
 
-export const ProjectShell = ({ project, onClose }: Props): JSX.Element => {
+export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.Element => {
   const [activePageName, setActivePageName] = useState<string | null>(
     project.pages[0]?.name ?? null
   );
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const refreshSettings = useCallback(async (): Promise<void> => {
+    const next = await window.scamp.getSettings();
+    setSettings(next);
+  }, []);
+  useEffect(() => {
+    void refreshSettings();
+  }, [refreshSettings]);
+
   const loadPage = useCanvasStore((s) => s.loadPage);
   const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
@@ -188,7 +198,7 @@ export const ProjectShell = ({ project, onClose }: Props): JSX.Element => {
         <button className={styles.backButton} onClick={onClose} type="button">
           ← Projects
         </button>
-        <Toolbar />
+        <Toolbar onOpenSettings={onOpenSettings} />
         <span className={styles.spacer} />
         <ZoomControls />
         <button
@@ -238,7 +248,9 @@ export const ProjectShell = ({ project, onClose }: Props): JSX.Element => {
             <ElementTree />
           </div>
         </aside>
-        <Viewport />
+        <Viewport
+          artboardBackground={settings?.artboardBackground}
+        />
         <PropertiesPanel />
       </div>
       {bottomPanel === 'code' && <CodePanel />}

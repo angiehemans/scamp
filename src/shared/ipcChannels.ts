@@ -25,6 +25,7 @@ export const IPC = {
   // App settings
   SettingsGet: 'settings:get',
   SettingsSetDefaultFolder: 'settings:setDefaultFolder',
+  SettingsUpdate: 'settings:update',
 
   // Terminal (renderer ↔ main)
   TerminalCreate: 'terminal:create',

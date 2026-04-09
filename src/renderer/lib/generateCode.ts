@@ -241,6 +241,7 @@ export const elementDeclarationLines = (
 
     // Text properties (only on text elements, only when set)
     if (el.type === 'text') {
+      if (el.fontFamily !== undefined) lines.push(`font-family: ${el.fontFamily};`);
       if (el.fontSize !== undefined) lines.push(`font-size: ${el.fontSize}px;`);
       if (el.fontWeight !== undefined) lines.push(`font-weight: ${el.fontWeight};`);
       if (el.color !== undefined) lines.push(`color: ${el.color};`);

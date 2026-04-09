@@ -67,6 +67,7 @@ export type ScampElement = {
 
   // Text only
   text?: string;
+  fontFamily?: string;
   fontSize?: number;
   fontWeight?: FontWeight;
   color?: string;

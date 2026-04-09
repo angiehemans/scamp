@@ -88,6 +88,11 @@ export const cssToScampProperty: Record<string, Mapper> = {
     if (trimmed.length === 0) return {};
     return { letterSpacing: parsePx(trimmed) };
   },
+  'font-family': (v) => {
+    const trimmed = v.trim();
+    if (trimmed.length === 0) return {};
+    return { fontFamily: trimmed };
+  },
   'font-size': (v) => ({ fontSize: parsePx(v) }),
   'font-weight': (v) => {
     const n = parseInt(v, 10);

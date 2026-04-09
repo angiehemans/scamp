@@ -1,0 +1,119 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  width: 400px;
+  background: #232323;
+  border: 1px solid #2c2c2c;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+}
+
+.input {
+  background: #0f0f0f;
+  border: 1px solid #2c2c2c;
+  border-radius: 6px;
+  color: #e6e6e6;
+  font-size: 15px;
+  padding: 8px 10px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.hintCode {
+  background: #0f0f0f;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #888;
+  font-size: 12px;
+}
+
+.error {
+  padding: 8px 12px;
+  background: #4b1d1d;
+  color: #fca5a5;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.primary,
+.secondary {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.primary {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.primary:hover {
+  background: #2563eb;
+}
+
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondary {
+  background: #333;
+  color: #e6e6e6;
+}
+
+.secondary:hover {
+  background: #404040;
+}
+
+.secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

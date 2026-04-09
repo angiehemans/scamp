@@ -15,25 +15,27 @@
   justify-content: flex-start;
   padding: 48px;
   box-sizing: border-box;
+  /* Canvas background color is set via inline style from settings.
+     Default fallback only. */
   background-color: #0f0f0f;
-  background-image:
-    linear-gradient(45deg, #1a1a1a 25%, transparent 25%),
-    linear-gradient(-45deg, #1a1a1a 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #1a1a1a 75%),
-    linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
-  background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
 
 .frame {
   position: relative;
-  background: #ffffff;
+  /* The canvas background comes from the root element's backgroundColor
+     via ElementRenderer. This transparent default lets it show through. */
+  background: transparent;
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
   flex-shrink: 0;
   /* Center horizontally when the frame fits; start-aligned when it
      overflows so the left edge is reachable via scrolling. */
   margin-left: auto;
   margin-right: auto;
+  /* Reset to the browser default font stack so the app's Ubuntu Mono
+     doesn't leak into the user's design. Elements set their own
+     font-family via the typed field; everything else gets system-ui. */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #000;
 }
 
 .frame[data-cursor='crosshair'] {

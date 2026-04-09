@@ -15,6 +15,7 @@ const storePath = (): string => join(app.getPath('userData'), 'settings.json');
 
 const DEFAULT_SETTINGS: Settings = {
   defaultProjectsFolder: null,
+  artboardBackground: '#0f0f0f',
 };
 
 const readStore = async (): Promise<Settings> => {
@@ -24,8 +25,17 @@ const readStore = async (): Promise<Settings> => {
     if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_SETTINGS };
     const obj = parsed as Record<string, unknown>;
     const folder = obj['defaultProjectsFolder'];
+    const artboard = obj['artboardBackground'];
+    // Migrate: old `canvasBackground` key mapped to the same concept.
+    const legacy = obj['canvasBackground'];
+    const artboardValue = typeof artboard === 'string'
+      ? artboard
+      : typeof legacy === 'string'
+        ? legacy
+        : DEFAULT_SETTINGS.artboardBackground;
     return {
       defaultProjectsFolder: typeof folder === 'string' ? folder : null,
+      artboardBackground: artboardValue,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -51,6 +61,13 @@ const setDefaultFolder = async (path: string | null): Promise<Settings> => {
   return next;
 };
 
+const updateSettings = async (patch: Partial<Settings>): Promise<Settings> => {
+  const current = await readStore();
+  const next: Settings = { ...current, ...patch };
+  await writeStore(next);
+  return next;
+};
+
 export const registerSettingsIpc = (): void => {
   ipcMain.handle(IPC.SettingsGet, async () => {
     try {
@@ -67,6 +84,15 @@ export const registerSettingsIpc = (): void => {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('[settings:setDefaultFolder] failed', e);
+      throw e;
+    }
+  });
+  ipcMain.handle(IPC.SettingsUpdate, async (_e, patch: Partial<Settings>) => {
+    try {
+      return await updateSettings(patch);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[settings:update] failed', e);
       throw e;
     }
   });

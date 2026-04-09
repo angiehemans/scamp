@@ -31,6 +31,8 @@ export type ChooseFolderResult = {
 export type Settings = {
   /** The folder under which `New Project` creates project subdirectories. */
   defaultProjectsFolder: string | null;
+  /** Background color of the artboard — the area behind the canvas. */
+  artboardBackground: string;
 };
 
 export type CreateProjectArgs = {

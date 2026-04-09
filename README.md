@@ -1,8 +1,6 @@
 # Scamp
 
-A local-first design tool that lets you visually compose layouts using nested rectangles and flex controls. Unlike traditional design tools, the output is real code — each page saves as a `.tsx` file plus a `.module.css` file that update in real time as you design.
-
-The full product brief lives in [`prd-scamp-poc.md`](./prd-scamp-poc.md). The contributor rules live in [`CLAUDE.md`](./CLAUDE.md).
+A local-first design tool that lets you visually compose layouts and the output is real code — each page saves as a `.tsx` file plus a `.module.css` file that update in real time as you design. External edits (by hand or by an AI agent) reload the canvas instantly, making it a true bidirectional design-to-code workflow.
 
 ## Stack
 
@@ -11,6 +9,7 @@ The full product brief lives in [`prd-scamp-poc.md`](./prd-scamp-poc.md). The co
 - **Zustand** — canvas state
 - **CSS Modules** — app styling
 - **chokidar** — file watching for bidirectional sync
+- **react-color** — color picker (SketchPicker, dark mode)
 - **Vitest** — unit + integration tests
 
 ## Repo layout
@@ -24,6 +23,8 @@ src/
 │       ├── project.ts       choose folder, create/open project
 │       ├── file.ts          atomic write + class-block patch
 │       ├── page.ts          page create/delete
+│       ├── terminal.ts      node-pty terminal management
+│       ├── settings.ts      persistent app settings
 │       └── recentProjects.ts  recent projects store
 ├── preload/               contextBridge exposing window.scamp
 ├── shared/                code shared by main/preload/renderer
@@ -31,12 +32,23 @@ src/
 │   ├── types.ts             IPC payload types
 │   └── agentMd.ts           agent.md template + default page files
 └── renderer/              React app
-    ├── lib/                 pure functions (defaults, element type)
-    ├── store/               Zustand slices
+    ├── lib/                 pure functions (generateCode, parseCode,
+    │                        cssPropertyMap, defaults, element type)
+    ├── store/               Zustand slices (canvasSlice)
     └── src/
         ├── App.tsx
+        ├── syncBridge.ts    debounced canvas → file sync
         ├── canvas/          viewport, element renderer, interaction layer
-        └── components/      start screen, project shell, toolbar
+        └── components/
+            ├── controls/    NumberInput, ColorInput, EnumSelect,
+            │                SegmentedControl, FourSideInput
+            ├── sections/    BackgroundSection, SpacingSection, BorderSection,
+            │                SizeSection, LayoutSection, PositionSection,
+            │                TagSection, TypographySection
+            ├── StartScreen, ProjectShell, SettingsPage
+            ├── PropertiesPanel (UI/CSS toggle), CssPanel, UiPanel
+            ├── ElementTree, Toolbar, ZoomControls, CodePanel
+            └── TerminalPanel, TerminalView
 test/                       Vitest unit + integration tests
 ```
 
@@ -52,37 +64,54 @@ npm run test:integration  # integration only
 npm run test:watch      # watch mode
 ```
 
-## Current state
+## Features
 
-| Milestone | Status |
-|---|---|
-| M1 — Electron shell + file system | ✅ |
-| M2 — Canvas + rectangle drawing | ✅ |
-| M3 — `generateCode` / `parseCode` + panel editor | ✅ |
-| M4 — Code panel + external sync | ✅ |
-| M5 — Text + terminal | ✅ |
+### Canvas & drawing
+- 1440×900 canvas that scales to fit, with manual zoom (discrete steps via Cmd/Ctrl +/-) and horizontal + vertical scrolling when zoomed in
+- Rectangle tool — click-drag to create; nested rects draw inside the deepest rect under the cursor
+- Text tool — click to place, inline contentEditable editing
+- Select tool — click to select, drag to move, 8 resize handles, shift-click for multi-select
+- Element tree (layers panel) with drag-and-drop reordering, grouping, and ungrouping
+- Keyboard shortcuts: `V` select, `R` rectangle, `T` text, `Cmd+D` duplicate, `Backspace` delete
 
-### What works today
+### Properties panel
+- **UI mode** — WYSIWYG editing with typed controls grouped into sections:
+  - Position (x, y — hidden for flex children)
+  - Size (width/height with Fixed, Stretch, Fit content, Auto modes)
+  - Layout (Block/Flex toggle, direction, align, justify, gap)
+  - Spacing (padding and margin with linked/expanded four-side input)
+  - Background (color picker with hex + rgba support)
+  - Border (width, style, color, radius)
+  - Tag (semantic HTML tag selector for text elements)
+  - Typography (font family from Google Fonts + web-safe, size, weight, color, align, line-height, letter-spacing)
+- **CSS mode** — raw CodeMirror editor with CSS syntax highlighting, autocompletion, and Cmd+S to commit
+- Toggle between UI and CSS modes; both read the same store so switching is instant and lossless
 
-- Create or open a project from the start screen via native folder dialog
-- Recent projects persisted at `app.getPath('userData')/recentProjects.json`, displayed on the start screen, greyed out if the folder is missing
-- New projects get an auto-generated `agent.md`, `home.tsx`, and `home.module.css`
-- chokidar watches the active project and emits `file:changed` to the renderer (with a write-suppression set so canvas-originated writes don't echo back)
-- `file:write` writes both halves of a page atomically (write to `.tmp`, then rename)
-- `file:patch` replaces a single class block in a CSS module file
-- 1440×900 canvas viewport that scales to fit the available panel space
-- Rectangle tool — click-drag to create a rect; min size 20×20; nested rects are drawn inside the deepest rect under the cursor
-- Select tool — click to select, drag to move, 8 resize handles to resize
-- Keyboard shortcuts — `V` for select, `R` for rectangle
-- Forced dark mode at the OS theme, BrowserWindow, and HTML levels
+### Code generation & sync
+- `generateCode` — pure function producing real TSX + CSS module from canvas state
+- `parseCode` — inverse of generateCode, reads TSX + CSS back into canvas state
+- Round-trip invariant: generateCode → parseCode reproduces the original state
+- Debounced canvas → file writes via the sync bridge
+- chokidar watches for external file edits and reloads the canvas
+- `customProperties` passthrough — CSS properties the canvas doesn't model are preserved verbatim through the round-trip
 
-### What's coming next (M3)
+### Project management
+- Full-window start screen with sidebar navigation and recent projects list
+- Create new projects with validated names in a configurable default folder
+- Open existing projects via native folder dialog
+- Recent projects persisted across sessions, with missing-folder detection
+- Multi-page support — create and delete pages, each gets its own TSX + CSS pair
+- Auto-generated `agent.md` for AI agent interop
 
-- `generateCode(elements, rootId, pageName) → { tsx, css }` (pure, fully tested)
-- `parseCode(tsx, css) → ElementTree` (pure, fully tested, inverse of generateCode)
-- Debounced canvas → file writes
-- CodeMirror panel editor for the selected element's class body
-- Round-trip sync: edit panel → file → re-parse → state → re-render
+### Settings
+- Accessible from both the start screen and project toolbar
+- Default projects folder
+- Artboard background color (the area behind the canvas)
+
+### Terminal
+- Integrated terminal panel (xterm.js + node-pty)
+- Up to 3 tabs, persisted across panel toggles
+- Error recovery: terminal failures are surfaced inline instead of silently failing
 
 ## Conventions
 
@@ -91,6 +120,7 @@ npm run test:watch      # watch mode
 - The renderer never reads from disk — every file operation goes through IPC
 - Path aliases: `@renderer`, `@lib`, `@store`, `@shared`
 - Anything in `src/renderer/lib/` must have meaningful test coverage (see CLAUDE.md)
+- Ubuntu Mono font across the entire app UI
 
 ## License
 

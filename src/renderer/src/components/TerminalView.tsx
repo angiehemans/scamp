@@ -32,8 +32,8 @@ export const TerminalView = ({ cwd, onExit }: Props): JSX.Element => {
 
     const term = new Terminal({
       cursorBlink: true,
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-      fontSize: 12,
+      fontFamily: "'Ubuntu Mono', monospace",
+      fontSize: 13,
       theme: {
         background: '#0f0f0f',
         foreground: '#e6e6e6',

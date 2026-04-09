@@ -10,7 +10,7 @@
 }
 
 .label {
-  font-size: 10px;
+font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -30,9 +30,9 @@
   border: 1px solid #2c2c2c;
   border-radius: 4px;
   padding: 4px 6px;
-  font-size: 12px;
+font-size: 13px;
   color: #e0e0e0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'Ubuntu Mono', monospace;
 }
 
 .input:focus {
@@ -107,8 +107,8 @@
   border: 1px solid #2c2c2c !important;
   border-radius: 4px !important;
   padding: 5px 4px 4px !important;
-  font-size: 11px !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+font-size: 12px !important;
+  font-family: 'Ubuntu Mono', monospace !important;
   box-shadow: none !important;
   height: auto !important;
   width: 100% !important;
@@ -121,7 +121,7 @@
 
 .sketchDark label {
   color: #777 !important;
-  font-size: 10px !important;
+font-size: 11px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
@@ -140,7 +140,7 @@
   border: 1px solid #2c2c2c;
   border-radius: 4px;
   padding: 4px 6px;
-  font-size: 12px;
+font-size: 13px;
   color: #e0e0e0;
   appearance: none;
   cursor: pointer;
@@ -166,7 +166,7 @@
   border: none;
   border-radius: 3px;
   padding: 4px 8px;
-  font-size: 11px;
+font-size: 12px;
   color: #888;
   cursor: pointer;
   font-family: inherit;
@@ -202,7 +202,7 @@
   border: 1px solid #2c2c2c;
   border-radius: 3px;
   padding: 2px 6px;
-  font-size: 10px;
+font-size: 11px;
   color: #888;
   cursor: pointer;
 }
@@ -229,7 +229,7 @@
 }
 
 .fourSideCellLabel {
-  font-size: 10px;
+font-size: 11px;
   color: #666;
   width: 12px;
 }
@@ -247,7 +247,7 @@
 }
 
 .hint {
-  font-size: 10px;
+font-size: 11px;
   color: #666;
   font-style: italic;
 }

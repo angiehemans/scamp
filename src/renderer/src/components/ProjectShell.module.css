@@ -17,7 +17,7 @@
   background: none;
   border: none;
   color: #e6e6e6;
-  font-size: 13px;
+font-size: 14px;
   cursor: pointer;
   padding: 6px 10px;
   border-radius: 6px;
@@ -28,7 +28,7 @@
 }
 
 .projectName {
-  font-size: 13px;
+font-size: 14px;
   font-weight: 600;
 }
 
@@ -40,7 +40,7 @@
   background: #1f1f1f;
   border: none;
   color: #c0c0c0;
-  font-size: 12px;
+font-size: 13px;
   font-weight: 500;
   padding: 6px 12px;
   border-radius: 6px;
@@ -97,7 +97,7 @@
 
 .sidebarTitle {
   margin: 0 0 8px;
-  font-size: 11px;
+font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   color: #777;
@@ -121,7 +121,7 @@
   color: #e6e6e6;
   padding: 6px 10px;
   border-radius: 4px;
-  font-size: 13px;
+font-size: 14px;
   cursor: pointer;
 }
 
@@ -148,7 +148,7 @@
 }
 
 .dim {
-  font-size: 12px;
+font-size: 13px;
   color: #555;
 }
 
@@ -156,5 +156,5 @@
   background: #232323;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 11px;
+font-size: 12px;
 }

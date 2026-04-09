@@ -14,7 +14,11 @@ const TOOLS: ToolDef[] = [
   { tool: 'text', label: 'Text', shortcut: 'T' },
 ];
 
-export const Toolbar = (): JSX.Element => {
+type Props = {
+  onOpenSettings?: () => void;
+};
+
+export const Toolbar = ({ onOpenSettings }: Props): JSX.Element => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
 
@@ -48,6 +52,17 @@ export const Toolbar = (): JSX.Element => {
           <span className={styles.shortcut}>{t.shortcut}</span>
         </button>
       ))}
+      <span className={styles.spacer} />
+      {onOpenSettings && (
+        <button
+          className={styles.button}
+          onClick={onOpenSettings}
+          type="button"
+          title="Settings"
+        >
+          Settings
+        </button>
+      )}
     </div>
   );
 };
