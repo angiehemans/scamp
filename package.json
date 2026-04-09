@@ -31,12 +31,14 @@
     "htmlparser2": "^12.0.0",
     "node-pty": "^1.1.0",
     "postcss": "^8.5.9",
+    "react-color": "^2.19.3",
     "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.3",
+    "@types/react-color": "^3.0.13",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "electron": "^31.0.0",

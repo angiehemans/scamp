@@ -11,7 +11,13 @@ import type {
   TerminalWriteArgs,
 } from '@shared/types';
 
-const MAX_TERMINALS = 3;
+// In dev we allow more concurrent ptys than the user can actually open
+// from the UI (MAX_TABS = 3). HMR re-mounts TerminalView without always
+// running its cleanup, so orphaned ptys stack up across reloads until
+// they hit the cap and the next createTerminal call fails. A higher cap
+// in dev gives the user breathing room before they have to reload the
+// window. Production keeps the strict limit since there's no HMR.
+const MAX_TERMINALS = process.env['NODE_ENV'] === 'development' ? 12 : 3;
 
 type Term = {
   id: string;
@@ -35,7 +41,15 @@ const findWindow = (): BrowserWindow | null => {
 
 const createTerminal = (args: TerminalCreateArgs): TerminalCreateResult => {
   if (terminals.size >= MAX_TERMINALS) {
-    throw new Error(`Terminal limit reached (${MAX_TERMINALS}).`);
+    // Log loudly so the dev knows orphans piled up — not just a quiet
+    // IPC rejection in the renderer console.
+    console.error(
+      `[terminal] limit reached: ${terminals.size}/${MAX_TERMINALS} ptys alive. ` +
+        `Reload the window to clear them.`
+    );
+    throw new Error(
+      `Terminal limit reached (${MAX_TERMINALS}). Reload the window to clear orphaned shells.`
+    );
   }
   const id = String(nextId++);
   const proc = pty.spawn(defaultShell(), [], {

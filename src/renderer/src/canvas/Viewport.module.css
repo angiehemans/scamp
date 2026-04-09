@@ -3,14 +3,16 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  /* Tall pages overflow vertically — let the user scroll. The frame
-     itself is sized to fit horizontally so we never get a horizontal
-     scrollbar. */
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* Scroll in both directions when the zoomed frame exceeds the
+     container. At the default fit-to-width zoom the frame fits
+     horizontally so no scrollbar appears. */
+  overflow: auto;
   display: flex;
   align-items: flex-start;
-  justify-content: center;
+  /* flex-start instead of center so the left edge isn't clipped when
+     the frame overflows horizontally. Horizontal centering is handled
+     by margin:auto on .frame instead. */
+  justify-content: flex-start;
   padding: 48px;
   box-sizing: border-box;
   background-color: #0f0f0f;
@@ -27,11 +29,11 @@
   position: relative;
   background: #ffffff;
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
-  /* transform-origin: top center keeps the top edge of the frame
-     anchored as the user scales / scrolls — important when the page is
-     taller than the visible container area. */
-  transform-origin: top center;
   flex-shrink: 0;
+  /* Center horizontally when the frame fits; start-aligned when it
+     overflows so the left edge is reachable via scrolling. */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .frame[data-cursor='crosshair'] {

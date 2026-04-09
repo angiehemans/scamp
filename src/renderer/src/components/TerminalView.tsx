@@ -82,7 +82,17 @@ export const TerminalView = ({ cwd, onExit }: Props): JSX.Element => {
       });
     };
 
-    void setup();
+    // Surface setup failures inside the terminal itself instead of letting
+    // them disappear into an unhandled-rejection log. The most common cause
+    // is hitting `MAX_TERMINALS` in src/main/ipc/terminal.ts after orphaned
+    // ptys have piled up across HMR cycles — the user just sees a blinking
+    // cursor with no prompt and no clue why. Writing the error directly
+    // into the xterm tells them what to do (reload).
+    setup().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      term.write(`\r\n\x1b[31mTerminal failed to start:\x1b[0m ${message}\r\n`);
+      term.write('\x1b[2mTry reloading the window (Ctrl+R) to clear orphaned shells.\x1b[0m\r\n');
+    });
 
     const handleResize = (): void => {
       try {

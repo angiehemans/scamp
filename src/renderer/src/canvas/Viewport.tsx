@@ -95,7 +95,7 @@ export const Viewport = (): JSX.Element => {
         style={{
           width: `${frameW}px`,
           minHeight: `${frameMinH}px`,
-          transform: `scale(${scale})`,
+          zoom: scale,
         }}
       >
         <ElementRenderer elementId={rootElementId} />

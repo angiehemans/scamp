@@ -46,23 +46,92 @@
 }
 
 .colorSwatch {
+  position: relative;
   width: 24px;
   height: 24px;
   padding: 0;
   border: 1px solid #2c2c2c;
   border-radius: 4px;
-  background: transparent;
   cursor: pointer;
+  flex-shrink: 0;
+  /* Checkerboard behind the color so alpha is visible. */
+  background-image:
+    linear-gradient(45deg, #444 25%, transparent 25%),
+    linear-gradient(-45deg, #444 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #444 75%),
+    linear-gradient(-45deg, transparent 75%, #444 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0;
 }
 
-.colorSwatch::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.colorSwatch::-webkit-color-swatch {
-  border: none;
+.colorSwatchInner {
+  position: absolute;
+  inset: 0;
   border-radius: 3px;
 }
+
+.colorPickerWrap {
+  position: relative;
+}
+
+.colorPopover {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+}
+
+.colorPopoverAbove {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.colorPopoverBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+/* ---- react-color SketchPicker dark-mode overrides ----
+ * The `styles` prop only reaches the top-level Sketch wrapper; the
+ * internal EditableInput sub-components ignore it. We target them
+ * via :global selectors scoped under .sketchDark so they don't
+ * leak outside the color picker. */
+
+.sketchDark input {
+  background: #0f0f0f !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #2c2c2c !important;
+  border-radius: 4px !important;
+  padding: 5px 4px 4px !important;
+  font-size: 11px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  box-shadow: none !important;
+  height: auto !important;
+  width: 100% !important;
+}
+
+.sketchDark input:focus {
+  outline: none !important;
+  border-color: #4a8cff !important;
+}
+
+.sketchDark label {
+  color: #777 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Preset swatches divider — override the light default border. */
+.sketchDark :global(.flexbox-fix[style*="border-top"]) {
+  border-top-color: #2c2c2c !important;
+}
+
 
 .select {
   flex: 1;

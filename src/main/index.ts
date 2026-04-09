@@ -27,6 +27,18 @@ const createWindow = (): void => {
     win.show();
   });
 
+  // Renderer reloads (Ctrl+R, devtools reload, HMR full reload) tear down
+  // every React component without giving them a chance to run their effect
+  // cleanups. The pty Map in src/main/ipc/terminal.ts lives in the main
+  // process, so any ptys spawned by the previous renderer survive — they
+  // pile up until createTerminal hits MAX_TERMINALS and the next attempt
+  // fails. Killing them on `did-start-navigation` ties pty lifetime to
+  // the renderer that owns them.
+  win.webContents.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
+    if (!isMainFrame || isInPlace) return;
+    disposeAllTerminals();
+  });
+
   win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: 'deny' };
