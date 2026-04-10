@@ -57,12 +57,33 @@ test/                       Vitest unit + integration tests
 ```bash
 npm run dev             # launch the Electron app with HMR
 npm run build           # production build into out/
+npm run package         # build + package into dist/ (installer)
 npm run typecheck       # tsc --noEmit (node + web projects)
 npm run test            # all tests
 npm run test:unit       # unit only
 npm run test:integration  # integration only
 npm run test:watch      # watch mode
 ```
+
+## Packaging
+
+To create a distributable installer:
+
+```bash
+npm run package
+```
+
+This runs `electron-builder` which produces platform-specific installers in the `dist/` folder:
+
+| Platform | Output |
+|---|---|
+| Linux | `.AppImage` + `.deb` |
+| macOS | `.dmg` + `.zip` |
+| Windows | `.exe` (NSIS installer) + portable `.exe` |
+
+You can only build for your current platform (e.g. you can't build a `.dmg` on Linux). For cross-platform builds, use CI (GitHub Actions, etc.).
+
+The config lives in `electron-builder.yml` at the repo root.
 
 ## Features
 
