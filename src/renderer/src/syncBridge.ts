@@ -1,5 +1,6 @@
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
+import { parseThemeCss } from '@lib/parseTheme';
 import { useCanvasStore, type ActivePage } from '@store/canvasSlice';
 import type { ScampElement } from '@lib/element';
 
@@ -160,6 +161,9 @@ export const initSyncBridge = (): (() => void) => {
     }
 
     state.reloadElements(parsed.elements, nextSource);
+    // External edits invalidate the undo history — the old states
+    // reference element maps that no longer match the file on disk.
+    useCanvasStore.temporal.getState().clear();
   });
 
   // Flush any queued write when the renderer is about to go away
@@ -173,10 +177,17 @@ export const initSyncBridge = (): (() => void) => {
   };
   window.addEventListener('beforeunload', handleBeforeUnload);
 
+  // Listen for theme.css changes and update the token store.
+  const offTheme = window.scamp.onThemeChanged((content: string) => {
+    const tokens = parseThemeCss(content);
+    useCanvasStore.getState().setThemeTokens(tokens);
+  });
+
   return () => {
     cancelWriteTimer();
     window.removeEventListener('beforeunload', handleBeforeUnload);
     unsubStore();
     offFile();
+    offTheme();
   };
 };

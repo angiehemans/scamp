@@ -2,12 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ProjectData, PageFile, Settings } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
+import { parseThemeCss } from '@lib/parseTheme';
 import { Viewport } from '../canvas/Viewport';
 import { Toolbar } from './Toolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
+import { ThemePanel } from './ThemePanel';
 import { ZoomControls } from './ZoomControls';
 import styles from './ProjectShell.module.css';
 
@@ -39,6 +41,12 @@ export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.E
   // the lifetime of the project, even when the panel is hidden, so any
   // long-running pty processes (Claude Code, dev servers, watches…)
   // survive being toggled out of view.
+  const [showThemePanel, setShowThemePanel] = useState(false);
+  const setOpenThemePanel = useCanvasStore((s) => s.setOpenThemePanel);
+  useEffect(() => {
+    setOpenThemePanel(() => setShowThemePanel(true));
+    return () => setOpenThemePanel(null);
+  }, [setOpenThemePanel]);
   const [terminalEverOpened, setTerminalEverOpened] = useState(false);
   useEffect(() => {
     if (bottomPanel === 'terminal') setTerminalEverOpened(true);
@@ -47,6 +55,16 @@ export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.E
   // project starts with no background pty processes.
   useEffect(() => {
     setTerminalEverOpened(false);
+  }, [project.path]);
+
+  // Load theme tokens from theme.css on project open.
+  useEffect(() => {
+    const loadTheme = async (): Promise<void> => {
+      const content = await window.scamp.readTheme({ projectPath: project.path });
+      const tokens = parseThemeCss(content);
+      useCanvasStore.getState().setThemeTokens(tokens);
+    };
+    void loadTheme();
   }, [project.path]);
 
   // Parse + load the selected page whenever it changes. The store's
@@ -67,6 +85,9 @@ export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.E
       parsed.elements,
       { tsx: page.tsxContent, css: page.cssContent }
     );
+    // Fresh page load — clear undo history so the user can't undo past
+    // the initial state of this page.
+    useCanvasStore.temporal.getState().clear();
   }, [activePageName, project.pages, loadPage, resetForNewPage]);
 
   const toggleCodePanel = (): void => {
@@ -140,6 +161,18 @@ export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.E
         return;
       }
 
+      // Cmd/Ctrl+Z — undo. Cmd/Ctrl+Shift+Z — redo.
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        if (e.shiftKey) {
+          useCanvasStore.temporal.getState().redo();
+        } else {
+          useCanvasStore.temporal.getState().undo();
+        }
+        return;
+      }
+
       // Cmd/Ctrl+G — wrap the current selection in a new flex group.
       if ((e.metaKey || e.ctrlKey) && (e.key === 'g' || e.key === 'G')) {
         if (isEditableTarget(e.target)) return;
@@ -198,7 +231,10 @@ export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.E
         <button className={styles.backButton} onClick={onClose} type="button">
           ← Projects
         </button>
-        <Toolbar onOpenSettings={onOpenSettings} />
+        <Toolbar
+          onOpenSettings={onOpenSettings}
+          onOpenTheme={() => setShowThemePanel(true)}
+        />
         <span className={styles.spacer} />
         <ZoomControls />
         <button
@@ -265,6 +301,12 @@ export const ProjectShell = ({ project, onClose, onOpenSettings }: Props): JSX.E
           key={project.path}
           cwd={project.path}
           hidden={bottomPanel !== 'terminal'}
+        />
+      )}
+      {showThemePanel && (
+        <ThemePanel
+          projectPath={project.path}
+          onClose={() => setShowThemePanel(false)}
         />
       )}
     </div>

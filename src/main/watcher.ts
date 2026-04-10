@@ -69,6 +69,16 @@ const emitChange = async (changedPath: string): Promise<void> => {
   if (!mainWindow) return;
   if (suppressed.has(changedPath)) return;
 
+  // theme.css changes get their own event so the renderer can reload
+  // design tokens without a full page re-parse.
+  if (basename(changedPath) === 'theme.css') {
+    const content = await readIfExists(changedPath);
+    if (content !== null) {
+      mainWindow.webContents.send(IPC.ThemeChanged, content);
+    }
+    return;
+  }
+
   const ext = extname(changedPath);
   const isTsx = ext === '.tsx';
   const isCss = changedPath.endsWith('.module.css');

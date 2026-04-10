@@ -75,24 +75,148 @@ font-size: 13px;
 }
 
 .colorPopover {
-  position: absolute;
-  z-index: 10;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
+  position: fixed;
+  z-index: 100;
+  /* Match the SketchPicker's rendered size (including padding/border)
+     so the panel doesn't resize when switching tabs. */
+  width: 231px;
+  background: #1f1f1f;
+  border: 1px solid #2c2c2c;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  overflow: hidden;
 }
 
 .colorPopoverAbove {
-  top: auto;
-  bottom: 100%;
-  margin-top: 0;
-  margin-bottom: 4px;
+  /* Direction handled by inline style. */
 }
 
 .colorPopoverBackdrop {
   position: fixed;
   inset: 0;
   z-index: 9;
+}
+
+.pickerTabs {
+  display: flex;
+  background: #1f1f1f;
+  border-bottom: 1px solid #2c2c2c;
+}
+
+.pickerTab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #777;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pickerTab:hover {
+  color: #ccc;
+}
+
+.pickerTabActive {
+  color: #e0e0e0;
+  border-bottom: 2px solid #4a8cff;
+}
+
+.tokenList {
+  background: #1f1f1f;
+  /* Fixed height matching the SketchPicker body so switching tabs
+     doesn't resize the popover. */
+  height: 307px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.tokenListItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #2c2c2c;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.tokenListItem:last-child {
+  border-bottom: none;
+}
+
+.tokenListItem:hover {
+  background: #2c2c2c;
+}
+
+.tokenListItemActive {
+  background: #1d3a6e;
+}
+
+.tokenListItemActive:hover {
+  background: #1d3a6e;
+}
+
+.tokenListSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid #2c2c2c;
+  flex-shrink: 0;
+}
+
+.tokenListName {
+  flex: 1;
+  font-size: 12px;
+  color: #e0e0e0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenListValue {
+  font-size: 11px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.inputToken {
+  color: #4a8cff;
+}
+
+.tokenListEmpty {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 12px;
+}
+
+.tokenListAddButton {
+  background: transparent;
+  border: 1px dashed #2c2c2c;
+  border-radius: 4px;
+  padding: 6px 14px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tokenListAddButton:hover {
+  color: #e0e0e0;
+  border-color: #4a8cff;
 }
 
 /* ---- react-color SketchPicker dark-mode overrides ----
@@ -189,6 +313,12 @@ font-size: 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.fourSidePreview {
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 0.3px;
 }
 
 .fourSideHeader {

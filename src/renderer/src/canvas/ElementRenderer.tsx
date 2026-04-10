@@ -12,7 +12,22 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { tagFor } from '@lib/generateCode';
 import { customPropsToStyle } from '@lib/customProps';
+import type { ThemeToken } from '@shared/types';
 import styles from './ElementRenderer.module.css';
+
+const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
+
+/** Resolve a `var(--name)` reference against theme tokens. */
+const resolveTokenColor = (
+  value: string,
+  tokens: ReadonlyArray<ThemeToken>
+): string => {
+  if (tokens.length === 0) return value;
+  const m = value.match(VAR_RE);
+  if (!m) return value;
+  const found = tokens.find((t) => t.name === m[1]);
+  return found ? found.value : 'transparent';
+};
 
 type Props = {
   elementId: string;
@@ -20,7 +35,8 @@ type Props = {
 
 const elementToStyle = (
   el: ScampElement,
-  parentDisplay: 'flex' | 'none' | undefined
+  parentDisplay: 'flex' | 'none' | undefined,
+  tokens: ReadonlyArray<ThemeToken>
 ): CSSProperties => {
   const isRoot = el.id === ROOT_ELEMENT_ID;
   // Flex children flow with the layout engine — drop position/left/top so
@@ -54,15 +70,18 @@ const elementToStyle = (
     width: widthStyle,
     height: isRoot ? undefined : heightStyle,
     minHeight: isRoot ? heightStyle : undefined,
-    background: el.backgroundColor,
-    borderRadius: el.borderRadius,
+    background: resolveTokenColor(el.backgroundColor, tokens),
+    borderRadius: `${el.borderRadius[0]}px ${el.borderRadius[1]}px ${el.borderRadius[2]}px ${el.borderRadius[3]}px`,
     boxSizing: 'border-box',
     // Reset browser-default margins on semantic text tags (h1, p, etc.)
     // so the canvas position matches the stored coordinates.
     margin: 0,
   };
-  if (el.borderStyle !== 'none' && el.borderWidth > 0) {
-    base.border = `${el.borderWidth}px ${el.borderStyle} ${el.borderColor}`;
+  const [bwt, bwr, bwb, bwl] = el.borderWidth;
+  if (el.borderStyle !== 'none' && (bwt || bwr || bwb || bwl)) {
+    base.borderWidth = `${bwt}px ${bwr}px ${bwb}px ${bwl}px`;
+    base.borderStyle = el.borderStyle;
+    base.borderColor = resolveTokenColor(el.borderColor, tokens);
   }
   if (el.display === 'flex') {
     base.display = 'flex';
@@ -83,7 +102,7 @@ const elementToStyle = (
     if (el.fontFamily !== undefined) base.fontFamily = el.fontFamily;
     if (el.fontSize !== undefined) base.fontSize = el.fontSize;
     if (el.fontWeight !== undefined) base.fontWeight = el.fontWeight;
-    if (el.color !== undefined) base.color = el.color;
+    if (el.color !== undefined) base.color = resolveTokenColor(el.color, tokens);
     if (el.textAlign !== undefined) base.textAlign = el.textAlign;
     if (el.lineHeight !== undefined) base.lineHeight = el.lineHeight;
     if (el.letterSpacing !== undefined) base.letterSpacing = el.letterSpacing;
@@ -106,6 +125,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     if (!el || !el.parentId) return undefined;
     return s.elements[el.parentId]?.display;
   });
+  const themeTokens = useCanvasStore((s) => s.themeTokens);
   const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
@@ -146,7 +166,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   if (!element) return null;
 
   const isText = element.type === 'text';
-  const style = elementToStyle(element, parentDisplay);
+  const style = elementToStyle(element, parentDisplay, themeTokens);
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
   const tag = tagFor(element) as ElementType;

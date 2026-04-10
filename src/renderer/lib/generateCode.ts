@@ -165,15 +165,18 @@ export const elementDeclarationLines = (
     }
     // Note: margin is intentionally NOT emitted for the root element — the
     // page frame doesn't sit inside another box on disk.
-    if (el.borderRadius !== DEFAULT_ROOT_STYLES.borderRadius) {
-      lines.push(`border-radius: ${el.borderRadius}px;`);
+    const [rtl, rtr, rbr, rbl] = el.borderRadius;
+    if (rtl || rtr || rbr || rbl) {
+      lines.push(`border-radius: ${rtl}px ${rtr}px ${rbr}px ${rbl}px;`);
     }
-    if (
-      el.borderWidth !== DEFAULT_ROOT_STYLES.borderWidth ||
+    const [rwt, rwr, rwb, rwl] = el.borderWidth;
+    const hasRootBorder = rwt || rwr || rwb || rwl ||
       el.borderStyle !== DEFAULT_ROOT_STYLES.borderStyle ||
-      el.borderColor !== DEFAULT_ROOT_STYLES.borderColor
-    ) {
-      lines.push(`border: ${el.borderWidth}px ${el.borderStyle} ${el.borderColor};`);
+      el.borderColor !== DEFAULT_ROOT_STYLES.borderColor;
+    if (hasRootBorder) {
+      lines.push(`border-width: ${rwt}px ${rwr}px ${rwb}px ${rwl}px;`);
+      lines.push(`border-style: ${el.borderStyle};`);
+      lines.push(`border-color: ${el.borderColor};`);
     }
   } else {
     // Sizing. The 'auto' mode is the implicit CSS default (no
@@ -228,15 +231,18 @@ export const elementDeclarationLines = (
     if (el.backgroundColor !== DEFAULT_RECT_STYLES.backgroundColor) {
       lines.push(`background: ${el.backgroundColor};`);
     }
-    if (el.borderRadius !== DEFAULT_RECT_STYLES.borderRadius) {
-      lines.push(`border-radius: ${el.borderRadius}px;`);
+    const [tl, tr, br, bl] = el.borderRadius;
+    if (tl || tr || br || bl) {
+      lines.push(`border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
     }
-    if (
-      el.borderWidth !== DEFAULT_RECT_STYLES.borderWidth ||
+    const [bwt, bwr, bwb, bwl] = el.borderWidth;
+    const hasBorder = bwt || bwr || bwb || bwl ||
       el.borderStyle !== DEFAULT_RECT_STYLES.borderStyle ||
-      el.borderColor !== DEFAULT_RECT_STYLES.borderColor
-    ) {
-      lines.push(`border: ${el.borderWidth}px ${el.borderStyle} ${el.borderColor};`);
+      el.borderColor !== DEFAULT_RECT_STYLES.borderColor;
+    if (hasBorder) {
+      lines.push(`border-width: ${bwt}px ${bwr}px ${bwb}px ${bwl}px;`);
+      lines.push(`border-style: ${el.borderStyle};`);
+      lines.push(`border-color: ${el.borderColor};`);
     }
 
     // Text properties (only on text elements, only when set)

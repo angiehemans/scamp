@@ -80,8 +80,8 @@ describe('parseCode — CSS overlay', () => {
     expect(a?.widthValue).toBe(400);
     expect(a?.heightValue).toBe(300);
     expect(a?.backgroundColor).toBe('#f0f0f0');
-    expect(a?.borderRadius).toBe(8);
-    expect(a?.borderWidth).toBe(1);
+    expect(a?.borderRadius).toEqual([8, 8, 8, 8]);
+    expect(a?.borderWidth).toEqual([1, 1, 1, 1]);
     expect(a?.borderStyle).toBe('solid');
     expect(a?.borderColor).toBe('#cccccc');
     expect(a?.x).toBe(100);
@@ -121,7 +121,7 @@ describe('parseCode — CSS overlay', () => {
     const css = `.rect_a1b2 { border-width: 3px; border-style: dashed; border-color: red; }`;
     const { elements } = parseCode(tsx, css);
     const a = elements['a1b2'];
-    expect(a?.borderWidth).toBe(3);
+    expect(a?.borderWidth).toEqual([3, 3, 3, 3]);
     expect(a?.borderStyle).toBe('dashed');
     expect(a?.borderColor).toBe('red');
   });

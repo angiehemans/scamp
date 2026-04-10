@@ -17,7 +17,8 @@ import styles from './PropertiesPanel.module.css';
  *
  *   - root: Page size, Layout, Spacing (padding only), Background
  *   - rect: Position*, Size, Layout, Spacing, Background, Border
- *   - text: rect's sections + Tag + Typography
+ *   - text: Position*, Size, Spacing, Background, Border, Tag, Typography
+ *          (no Layout — text elements can't have children)
  *
  * (*) Position is only rendered when the parent is non-flex — flex layout
  * owns placement otherwise.
@@ -56,7 +57,7 @@ export const UiPanel = (): JSX.Element => {
     <div className={styles.uiPanelBody}>
       {showPosition && <PositionSection elementId={elementId} />}
       <SizeSection elementId={elementId} />
-      <LayoutSection elementId={elementId} />
+      {!isText && <LayoutSection elementId={elementId} />}
       <SpacingSection elementId={elementId} />
       <BackgroundSection elementId={elementId} />
       <BorderSection elementId={elementId} />

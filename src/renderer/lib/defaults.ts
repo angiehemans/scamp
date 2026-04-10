@@ -19,8 +19,8 @@ export const DEFAULT_RECT_STYLES = {
   heightMode: 'fixed' as const,
   heightValue: 100,
   backgroundColor: 'transparent',
-  borderRadius: 0,
-  borderWidth: 0,
+  borderRadius: [0, 0, 0, 0] as [number, number, number, number],
+  borderWidth: [0, 0, 0, 0] as [number, number, number, number],
   borderStyle: 'none' as const,
   borderColor: '#000000',
 };
@@ -46,8 +46,8 @@ export const DEFAULT_ROOT_STYLES = {
   widthValue: 1440,
   heightValue: 900,
   backgroundColor: '#ffffff',
-  borderRadius: 0,
-  borderWidth: 0,
+  borderRadius: [0, 0, 0, 0] as [number, number, number, number],
+  borderWidth: [0, 0, 0, 0] as [number, number, number, number],
   borderStyle: 'none' as const,
   borderColor: '#000000',
 };

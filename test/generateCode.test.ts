@@ -22,8 +22,8 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   padding: [0, 0, 0, 0],
   margin: [0, 0, 0, 0],
   backgroundColor: '#ffffff',
-  borderRadius: 0,
-  borderWidth: 0,
+  borderRadius: [0, 0, 0, 0],
+  borderWidth: [0, 0, 0, 0],
   borderStyle: 'none',
   borderColor: '#000000',
   customProperties: {},
@@ -249,8 +249,8 @@ describe('generateCode — CSS', () => {
         widthValue: 320,
         heightValue: 240,
         backgroundColor: '#f0f0f0',
-        borderRadius: 8,
-        borderWidth: 1,
+        borderRadius: [8, 8, 8, 8],
+        borderWidth: [1, 1, 1, 1],
         borderStyle: 'solid',
         borderColor: '#cccccc',
       }),
@@ -266,8 +266,10 @@ describe('generateCode — CSS', () => {
     expect(block).toContain('width: 320px;');
     expect(block).toContain('height: 240px;');
     expect(block).toContain('background: #f0f0f0;');
-    expect(block).toContain('border-radius: 8px;');
-    expect(block).toContain('border: 1px solid #cccccc;');
+    expect(block).toContain('border-radius: 8px 8px 8px 8px;');
+    expect(block).toContain('border-width: 1px 1px 1px 1px;');
+    expect(block).toContain('border-style: solid;');
+    expect(block).toContain('border-color: #cccccc;');
   });
 
   it('emits width: 100% for stretch mode', () => {

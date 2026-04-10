@@ -1,4 +1,5 @@
 import type { CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import type { ThemeToken } from '@shared/types';
 
 /**
  * Custom CSS completion source for the properties panel.
@@ -137,40 +138,70 @@ const splitCurrentLine = (
   return { line: before.slice(lineStart), lineStart };
 };
 
-export const cssDeclarationsCompletion = (
-  context: CompletionContext
-): CompletionResult | null => {
-  const { line } = splitCurrentLine(context);
-  const colonIdx = line.indexOf(':');
+/**
+ * Create a CSS declarations completion source that includes theme token
+ * suggestions. The `getTokens` callback is called on every completion
+ * request so it always reflects the latest tokens in the store.
+ */
+export const createCssCompletion = (
+  getTokens: () => ReadonlyArray<ThemeToken>
+) => {
+  return (context: CompletionContext): CompletionResult | null => {
+    const { line } = splitCurrentLine(context);
+    const colonIdx = line.indexOf(':');
 
-  // VALUE completion — cursor is after a colon on the current line.
-  if (colonIdx >= 0) {
-    const propName = line.slice(0, colonIdx).trim().toLowerCase();
-    const values = CSS_VALUES_BY_PROPERTY[propName];
-    if (!values || values.length === 0) return null;
-    const word = context.matchBefore(/[\w-%#]*/);
+    // VALUE completion — cursor is after a colon on the current line.
+    if (colonIdx >= 0) {
+      const word = context.matchBefore(/[\w-%#()]*/) ;
+      if (!word) return null;
+      if (word.from === word.to && !context.explicit) return null;
+
+      const propName = line.slice(0, colonIdx).trim().toLowerCase();
+      const staticValues = CSS_VALUES_BY_PROPERTY[propName] ?? [];
+
+      // Build token suggestions as var(--name) with the resolved value
+      // as a detail label.
+      const tokens = getTokens();
+      const tokenOptions = tokens.map((t) => ({
+        label: `var(${t.name})`,
+        type: 'variable' as const,
+        detail: t.value,
+        boost: -1,
+      }));
+
+      const staticOptions = staticValues.map((v) => ({
+        label: v,
+        type: 'keyword' as const,
+      }));
+
+      const allOptions = [...staticOptions, ...tokenOptions];
+      if (allOptions.length === 0) return null;
+
+      return {
+        from: word.from,
+        options: allOptions,
+        validFor: /^[\w-%#()]*$/,
+      };
+    }
+
+    // PROPERTY completion — cursor is before any colon on the current line.
+    const word = context.matchBefore(/[\w-]*/);
     if (!word) return null;
     if (word.from === word.to && !context.explicit) return null;
     return {
       from: word.from,
-      options: values.map((v) => ({ label: v, type: 'keyword' })),
-      validFor: /^[\w-%#]*$/,
+      options: CSS_PROPERTIES.map((p) => ({
+        label: p,
+        type: 'property' as const,
+        apply: `${p}: `,
+      })),
+      validFor: /^[\w-]*$/,
     };
-  }
-
-  // PROPERTY completion — cursor is before any colon on the current line.
-  const word = context.matchBefore(/[\w-]*/);
-  if (!word) return null;
-  if (word.from === word.to && !context.explicit) return null;
-  return {
-    from: word.from,
-    options: CSS_PROPERTIES.map((p) => ({
-      label: p,
-      type: 'property',
-      // Insert "prop: " so the user can immediately type the value and
-      // get value-side completions on the next keystroke.
-      apply: `${p}: `,
-    })),
-    validFor: /^[\w-]*$/,
   };
 };
+
+/**
+ * Legacy non-token-aware completion source. Used as a fallback when
+ * tokens aren't available (e.g. settings page).
+ */
+export const cssDeclarationsCompletion = createCssCompletion(() => []);

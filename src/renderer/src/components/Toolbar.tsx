@@ -16,9 +16,10 @@ const TOOLS: ToolDef[] = [
 
 type Props = {
   onOpenSettings?: () => void;
+  onOpenTheme?: () => void;
 };
 
-export const Toolbar = ({ onOpenSettings }: Props): JSX.Element => {
+export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
 
@@ -53,6 +54,16 @@ export const Toolbar = ({ onOpenSettings }: Props): JSX.Element => {
         </button>
       ))}
       <span className={styles.spacer} />
+      {onOpenTheme && (
+        <button
+          className={styles.button}
+          onClick={onOpenTheme}
+          type="button"
+          title="Theme tokens"
+        >
+          Theme
+        </button>
+      )}
       {onOpenSettings && (
         <button
           className={styles.button}

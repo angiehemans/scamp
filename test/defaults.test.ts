@@ -16,8 +16,8 @@ describe('DEFAULT_RECT_STYLES', () => {
       heightMode: 'fixed',
       heightValue: 100,
       backgroundColor: 'transparent',
-      borderRadius: 0,
-      borderWidth: 0,
+      borderRadius: [0, 0, 0, 0],
+      borderWidth: [0, 0, 0, 0],
       borderStyle: 'none',
       borderColor: '#000000',
     });

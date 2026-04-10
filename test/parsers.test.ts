@@ -91,7 +91,7 @@ describe('parseBorderShorthand', () => {
 
   it('returns defaults for an empty string', () => {
     expect(parseBorderShorthand('')).toEqual({
-      borderWidth: DEFAULT_RECT_STYLES.borderWidth,
+      borderWidth: 0,
       borderStyle: DEFAULT_RECT_STYLES.borderStyle,
       borderColor: DEFAULT_RECT_STYLES.borderColor,
     });

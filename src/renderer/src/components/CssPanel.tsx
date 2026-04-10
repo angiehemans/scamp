@@ -5,36 +5,13 @@ import { autocompletion } from '@codemirror/autocomplete';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { useCanvasStore } from '@store/canvasSlice';
 import { elementDeclarationLines, classNameFor } from '@lib/generateCode';
-import { cssDeclarationsCompletion } from '@lib/cssCompletion';
+import { createCssCompletion } from '@lib/cssCompletion';
 import type { ScampElement } from '@lib/element';
 import styles from './PropertiesPanel.module.css';
 
 const buildClassBody = (el: ScampElement, parent: ScampElement | null): string => {
   return elementDeclarationLines(el, parent).join('\n');
 };
-
-/**
- * CodeMirror extensions for the CSS editor.
- *
- *  - `cssLang()` provides syntax parsing + token colors. We keep it for
- *    the highlighting; we just override its built-in completion source
- *    because that source assumes the editor content is a full CSS file
- *    and ends up suggesting selectors (`body`, `div`) when the user is
- *    actually typing property names inside a class body.
- *  - `autocompletion({ override: [...] })` REPLACES the default completion
- *    sources with our scamp-specific one. The custom source always treats
- *    the content as declarations and suggests properties / values.
- *  - `oneDark` is the canonical CodeMirror dark theme with proper CSS
- *    token colors (properties pink, values green, units orange, etc.).
- */
-const CSS_EXTENSIONS = [
-  cssLang(),
-  autocompletion({
-    override: [cssDeclarationsCompletion],
-    activateOnTyping: true,
-    closeOnBlur: true,
-  }),
-];
 
 /**
  * The (className, cssPath) pair the editor was loaded against. Tracked in
@@ -67,6 +44,21 @@ export const CssPanel = (): JSX.Element => {
     return s.elements[el.parentId] ?? null;
   });
   const activePage = useCanvasStore((s) => s.activePage);
+  const themeTokens = useCanvasStore((s) => s.themeTokens);
+
+  // Rebuild CodeMirror extensions when theme tokens change so the
+  // autocomplete source always has the latest var(--name) suggestions.
+  const cssExtensions = useMemo(
+    () => [
+      cssLang(),
+      autocompletion({
+        override: [createCssCompletion(() => themeTokens)],
+        activateOnTyping: true,
+        closeOnBlur: true,
+      }),
+    ],
+    [themeTokens]
+  );
 
   const editorBody = useMemo(
     () => (element ? buildClassBody(element, parentElement) : ''),
@@ -190,7 +182,7 @@ export const CssPanel = (): JSX.Element => {
           value={draft}
           height="100%"
           theme={oneDark}
-          extensions={CSS_EXTENSIONS}
+          extensions={cssExtensions}
           basicSetup={{
             lineNumbers: false,
             foldGutter: false,

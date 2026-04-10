@@ -94,6 +94,28 @@ round-trips through the file untouched AND is applied to the rendered
 element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules
 (\`@media\`, \`@keyframes\`) are not parsed and should not be added.
 
+## CSS Variables and Tokens
+
+The project includes a \`theme.css\` file with global CSS custom properties
+(design tokens). Define color tokens there:
+
+\`\`\`css
+:root {
+  --color-primary: #3b82f6;
+  --color-text: #111111;
+}
+\`\`\`
+
+Reference tokens in module CSS files using \`var()\`:
+\`\`\`css
+.button {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+\`\`\`
+
+Do not modify \`theme.css\` unless the user asks for design system updates.
+
 ## What NOT to change
 - Do not alter the import line at the top of the TSX file.
 - Do not rename the default export function.
@@ -101,6 +123,21 @@ element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules
   for a new page.
 - Do not strip the \`min-height\` / \`width\` / \`position\` lines from
   \`.root\` — they're load-bearing for how the canvas renders the page.
+- Do not delete \`theme.css\` — it holds the project's design tokens.
+`;
+
+/**
+ * Default theme.css content for a freshly created project.
+ * Provides a small starter palette of color tokens.
+ */
+export const DEFAULT_THEME_CSS = `:root {
+  --color-primary: #3b82f6;
+  --color-secondary: #6366f1;
+  --color-background: #ffffff;
+  --color-surface: #f5f5f5;
+  --color-text: #111111;
+  --color-muted: #888888;
+}
 `;
 
 /**

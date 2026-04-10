@@ -35,6 +35,13 @@ export type Settings = {
   artboardBackground: string;
 };
 
+export type ThemeToken = {
+  /** The CSS custom property name, e.g. `--color-primary`. */
+  name: string;
+  /** The resolved value, e.g. `#3b82f6`. */
+  value: string;
+};
+
 export type CreateProjectArgs = {
   /** The directory in which to create the new project subfolder. */
   parentPath: string;

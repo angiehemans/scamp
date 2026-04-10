@@ -1,4 +1,5 @@
 import {
+  parseBorderRadiusShorthand,
   parseBorderShorthand,
   parsePaddingShorthand,
   parsePx,
@@ -26,7 +27,7 @@ type Mapper = (value: string) => ScampPropertyDelta;
 export const cssToScampProperty: Record<string, Mapper> = {
   background: (v) => ({ backgroundColor: v }),
   'background-color': (v) => ({ backgroundColor: v }),
-  'border-radius': (v) => ({ borderRadius: parsePx(v) }),
+  'border-radius': (v) => ({ borderRadius: parseBorderRadiusShorthand(v) }),
   display: (v) => (v === 'flex' ? { display: 'flex' } : { display: 'none' }),
   'flex-direction': (v) => {
     if (v === 'row' || v === 'column') return { flexDirection: v };
@@ -63,8 +64,14 @@ export const cssToScampProperty: Record<string, Mapper> = {
     if (v === 'auto') return { heightMode: 'auto' };
     return { heightMode: 'fixed', heightValue: parsePx(v) };
   },
-  border: (v) => parseBorderShorthand(v),
-  'border-width': (v) => ({ borderWidth: parsePx(v) }),
+  border: (v) => {
+    const parsed = parseBorderShorthand(v);
+    // Convert the single borderWidth from the shorthand parser into a
+    // uniform tuple so it matches the new per-side model.
+    const w = parsed.borderWidth;
+    return { ...parsed, borderWidth: [w, w, w, w] as [number, number, number, number] };
+  },
+  'border-width': (v) => ({ borderWidth: parsePaddingShorthand(v) }),
   'border-style': (v) => {
     if (v === 'none' || v === 'solid' || v === 'dashed' || v === 'dotted') {
       return { borderStyle: v };

@@ -1,4 +1,4 @@
-import { useCanvasStore } from '@store/canvasSlice';
+import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { NumberInput } from '../controls/NumberInput';
 import { ColorInput } from '../controls/ColorInput';
 import { EnumSelect } from '../controls/EnumSelect';
@@ -62,6 +62,9 @@ const isFontWeight = (n: number): n is FontWeight =>
 export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   const element = useCanvasStore((s) => s.elements[elementId]);
   const patchElement = useCanvasStore((s) => s.patchElement);
+  const projectColors = useCanvasStore(selectProjectColors);
+  const themeTokens = useCanvasStore((s) => s.themeTokens);
+  const openThemePanel = useCanvasStore((s) => s.openThemePanel);
   if (!element || element.type !== 'text') return null;
 
   return (
@@ -98,6 +101,9 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
         <ColorInput
           value={element.color ?? '#000000'}
           onChange={(value) => patchElement(elementId, { color: value })}
+          presetColors={projectColors.length > 0 ? projectColors : undefined}
+          tokens={themeTokens}
+          onOpenTheme={openThemePanel ?? undefined}
         />
       </Row>
       <Row label="Align">

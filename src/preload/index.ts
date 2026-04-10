@@ -73,6 +73,19 @@ const api = {
     return () => ipcRenderer.removeListener(IPC.FileChanged, listener);
   },
 
+  // Theme
+  readTheme: (args: { projectPath: string }): Promise<string> =>
+    ipcRenderer.invoke(IPC.ThemeRead, args),
+
+  writeTheme: (args: { projectPath: string; content: string }): Promise<void> =>
+    ipcRenderer.invoke(IPC.ThemeWrite, args),
+
+  onThemeChanged: (handler: (content: string) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, content: string): void => handler(content);
+    ipcRenderer.on(IPC.ThemeChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.ThemeChanged, listener);
+  },
+
   // Terminal
   createTerminal: (args: TerminalCreateArgs): Promise<TerminalCreateResult> =>
     ipcRenderer.invoke(IPC.TerminalCreate, args),

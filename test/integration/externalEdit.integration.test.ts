@@ -27,8 +27,8 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   padding: [0, 0, 0, 0],
   margin: [0, 0, 0, 0],
   backgroundColor: '#ffffff',
-  borderRadius: 0,
-  borderWidth: 0,
+  borderRadius: [0, 0, 0, 0],
+  borderWidth: [0, 0, 0, 0],
   borderStyle: 'none',
   borderColor: '#000000',
   customProperties: {},
@@ -75,7 +75,7 @@ describe('external edit integration', () => {
         widthValue: 400,
         heightValue: 300,
         backgroundColor: '#f0f0f0',
-        borderRadius: 8,
+        borderRadius: [8, 8, 8, 8],
       }),
       c3d4: makeRect({
         id: 'c3d4',
@@ -118,7 +118,7 @@ describe('external edit integration', () => {
     // Other properties on the same element are intact
     expect(a?.widthValue).toBe(400);
     expect(a?.heightValue).toBe(300);
-    expect(a?.borderRadius).toBe(8);
+    expect(a?.borderRadius).toEqual([8, 8, 8, 8]);
     expect(a?.x).toBe(100);
     expect(a?.y).toBe(50);
 

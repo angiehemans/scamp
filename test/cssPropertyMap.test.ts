@@ -19,10 +19,10 @@ describe('cssToScampProperty', () => {
 
   describe('border-radius', () => {
     it('parses px', () => {
-      expect(apply('border-radius', '8px')).toEqual({ borderRadius: 8 });
+      expect(apply('border-radius', '8px')).toEqual({ borderRadius: [8, 8, 8, 8] });
     });
     it('returns 0 for an empty value', () => {
-      expect(apply('border-radius', '')).toEqual({ borderRadius: 0 });
+      expect(apply('border-radius', '')).toEqual({ borderRadius: [0, 0, 0, 0] });
     });
   });
 
@@ -100,13 +100,13 @@ describe('cssToScampProperty', () => {
   describe('border', () => {
     it('parses shorthand', () => {
       expect(apply('border', '2px dashed #000')).toEqual({
-        borderWidth: 2,
+        borderWidth: [2, 2, 2, 2],
         borderStyle: 'dashed',
         borderColor: '#000',
       });
     });
     it('parses individual longhands', () => {
-      expect(apply('border-width', '1px')).toEqual({ borderWidth: 1 });
+      expect(apply('border-width', '1px')).toEqual({ borderWidth: [1, 1, 1, 1] });
       expect(apply('border-style', 'dotted')).toEqual({ borderStyle: 'dotted' });
       expect(apply('border-color', 'red')).toEqual({ borderColor: 'red' });
     });

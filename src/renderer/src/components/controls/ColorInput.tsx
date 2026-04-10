@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SketchPicker, type ColorResult, type RGBColor } from 'react-color';
+import type { ThemeToken } from '@shared/types';
 import styles from './Controls.module.css';
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
+  /** Override preset color swatches (e.g. with project-derived colors). */
+  presetColors?: ReadonlyArray<string>;
+  /** Theme tokens — shown in the Tokens tab of the popover. */
+  tokens?: ReadonlyArray<ThemeToken>;
+  /** Called when the user clicks "Add Token" from the empty tokens tab. */
+  onOpenTheme?: () => void;
 };
 
 // ---- Color format helpers ------------------------------------------------
@@ -12,11 +19,19 @@ type Props = {
 const HEX6_RE = /^#[0-9a-fA-F]{6}$/;
 const HEX3_RE = /^#[0-9a-fA-F]{3}$/;
 const RGBA_RE = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)$/;
+const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
 
-/**
- * Convert the stored color string into something SketchPicker understands.
- * Returns a hex string or an {r,g,b,a} object.
- */
+const resolveVar = (
+  value: string,
+  tokens: ReadonlyArray<ThemeToken> | undefined
+): string => {
+  if (!tokens || tokens.length === 0) return value;
+  const m = value.match(VAR_RE);
+  if (!m) return value;
+  const found = tokens.find((t) => t.name === m[1]);
+  return found ? found.value : value;
+};
+
 const parseColorForPicker = (value: string): string | RGBColor => {
   const trimmed = value.trim();
   if (HEX6_RE.test(trimmed) || HEX3_RE.test(trimmed)) return trimmed;
@@ -29,12 +44,9 @@ const parseColorForPicker = (value: string): string | RGBColor => {
       a: m[4] !== undefined ? Number(m[4]) : 1,
     };
   }
-  // Named colors, `transparent`, or anything exotic — pass as-is and let
-  // the picker do its best.
   return trimmed;
 };
 
-/** Emit `#rrggbb` when alpha=1, `rgba(r,g,b,a)` when alpha<1. */
 const colorResultToString = (color: ColorResult): string => {
   const { r, g, b, a } = color.rgb;
   if (a === undefined || a >= 1) return color.hex;
@@ -47,9 +59,10 @@ const DARK_SKETCH_STYLES = {
   default: {
     picker: {
       background: '#1f1f1f',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+      boxShadow: 'none',
       border: '1px solid #2c2c2c',
-      borderRadius: '6px',
+      borderTop: 'none',
+      borderRadius: '0 0 6px 6px',
     },
   },
 };
@@ -69,18 +82,23 @@ const PRESET_COLORS = [
 
 // ---- Component -----------------------------------------------------------
 
-/**
- * A color swatch + popover SketchPicker that supports hex and rgba. Replaces
- * the old native `<input type="color">`. The external interface (`value` /
- * `onChange`) is unchanged so all consuming sections work without edits.
- */
-/** Approximate height of the SketchPicker at our configured width. */
-const PICKER_HEIGHT = 330;
+type PopoverTab = 'color' | 'tokens';
 
-export const ColorInput = ({ value, onChange }: Props): JSX.Element => {
+const PICKER_HEIGHT = 400;
+
+export const ColorInput = ({
+  value,
+  onChange,
+  presetColors,
+  tokens,
+  onOpenTheme,
+}: Props): JSX.Element => {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-  const [openAbove, setOpenAbove] = useState(false);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; above: boolean }>({
+    top: 0, left: 0, above: false,
+  });
+  const [tab, setTab] = useState<PopoverTab>('color');
   const popoverRef = useRef<HTMLDivElement>(null);
   const swatchRef = useRef<HTMLButtonElement>(null);
 
@@ -105,7 +123,6 @@ export const ColorInput = ({ value, onChange }: Props): JSX.Element => {
     [onChange]
   );
 
-  // Close on Escape.
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent): void => {
@@ -115,7 +132,23 @@ export const ColorInput = ({ value, onChange }: Props): JSX.Element => {
     return () => document.removeEventListener('keydown', handleKey);
   }, [open]);
 
-  const pickerColor = parseColorForPicker(value);
+  const resolved = resolveVar(value, tokens);
+  const pickerColor = parseColorForPicker(resolved);
+  const isVarRef = VAR_RE.test(value);
+  const varName = isVarRef ? value.match(VAR_RE)?.[1] : null;
+
+  const colorTokens = tokens?.filter((t) => {
+    const v = t.value.trim();
+    return (
+      HEX6_RE.test(v) ||
+      HEX3_RE.test(v) ||
+      RGBA_RE.test(v) ||
+      /^[a-z]+$/i.test(v)
+    );
+  });
+
+  // Show the token name in the text input when a var() is applied.
+  const displayValue = isVarRef && varName ? varName : draft;
 
   return (
     <div className={styles.field}>
@@ -129,7 +162,12 @@ export const ColorInput = ({ value, onChange }: Props): JSX.Element => {
               if (!open && swatchRef.current) {
                 const rect = swatchRef.current.getBoundingClientRect();
                 const spaceBelow = window.innerHeight - rect.bottom;
-                setOpenAbove(spaceBelow < PICKER_HEIGHT);
+                const above = spaceBelow < PICKER_HEIGHT;
+                setPopoverPos({
+                  top: above ? rect.top : rect.bottom + 4,
+                  left: rect.left,
+                  above,
+                });
               }
               setOpen((v) => !v);
             }}
@@ -137,7 +175,7 @@ export const ColorInput = ({ value, onChange }: Props): JSX.Element => {
           >
             <span
               className={styles.colorSwatchInner}
-              style={{ background: value }}
+              style={{ background: resolved }}
             />
           </button>
           {open && (
@@ -148,23 +186,84 @@ export const ColorInput = ({ value, onChange }: Props): JSX.Element => {
               />
               <div
                 ref={popoverRef}
-                className={`${styles.colorPopover} ${styles.sketchDark} ${openAbove ? styles.colorPopoverAbove : ''}`}
+                className={`${styles.colorPopover} ${styles.sketchDark}`}
+                style={popoverPos.above
+                  ? { bottom: window.innerHeight - popoverPos.top + 4, left: popoverPos.left }
+                  : { top: popoverPos.top, left: popoverPos.left }
+                }
               >
-                <SketchPicker
-                  color={pickerColor}
-                  onChangeComplete={handlePickerChange}
-                  presetColors={PRESET_COLORS}
-                  styles={DARK_SKETCH_STYLES}
-                  width="209px"
-                />
+                <div className={styles.pickerTabs}>
+                  <button
+                    type="button"
+                    className={`${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`}
+                    onClick={() => setTab('color')}
+                  >
+                    Color
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`}
+                    onClick={() => setTab('tokens')}
+                  >
+                    Tokens
+                  </button>
+                </div>
+                {tab === 'color' ? (
+                  <SketchPicker
+                    color={pickerColor}
+                    onChangeComplete={handlePickerChange}
+                    presetColors={[...(presetColors ?? PRESET_COLORS)]}
+                    styles={DARK_SKETCH_STYLES}
+                    width="209px"
+                  />
+                ) : (
+                  <div className={styles.tokenList}>
+                    {colorTokens && colorTokens.length > 0 ? (
+                      colorTokens.map((t) => (
+                        <button
+                          key={t.name}
+                          type="button"
+                          className={`${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`}
+                          onClick={() => {
+                            onChange(`var(${t.name})`);
+                            setOpen(false);
+                          }}
+                        >
+                          <span
+                            className={styles.tokenListSwatch}
+                            style={{ background: t.value }}
+                          />
+                          <span className={styles.tokenListName}>{t.name}</span>
+                          <span className={styles.tokenListValue}>{t.value}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className={styles.tokenListEmpty}>
+                        <span>No tokens defined yet.</span>
+                        {onOpenTheme && (
+                          <button
+                            type="button"
+                            className={styles.tokenListAddButton}
+                            onClick={() => {
+                              setOpen(false);
+                              onOpenTheme();
+                            }}
+                          >
+                            + Add Tokens
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
         </div>
         <input
           type="text"
-          className={styles.input}
-          value={draft}
+          className={`${styles.input} ${isVarRef ? styles.inputToken : ''}`}
+          value={displayValue}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitDraft}
           onKeyDown={(e) => {

@@ -9,7 +9,12 @@ import type {
   PageFile,
   ProjectData,
 } from '@shared/types';
-import { AGENT_MD_CONTENT, DEFAULT_PAGE_CSS, defaultPageTsx } from '@shared/agentMd';
+import {
+  AGENT_MD_CONTENT,
+  DEFAULT_PAGE_CSS,
+  DEFAULT_THEME_CSS,
+  defaultPageTsx,
+} from '@shared/agentMd';
 import { validateProjectName } from '@shared/projectName';
 import { addRecentProject } from './recentProjects';
 import { watchProject } from '../watcher';
@@ -107,6 +112,11 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
     DEFAULT_PAGE_CSS,
     'utf-8'
   );
+  await fs.writeFile(
+    join(projectPath, 'theme.css'),
+    DEFAULT_THEME_CSS,
+    'utf-8'
+  );
 
   await addRecentProject({ name, path: projectPath });
   await watchProject(projectPath);
@@ -115,6 +125,13 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
 
 const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   const project = await readProject(args.folderPath);
+  // Ensure older projects get a theme.css if they don't have one.
+  const themePath = join(args.folderPath, 'theme.css');
+  try {
+    await fs.access(themePath);
+  } catch {
+    await fs.writeFile(themePath, DEFAULT_THEME_CSS, 'utf-8');
+  }
   await addRecentProject({ name: project.name, path: project.path });
   await watchProject(args.folderPath);
   return project;

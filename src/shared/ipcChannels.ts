@@ -27,6 +27,11 @@ export const IPC = {
   SettingsSetDefaultFolder: 'settings:setDefaultFolder',
   SettingsUpdate: 'settings:update',
 
+  // Theme
+  ThemeRead: 'theme:read',
+  ThemeChanged: 'theme:changed',
+  ThemeWrite: 'theme:write',
+
   // Terminal (renderer ↔ main)
   TerminalCreate: 'terminal:create',
   TerminalWrite: 'terminal:write',

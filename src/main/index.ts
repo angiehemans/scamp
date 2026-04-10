@@ -6,6 +6,7 @@ import { registerPageIpc } from './ipc/page';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
 import { registerSettingsIpc } from './ipc/settings';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
+import { registerThemeIpc } from './ipc/theme';
 import { initWatcher, disposeWatcher } from './watcher';
 
 const createWindow = (): void => {
@@ -62,6 +63,7 @@ app.whenReady().then(() => {
   registerRecentProjectsIpc();
   registerSettingsIpc();
   registerTerminalIpc();
+  registerThemeIpc();
 
   createWindow();
 

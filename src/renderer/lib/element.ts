@@ -60,8 +60,8 @@ export type ScampElement = {
 
   // Appearance
   backgroundColor: string;
-  borderRadius: number;
-  borderWidth: number;
+  borderRadius: [number, number, number, number];
+  borderWidth: [number, number, number, number];
   borderStyle: BorderStyle;
   borderColor: string;
 
@@ -262,8 +262,8 @@ export const groupSiblings = (
     padding: [0, 0, 0, 0],
     margin: [0, 0, 0, 0],
     backgroundColor: 'transparent',
-    borderRadius: 0,
-    borderWidth: 0,
+    borderRadius: [0, 0, 0, 0],
+    borderWidth: [0, 0, 0, 0],
     borderStyle: 'none',
     borderColor: '#000000',
     customProperties: {},
@@ -414,6 +414,8 @@ export const cloneElementSubtree = (
       customProperties: { ...old.customProperties },
       padding: [old.padding[0], old.padding[1], old.padding[2], old.padding[3]],
       margin: [old.margin[0], old.margin[1], old.margin[2], old.margin[3]],
+      borderRadius: [old.borderRadius[0], old.borderRadius[1], old.borderRadius[2], old.borderRadius[3]],
+      borderWidth: [old.borderWidth[0], old.borderWidth[1], old.borderWidth[2], old.borderWidth[3]],
     };
     return newId;
   };
