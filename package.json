@@ -3,8 +3,12 @@
   "version": "0.0.1",
   "description": "Local-first design tool. Draw, get real TSX + CSS.",
   "main": "./out/main/index.js",
-  "author": "",
-  "license": "MIT",
+  "author": {
+    "name": "Angie Hemans",
+    "email": "angie@scampdesign.app"
+  },
+  "homepage": "https://github.com/angiehemans/scamp",
+  "license": "BSL",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",

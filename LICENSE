@@ -1,0 +1,116 @@
+Business Source License 1.1
+
+Licensor: Angie Hemans
+Licensed Work: Scamp
+The Licensed Work is (c) 2026 Angie Hemans
+Change Date: Five years from the date the Licensed Work is first
+publicly distributed under this License
+Change License: GNU Affero General Public License v3.0 (AGPL-3.0)
+
+---
+
+Terms
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work. The
+Licensor may make an Additional Use Grant, below, permitting limited
+production use.
+
+Effective on the Change Date, or the fourth anniversary of the first publicly
+available distribution of a specific version of the Licensed Work under this
+License, whichever comes first, the Licensor hereby grants you rights under
+the terms of the Change License, and the rights granted in the paragraph
+above terminate.
+
+---
+
+Additional Use Grant
+
+You may use the Licensed Work in production for any of the following purposes
+without restriction:
+
+1. Personal use — using Scamp for your own private projects.
+
+2. Internal business use — using Scamp within an organisation to design
+   and build products, client work, or internal tooling, provided the
+   Licensed Work itself is not redistributed externally or made available
+   to third parties as a product or service.
+
+3. Open source projects — using, modifying, or distributing Scamp as part
+   of a project that is itself released under an OSI-approved open source
+   license, provided the full source of all modifications is made publicly
+   available under the same or a compatible open source license.
+
+4. Educational and non-commercial use — using or modifying Scamp for
+   teaching, research, personal learning, or any other non-commercial
+   purpose.
+
+The following uses are NOT permitted under this Additional Use Grant and
+require a separate commercial license from the Licensor:
+
+(a) Selling, sublicensing, or distributing the Licensed Work or any
+derivative work as a standalone product, whether modified or
+unmodified, in exchange for a fee or as part of a commercial offering.
+
+(b) Providing the Licensed Work or any derivative work as a hosted or
+managed service to third parties, where third parties interact with
+the functionality of the Licensed Work.
+
+(c) Bundling or integrating the Licensed Work or any derivative work into
+a commercial product that is sold or licensed to third parties, where
+the Licensed Work or derivative forms a material part of the value of
+that product.
+
+If you are uncertain whether your intended use falls within this Additional
+Use Grant, contact the Licensor at the repository listed below before
+proceeding.
+
+---
+
+Notice
+
+The Business Source License (this document, or the "License") is not an Open
+Source license. However, the Licensed Work will eventually be made available
+under an Open Source License, as stated in this License. On the Change Date,
+this License will convert automatically to the Change License specified above,
+and from that date forward the Licensed Work will be governed solely by the
+Change License.
+
+---
+
+Redistribution and Contribution
+
+You may fork, modify, and redistribute the Licensed Work provided that:
+
+1. You retain this License and all copyright notices in all copies or
+   substantial portions of the Licensed Work.
+
+2. Any modified version you distribute must itself be licensed under this
+   License (Business Source License 1.1) with the same Licensor, Change
+   Date, and Change License, or you must release the modified version
+   under the Change License (AGPL-3.0) with full source available.
+
+3. You do not represent your fork or derivative work as the original
+   Scamp, and you clearly identify that your version is a modification.
+
+4. Your distribution does not violate the restrictions set out in the
+   Additional Use Grant above — in particular, you may not sell or
+   commercially distribute a fork or derivative work without a separate
+   commercial license from the Licensor.
+
+---
+
+Disclaimer
+
+THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER
+DEALINGS IN THE LICENSED WORK.
+
+---
+
+For commercial licensing inquiries, contact: angie@scampdesign.app
+Source repository: https://github.com/angiehemans/scamp
