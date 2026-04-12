@@ -69,8 +69,8 @@ describe('generateCode — TSX', () => {
       c3d4: makeRect({ id: 'c3d4', parentId: 'a1b2' }),
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(tsx).toContain('data-scamp-id="a1b2"');
-    expect(tsx).toContain('data-scamp-id="c3d4"');
+    expect(tsx).toContain('data-scamp-id="rect_a1b2"');
+    expect(tsx).toContain('data-scamp-id="rect_c3d4"');
     expect(tsx.indexOf('a1b2')).toBeLessThan(tsx.indexOf('c3d4'));
   });
 
@@ -93,7 +93,7 @@ describe('generateCode — TSX', () => {
       }),
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(tsx).toContain('<p data-scamp-id="t001"');
+    expect(tsx).toContain('<p data-scamp-id="text_t001"');
     expect(tsx).toContain('className={styles.text_t001}');
     expect(tsx).toContain('Hello &amp; &lt;world&gt;');
     expect(tsx).not.toContain('<world>');
@@ -335,9 +335,9 @@ describe('generateCode — CSS', () => {
       }),
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(tsx).toContain('<section data-scamp-id="s001"');
+    expect(tsx).toContain('<section data-scamp-id="rect_s001"');
     expect(tsx).toContain('</section>');
-    expect(tsx).toContain('<h1 data-scamp-id="t001"');
+    expect(tsx).toContain('<h1 data-scamp-id="text_t001"');
     expect(tsx).toContain('>About</h1>');
   });
 
@@ -348,8 +348,8 @@ describe('generateCode — CSS', () => {
       t001: makeRect({ id: 't001', type: 'text', text: 'Hi' }),
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(tsx).toContain('<div data-scamp-id="a1b2"');
-    expect(tsx).toContain('<p data-scamp-id="t001"');
+    expect(tsx).toContain('<div data-scamp-id="rect_a1b2"');
+    expect(tsx).toContain('<p data-scamp-id="text_t001"');
   });
 
   it('emits text-only properties only on text elements', () => {
@@ -424,6 +424,52 @@ describe('generateCode — CSS', () => {
     const block = extractBlock(css, '.text_t001');
     expect(block).not.toContain('line-height');
     expect(block).not.toContain('letter-spacing');
+  });
+});
+
+describe('generateCode — element naming', () => {
+  it('uses the slugified name as the class prefix when name is set', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: 'Hero Card' }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('data-scamp-id="hero_card_a1b2"');
+    expect(tsx).toContain('className={styles.hero_card_a1b2}');
+    // No data-scamp-name — name is derived from the class prefix.
+    expect(tsx).not.toContain('data-scamp-name');
+    // CSS uses the slugified selector.
+    expect(css).toContain('.hero_card_a1b2 {');
+  });
+
+  it('falls back to the type prefix when name is undefined', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2' }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('data-scamp-id="rect_a1b2"');
+    expect(tsx).toContain('className={styles.rect_a1b2}');
+    expect(tsx).not.toContain('data-scamp-name');
+    expect(css).toContain('.rect_a1b2 {');
+  });
+
+  it('uses dot notation for names without hyphens', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: 'Sidebar' }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('className={styles.sidebar_a1b2}');
+  });
+
+  it('handles names that slugify to empty string (falls back to type prefix)', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: '!!!' }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('data-scamp-id="rect_a1b2"');
   });
 });
 

@@ -1,5 +1,5 @@
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
-import { ROOT_ELEMENT_ID, type ScampElement } from './element';
+import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from './element';
 
 /**
  * Pure function: produces real TSX + CSS module text from canvas state.
@@ -38,10 +38,18 @@ const componentNameFromPage = (pageName: string): string => {
   return parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join('');
 };
 
-/** The CSS class name for an element id (`rect_a1b2`, `text_c3d4`, or `root`). */
+/**
+ * The CSS class name for an element. When the element has a custom name,
+ * the slugified name replaces the type prefix:
+ *   - unnamed rect → `rect_a1b2`
+ *   - named "Hero Card" → `hero-card_a1b2`
+ *   - root → `root` (always)
+ */
 export const classNameFor = (el: ScampElement): string => {
   if (el.id === ROOT_ELEMENT_ID) return 'root';
-  return `${el.type === 'rectangle' ? 'rect' : 'text'}_${el.id}`;
+  const prefix = el.name ? slugifyName(el.name) : '';
+  const defaultPrefix = el.type === 'rectangle' ? 'rect' : 'text';
+  return `${prefix.length > 0 ? prefix : defaultPrefix}_${el.id}`;
 };
 
 const indent = (level: number): string => '  '.repeat(level);
@@ -67,7 +75,7 @@ const renderJsx = (
 ): string => {
   const className = classNameFor(el);
   const tag = tagFor(el);
-  const open = `<${tag} data-scamp-id="${el.id}" className={styles.${className}}`;
+  const open = `<${tag} data-scamp-id="${className}" className={styles.${className}}`;
 
   const hasText = el.type === 'text' && typeof el.text === 'string' && el.text.length > 0;
   const hasChildren = el.childIds.length > 0;

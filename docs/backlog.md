@@ -108,7 +108,7 @@ Each project gets a `theme.css` file in the project folder:
 
 ---
 
-## 6. Element naming and layers panel
+## 6. Element naming and layers panel ✅
 
 **User story**
 As a user building a layout with many elements, I want to give each element a human-readable name like "Sidebar" or "Hero Card" so the generated CSS class becomes `sidebar_a1b2` instead of `rect_a1b2`, and I can see all my elements in a named layers list in the left panel so I can select and navigate them without having to click directly on the canvas.
@@ -169,25 +169,89 @@ As a user building a layout, I want to copy a selected element with Cmd+C and pa
 
 ---
 
-## 8. Image fill
+## 8. Images
 
-**User story**
-As a user designing a layout, I want to set an image as the background of a rectangle by dragging an image file from my computer onto it, so I can place photos, illustrations, and assets directly in my design without leaving the app.
+**User stories**
 
-**Behaviour**
+As a user designing a layout, I want to drag an image file from my computer onto
+the canvas or click an image button in the toolbar so I can place a image as an
+`<img>` element directly in my design.
 
-- Drag an image file from the OS onto any rectangle to set it as `background-image`
-- Supported formats: PNG, JPG, WebP, SVG
+As a user designing a layout, I want to select a rectangle and set an image as
+its CSS background from the properties panel so I can use images as fills with
+full control over how they scale and repeat.
+
+---
+
+**Behaviour — img element (toolbar / drag to canvas)**
+
+- Click the image button in the toolbar (keyboard: `I`) then click anywhere on
+  the canvas or inside a rectangle to place an `<img>` element
+- Alternatively, drag an image file from the OS directly onto the canvas or into
+  a rectangle to place it as an `<img>` element at that position
+- Supported formats: PNG, JPG, WebP, SVG, GIF
 - The image file is copied into an `assets/` folder inside the project directory
-- The generated CSS references the image with a relative path: `background-image: url('../assets/image.png')`
-- Default background-size is `cover` and background-position is `center` — both editable via the CSS panel
-- Dropping a new image onto a rectangle that already has one replaces it
+- The generated TSX uses a relative import:
 
-**Notes**
+```tsx
+<img
+  data-scamp-id="e5f6"
+  className={styles.img_e5f6}
+  src="../assets/image.png"
+  alt=""
+/>
+```
 
-- The `assets/` folder should be documented in `agent.md` so agents know it exists and can reference images too
-- Image fill is visible in the canvas viewport as a real rendered background
-- Removing an image fill (setting background-image back to none) does not delete the file from `assets/` — the user manages that manually
+- Default size is the image's natural dimensions, editable via the properties
+  panel like any other element (fixed or stretch width/height)
+- The element appears in the layers panel as `img_[id]`
+
+---
+
+**Behaviour — background image (properties panel)**
+
+- When a rectangle is selected, the background section of the WYSIWYG properties
+  panel shows a "Set background image" button
+- Clicking it opens a native OS file picker — supported formats: PNG, JPG,
+  WebP, SVG
+- The image file is copied into the project's `assets/` folder
+- The CSS is updated with a relative path:
+
+```css
+background-image: url("../assets/image.png");
+background-size: cover;
+background-position: center;
+background-repeat: no-repeat;
+```
+
+- Once a background image is set, the background section of the properties panel
+  expands to show dedicated background controls:
+
+  | Control             | Type                                                | Default   |
+  | ------------------- | --------------------------------------------------- | --------- |
+  | Background size     | Segmented: Cover / Contain / Auto / Custom          | Cover     |
+  | Background position | 9-point grid picker + x/y inputs                    | Center    |
+  | Background repeat   | Segmented: No repeat / Repeat / Repeat X / Repeat Y | No repeat |
+
+- These controls write directly to the CSS file and round-trip through the parser
+  the same as any other property
+- A "Remove background image" button clears the `background-image` property and
+  hides the background controls, reverting the section to the standard background
+  color control
+- Dropping a new image onto a rectangle that already has a background image
+  replaces it
+
+---
+
+**Shared notes**
+
+- All image files are copied into `assets/` — the original file is never moved
+  or deleted
+- Removing an image element or clearing a background image does not delete the
+  file from `assets/` — the user manages that manually
+- The `assets/` folder is documented in `agent.md` so agents know it exists and
+  can reference images using the same relative path convention
+- Both image types are visible as real rendered images in the canvas viewport
 
 ---
 
@@ -219,3 +283,62 @@ As a user iterating on a layout, I want to right-click an existing page in the s
 
 - Both flows reuse the same inline naming input component
 - The pages sidebar should show a loading/creating state briefly while files are being written to disk
+
+---
+
+## 10. Nudge with arrow keys
+
+**User story**
+
+As a user positioning elements on the canvas, I want to nudge a selected element
+one pixel at a time using the arrow keys on my keyboard, and ten pixels at a time
+when holding Shift, so I can make precise adjustments without reaching for the
+mouse.
+
+As a user editing values in the WYSIWYG properties panel, I want to increment or
+decrement any number field by 1 using the up and down arrow keys, and by 10 when
+holding Shift, so I can adjust values quickly without retyping them.
+
+---
+
+**Behaviour — canvas nudge**
+
+- When an element is selected and the canvas has focus, pressing any arrow key
+  moves the element by 1px in that direction
+- Holding Shift while pressing an arrow key moves the element by 10px
+- Nudge updates the element's `x` and `y` position in Zustand state and
+  triggers the normal debounced file write — the CSS file updates exactly as if
+  the user had dragged the element
+- Nudge only applies to elements with absolute positioning — if a future layout
+  mode removes absolute positioning this behaviour should be revisited
+- If no element is selected, arrow keys do nothing on the canvas
+- Arrow key events on the canvas must not fire when focus is inside the
+  properties panel, the CSS editor, the code panel, or the terminal — standard
+  browser focus rules handle this provided the canvas element manages focus
+  correctly with `tabIndex`
+
+---
+
+**Behaviour — number field nudge (WYSIWYG panel)**
+
+- Any number input in the WYSIWYG panel responds to up and down arrow keys when
+  that input has focus
+- Up arrow increases the value by 1; down arrow decreases by 1
+- Shift + up arrow increases by 10; Shift + down arrow decreases by 10
+- The value updates immediately on each keydown — the user should see the canvas
+  respond in real time as they hold the key
+- The field commits and triggers a file write on `blur` or `Enter`, the same as
+  a manual edit — not on every individual keydown, to avoid flooding the file
+  system with writes while the key is held
+- Values should not go below zero for properties where a negative value is not
+  meaningful (width, height, border-radius, border-width, font-size) — clamp at
+  0 for those fields
+- Properties where negative values are valid (x, y position, margin) should have
+  no lower bound
+
+---
+
+**Notes**
+
+- The 1px / 10px increment convention matches Figma and most other design tools
+  so it will feel immediately familiar to users coming from those tools

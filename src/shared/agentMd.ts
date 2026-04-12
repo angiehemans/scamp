@@ -10,10 +10,12 @@ files. Anything you write here is parsed and re-rendered on the canvas.
 
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element
-- Never rename CSS classes that follow the \`[type]_XXXX\` pattern
+- Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
+  in \`hero_card_a1b2\`) — it's the element's unique identifier
 - Never combine multiple selectors into one rule block
 - Never add media queries to generated class blocks
 - One class = one rule block, always
+- \`data-scamp-id\` must always match the CSS class name exactly
 
 ## Project structure
 Each page is two files: \`[page-name].tsx\` and \`[page-name].module.css\`.
@@ -23,25 +25,48 @@ Do not rename, move, or split these files.
 - Each page exports a single default React component.
 - The root element uses \`styles.root\` and \`data-scamp-id="root"\`.
 - Every other element needs both:
-  - a \`data-scamp-id="[4-char-id]"\` attribute
-  - a className following \`[type]_[4-char-id]\` where type is either
-    \`rect\` (for any container) or \`text\` (for any text-bearing element)
-- The classname prefix is the source of truth for the element type.
-  Scamp uses it — not the HTML tag — to decide what's text vs. a
-  container, so you can pick whatever semantic tag makes sense without
-  changing how scamp models the element.
+  - a \`data-scamp-id\` attribute matching the full CSS class name
+  - a className following \`[prefix]_[4-char-hex-id]\`
+
+### Element naming
+The class name prefix identifies the element:
+
+- **Default names:** \`rect_a1b2\` (container), \`text_c3d4\` (text)
+- **Custom names:** \`hero_card_a1b2\`, \`sidebar_ff12\`, \`nav_links_e5f6\`
+
+Custom names make the generated code more readable and help the user
+identify elements in the layers panel. Use them when the element has
+a clear semantic role. Rules:
+
+- The prefix is lowercase, words separated by underscores
+- Only alphanumeric characters and underscores (no hyphens, no spaces)
+- The last \`_XXXX\` segment is always the 4-char hex id — never change it
+- If the prefix is \`rect\` or \`text\`, scamp treats it as unnamed and
+  infers the element type from the prefix. Any other prefix is a custom
+  name, and scamp infers the type from the HTML tag instead.
+- Custom names don't need to be unique — the hex suffix handles that
+
+When creating new elements, prefer descriptive names:
+
+| Instead of        | Use                    |
+|-------------------|------------------------|
+| \`rect_a1b2\`       | \`hero_section_a1b2\`    |
+| \`rect_c3d4\`       | \`sidebar_c3d4\`         |
+| \`text_e5f6\`       | \`page_title_e5f6\`      |
+| \`rect_g7h8\`       | \`nav_links_g7h8\`       |
+
 - Do not add inline styles — all styles live in the CSS module.
 
 ## HTML tags
 Use semantic HTML. Scamp captures the actual tag name and renders it
 on the canvas, so the design preview matches what ships.
 
-- Text elements (\`text_xxxx\` className) can be any of:
+- Text elements (default prefix \`text_\` or custom name) can use any of:
   \`p\`, \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`h5\`, \`h6\`, \`span\`, \`a\`,
   \`label\`, \`strong\`, \`em\`, \`blockquote\`, \`code\`, \`small\`.
   Default if you don't care: \`p\`.
-- Container elements (\`rect_xxxx\` className) can be any block-level
-  HTML tag — \`div\`, \`section\`, \`header\`, \`nav\`, \`footer\`,
+- Container elements (default prefix \`rect_\` or custom name) can use any
+  block-level HTML tag — \`div\`, \`section\`, \`header\`, \`nav\`, \`footer\`,
   \`article\`, \`aside\`, \`main\`, \`form\`, etc. Default: \`div\`.
 - Pick the tag that best describes the content. A page hero is a
   \`<header>\`. A page title is an \`<h1>\`. A paragraph of body copy
@@ -52,12 +77,12 @@ Example:
 
 \`\`\`tsx
 <div data-scamp-id="root" className={styles.root}>
-  <header data-scamp-id="hdr0" className={styles.rect_hdr0}>
-    <h1 data-scamp-id="t1a2" className={styles.text_t1a2}>About</h1>
-    <p data-scamp-id="t3b4" className={styles.text_t3b4}>I'm Angie...</p>
+  <header data-scamp-id="page_header_hdr0" className={styles.page_header_hdr0}>
+    <h1 data-scamp-id="page_title_t1a2" className={styles.page_title_t1a2}>About</h1>
+    <p data-scamp-id="bio_t3b4" className={styles.bio_t3b4}>I'm Angie...</p>
   </header>
-  <section data-scamp-id="s5c6" className={styles.rect_s5c6}>
-    <h2 data-scamp-id="t7d8" className={styles.text_t7d8}>What I do</h2>
+  <section data-scamp-id="content_s5c6" className={styles.content_s5c6}>
+    <h2 data-scamp-id="section_title_t7d8" className={styles.section_title_t7d8}>What I do</h2>
   </section>
 </div>
 \`\`\`

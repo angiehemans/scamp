@@ -151,8 +151,8 @@ describe('sync round-trip integration', () => {
       }),
     };
     const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(tsx).toContain('<h1 data-scamp-id="hdr1"');
-    expect(tsx).toContain('<section data-scamp-id="sec1"');
+    expect(tsx).toContain('<h1 data-scamp-id="text_hdr1"');
+    expect(tsx).toContain('<section data-scamp-id="rect_sec1"');
 
     const tsxPath = path.join(tmpDir, 'home.tsx');
     const cssPath = path.join(tmpDir, 'home.module.css');
@@ -270,6 +270,51 @@ describe('sync round-trip integration', () => {
     // the pre-Phase-1 behavior we're explicitly replacing.
     expect(parsed.elements.a1b2!.customProperties).toEqual({});
     expect(parsed.elements.t001!.customProperties).toEqual({});
+  });
+
+  it('round-trips named elements with custom class prefixes', async () => {
+    // Names are stored as slugs — parseCode derives them from the class
+    // prefix, so round-trip preserves the slug, not the original casing.
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2', 't001']),
+      a1b2: makeRect({
+        id: 'a1b2',
+        name: 'hero_card',
+        widthValue: 400,
+        heightValue: 300,
+        backgroundColor: '#f0f0f0',
+      }),
+      t001: makeRect({
+        id: 't001',
+        type: 'text',
+        name: 'title',
+        text: 'Hello',
+        widthValue: 240,
+        heightValue: 32,
+        fontSize: 24,
+        fontWeight: 700,
+        color: '#111111',
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('data-scamp-id="hero_card_a1b2"');
+    expect(tsx).not.toContain('data-scamp-name');
+    expect(css).toContain('.hero_card_a1b2 {');
+    expect(tsx).toContain('data-scamp-id="title_t001"');
+    expect(css).toContain('.title_t001 {');
+
+    const tsxPath = path.join(tmpDir, 'home.tsx');
+    const cssPath = path.join(tmpDir, 'home.module.css');
+    await fs.writeFile(tsxPath, tsx, 'utf-8');
+    await fs.writeFile(cssPath, css, 'utf-8');
+
+    const parsed = parseCode(
+      await fs.readFile(tsxPath, 'utf-8'),
+      await fs.readFile(cssPath, 'utf-8')
+    );
+    expect(parsed.elements).toEqual(elements);
+    expect(parsed.elements.a1b2!.name).toBe('hero_card');
+    expect(parsed.elements.t001!.name).toBe('title');
   });
 
   it('round-trips a root with custom flex layout and background', async () => {

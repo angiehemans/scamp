@@ -102,14 +102,29 @@ export const initSyncBridge = (): (() => void) => {
 
     if (!state.activePage) return;
 
-    // The change came from a load — refresh the write cache so we don't
-    // immediately echo it back to disk, then exit.
+    // The change came from a load — refresh the write cache. If the
+    // re-generated code differs from what's on disk (e.g. old-format
+    // data-scamp-id), write the canonical version back to migrate the
+    // file to the current format.
     if (state.isLoading) {
       const code = generateCode({
         elements: state.elements,
         rootId: state.rootElementId,
         pageName: state.activePage.name,
       });
+      // If the regenerated code differs from the on-disk source, write
+      // it back to migrate the file format (e.g. short → full class
+      // name in data-scamp-id).
+      const onDisk = state.pageSource;
+      if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
+        state.setPageSource({ tsx: code.tsx, css: code.css });
+        void window.scamp.writeFile({
+          tsxPath: state.activePage.tsxPath,
+          cssPath: state.activePage.cssPath,
+          tsxContent: code.tsx,
+          cssContent: code.css,
+        });
+      }
       lastSerializedTsx = code.tsx;
       lastSerializedCss = code.css;
       // Defer clearing the flag so any in-flight subscribers also see it.
@@ -119,7 +134,16 @@ export const initSyncBridge = (): (() => void) => {
       return;
     }
 
-    // Genuine canvas edit — schedule a debounced write.
+    // Genuine canvas edit — update the code preview immediately so the
+    // user sees changes reflected without waiting for the debounced write.
+    const previewCode = generateCode({
+      elements: state.elements,
+      rootId: state.rootElementId,
+      pageName: state.activePage.name,
+    });
+    state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
+
+    // Schedule the debounced disk write.
     cancelWriteTimer();
     writeTimer = setTimeout(flushDebouncedWrite, WRITE_DEBOUNCE_MS);
   });

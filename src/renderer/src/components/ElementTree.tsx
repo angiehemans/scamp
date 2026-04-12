@@ -1,7 +1,7 @@
 import { DragEvent, useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode';
-import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
+import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from '@lib/element';
 import styles from './ElementTree.module.css';
 
 /**
@@ -35,8 +35,16 @@ type RowProps = {
   setDragOver: (next: DragOverState | null) => void;
 };
 
+/** Convert a slug like "hero_card" to title case "Hero Card". */
+const titleCaseFromSlug = (slug: string): string =>
+  slug
+    .split('_')
+    .map((w) => (w.length > 0 ? w[0]!.toUpperCase() + w.slice(1) : ''))
+    .join(' ');
+
 const labelFor = (el: ScampElement): string => {
   if (el.id === ROOT_ELEMENT_ID) return 'Page';
+  if (el.name) return titleCaseFromSlug(el.name);
   if (el.type === 'text') {
     const text = (el.text ?? '').trim();
     return text.length > 0 ? `Text · ${truncate(text, 20)}` : 'Text';
@@ -73,7 +81,11 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
   const selectElement = useCanvasStore((s) => s.selectElement);
   const toggleSelectElement = useCanvasStore((s) => s.toggleSelectElement);
   const reorderElement = useCanvasStore((s) => s.reorderElement);
+  const patchElement = useCanvasStore((s) => s.patchElement);
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState('');
 
   // When the selection lands on this row from the canvas, scroll the tree
   // so the row is visible. Cheap and only fires for the selected row.
@@ -144,15 +156,56 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
         className={`${styles.row} ${isSelected ? styles.rowSelected : ''}`}
         style={{ paddingLeft: 8 + depth * 12 }}
         onClick={(e) => {
+          if (renaming) return;
           if (e.shiftKey) toggleSelectElement(element.id);
           else selectElement(element.id);
+        }}
+        onDoubleClick={() => {
+          // Root can't be renamed.
+          if (element.id === ROOT_ELEMENT_ID) return;
+          setDraft(element.name ? titleCaseFromSlug(element.name) : '');
+          setRenaming(true);
+          // Focus the input on next tick after it renders.
+          requestAnimationFrame(() => {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+          });
         }}
         title={`.${classNameFor(element)}`}
       >
         <span className={styles.icon} aria-hidden="true">
           {element.type === 'text' ? 'T' : '▢'}
         </span>
-        <span className={styles.label}>{labelFor(element)}</span>
+        {renaming ? (
+          <input
+            ref={inputRef}
+            type="text"
+            className={styles.renameInput}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => {
+              const slug = slugifyName(draft);
+              patchElement(element.id, {
+                name: slug.length > 0 ? slug : undefined,
+              });
+              setRenaming(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+              }
+              if (e.key === 'Escape') {
+                setRenaming(false);
+              }
+              // Stop propagation so typing doesn't trigger tool shortcuts.
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className={styles.label}>{labelFor(element)}</span>
+        )}
       </button>
       {showAfter && <div className={styles.dropLine} />}
     </div>

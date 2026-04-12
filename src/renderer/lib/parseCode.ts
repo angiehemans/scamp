@@ -32,6 +32,8 @@ type RawElement = {
   parentId: string | null;
   childIds: string[];
   text: string | null;
+  /** Human-readable name from `data-scamp-name`, if present. */
+  name: string | null;
 };
 
 const CLASS_NAME_RE = /\{?\s*styles\.([A-Za-z_][A-Za-z0-9_]*)\s*\}?/;
@@ -92,13 +94,34 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
   const parser = new Parser(
     {
       onopentag(name, attribs) {
-        const id = attribs['data-scamp-id'];
-        if (typeof id !== 'string' || id.length === 0) return;
+        const rawId = attribs['data-scamp-id'];
+        if (typeof rawId !== 'string' || rawId.length === 0) return;
+
+        // data-scamp-id is either the full class name (`sidebar_a1b2`,
+        // `rect_a1b2`) or, for backward compat with older projects, the
+        // short 4-char hex id (`a1b2`). Extract the short id in both cases.
+        const id = rawId === ROOT_ELEMENT_ID
+          ? ROOT_ELEMENT_ID
+          : rawId.includes('_')
+            ? rawId.slice(rawId.lastIndexOf('_') + 1)
+            : rawId;
+
         const classRaw = attribs['classname'] ?? '';
         const match = classRaw.match(CLASS_NAME_RE);
         const className = match?.[1] ?? '';
         const type = inferElementType(className, name);
         const parentId = stack.length > 0 ? stack[stack.length - 1]!.id : null;
+
+        // Derive the custom name from the class name prefix. If the prefix
+        // is the default (`rect` or `text`), the element has no custom name.
+        let parsedName: string | null = null;
+        if (className.includes('_') && rawId !== ROOT_ELEMENT_ID) {
+          const prefix = className.slice(0, className.lastIndexOf('_'));
+          if (prefix !== 'rect' && prefix !== 'text') {
+            parsedName = prefix;
+          }
+        }
+
         const el: RawElement = {
           id,
           type,
@@ -107,6 +130,7 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
           parentId,
           childIds: [],
           text: null,
+          name: parsedName,
         };
         if (parentId) {
           const parent = byId.get(parentId);
@@ -204,6 +228,7 @@ const makeBaseline = (raw: RawElement): ScampElement => ({
   // the round-trip text-stable: a `<div>` rectangle parses with no
   // `tag` field and the generator emits a `<div>` again.
   ...(raw.tag !== defaultTagForType(raw.type) ? { tag: raw.tag } : {}),
+  ...(raw.name !== null ? { name: raw.name } : {}),
 });
 
 /**

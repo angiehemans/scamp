@@ -92,3 +92,16 @@ font-size: 11px;
   text-overflow: ellipsis;
 }
 
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  background: #0f0f0f;
+  border: 1px solid #4a8cff;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font: inherit;
+  font-size: 13px;
+  color: #e0e0e0;
+  outline: none;
+}
+

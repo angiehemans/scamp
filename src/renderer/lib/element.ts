@@ -39,6 +39,15 @@ export type ScampElement = {
    */
   tag?: string;
 
+  /**
+   * Optional human-readable name. When set, the slugified version
+   * replaces the default `rect` / `text` prefix in the generated CSS
+   * class name (e.g. "Hero Card" → `hero-card_a1b2`). The name is
+   * stored as a `data-scamp-name` attribute in the TSX and round-trips
+   * through parseCode.
+   */
+  name?: string;
+
   // Sizing
   widthMode: WidthMode;
   widthValue: number;
@@ -96,6 +105,29 @@ export const generateElementId = (): string => {
     id += chars[Math.floor(Math.random() * chars.length)];
   }
   return id;
+};
+
+/**
+ * Slugify a user-given element name into a valid CSS class prefix.
+ * Lowercases, replaces spaces with hyphens, strips anything that isn't
+ * alphanumeric or a hyphen. Returns an empty string if the result is
+ * empty (caller falls back to the default type prefix).
+ *
+ * CSS identifiers can't start with a digit, so a leading digit gets
+ * prefixed with `_`.
+ */
+export const slugifyName = (name: string): string => {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    .replace(/_{2,}/g, '_')
+    .replace(/^_|_$/g, '');
+  if (slug.length === 0) return '';
+  // CSS identifiers can't start with a digit.
+  if (/^[0-9]/.test(slug)) return `_${slug}`;
+  return slug;
 };
 
 /**
@@ -416,6 +448,9 @@ export const cloneElementSubtree = (
       margin: [old.margin[0], old.margin[1], old.margin[2], old.margin[3]],
       borderRadius: [old.borderRadius[0], old.borderRadius[1], old.borderRadius[2], old.borderRadius[3]],
       borderWidth: [old.borderWidth[0], old.borderWidth[1], old.borderWidth[2], old.borderWidth[3]],
+      // Clear the name on clones so the duplicate gets a fresh default
+      // class name. The user can rename it from the layers panel.
+      name: undefined,
     };
     return newId;
   };
