@@ -151,33 +151,42 @@ export const ColorInput = ({
   const displayValue = isVarRef && varName ? varName : draft;
 
   return (
-    <div className={styles.field}>
-      <div className={styles.row}>
+    <div className={`${styles.colorInputRow} ${styles.colorInputRowSwatch}`}>
+        <button
+          ref={swatchRef}
+          type="button"
+          className={styles.colorSwatch}
+          onClick={() => {
+            if (!open && swatchRef.current) {
+              const rect = swatchRef.current.getBoundingClientRect();
+              const spaceBelow = window.innerHeight - rect.bottom;
+              const above = spaceBelow < PICKER_HEIGHT;
+              setPopoverPos({
+                top: above ? rect.top : rect.bottom + 4,
+                left: rect.left,
+                above,
+              });
+            }
+            setOpen((v) => !v);
+          }}
+          title="Pick color"
+        >
+          <span
+            className={styles.colorSwatchInner}
+            style={{ background: resolved }}
+          />
+        </button>
+        <input
+          type="text"
+          className={styles.colorText}
+          value={displayValue}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+        />
         <div className={styles.colorPickerWrap}>
-          <button
-            ref={swatchRef}
-            type="button"
-            className={styles.colorSwatch}
-            onClick={() => {
-              if (!open && swatchRef.current) {
-                const rect = swatchRef.current.getBoundingClientRect();
-                const spaceBelow = window.innerHeight - rect.bottom;
-                const above = spaceBelow < PICKER_HEIGHT;
-                setPopoverPos({
-                  top: above ? rect.top : rect.bottom + 4,
-                  left: rect.left,
-                  above,
-                });
-              }
-              setOpen((v) => !v);
-            }}
-            title="Pick color"
-          >
-            <span
-              className={styles.colorSwatchInner}
-              style={{ background: resolved }}
-            />
-          </button>
           {open && (
             <>
               <div
@@ -260,17 +269,6 @@ export const ColorInput = ({
             </>
           )}
         </div>
-        <input
-          type="text"
-          className={`${styles.input} ${isVarRef ? styles.inputToken : ''}`}
-          value={displayValue}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitDraft}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-          }}
-        />
       </div>
-    </div>
   );
 };

@@ -12,6 +12,10 @@ type Props = {
   placeholder?: string;
   /** When true, blanking the input writes `undefined` instead of reverting. */
   allowEmpty?: boolean;
+  /** Inline prefix label shown inside the input (e.g. "W", "H", "X"). */
+  prefix?: string;
+  /** Tooltip shown on hover. */
+  title?: string;
 };
 
 /**
@@ -27,6 +31,8 @@ export const NumberInput = ({
   max,
   placeholder,
   allowEmpty = false,
+  prefix,
+  title,
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState<string>(value === undefined ? '' : String(value));
 
@@ -57,6 +63,26 @@ export const NumberInput = ({
     setDraft(String(next));
   };
 
+  if (prefix) {
+    return (
+      <div className={styles.colorInputRow} title={title}>
+        <span className={styles.inputPrefix}>{prefix}</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          className={styles.colorText}
+          value={draft}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <input
       type="text"
@@ -64,6 +90,7 @@ export const NumberInput = ({
       className={`${styles.input} ${styles.numberInput}`}
       value={draft}
       placeholder={placeholder}
+      title={title}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {

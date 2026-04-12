@@ -8,6 +8,10 @@ type Props = {
   onChange: (next: FourSideValue) => void;
   /** Minimum allowed per-side value (inclusive). */
   min?: number;
+  /** Inline prefix label shown inside the input (e.g. "P", "M", "W"). */
+  prefix?: string;
+  /** Tooltip shown on hover. */
+  title?: string;
 };
 
 /**
@@ -62,7 +66,7 @@ const toShorthand = (v: FourSideValue): string => {
  * Shows a preview of the resolved individual sides below the input when the
  * sides differ. Invalid input reverts on blur.
  */
-export const FourSideInput = ({ value, onChange, min = 0 }: Props): JSX.Element => {
+export const FourSideInput = ({ value, onChange, min = 0, prefix, title }: Props): JSX.Element => {
   const [draft, setDraft] = useState(toShorthand(value));
 
   useEffect(() => {
@@ -88,10 +92,14 @@ export const FourSideInput = ({ value, onChange, min = 0 }: Props): JSX.Element 
   const allEqual = value[0] === value[1] && value[1] === value[2] && value[2] === value[3];
 
   return (
-    <div className={styles.fourSide}>
+    <div
+      className={styles.colorInputRow}
+      title={title ?? (!allEqual ? `T:${value[0]} R:${value[1]} B:${value[2]} L:${value[3]}` : undefined)}
+    >
+      {prefix && <span className={styles.inputPrefix}>{prefix}</span>}
       <input
         type="text"
-        className={styles.input}
+        className={styles.colorText}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -100,11 +108,6 @@ export const FourSideInput = ({ value, onChange, min = 0 }: Props): JSX.Element 
         }}
         placeholder="0"
       />
-      {!allEqual && (
-        <div className={styles.fourSidePreview}>
-          T:{value[0]} R:{value[1]} B:{value[2]} L:{value[3]}
-        </div>
-      )}
     </div>
   );
 };

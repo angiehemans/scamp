@@ -35,13 +35,14 @@ export const TagSection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Tag">
-      <Row label="HTML">
+      <Row label="">
         <EnumSelect
           value={current}
           options={TAG_OPTIONS}
           onChange={(value) =>
             patchElement(elementId, { tag: value === 'p' ? undefined : value })
           }
+          title="HTML tag"
         />
       </Row>
     </Section>

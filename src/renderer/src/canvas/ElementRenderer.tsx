@@ -36,12 +36,14 @@ type Props = {
 const elementToStyle = (
   el: ScampElement,
   parentDisplay: 'flex' | 'none' | undefined,
+  parentDirection: 'row' | 'column' | undefined,
   tokens: ReadonlyArray<ThemeToken>
 ): CSSProperties => {
   const isRoot = el.id === ROOT_ELEMENT_ID;
   // Flex children flow with the layout engine — drop position/left/top so
   // the browser places them. Matches what we emit in generateCode.
   const inFlexParent = parentDisplay === 'flex';
+  const isRow = parentDirection !== 'column'; // default flex direction is row
   // 'auto' produces `undefined` so the rendered element inherits the
   // browser default — exactly what an absent CSS declaration would do.
   const widthStyle =
@@ -63,13 +65,47 @@ const elementToStyle = (
   // The page root uses `min-height` so the page frame grows vertically
   // with its content (like a real web page). Other elements use a fixed
   // `height` so they stay the size the user gave them.
+  // In a flex parent, `width/height: 100%` can collapse to 0 because
+  // there's no explicit containing-block size for `%` to resolve
+  // against. Handle stretch per-axis:
+  //   - Main axis stretch → `flex: 1` (grow to fill available space)
+  //   - Cross axis stretch → `align-self: stretch` (fill cross axis)
+  // The main axis depends on the parent's flex-direction (row → width
+  // is main, column → height is main).
+  let effectiveWidth: string | number | undefined = widthStyle;
+  let effectiveHeight: string | number | undefined = isRoot ? undefined : heightStyle;
+  const flexProps: CSSProperties = {};
+
+  if (inFlexParent) {
+    const widthIsMain = isRow;
+    // Main axis stretch → flex: 1, drop the explicit size
+    if (el.widthMode === 'stretch' && widthIsMain) {
+      flexProps.flex = 1;
+      flexProps.minWidth = 0;
+      effectiveWidth = undefined;
+    } else if (el.heightMode === 'stretch' && !widthIsMain) {
+      flexProps.flex = 1;
+      flexProps.minHeight = 0;
+      effectiveHeight = undefined;
+    }
+    // Cross axis stretch → align-self: stretch (drop the explicit size)
+    if (el.widthMode === 'stretch' && !widthIsMain) {
+      flexProps.alignSelf = 'stretch';
+      effectiveWidth = undefined;
+    } else if (el.heightMode === 'stretch' && widthIsMain) {
+      flexProps.alignSelf = 'stretch';
+      effectiveHeight = undefined;
+    }
+  }
+
   const base: CSSProperties = {
-    position: isRoot ? 'relative' : inFlexParent ? 'relative' : 'absolute',
+    position: isRoot ? 'relative' : inFlexParent ? undefined : 'absolute',
     left: isRoot || inFlexParent ? undefined : el.x,
     top: isRoot || inFlexParent ? undefined : el.y,
-    width: widthStyle,
-    height: isRoot ? undefined : heightStyle,
+    width: effectiveWidth,
+    height: effectiveHeight,
     minHeight: isRoot ? heightStyle : undefined,
+    ...flexProps,
     background: resolveTokenColor(el.backgroundColor, tokens),
     borderRadius: `${el.borderRadius[0]}px ${el.borderRadius[1]}px ${el.borderRadius[2]}px ${el.borderRadius[3]}px`,
     boxSizing: 'border-box',
@@ -125,6 +161,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     if (!el || !el.parentId) return undefined;
     return s.elements[el.parentId]?.display;
   });
+  const parentDirection = useCanvasStore((s) => {
+    const el = s.elements[elementId];
+    if (!el || !el.parentId) return undefined;
+    return s.elements[el.parentId]?.flexDirection;
+  });
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
@@ -166,7 +207,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   if (!element) return null;
 
   const isText = element.type === 'text';
-  const style = elementToStyle(element, parentDisplay, themeTokens);
+  const style = elementToStyle(element, parentDisplay, parentDirection, themeTokens);
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
   const tag = tagFor(element) as ElementType;

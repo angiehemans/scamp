@@ -1,5 +1,4 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
-import { NumberInput } from '../controls/NumberInput';
 import { ColorInput } from '../controls/ColorInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FourSideInput } from '../controls/FourSideInput';
@@ -27,21 +26,7 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Border">
-      <Row label="Width">
-        <FourSideInput
-          value={element.borderWidth}
-          onChange={(next) => patchElement(elementId, { borderWidth: next })}
-          min={0}
-        />
-      </Row>
-      <Row label="Style">
-        <EnumSelect<BorderStyle>
-          value={element.borderStyle}
-          options={BORDER_STYLE_OPTIONS}
-          onChange={(value) => patchElement(elementId, { borderStyle: value })}
-        />
-      </Row>
-      <Row label="Color">
+      <Row label="">
         <ColorInput
           value={element.borderColor}
           onChange={(value) => patchElement(elementId, { borderColor: value })}
@@ -49,9 +34,24 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           tokens={themeTokens}
           onOpenTheme={openThemePanel ?? undefined}
         />
+        <EnumSelect<BorderStyle>
+          value={element.borderStyle}
+          options={BORDER_STYLE_OPTIONS}
+          onChange={(value) => patchElement(elementId, { borderStyle: value })}
+          title="Border style"
+        />
       </Row>
-      <Row label="Radius">
+      <Row label="">
         <FourSideInput
+          prefix="W"
+          title="Border width (top right bottom left)"
+          value={element.borderWidth}
+          onChange={(next) => patchElement(elementId, { borderWidth: next })}
+          min={0}
+        />
+        <FourSideInput
+          prefix="R"
+          title="Border radius (top-left top-right bottom-right bottom-left)"
           value={element.borderRadius}
           onChange={(next) => patchElement(elementId, { borderRadius: next })}
           min={0}

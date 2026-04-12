@@ -21,7 +21,7 @@ const DISPLAY_OPTIONS: ReadonlyArray<{ value: DisplayMode; label: string }> = [
 
 const DIRECTION_OPTIONS: ReadonlyArray<{ value: FlexDirection; label: string }> = [
   { value: 'row', label: '→ Row' },
-  { value: 'column', label: '↓ Column' },
+  { value: 'column', label: '↓ Col' },
 ];
 
 const ALIGN_OPTIONS: ReadonlyArray<{ value: AlignItems; label: string }> = [
@@ -35,8 +35,8 @@ const JUSTIFY_OPTIONS: ReadonlyArray<{ value: JustifyContent; label: string }> =
   { value: 'flex-start', label: 'Start' },
   { value: 'center', label: 'Center' },
   { value: 'flex-end', label: 'End' },
-  { value: 'space-between', label: 'Space between' },
-  { value: 'space-around', label: 'Space around' },
+  { value: 'space-between', label: 'Between' },
+  { value: 'space-around', label: 'Around' },
 ];
 
 export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
@@ -48,38 +48,42 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Layout">
-      <Row label="Display">
+      <Row label="">
         <SegmentedControl<DisplayMode>
           value={element.display}
           options={DISPLAY_OPTIONS}
           onChange={(value) => patchElement(elementId, { display: value })}
+          title="Display mode"
         />
+        {isFlex && (
+          <SegmentedControl<FlexDirection>
+            value={element.flexDirection}
+            options={DIRECTION_OPTIONS}
+            onChange={(value) => patchElement(elementId, { flexDirection: value })}
+            title="Flex direction"
+          />
+        )}
       </Row>
       {isFlex && (
         <>
-          <Row label="Direction">
-            <SegmentedControl<FlexDirection>
-              value={element.flexDirection}
-              options={DIRECTION_OPTIONS}
-              onChange={(value) => patchElement(elementId, { flexDirection: value })}
-            />
-          </Row>
-          <Row label="Align">
+          <Row label="">
             <EnumSelect<AlignItems>
               value={element.alignItems}
               options={ALIGN_OPTIONS}
               onChange={(value) => patchElement(elementId, { alignItems: value })}
+              title="Align items"
             />
-          </Row>
-          <Row label="Justify">
             <EnumSelect<JustifyContent>
               value={element.justifyContent}
               options={JUSTIFY_OPTIONS}
               onChange={(value) => patchElement(elementId, { justifyContent: value })}
+              title="Justify content"
             />
           </Row>
-          <Row label="Gap">
+          <Row label="">
             <NumberInput
+              prefix="Gap"
+              title="Gap between flex children"
               value={element.gap}
               onChange={(value) => patchElement(elementId, { gap: value ?? 0 })}
               min={0}

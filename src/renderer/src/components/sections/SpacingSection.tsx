@@ -4,7 +4,6 @@ import { Section, Row } from './Section';
 
 type Props = {
   elementId: string;
-  /** Hide the margin row (e.g. for the page root). */
   hideMargin?: boolean;
 };
 
@@ -15,21 +14,23 @@ export const SpacingSection = ({ elementId, hideMargin = false }: Props): JSX.El
 
   return (
     <Section title="Spacing">
-      <Row label="Padding">
+      <Row label="">
         <FourSideInput
+          prefix="P"
+          title="Padding (top right bottom left)"
           value={element.padding}
           onChange={(next) => patchElement(elementId, { padding: next })}
           min={0}
         />
-      </Row>
-      {!hideMargin && (
-        <Row label="Margin">
+        {!hideMargin && (
           <FourSideInput
+            prefix="M"
+            title="Margin (top right bottom left)"
             value={element.margin}
             onChange={(next) => patchElement(elementId, { margin: next })}
           />
-        </Row>
-      )}
+        )}
+      </Row>
     </Section>
   );
 };

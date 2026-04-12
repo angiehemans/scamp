@@ -16,7 +16,7 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Background">
-      <Row label="Color">
+      <Row label="">
         <ColorInput
           value={element.backgroundColor}
           onChange={(value) => patchElement(elementId, { backgroundColor: value })}

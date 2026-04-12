@@ -181,7 +181,15 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const resizeElement = useCanvasStore((s) => s.resizeElement);
   const reorderElement = useCanvasStore((s) => s.reorderElement);
 
-  /** Convert page-space pointer coords to frame-local (unscaled) coords. */
+  /**
+   * Convert page-space pointer coords to frame-local coords.
+   *
+   * CSS `zoom` (unlike `transform: scale`) creates a new coordinate
+   * context — getBoundingClientRect() for children of a zoomed element
+   * returns values that already account for the zoom. Since everything
+   * in the interaction layer is a child of the zoomed frame, we do NOT
+   * divide by scale.
+   */
   const toFrame = (clientX: number, clientY: number): { x: number; y: number } => {
     const rect = frameRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
@@ -192,24 +200,41 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   };
 
   /**
-   * Measure an element's bounding box in frame-local (unscaled) coordinates
-   * by querying the actual rendered DOM. Returns null if the element isn't
-   * mounted yet. Source of truth for the selection overlay and the draw-tool
-   * parent offset, so layout quirks (padding, border, flex flow) don't
-   * desync the overlay from what the user sees.
+   * Measure an element's bounding box in frame-local coordinates by
+   * querying the actual rendered DOM. Source of truth for the selection
+   * overlay and the draw-tool parent offset.
+   *
+   * With CSS `zoom` on the frame, both the element and the frame rects
+   * from getBoundingClientRect are in viewport pixels (zoomed). The
+   * difference gives the zoomed pixel offset; dividing by zoom recovers
+   * frame-local coordinates. The overlay is also a child of the zoomed
+   * frame, so positioning it at these frame-local values is correct.
    */
   const measureElementInFrame = (id: string): SelectedRect | null => {
     const frame = frameRef.current;
     if (!frame) return null;
     const node = frame.querySelector(`[data-element-id="${id}"]`);
     if (!(node instanceof HTMLElement)) return null;
-    const elRect = node.getBoundingClientRect();
-    const frameRect = frame.getBoundingClientRect();
+
+    // With CSS `zoom` on the frame, use offsetLeft/offsetTop to walk up
+    // to the frame boundary. Unlike getBoundingClientRect(), offset
+    // properties are always in the element's own coordinate space and
+    // are not affected by ancestor zoom — so no division by scale is
+    // needed. The overlay is a child of the zoomed frame too, so these
+    // frame-local coords position it correctly.
+    let x = 0;
+    let y = 0;
+    let current: HTMLElement | null = node;
+    while (current && current !== frame) {
+      x += current.offsetLeft;
+      y += current.offsetTop;
+      current = current.offsetParent as HTMLElement | null;
+    }
     return {
-      x: (elRect.left - frameRect.left) / scale,
-      y: (elRect.top - frameRect.top) / scale,
-      w: elRect.width / scale,
-      h: elRect.height / scale,
+      x,
+      y,
+      w: node.offsetWidth,
+      h: node.offsetHeight,
     };
   };
 

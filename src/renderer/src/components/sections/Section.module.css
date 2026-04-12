@@ -1,5 +1,5 @@
 .section {
-  padding: 12px 12px;
+  padding: 12px;
   border-bottom: 1px solid #2c2c2c;
   display: flex;
   flex-direction: column;
@@ -7,12 +7,11 @@
 }
 
 .heading {
-font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #999;
-  margin: 0 0 2px 0;
+  margin: 0;
 }
 
 .row {
@@ -22,16 +21,19 @@ font-size: 11px;
 }
 
 .rowLabel {
-font-size: 12px;
-  color: #888;
-  width: 56px;
-  flex-shrink: 0;
+  display: none;
 }
 
 .rowControl {
   flex: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
+}
+
+/* When a row has only one child, let it span full width. */
+.rowControl > :only-child {
+  grid-column: 1 / -1;
 }

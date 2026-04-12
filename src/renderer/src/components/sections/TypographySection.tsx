@@ -1,3 +1,5 @@
+import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
+
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { NumberInput } from '../controls/NumberInput';
 import { ColorInput } from '../controls/ColorInput';
@@ -10,15 +12,8 @@ type Props = {
   elementId: string;
 };
 
-/**
- * Font options. The `value` is the full `font-family` CSS value including
- * generic fallback, so the browser picks the right category even when the
- * exact font isn't installed (common on Linux). The label is the
- * human-friendly display name in the dropdown.
- */
 const FONT_FAMILY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: '', label: 'System font' },
-  // ---- Sans-serif (Google Fonts) ----
   { value: 'Inter, sans-serif', label: 'Inter' },
   { value: 'Roboto, sans-serif', label: 'Roboto' },
   { value: 'Open Sans, sans-serif', label: 'Open Sans' },
@@ -29,32 +24,30 @@ const FONT_FAMILY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: 'Nunito, sans-serif', label: 'Nunito' },
   { value: 'Raleway, sans-serif', label: 'Raleway' },
   { value: 'Ubuntu, sans-serif', label: 'Ubuntu' },
-  // ---- Sans-serif (web-safe) ----
   { value: 'Arial, Helvetica, sans-serif', label: 'Arial / Helvetica' },
   { value: 'Verdana, Geneva, sans-serif', label: 'Verdana' },
-  // ---- Serif (Google Fonts) ----
   { value: 'Playfair Display, serif', label: 'Playfair Display' },
   { value: 'Merriweather, serif', label: 'Merriweather' },
-  // ---- Serif (web-safe) ----
   { value: 'Georgia, serif', label: 'Georgia' },
   { value: 'Times New Roman, Times, serif', label: 'Times New Roman' },
-  // ---- Monospace ----
   { value: 'Courier New, Courier, monospace', label: 'Courier New' },
   { value: 'Ubuntu Mono, monospace', label: 'Ubuntu Mono' },
 ];
 
 const FONT_WEIGHT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: '400', label: '400 Regular' },
-  { value: '500', label: '500 Medium' },
-  { value: '600', label: '600 Semibold' },
-  { value: '700', label: '700 Bold' },
+  { value: '400', label: '400' },
+  { value: '500', label: '500' },
+  { value: '600', label: '600' },
+  { value: '700', label: '700' },
 ];
 
-const TEXT_ALIGN_OPTIONS: ReadonlyArray<{ value: TextAlign; label: string }> = [
-  { value: 'left', label: 'Left' },
-  { value: 'center', label: 'Center' },
-  { value: 'right', label: 'Right' },
-];
+const ICON_SIZE = 14;
+
+const TEXT_ALIGN_OPTIONS = [
+  { value: 'left' as TextAlign, label: <IconAlignLeft size={ICON_SIZE} /> },
+  { value: 'center' as TextAlign, label: <IconAlignCenter size={ICON_SIZE} /> },
+  { value: 'right' as TextAlign, label: <IconAlignRight size={ICON_SIZE} /> },
+] as const;
 
 const isFontWeight = (n: number): n is FontWeight =>
   n === 400 || n === 500 || n === 600 || n === 700;
@@ -69,25 +62,26 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Typography">
-      <Row label="Font">
+      <Row label="">
         <EnumSelect
           value={element.fontFamily ?? ''}
           options={FONT_FAMILY_OPTIONS}
           onChange={(value) =>
             patchElement(elementId, { fontFamily: value.length > 0 ? value : undefined })
           }
+          title="Font family"
         />
       </Row>
-      <Row label="Size">
+      <Row label="">
         <NumberInput
+          prefix="Sz"
+          title="Font size"
           value={element.fontSize}
           onChange={(value) => patchElement(elementId, { fontSize: value })}
           min={1}
           allowEmpty
           placeholder="auto"
         />
-      </Row>
-      <Row label="Weight">
         <EnumSelect
           value={String(element.fontWeight ?? 400)}
           options={FONT_WEIGHT_OPTIONS}
@@ -95,9 +89,10 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
             const n = Number(value);
             if (isFontWeight(n)) patchElement(elementId, { fontWeight: n });
           }}
+          title="Font weight"
         />
       </Row>
-      <Row label="Color">
+      <Row label="">
         <ColorInput
           value={element.color ?? '#000000'}
           onChange={(value) => patchElement(elementId, { color: value })}
@@ -105,24 +100,25 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
           tokens={themeTokens}
           onOpenTheme={openThemePanel ?? undefined}
         />
-      </Row>
-      <Row label="Align">
         <SegmentedControl<TextAlign>
           value={element.textAlign ?? 'left'}
           options={TEXT_ALIGN_OPTIONS}
           onChange={(value) => patchElement(elementId, { textAlign: value })}
+          title="Text align"
         />
       </Row>
-      <Row label="Line height">
+      <Row label="">
         <NumberInput
+          prefix="LH"
+          title="Line height"
           value={element.lineHeight}
           onChange={(value) => patchElement(elementId, { lineHeight: value })}
           allowEmpty
           placeholder="auto"
         />
-      </Row>
-      <Row label="Letter sp.">
         <NumberInput
+          prefix="LS"
+          title="Letter spacing"
           value={element.letterSpacing}
           onChange={(value) => patchElement(elementId, { letterSpacing: value })}
           allowEmpty
