@@ -20,17 +20,24 @@
   background-color: #0f0f0f;
 }
 
-.frame {
+/* Reserves scaled space inside the container so scrolling/centering
+   accounts for `transform: scale` on the frame (which doesn't affect
+   layout on its own). */
+.frameShell {
   position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.frame {
+  position: absolute;
+  top: 0;
+  left: 0;
   /* The canvas background comes from the root element's backgroundColor
      via ElementRenderer. This transparent default lets it show through. */
   background: transparent;
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
-  flex-shrink: 0;
-  /* Center horizontally when the frame fits; start-aligned when it
-     overflows so the left edge is reachable via scrolling. */
-  margin-left: auto;
-  margin-right: auto;
   /* Reset to the browser default font stack so the app's Ubuntu Mono
      doesn't leak into the user's design. Elements set their own
      font-family via the typed field; everything else gets system-ui. */

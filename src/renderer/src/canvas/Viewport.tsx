@@ -35,6 +35,10 @@ export const Viewport = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  // The frame grows with its content (min-height + children). We need to
+  // track its logical height so the scaled-space reservation wrapper
+  // gives the container the correct scrollable height.
+  const [frameH, setFrameH] = useState(900);
 
   const rootElementId = useCanvasStore((s) => s.rootElementId);
   const rootElement = useCanvasStore((s) => s.elements[s.rootElementId]);
@@ -79,6 +83,22 @@ export const Viewport = ({
     setScale(userZoom ?? fitScale);
   }, [userZoom, fitScale]);
 
+  // Track the frame's natural (pre-scale) height. `transform: scale`
+  // doesn't affect layout, so without this the wrapper would reserve
+  // logical space only and scrolling would be wrong when the user zooms
+  // in. Re-observe on frame remount so we always get a live subscription.
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const measure = (): void => {
+      setFrameH(frame.offsetHeight);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(frame);
+    return () => ro.disconnect();
+  }, []);
+
   // Background click on the container (outside the frame) deselects.
   useEffect(() => {
     const handler = (e: MouseEvent): void => {
@@ -97,20 +117,34 @@ export const Viewport = ({
       className={styles.container}
       style={artboardBackground ? { backgroundColor: artboardBackground } : undefined}
     >
+      {/* Sizing shell reserves the scaled footprint in normal flow so the
+          container scrolls correctly. `transform: scale` doesn't affect
+          layout, so without this the container would only allocate the
+          frame's logical size and clipping/overflow would be wrong on
+          zoom-in. */}
       <div
-        ref={frameRef}
-        className={styles.frame}
-        data-cursor={
-          activeTool === 'rectangle' || activeTool === 'image' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default'
-        }
+        className={styles.frameShell}
         style={{
-          width: `${frameW}px`,
-          minHeight: `${frameMinH}px`,
-          zoom: scale,
+          width: frameW * scale,
+          height: frameH * scale,
         }}
       >
-        <ElementRenderer elementId={rootElementId} />
-        <CanvasInteractionLayer frameRef={frameRef} scale={scale} />
+        <div
+          ref={frameRef}
+          className={styles.frame}
+          data-cursor={
+            activeTool === 'rectangle' || activeTool === 'image' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default'
+          }
+          style={{
+            width: `${frameW}px`,
+            minHeight: `${frameMinH}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <ElementRenderer elementId={rootElementId} />
+          <CanvasInteractionLayer frameRef={frameRef} scale={scale} />
+        </div>
       </div>
     </div>
   );

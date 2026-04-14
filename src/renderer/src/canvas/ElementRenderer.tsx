@@ -101,7 +101,13 @@ const elementToStyle = (
   }
 
   const base: CSSProperties = {
-    position: isRoot ? 'relative' : inFlexParent ? undefined : 'absolute',
+    // Flex children render as `position: relative` so they remain a
+    // positioning context for their own `position: absolute` descendants
+    // (e.g. a text child placed inside a flex-placed rect). Without this
+    // the text would anchor to the nearest positioned ancestor instead —
+    // typically root — and escape the visual box of its parent even
+    // though the tree structure puts it inside.
+    position: isRoot ? 'relative' : inFlexParent ? 'relative' : 'absolute',
     left: isRoot || inFlexParent ? undefined : el.x,
     top: isRoot || inFlexParent ? undefined : el.y,
     width: effectiveWidth,
@@ -205,7 +211,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     if (!isEditing) return;
     const node = elementRef.current;
     if (!node) return;
-    node.focus();
+    // preventScroll: the element is inside a `transform: scale`d frame in
+    // an overflow:auto container. Default focus() scrolls the element
+    // into view, which on Mac visibly shifts the canvas and makes the
+    // newly-placed text appear offset from where the user clicked.
+    node.focus({ preventScroll: true });
     const range = document.createRange();
     range.selectNodeContents(node);
     const sel = window.getSelection();

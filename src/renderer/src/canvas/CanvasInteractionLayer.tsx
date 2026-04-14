@@ -155,17 +155,18 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const activePage = useCanvasStore((s) => s.activePage);
 
   /**
-   * Convert page-space pointer coords to frame-local coords.
+   * Convert viewport pointer coords to frame-local (logical) coords.
    *
-   * CSS `zoom` (unlike `transform: scale`) creates a new coordinate
-   * context — getBoundingClientRect() for children of a zoomed element
-   * returns values that already account for the zoom. Since everything
-   * in the interaction layer is a child of the zoomed frame, we do NOT
-   * divide by scale.
+   * The frame is rendered via `transform: scale`, which has well-defined,
+   * platform-consistent behavior: `getBoundingClientRect()` returns the
+   * visible (scaled) rect and `offsetWidth/Left` stay in logical pixels.
+   * So subtract the visible frame origin and divide by the scale factor
+   * to recover logical frame-local coordinates.
    */
   const toFrame = (clientX: number, clientY: number): { x: number; y: number } => {
-    const rect = frameRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
+    const frame = frameRef.current;
+    if (!frame) return { x: 0, y: 0 };
+    const rect = frame.getBoundingClientRect();
     return {
       x: (clientX - rect.left) / scale,
       y: (clientY - rect.top) / scale,
@@ -173,15 +174,15 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   };
 
   /**
-   * Measure an element's bounding box in frame-local coordinates by
-   * querying the actual rendered DOM. Source of truth for the selection
-   * overlay and the draw-tool parent offset.
+   * Measure an element's bounding box in frame-local (logical)
+   * coordinates by querying the rendered DOM. Source of truth for the
+   * selection overlay and the draw-tool parent offset.
    *
-   * With CSS `zoom` on the frame, both the element and the frame rects
-   * from getBoundingClientRect are in viewport pixels (zoomed). The
-   * difference gives the zoomed pixel offset; dividing by zoom recovers
-   * frame-local coordinates. The overlay is also a child of the zoomed
-   * frame, so positioning it at these frame-local values is correct.
+   * The frame is scaled with `transform: scale`, which doesn't touch
+   * layout — so `offsetLeft/offsetTop/offsetWidth/offsetHeight` are
+   * already in logical pixels and don't need to be divided by scale.
+   * The overlay/preview are children of the transformed frame, so
+   * positioning them with these logical coords renders correctly.
    */
   const measureElementInFrame = (id: string): SelectedRect | null => {
     const frame = frameRef.current;
@@ -189,12 +190,9 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     const node = frame.querySelector(`[data-element-id="${id}"]`);
     if (!(node instanceof HTMLElement)) return null;
 
-    // With CSS `zoom` on the frame, use offsetLeft/offsetTop to walk up
-    // to the frame boundary. Unlike getBoundingClientRect(), offset
-    // properties are always in the element's own coordinate space and
-    // are not affected by ancestor zoom — so no division by scale is
-    // needed. The overlay is a child of the zoomed frame too, so these
-    // frame-local coords position it correctly.
+    // Walk up the offsetParent chain to the frame, accumulating logical
+    // pixel offsets. offsetLeft/Top are always unaffected by ancestor
+    // `transform: scale` since transforms don't reflow layout.
     let x = 0;
     let y = 0;
     let current: HTMLElement | null = node;
@@ -323,14 +321,17 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
       const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
       const { x, y } = toFrame(e.clientX, e.clientY);
-      const parent = parentSizeOf(hitId);
-      // Default text size from canvasSlice — keep in sync with `makeText`.
-      const TEXT_W = 120;
-      const TEXT_H = 24;
       const localX = x - parentRect.x;
       const localY = y - parentRect.y;
-      const clampedX = Math.max(0, Math.min(localX, parent.w - TEXT_W));
-      const clampedY = Math.max(0, Math.min(localY, parent.h - TEXT_H));
+      // Keep the top-left inside the parent so the text isn't placed at
+      // a negative offset, but don't force the whole text box to fit —
+      // a `parent.w - TEXT_W` clamp drags the text leftward whenever the
+      // parent is narrower than the click position plus the default
+      // text width, which makes the text land well away from the cursor.
+      // Landing at the click point matches user expectation; spill is
+      // harmless because the text element sits in its own layer.
+      const clampedX = Math.max(0, localX);
+      const clampedY = Math.max(0, localY);
       e.preventDefault();
       createText({
         parentId: hitId,
