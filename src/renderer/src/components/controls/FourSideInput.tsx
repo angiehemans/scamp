@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { KeyboardEvent, useEffect, useState } from 'react';
+import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
 type FourSideValue = [number, number, number, number];
@@ -89,13 +90,51 @@ export const FourSideInput = ({ value, onChange, min = 0, prefix, title }: Props
     setDraft(toShorthand(parsed));
   };
 
-  const allEqual = value[0] === value[1] && value[1] === value[2] && value[2] === value[3];
+  /**
+   * Step every side by the same delta. When the current draft doesn't
+   * parse, fall back to the committed `value` so a garbage-in state
+   * can't strand the user.
+   */
+  const step = (delta: number): void => {
+    const base = parseShorthand(draft, min) ?? value;
+    const next: FourSideValue = [
+      Math.max(min, base[0] + delta),
+      Math.max(min, base[1] + delta),
+      Math.max(min, base[2] + delta),
+      Math.max(min, base[3] + delta),
+    ];
+    const changed =
+      next[0] !== value[0] ||
+      next[1] !== value[1] ||
+      next[2] !== value[2] ||
+      next[3] !== value[3];
+    setDraft(toShorthand(next));
+    if (changed) onChange(next);
+  };
 
-  return (
-    <div
-      className={styles.colorInputRow}
-      title={title ?? (!allEqual ? `T:${value[0]} R:${value[1]} B:${value[2]} L:${value[3]}` : undefined)}
-    >
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      step(e.shiftKey ? 10 : 1);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      step(e.shiftKey ? -10 : -1);
+      return;
+    }
+  };
+
+  const allEqual = value[0] === value[1] && value[1] === value[2] && value[2] === value[3];
+  const tooltip =
+    title ?? (!allEqual ? `T:${value[0]} R:${value[1]} B:${value[2]} L:${value[3]}` : undefined);
+
+  const body = (
+    <div className={styles.colorInputRow}>
       {prefix && <span className={styles.inputPrefix}>{prefix}</span>}
       <input
         type="text"
@@ -103,11 +142,10 @@ export const FourSideInput = ({ value, onChange, min = 0, prefix, title }: Props
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-        }}
+        onKeyDown={handleKeyDown}
         placeholder="0"
       />
     </div>
   );
+  return tooltip ? <Tooltip label={tooltip}>{body}</Tooltip> : body;
 };

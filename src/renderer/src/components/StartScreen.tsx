@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ProjectData, RecentProject, Settings } from '@shared/types';
 import { basename } from '../lib/path';
 import { CreateProjectModal } from './CreateProjectModal';
+import { Tooltip } from './controls/Tooltip';
 import styles from './StartScreen.module.css';
 
 type RecentProjectWithExistence = RecentProject & { exists: boolean };
@@ -149,14 +150,15 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
                     <span className={styles.recentLabel}>Folder not found</span>
                   )}
                 </button>
-                <button
-                  className={styles.recentRemove}
-                  onClick={() => handleRemoveRecent(recent.path)}
-                  title="Remove from list"
-                  type="button"
-                >
-                  x
-                </button>
+                <Tooltip label="Remove from list">
+                  <button
+                    className={styles.recentRemove}
+                    onClick={() => handleRemoveRecent(recent.path)}
+                    type="button"
+                  >
+                    x
+                  </button>
+                </Tooltip>
               </li>
             ))}
           </ul>
@@ -203,9 +205,9 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
         {defaultFolder && (
           <div className={styles.sidebarFooter}>
             <span className={styles.footerLabel}>Default folder</span>
-            <span className={styles.footerPath} title={defaultFolder}>
-              {defaultFolder}
-            </span>
+            <Tooltip label={defaultFolder}>
+              <span className={styles.footerPath}>{defaultFolder}</span>
+            </Tooltip>
             <div className={styles.footerLinks}>
               <button
                 className={styles.linkButton}

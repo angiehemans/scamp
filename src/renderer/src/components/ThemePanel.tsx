@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import type { ThemeToken } from '@shared/types';
 import { ColorInput } from './controls/ColorInput';
+import { Tooltip } from './controls/Tooltip';
 import styles from './ThemePanel.module.css';
 
 type Props = {
@@ -221,14 +222,15 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
                   onChange={(v) => handleColorChange(i, v)}
                 />
               </div>
-              <button
-                className={styles.tokenDelete}
-                onClick={() => handleDeleteRequest(i)}
-                type="button"
-                title="Delete token"
-              >
-                x
-              </button>
+              <Tooltip label="Delete token">
+                <button
+                  className={styles.tokenDelete}
+                  onClick={() => handleDeleteRequest(i)}
+                  type="button"
+                >
+                  x
+                </button>
+              </Tooltip>
             </div>
           ))}
         </div>

@@ -58,3 +58,36 @@ button {
   background: #3b82f6;
   color: #fff;
 }
+
+/* Mac-style overlay scrollbars. The track is transparent so it doesn't
+   carve a visible gutter out of the surface; the thumb is a translucent
+   pill that stays out of the way until the user interacts with the
+   scrollable region. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  /* The border trick gives the thumb its visual inset — Chromium paints
+     the background through the border as long as background-clip is
+     content-box, producing a narrower visible pill without changing the
+     scrollbar's hit-testing width. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

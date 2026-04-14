@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SketchPicker, type ColorResult, type RGBColor } from 'react-color';
 import type { ThemeToken } from '@shared/types';
+import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
 type Props = {
@@ -152,6 +153,7 @@ export const ColorInput = ({
 
   return (
     <div className={`${styles.colorInputRow} ${styles.colorInputRowSwatch}`}>
+        <Tooltip label="Pick color">
         <button
           ref={swatchRef}
           type="button"
@@ -169,13 +171,13 @@ export const ColorInput = ({
             }
             setOpen((v) => !v);
           }}
-          title="Pick color"
         >
           <span
             className={styles.colorSwatchInner}
             style={{ background: resolved }}
           />
         </button>
+        </Tooltip>
         <input
           type="text"
           className={styles.colorText}

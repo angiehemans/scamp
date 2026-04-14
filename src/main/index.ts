@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeTheme, shell } from 'electron';
+import { app, BrowserWindow, nativeTheme, net, protocol, shell } from 'electron';
 import { join } from 'path';
 import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
@@ -7,6 +7,7 @@ import { registerRecentProjectsIpc } from './ipc/recentProjects';
 import { registerSettingsIpc } from './ipc/settings';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
+import { registerImageIpc } from './ipc/image';
 import { initWatcher, disposeWatcher } from './watcher';
 
 const createWindow = (): void => {
@@ -55,8 +56,23 @@ const createWindow = (): void => {
   initWatcher(win);
 };
 
+// Register a custom protocol that serves project asset files. The renderer
+// uses `scamp-asset://<absolute-path>` URLs for `<img>` elements so they
+// resolve correctly regardless of the dev-server or production origin.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'scamp-asset', privileges: { standard: true, bypassCSP: true, supportFetchAPI: true } },
+]);
+
 app.whenReady().then(() => {
   nativeTheme.themeSource = 'dark';
+
+  protocol.handle('scamp-asset', (request) => {
+    // URL form: `scamp-asset://localhost/<encoded-absolute-path>`
+    // Parse with URL to get a correctly decoded pathname.
+    const parsed = new URL(request.url);
+    const filePath = decodeURIComponent(parsed.pathname);
+    return net.fetch(`file://${filePath}`);
+  });
 
   registerProjectIpc();
   registerFileIpc();
@@ -65,6 +81,7 @@ app.whenReady().then(() => {
   registerSettingsIpc();
   registerTerminalIpc();
   registerThemeIpc();
+  registerImageIpc();
 
   createWindow();
 

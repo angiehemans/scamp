@@ -12,7 +12,7 @@ import {
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import type { ThemeToken } from '@shared/types';
 
-export type Tool = 'select' | 'rectangle' | 'text';
+export type Tool = 'select' | 'rectangle' | 'text' | 'image';
 
 export type NewRectInput = {
   parentId: string;
@@ -27,6 +27,16 @@ export type NewTextInput = {
   x: number;
   y: number;
   text?: string;
+};
+
+export type NewImageInput = {
+  parentId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  src: string;
+  alt?: string;
 };
 
 export type ActivePage = {
@@ -108,6 +118,13 @@ type CanvasState = {
   /** Design tokens parsed from the project's theme.css file. */
   themeTokens: ThemeToken[];
 
+  /** Internal clipboard for copy/paste. Stores a snapshot of an element
+   *  subtree at copy time, not a live reference. */
+  clipboard: {
+    elements: Record<string, ScampElement>;
+    rootId: string;
+  } | null;
+
   setTool: (tool: Tool) => void;
   /** Replace the selection with a single element (or clear it). */
   selectElement: (id: string | null) => void;
@@ -115,7 +132,12 @@ type CanvasState = {
   toggleSelectElement: (id: string) => void;
   createRectangle: (input: NewRectInput) => string;
   createText: (input: NewTextInput) => string;
+  createImage: (input: NewImageInput) => string;
   duplicateElement: (id: string) => string | null;
+  /** Snapshot the selected element subtree into the internal clipboard. */
+  copyElement: (id: string) => void;
+  /** Clone from the clipboard and insert at the current selection point. */
+  pasteElement: () => string | null;
   deleteElement: (id: string) => void;
   /** Wrap the given sibling ids in a new flex group. Returns the new id or null. */
   groupElements: (ids: string[]) => string | null;
@@ -209,6 +231,21 @@ const makeText = (input: NewTextInput, id: string): ScampElement => ({
   textAlign: 'left',
 });
 
+const makeImage = (input: NewImageInput, id: string): ScampElement => ({
+  ...DEFAULT_RECT_STYLES,
+  id,
+  type: 'image',
+  parentId: input.parentId,
+  childIds: [],
+  x: input.x,
+  y: input.y,
+  widthValue: input.width,
+  heightValue: input.height,
+  customProperties: {},
+  src: input.src,
+  alt: input.alt ?? '',
+});
+
 /** Pick a fresh element id that doesn't collide with any existing one. */
 const freshId = (existing: ReadonlySet<string>): string => {
   for (let i = 0; i < 32; i += 1) {
@@ -233,6 +270,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   panelMode: 'ui',
   userZoom: null,
   themeTokens: [],
+  clipboard: null,
 
   setTool: (tool) => set({ activeTool: tool }),
 
@@ -282,6 +320,24 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         },
         selectedElementIds: [id],
         editingElementId: id,
+      };
+    });
+    return id;
+  },
+
+  createImage: (input) => {
+    const id = generateElementId();
+    set((state) => {
+      const parent = state.elements[input.parentId];
+      if (!parent) return state;
+      const newImage = makeImage(input, id);
+      return {
+        elements: {
+          ...state.elements,
+          [id]: newImage,
+          [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
+        },
+        selectedElementIds: [id],
       };
     });
     return id;
@@ -385,6 +441,72 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
           ...state.elements,
           ...result.cloned,
           [result.newId]: updatedClone,
+          [updatedParent.id]: updatedParent,
+        },
+        selectedElementIds: [result.newId],
+      };
+    });
+    return createdId;
+  },
+
+  copyElement: (id) => {
+    set((state) => {
+      if (id === ROOT_ELEMENT_ID) return state;
+      const el = state.elements[id];
+      if (!el) return state;
+
+      // Deep-copy the subtree into the clipboard. Walk depth-first and
+      // collect every element in the subtree keyed by its original id.
+      const snapshot: Record<string, ScampElement> = {};
+      const visit = (visitId: string): void => {
+        const node = state.elements[visitId];
+        if (!node) return;
+        snapshot[visitId] = {
+          ...node,
+          customProperties: { ...node.customProperties },
+          padding: [...node.padding] as [number, number, number, number],
+          margin: [...node.margin] as [number, number, number, number],
+          borderRadius: [...node.borderRadius] as [number, number, number, number],
+          borderWidth: [...node.borderWidth] as [number, number, number, number],
+        };
+        for (const childId of node.childIds) visit(childId);
+      };
+      visit(id);
+      return { clipboard: { elements: snapshot, rootId: id } };
+    });
+  },
+
+  pasteElement: () => {
+    let createdId: string | null = null;
+    set((state) => {
+      if (!state.clipboard) return state;
+
+      // Paste INTO the selected element as its last child. If nothing
+      // is selected, paste into the root.
+      const selectedId = state.selectedElementIds[0];
+      const parentId = selectedId ?? ROOT_ELEMENT_ID;
+      const parent = state.elements[parentId];
+      if (!parent) return state;
+      const insertIdx = parent.childIds.length;
+
+      // Clone the clipboard subtree with fresh IDs.
+      const result = cloneElementSubtree(
+        state.clipboard.elements,
+        state.clipboard.rootId,
+        parentId,
+        new Set(Object.keys(state.elements))
+      );
+      if (!result) return state;
+
+      const newChildIds = [...parent.childIds];
+      newChildIds.splice(insertIdx, 0, result.newId);
+      const updatedParent: ScampElement = { ...parent, childIds: newChildIds };
+
+      createdId = result.newId;
+      return {
+        elements: {
+          ...state.elements,
+          ...result.cloned,
           [updatedParent.id]: updatedParent,
         },
         selectedElementIds: [result.newId],

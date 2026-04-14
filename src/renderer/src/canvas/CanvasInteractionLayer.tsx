@@ -1,6 +1,7 @@
-import { PointerEvent, RefObject, useLayoutEffect, useRef, useState } from 'react';
+import { DragEvent, PointerEvent, RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
+import { clampToParent, MIN_SIZE } from '@lib/bounds';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
 import styles from './CanvasInteractionLayer.module.css';
@@ -60,7 +61,19 @@ type DropIndicator = {
   newIndex: number;
 };
 
-const MIN_SIZE = 20;
+/**
+ * Derive the project root from a page's TSX path. Page files live at
+ * `<project>/<name>.tsx` (flat structure), so the project root is the
+ * containing directory.
+ */
+const projectPathFromTsxPath = (tsxPath: string): string => {
+  const normalized = tsxPath.replace(/\\/g, '/');
+  const lastSlash = normalized.lastIndexOf('/');
+  return lastSlash >= 0 ? normalized.slice(0, lastSlash) : normalized;
+};
+
+/** Default size for image elements placed via click (not drag). */
+const DEFAULT_IMAGE_SIZE = 200;
 
 /**
  * If the user just clicks (rather than drag-drawing) with the rectangle
@@ -70,54 +83,6 @@ const MIN_SIZE = 20;
  */
 const CLICK_DRAG_THRESHOLD = 5;
 const DEFAULT_NEW_RECT_SIZE = 200;
-
-/**
- * Clamp a candidate (x, y, w, h) rect so it stays inside (parentW, parentH).
- *
- * Used by move, resize, and draw to enforce "children can't escape their
- * parent". The rect is shrunk before being shifted, so a rect that's too
- * big for the parent ends up flush at (0, 0) with size = parent size, not
- * outside the bounds.
- */
-const clampToParent = (
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  parentW: number,
-  parentH: number
-): { x: number; y: number; w: number; h: number } => {
-  let nw = Math.max(MIN_SIZE, w);
-  let nh = Math.max(MIN_SIZE, h);
-  let nx = x;
-  let ny = y;
-
-  // If the rect's left/top is outside the parent, shift it back and
-  // shrink the corresponding dimension so the opposite edge stays put.
-  if (nx < 0) {
-    nw = Math.max(MIN_SIZE, nw + nx);
-    nx = 0;
-  }
-  if (ny < 0) {
-    nh = Math.max(MIN_SIZE, nh + ny);
-    ny = 0;
-  }
-
-  // Shrink to fit if the right/bottom edge spills past the parent.
-  if (nx + nw > parentW) {
-    nw = Math.max(MIN_SIZE, parentW - nx);
-  }
-  if (ny + nh > parentH) {
-    nh = Math.max(MIN_SIZE, parentH - ny);
-  }
-
-  // Final pull-back: if the parent itself is smaller than MIN_SIZE we
-  // can still spill — pull x/y in so the rect at least starts inside.
-  if (nx + nw > parentW) nx = Math.max(0, parentW - nw);
-  if (ny + nh > parentH) ny = Math.max(0, parentH - nh);
-
-  return { x: nx, y: ny, w: nw, h: nh };
-};
 
 /**
  * Hit-test the cursor against existing elements. Returns the deepest
@@ -162,6 +127,12 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   // its stored coordinates.
   const [selectedRect, setSelectedRect] = useState<SelectedRect | null>(null);
 
+  // Image tool: the chosen image's relative path + filename, set after the
+  // user picks a file from the dialog. While this is non-null and the tool
+  // is 'image', the pointer handlers work like the rectangle draw tool —
+  // when the draw completes, an image element is created at the drawn rect.
+  const [pendingImage, setPendingImage] = useState<{ src: string; alt: string } | null>(null);
+
   const activeTool = useCanvasStore((s) => s.activeTool);
   const elements = useCanvasStore((s) => s.elements);
   // The "primary" selection — used for resize-handle positioning, drag-to-
@@ -176,10 +147,12 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const setTool = useCanvasStore((s) => s.setTool);
   const createRectangle = useCanvasStore((s) => s.createRectangle);
   const createText = useCanvasStore((s) => s.createText);
+  const createImage = useCanvasStore((s) => s.createImage);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
   const moveElement = useCanvasStore((s) => s.moveElement);
   const resizeElement = useCanvasStore((s) => s.resizeElement);
   const reorderElement = useCanvasStore((s) => s.reorderElement);
+  const activePage = useCanvasStore((s) => s.activePage);
 
   /**
    * Convert page-space pointer coords to frame-local coords.
@@ -251,6 +224,42 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     if (!el || !el.parentId) return false;
     return elements[el.parentId]?.display === 'flex';
   };
+
+  // When the image tool is activated, immediately open a file dialog so
+  // the user picks a file before drawing. If they cancel, revert to the
+  // select tool. If they pick a file, copy it into assets/ and store the
+  // result so the draw handler can create an image element on pointer-up.
+  useEffect(() => {
+    if (activeTool !== 'image') {
+      setPendingImage(null);
+      return;
+    }
+    // Already have a pending image (e.g. re-render), don't re-open dialog.
+    if (pendingImage) return;
+    if (!activePage) {
+      setTool('select');
+      return;
+    }
+    const projectPath = projectPathFromTsxPath(activePage.tsxPath);
+    const assetsPath = `${projectPath}/assets`;
+    let cancelled = false;
+    void (async (): Promise<void> => {
+      const chosen = await window.scamp.chooseImage({ defaultPath: assetsPath });
+      if (cancelled) return;
+      if (chosen.canceled || !chosen.path) {
+        setTool('select');
+        return;
+      }
+      const copied = await window.scamp.copyImage({
+        sourcePath: chosen.path,
+        projectPath,
+      });
+      if (cancelled) return;
+      setPendingImage({ src: copied.relativePath, alt: copied.fileName });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool]);
 
   // Re-measure the selected element from the DOM whenever anything that
   // could move it changes. useLayoutEffect runs after layout/render but
@@ -329,6 +338,25 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
         y: Math.round(clampedY),
       });
       setTool('select');
+      return;
+    }
+
+    if (activeTool === 'image' && pendingImage) {
+      // File already chosen — draw a rectangle for the image to fill.
+      const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+      const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
+      const { x, y } = toFrame(e.clientX, e.clientY);
+      e.preventDefault();
+      target.setPointerCapture(e.pointerId);
+      setDraw({
+        parentId: hitId,
+        startX: x - parentRect.x,
+        startY: y - parentRect.y,
+        currentX: x - parentRect.x,
+        currentY: y - parentRect.y,
+        parentOffsetX: parentRect.x,
+        parentOffsetY: parentRect.y,
+      });
       return;
     }
 
@@ -516,22 +544,36 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       // If the gesture was effectively a click (no meaningful drag),
       // drop a default-sized rect centered on the cursor instead. The
       // clamp helper afterwards keeps it inside the parent bounds.
+      const defaultSize = pendingImage ? DEFAULT_IMAGE_SIZE : DEFAULT_NEW_RECT_SIZE;
       const wasClick =
         dragW < CLICK_DRAG_THRESHOLD && dragH < CLICK_DRAG_THRESHOLD;
-      const x = wasClick ? draw.startX - DEFAULT_NEW_RECT_SIZE / 2 : dragX;
-      const y = wasClick ? draw.startY - DEFAULT_NEW_RECT_SIZE / 2 : dragY;
-      const w = wasClick ? DEFAULT_NEW_RECT_SIZE : dragW;
-      const h = wasClick ? DEFAULT_NEW_RECT_SIZE : dragH;
+      const x = wasClick ? draw.startX - defaultSize / 2 : dragX;
+      const y = wasClick ? draw.startY - defaultSize / 2 : dragY;
+      const w = wasClick ? defaultSize : dragW;
+      const h = wasClick ? defaultSize : dragH;
 
       const clamped = clampToParent(x, y, w, h, parent.w, parent.h);
       if (clamped.w >= MIN_SIZE && clamped.h >= MIN_SIZE) {
-        createRectangle({
-          parentId: draw.parentId,
-          x: Math.round(clamped.x),
-          y: Math.round(clamped.y),
-          width: Math.round(clamped.w),
-          height: Math.round(clamped.h),
-        });
+        if (pendingImage) {
+          createImage({
+            parentId: draw.parentId,
+            x: Math.round(clamped.x),
+            y: Math.round(clamped.y),
+            width: Math.round(clamped.w),
+            height: Math.round(clamped.h),
+            src: pendingImage.src,
+            alt: pendingImage.alt,
+          });
+          setPendingImage(null);
+        } else {
+          createRectangle({
+            parentId: draw.parentId,
+            x: Math.round(clamped.x),
+            y: Math.round(clamped.y),
+            width: Math.round(clamped.w),
+            height: Math.round(clamped.h),
+          });
+        }
         setTool('select');
       }
       setDraw(null);
@@ -554,6 +596,53 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     setEditingElement(hitId);
   };
 
+  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
+    // Accept image files from the OS file manager.
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
+    e.preventDefault();
+    if (!activePage) return;
+    const files = e.dataTransfer.files;
+    if (files.length === 0) return;
+    const file = files[0]!;
+    // Only accept image types.
+    if (!file.type.startsWith('image/')) return;
+    // Electron gives us the file path on the `path` property.
+    const filePath = (file as File & { path?: string }).path;
+    if (!filePath) return;
+
+    const projectPath = projectPathFromTsxPath(activePage.tsxPath);
+    const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+    const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
+    const { x, y } = toFrame(e.clientX, e.clientY);
+    const parent = parentSizeOf(hitId);
+
+    void (async (): Promise<void> => {
+      const copied = await window.scamp.copyImage({
+        sourcePath: filePath,
+        projectPath,
+      });
+      const localX = x - parentRect.x;
+      const localY = y - parentRect.y;
+      const clampedX = Math.max(0, Math.min(localX, parent.w - DEFAULT_IMAGE_SIZE));
+      const clampedY = Math.max(0, Math.min(localY, parent.h - DEFAULT_IMAGE_SIZE));
+      createImage({
+        parentId: hitId,
+        x: Math.round(clampedX),
+        y: Math.round(clampedY),
+        width: DEFAULT_IMAGE_SIZE,
+        height: DEFAULT_IMAGE_SIZE,
+        src: copied.relativePath,
+        alt: copied.fileName,
+      });
+    })();
+  };
+
   const selectedEl = selectedElementId ? elements[selectedElementId] : null;
   const isEditing = editingElementId !== null;
 
@@ -567,6 +656,8 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onDoubleClick={handleDoubleClick}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {draw && (
         <DrawPreview

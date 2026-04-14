@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { KeyboardEvent, useEffect, useState } from 'react';
+import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
 type Props = {
@@ -63,9 +64,50 @@ export const NumberInput = ({
     setDraft(String(next));
   };
 
+  /**
+   * Step the value by `delta` (positive or negative) and push it
+   * straight through `onChange` so the canvas reflects the change
+   * immediately. When the current draft isn't a valid number, fall
+   * back to `value`, then to `min` (or 0), so the first arrow-key
+   * press on an unset field still produces a sensible result.
+   */
+  const step = (delta: number): void => {
+    const fallback =
+      value !== undefined
+        ? value
+        : typeof min === 'number'
+          ? min
+          : 0;
+    const parsed = Number(draft.trim());
+    const current = Number.isFinite(parsed) ? parsed : fallback;
+    let next = current + delta;
+    if (typeof min === 'number' && next < min) next = min;
+    if (typeof max === 'number' && next > max) next = max;
+    if (next === value && String(next) === draft) return;
+    setDraft(String(next));
+    onChange(next);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      step(e.shiftKey ? 10 : 1);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      step(e.shiftKey ? -10 : -1);
+      return;
+    }
+  };
+
   if (prefix) {
-    return (
-      <div className={styles.colorInputRow} title={title}>
+    const body = (
+      <div className={styles.colorInputRow}>
         <span className={styles.inputPrefix}>{prefix}</span>
         <input
           type="text"
@@ -75,29 +117,24 @@ export const NumberInput = ({
           placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-          }}
+          onKeyDown={handleKeyDown}
         />
       </div>
     );
+    return title ? <Tooltip label={title}>{body}</Tooltip> : body;
   }
 
-  return (
+  const input = (
     <input
       type="text"
       inputMode="numeric"
       className={`${styles.input} ${styles.numberInput}`}
       value={draft}
       placeholder={placeholder}
-      title={title}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.currentTarget.blur();
-        }
-      }}
+      onKeyDown={handleKeyDown}
     />
   );
+  return title ? <Tooltip label={title}>{input}</Tooltip> : input;
 };

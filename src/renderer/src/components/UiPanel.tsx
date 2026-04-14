@@ -8,6 +8,7 @@ import { BackgroundSection } from './sections/BackgroundSection';
 import { BorderSection } from './sections/BorderSection';
 import { TagSection } from './sections/TagSection';
 import { TypographySection } from './sections/TypographySection';
+import { ImageSection } from './sections/ImageSection';
 import styles from './PropertiesPanel.module.css';
 
 /**
@@ -40,6 +41,7 @@ export const UiPanel = (): JSX.Element => {
 
   const isRoot = elementId === ROOT_ELEMENT_ID;
   const isText = element.type === 'text';
+  const isImage = element.type === 'image';
   const showPosition = !isRoot && !parentIsFlex;
 
   if (isRoot) {
@@ -57,10 +59,11 @@ export const UiPanel = (): JSX.Element => {
     <div className={styles.uiPanelBody}>
       {showPosition && <PositionSection elementId={elementId} />}
       <SizeSection elementId={elementId} />
-      {!isText && <LayoutSection elementId={elementId} />}
+      {!isText && !isImage && <LayoutSection elementId={elementId} />}
       <SpacingSection elementId={elementId} />
-      <BackgroundSection elementId={elementId} />
-      <BorderSection elementId={elementId} />
+      {!isImage && <BackgroundSection elementId={elementId} />}
+      {!isImage && <BorderSection elementId={elementId} />}
+      {isImage && <ImageSection elementId={elementId} />}
       {isText && <TagSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}
     </div>

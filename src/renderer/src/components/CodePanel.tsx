@@ -4,6 +4,7 @@ import { css as cssLang } from '@codemirror/lang-css';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
 import { useCanvasStore } from '@store/canvasSlice';
+import { Tooltip } from './controls/Tooltip';
 import styles from './CodePanel.module.css';
 
 const READ_ONLY = EditorView.editable.of(false);
@@ -28,14 +29,15 @@ export const CodePanel = (): JSX.Element => {
       <div className={styles.header}>
         <span className={styles.title}>Code</span>
         <span className={styles.spacer} />
-        <button
-          className={styles.closeButton}
-          onClick={() => setBottomPanel('none')}
-          type="button"
-          title="Hide code panel"
-        >
-          ×
-        </button>
+        <Tooltip label="Hide code panel">
+          <button
+            className={styles.closeButton}
+            onClick={() => setBottomPanel('none')}
+            type="button"
+          >
+            ×
+          </button>
+        </Tooltip>
       </div>
       <div className={styles.split}>
         <div className={styles.pane}>

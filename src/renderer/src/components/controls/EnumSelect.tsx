@@ -1,3 +1,4 @@
+import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
 type Option<V extends string> = {
@@ -19,12 +20,11 @@ export const EnumSelect = <V extends string>({
   onChange,
   title,
 }: Props<V>): JSX.Element => {
-  return (
+  const select = (
     <select
       className={styles.select}
       value={value}
       onChange={(e) => onChange(e.target.value as V)}
-      title={title}
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -33,4 +33,5 @@ export const EnumSelect = <V extends string>({
       ))}
     </select>
   );
+  return title ? <Tooltip label={title}>{select}</Tooltip> : select;
 };

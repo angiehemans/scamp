@@ -31,6 +31,7 @@ export const App = (): JSX.Element => {
           setProject(null);
           setView('start');
         }}
+        onProjectChange={setProject}
         onOpenSettings={() => setView('settings')}
       />
     );

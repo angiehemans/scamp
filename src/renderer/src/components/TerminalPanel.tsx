@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { TerminalView } from './TerminalView';
+import { Tooltip } from './controls/Tooltip';
 import styles from './TerminalPanel.module.css';
 
 const MAX_TABS = 3;
@@ -74,39 +75,38 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
               onClick={() => setActiveKey(tab.key)}
             >
               <span>{`Shell ${idx + 1}`}</span>
-              <button
-                className={styles.tabClose}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCloseTab(tab.key);
-                }}
-                type="button"
-                title="Close"
-              >
-                ×
-              </button>
+              <Tooltip label="Close">
+                <button
+                  className={styles.tabClose}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCloseTab(tab.key);
+                  }}
+                  type="button"
+                >
+                  ×
+                </button>
+              </Tooltip>
             </div>
           ))}
           {tabs.length < MAX_TABS && (
-            <button
-              className={styles.addTab}
-              onClick={handleAddTab}
-              type="button"
-              title="New shell"
-            >
-              +
-            </button>
+            <Tooltip label="New shell">
+              <button className={styles.addTab} onClick={handleAddTab} type="button">
+                +
+              </button>
+            </Tooltip>
           )}
         </div>
         <span className={styles.spacer} />
-        <button
-          className={styles.closePanel}
-          onClick={() => setBottomPanel('none')}
-          type="button"
-          title="Hide terminal panel"
-        >
-          ×
-        </button>
+        <Tooltip label="Hide terminal panel">
+          <button
+            className={styles.closePanel}
+            onClick={() => setBottomPanel('none')}
+            type="button"
+          >
+            ×
+          </button>
+        </Tooltip>
       </div>
       <div className={styles.body}>
         {tabs.map((tab) => (

@@ -5,12 +5,42 @@ import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
 import styles from './PropertiesPanel.module.css';
 
-/**
- * Properties panel router. Renders the class chip + mode toggle, then
- * either the typed UI view or the raw CSS view depending on the canvas
- * store's `panelMode`. Both views read the same element state, so flipping
- * is instant and lossless.
- */
+const SHORTCUTS: ReadonlyArray<{ keys: string; description: string }> = [
+  { keys: 'V', description: 'Select tool' },
+  { keys: 'R', description: 'Rectangle tool' },
+  { keys: 'T', description: 'Text tool' },
+  { keys: 'I', description: 'Image tool' },
+  { keys: 'Delete', description: 'Delete element' },
+  { keys: 'Cmd+C', description: 'Copy element' },
+  { keys: 'Cmd+V', description: 'Paste element' },
+  { keys: 'Cmd+D', description: 'Duplicate element' },
+  { keys: 'Cmd+G', description: 'Group selection' },
+  { keys: 'Cmd+Z', description: 'Undo' },
+  { keys: 'Cmd+Shift+Z', description: 'Redo' },
+  { keys: 'Cmd+S', description: 'Save CSS edits' },
+  { keys: 'Cmd+=', description: 'Zoom in' },
+  { keys: 'Cmd+-', description: 'Zoom out' },
+  { keys: 'Cmd+0', description: 'Reset zoom' },
+  { keys: 'Double-click', description: 'Edit text / Rename layer' },
+  { keys: 'Shift+click', description: 'Multi-select' },
+];
+
+const ShortcutsTable = (): JSX.Element => (
+  <div className={styles.shortcutsWrap}>
+    <h3 className={styles.shortcutsTitle}>Keyboard Shortcuts</h3>
+    <table className={styles.shortcutsTable}>
+      <tbody>
+        {SHORTCUTS.map((s) => (
+          <tr key={s.keys}>
+            <td className={styles.shortcutKeys}>{s.keys}</td>
+            <td className={styles.shortcutDesc}>{s.description}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
 export const PropertiesPanel = (): JSX.Element => {
   const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
   const panelMode = useCanvasStore((s) => s.panelMode);
@@ -18,7 +48,7 @@ export const PropertiesPanel = (): JSX.Element => {
   if (!selectedId) {
     return (
       <aside className={styles.panel}>
-        <div className={styles.placeholder}>← Select an element to edit its styles</div>
+        <ShortcutsTable />
       </aside>
     );
   }

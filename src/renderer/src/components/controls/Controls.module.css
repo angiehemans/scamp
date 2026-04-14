@@ -28,7 +28,7 @@
   flex: 1;
   min-width: 0;
   height: 24px;
-  background: #0f0f0f;
+  background: #151515;
   border: 1px solid #2c2c2c;
   border-radius: 4px;
   padding: 0 6px;
@@ -81,7 +81,7 @@
 }
 
 /* Integrated input row: optional prefix label + text input, one box.
-   Matches the design's 24px height, #0f0f0f bg, 4px radius. */
+   Matches the design's 24px height, #151515 bg, 4px radius. */
 .colorInputRow {
   display: flex;
   align-items: center;
@@ -89,7 +89,7 @@
   height: 24px;
   min-height: 24px;
   max-height: 24px;
-  background: #0f0f0f;
+  background: #151515;
   border: 1px solid #2c2c2c;
   border-radius: 4px;
   padding: 0 6px;
@@ -278,7 +278,7 @@
  * leak outside the color picker. */
 
 .sketchDark input {
-  background: #0f0f0f !important;
+  background: #151515 !important;
   color: #e0e0e0 !important;
   border: 1px solid #2c2c2c !important;
   border-radius: 4px !important;
@@ -313,7 +313,7 @@ font-size: 11px !important;
   flex: 1 1 0;
   min-width: 0;
   height: 24px;
-  background: #0f0f0f;
+  background: #151515;
   border: 1px solid #2c2c2c;
   border-radius: 4px;
   padding: 0 6px;
@@ -331,7 +331,7 @@ font-size: 11px !important;
 .segmented {
   display: flex;
   height: 24px;
-  background: #0f0f0f;
+  background: #151515;
   border: 1px solid #2c2c2c;
   border-radius: 4px;
   padding: 2px;

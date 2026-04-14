@@ -1,6 +1,6 @@
 .panel {
   width: 260px;
-  background: #1f1f1f;
+  background: #1a1a1a;
   border-left: 1px solid #2c2c2c;
   display: flex;
   flex-direction: column;
@@ -9,9 +9,50 @@
 
 .placeholder {
   padding: 24px 16px;
-font-size: 13px;
+  font-size: 13px;
   color: #666;
   text-align: center;
+}
+
+.shortcutsWrap {
+  padding: 16px 12px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.shortcutsTitle {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #888;
+  margin: 0 0 12px;
+}
+
+.shortcutsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcutsTable tr {
+  border-bottom: 1px solid #2c2c2c;
+}
+
+.shortcutsTable td {
+  padding: 6px 0;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.shortcutKeys {
+  color: #ccc;
+  white-space: nowrap;
+  width: 1%;
+  padding-right: 12px;
+  font-weight: 500;
+}
+
+.shortcutDesc {
+  color: #777;
 }
 
 .header {

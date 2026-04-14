@@ -48,7 +48,7 @@ const componentNameFromPage = (pageName: string): string => {
 export const classNameFor = (el: ScampElement): string => {
   if (el.id === ROOT_ELEMENT_ID) return 'root';
   const prefix = el.name ? slugifyName(el.name) : '';
-  const defaultPrefix = el.type === 'rectangle' ? 'rect' : 'text';
+  const defaultPrefix = el.type === 'image' ? 'img' : el.type === 'rectangle' ? 'rect' : 'text';
   return `${prefix.length > 0 ? prefix : defaultPrefix}_${el.id}`;
 };
 
@@ -57,6 +57,7 @@ const indent = (level: number): string => '  '.repeat(level);
 /** The HTML tag we'd use by default for an element of this type. */
 const defaultTagFor = (el: ScampElement): string => {
   if (el.id === ROOT_ELEMENT_ID) return 'div';
+  if (el.type === 'image') return 'img';
   return el.type === 'text' ? 'p' : 'div';
 };
 
@@ -75,7 +76,16 @@ const renderJsx = (
 ): string => {
   const className = classNameFor(el);
   const tag = tagFor(el);
-  const open = `<${tag} data-scamp-id="${className}" className={styles.${className}}`;
+  // Image elements emit src and alt attributes.
+  const imgAttrs = el.type === 'image'
+    ? ` src="${escapeHtml(el.src ?? '')}" alt="${escapeHtml(el.alt ?? '')}"`
+    : '';
+  const open = `<${tag} data-scamp-id="${className}" className={styles.${className}}${imgAttrs}`;
+
+  // Image elements are always self-closing (no children, no text).
+  if (el.type === 'image') {
+    return `${indent(level)}${open} />`;
+  }
 
   const hasText = el.type === 'text' && typeof el.text === 'string' && el.text.length > 0;
   const hasChildren = el.childIds.length > 0;

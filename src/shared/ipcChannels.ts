@@ -17,6 +17,7 @@ export const IPC = {
   // Page operations
   PageCreate: 'page:create',
   PageDelete: 'page:delete',
+  PageDuplicate: 'page:duplicate',
 
   // Recent projects
   RecentProjectsGet: 'recentProjects:get',
@@ -26,6 +27,10 @@ export const IPC = {
   SettingsGet: 'settings:get',
   SettingsSetDefaultFolder: 'settings:setDefaultFolder',
   SettingsUpdate: 'settings:update',
+
+  // Images
+  FileCopyImage: 'file:copyImage',
+  FileChooseImage: 'file:chooseImage',
 
   // Theme
   ThemeRead: 'theme:read',

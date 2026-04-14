@@ -1,4 +1,5 @@
 import { useCanvasStore } from '@store/canvasSlice';
+import { Tooltip } from './controls/Tooltip';
 import styles from './ZoomControls.module.css';
 
 /**
@@ -20,30 +21,21 @@ export const ZoomControls = (): JSX.Element => {
 
   return (
     <div className={styles.controls}>
-      <button
-        className={styles.button}
-        onClick={() => zoomOut()}
-        type="button"
-        title="Zoom out (Ctrl/Cmd+-)"
-      >
-        −
-      </button>
-      <button
-        className={styles.label}
-        onClick={() => resetZoom()}
-        type="button"
-        title="Reset zoom to fit (Ctrl/Cmd+0)"
-      >
-        {label}
-      </button>
-      <button
-        className={styles.button}
-        onClick={() => zoomIn()}
-        type="button"
-        title="Zoom in (Ctrl/Cmd+=)"
-      >
-        +
-      </button>
+      <Tooltip label="Zoom out (Ctrl/Cmd+-)">
+        <button className={styles.button} onClick={() => zoomOut()} type="button">
+          −
+        </button>
+      </Tooltip>
+      <Tooltip label="Reset zoom to fit (Ctrl/Cmd+0)">
+        <button className={styles.label} onClick={() => resetZoom()} type="button">
+          {label}
+        </button>
+      </Tooltip>
+      <Tooltip label="Zoom in (Ctrl/Cmd+=)">
+        <button className={styles.button} onClick={() => zoomIn()} type="button">
+          +
+        </button>
+      </Tooltip>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
 type Option<V extends string> = {
@@ -20,8 +21,8 @@ export const SegmentedControl = <V extends string>({
   onChange,
   title,
 }: Props<V>): JSX.Element => {
-  return (
-    <div className={styles.segmented} role="radiogroup" title={title}>
+  const group = (
+    <div className={styles.segmented} role="radiogroup">
       {options.map((opt) => {
         const active = opt.value === value;
         return (
@@ -39,4 +40,5 @@ export const SegmentedControl = <V extends string>({
       })}
     </div>
   );
+  return title ? <Tooltip label={title}>{group}</Tooltip> : group;
 };

@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import type {
   ChooseFolderResult,
+  ChooseImageArgs,
+  ChooseImageResult,
+  CopyImageArgs,
+  CopyImageResult,
   CreateProjectArgs,
   FileChangedPayload,
   FilePatchArgs,
@@ -9,6 +13,7 @@ import type {
   OpenProjectArgs,
   PageCreateArgs,
   PageDeleteArgs,
+  PageDuplicateArgs,
   PageFile,
   ProjectData,
   RecentProject,
@@ -52,6 +57,9 @@ const api = {
   deletePage: (args: PageDeleteArgs): Promise<void> =>
     ipcRenderer.invoke(IPC.PageDelete, args),
 
+  duplicatePage: (args: PageDuplicateArgs): Promise<PageFile> =>
+    ipcRenderer.invoke(IPC.PageDuplicate, args),
+
   getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
     ipcRenderer.invoke(IPC.RecentProjectsGet),
 
@@ -72,6 +80,13 @@ const api = {
     ipcRenderer.on(IPC.FileChanged, listener);
     return () => ipcRenderer.removeListener(IPC.FileChanged, listener);
   },
+
+  // Images
+  copyImage: (args: CopyImageArgs): Promise<CopyImageResult> =>
+    ipcRenderer.invoke(IPC.FileCopyImage, args),
+
+  chooseImage: (args?: ChooseImageArgs): Promise<ChooseImageResult> =>
+    ipcRenderer.invoke(IPC.FileChooseImage, args),
 
   // Theme
   readTheme: (args: { projectPath: string }): Promise<string> =>

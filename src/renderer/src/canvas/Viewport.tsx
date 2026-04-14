@@ -101,7 +101,7 @@ export const Viewport = ({
         ref={frameRef}
         className={styles.frame}
         data-cursor={
-          activeTool === 'rectangle' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default'
+          activeTool === 'rectangle' || activeTool === 'image' ? 'crosshair' : activeTool === 'text' ? 'text' : 'default'
         }
         style={{
           width: `${frameW}px`,

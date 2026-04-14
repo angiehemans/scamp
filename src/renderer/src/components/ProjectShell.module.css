@@ -70,7 +70,7 @@ font-size: 13px;
 
 .sidebar {
   width: 240px;
-  background: #1f1f1f;
+  background: #1a1a1a;
   border-right: 1px solid #2c2c2c;
   display: flex;
   flex-direction: column;
@@ -90,9 +90,17 @@ font-size: 13px;
 }
 
 /* The Layers section grows to fill the remaining sidebar height so the
-   tree gets its own scroll region. */
+   tree gets its own scroll region. The right padding is dropped so the
+   overlay scrollbar sits flush against the sidebar's right border; the
+   title has its own right inset to compensate, and tree rows already
+   have their own horizontal padding. */
 .sidebarLayers {
   flex: 1;
+  padding-right: 0;
+}
+
+.sidebarLayers .sidebarTitle {
+  padding-right: 12px;
 }
 
 .sidebarTitle {
@@ -132,6 +140,26 @@ font-size: 14px;
 .pageActive {
   background: #2c2c2c;
   color: #fff;
+}
+
+.addPageButton {
+  margin-top: 6px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px dashed #3a3a3a;
+  border-radius: 4px;
+  color: #888;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.addPageButton:hover {
+  background: #2c2c2c;
+  color: #ccc;
+  border-color: #4a4a4a;
 }
 
 .canvasArea {

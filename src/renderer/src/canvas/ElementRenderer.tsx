@@ -16,6 +16,7 @@ import type { ThemeToken } from '@shared/types';
 import styles from './ElementRenderer.module.css';
 
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
+const URL_RELATIVE_RE = /url\(\s*["']?(\.\/[^"')]+)["']?\s*\)/g;
 
 /** Resolve a `var(--name)` reference against theme tokens. */
 const resolveTokenColor = (
@@ -37,7 +38,8 @@ const elementToStyle = (
   el: ScampElement,
   parentDisplay: 'flex' | 'none' | undefined,
   parentDirection: 'row' | 'column' | undefined,
-  tokens: ReadonlyArray<ThemeToken>
+  tokens: ReadonlyArray<ThemeToken>,
+  projectDir: string | null
 ): CSSProperties => {
   const isRoot = el.id === ROOT_ELEMENT_ID;
   // Flex children flow with the layout engine — drop position/left/top so
@@ -143,6 +145,10 @@ const elementToStyle = (
     if (el.lineHeight !== undefined) base.lineHeight = el.lineHeight;
     if (el.letterSpacing !== undefined) base.letterSpacing = el.letterSpacing;
   }
+  if (el.type === 'image') {
+    base.objectFit = 'cover';
+    base.display = 'block';
+  }
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually
   // renders on the canvas. Anything in customProperties is, by
@@ -151,7 +157,24 @@ const elementToStyle = (
   // `margin: 0` we apply earlier IS overridable here, which is what
   // we want: a user-written `margin-bottom: 8px` should win over the
   // browser-default-reset.
-  return { ...base, ...customPropsToStyle(el.customProperties) };
+  const customStyle = customPropsToStyle(el.customProperties);
+  // Resolve relative `url("./...")` references in custom properties to
+  // absolute `scamp-asset://` URLs so background-image etc. load correctly
+  // on the canvas preview.
+  if (projectDir) {
+    for (const [key, value] of Object.entries(customStyle)) {
+      if (typeof value === 'string' && value.includes('url(')) {
+        (customStyle as Record<string, string>)[key] = value.replace(
+          URL_RELATIVE_RE,
+          (_match, relPath: string) => {
+            const absPath = `${projectDir}/${relPath.slice(2)}`;
+            return `url("scamp-asset://localhost${encodeURI(absPath)}")`;
+          }
+        );
+      }
+    }
+  }
+  return { ...base, ...customStyle };
 };
 
 export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
@@ -167,6 +190,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     return s.elements[el.parentId]?.flexDirection;
   });
   const themeTokens = useCanvasStore((s) => s.themeTokens);
+  const activePage = useCanvasStore((s) => s.activePage);
   const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
@@ -207,7 +231,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   if (!element) return null;
 
   const isText = element.type === 'text';
-  const style = elementToStyle(element, parentDisplay, parentDirection, themeTokens);
+  const isImage = element.type === 'image';
+  const projectDir = activePage
+    ? activePage.tsxPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '')
+    : null;
+  const style = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir);
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
   const tag = tagFor(element) as ElementType;
@@ -248,6 +276,27 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     // Stop pointer events from bubbling so the user can place the
     // cursor / select text without triggering canvas interactions.
     props['onPointerDown'] = (e: PointerEvent<HTMLElement>) => e.stopPropagation();
+  }
+
+  if (isImage) {
+    // The element stores a relative path (e.g. `./assets/hero.png`) that
+    // makes sense from the project root. In the Electron renderer, relative
+    // URLs resolve against the dev-server or the app's HTML file — neither
+    // of which is the project folder. Resolve to an absolute URL using the
+    // custom `scamp-asset://` protocol registered in the main process.
+    let resolvedSrc = element.src ?? '';
+    if (activePage && resolvedSrc.startsWith('./')) {
+      const projectDir = activePage.tsxPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
+      const absPath = `${projectDir}/${resolvedSrc.slice(2)}`;
+      resolvedSrc = `scamp-asset://localhost${encodeURI(absPath)}`;
+    }
+    props['src'] = resolvedSrc;
+    props['alt'] = element.alt ?? '';
+  }
+
+  // Image elements are self-closing (no children, no text).
+  if (isImage) {
+    return createElement(tag, props);
   }
 
   const children = isText

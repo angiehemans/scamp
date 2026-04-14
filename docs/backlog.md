@@ -149,7 +149,7 @@ A failed rename (e.g. disk write error) must leave both files unchanged — do n
 
 ---
 
-## 7. Copy and paste elements
+## 7. Copy and paste elements ✅
 
 **User story**
 As a user building a layout, I want to copy a selected element with Cmd+C and paste it with Cmd+V so I get a duplicate with a new ID, saving me from having to redraw and restyle repeated elements from scratch.
@@ -169,7 +169,7 @@ As a user building a layout, I want to copy a selected element with Cmd+C and pa
 
 ---
 
-## 8. Images
+## 8. Images ✅
 
 **User stories**
 
@@ -255,13 +255,16 @@ background-repeat: no-repeat;
 
 ---
 
-## 9. Add new page and duplicate page
+## 9. Manage pages — add, duplicate, delete ✅
 
 **User story — add new page**
 As a user with a project open, I want to create a new blank page by clicking an "+ Add Page" button in the pages sidebar, give it a name, and have the app create the corresponding `.tsx` and `.module.css` files in my project folder so I can start designing a new screen immediately.
 
 **User story — duplicate page**
 As a user iterating on a layout, I want to right-click an existing page in the sidebar and choose "Duplicate" so I get an exact copy of that page's files under a new name, letting me explore variations without starting from scratch or losing my original.
+
+**User story — delete page**
+As a user cleaning up a project, I want to right-click a page in the sidebar and choose "Delete" to remove it — with a confirmation prompt — so I can get rid of pages I no longer need without having to leave the app and delete files manually.
 
 **Add new page flow**
 
@@ -279,14 +282,24 @@ As a user iterating on a layout, I want to right-click an existing page in the s
 - All element IDs and class names are kept identical — they are unique within a file, not across the project, so no conflicts arise
 - Switches to the duplicated page on confirm
 
+**Delete page flow**
+
+- Right-click any page in the sidebar → "Delete"
+- A confirmation dialog appears: "Delete page `[name]`? This will remove `[name].tsx` and `[name].module.css` from your project folder. This cannot be undone."
+- Confirming removes both files from disk and from the sidebar
+- If the deleted page was the active one, the app switches to the first remaining page
+- Delete is disabled when only one page remains — a project must always have at least one page
+
 **Notes**
 
-- Both flows reuse the same inline naming input component
+- All three flows reuse the same right-click menu component
+- Add and duplicate reuse the same inline naming input component
 - The pages sidebar should show a loading/creating state briefly while files are being written to disk
+- Delete is not undoable — the confirmation dialog is the only guard
 
 ---
 
-## 10. Nudge with arrow keys
+## 10. Nudge with arrow keys ✅
 
 **User story**
 
@@ -342,3 +355,42 @@ holding Shift, so I can adjust values quickly without retyping them.
 
 - The 1px / 10px increment convention matches Figma and most other design tools
   so it will feel immediately familiar to users coming from those tools
+
+---
+
+## 11. Rename pages
+
+**User story**
+As a user refining a project, I want to right-click a page in the sidebar and choose "Rename" to give it a new name, so I can clean up names I picked in a hurry without having to duplicate the page and delete the original.
+
+**Behaviour**
+
+- Right-click any page in the sidebar → "Rename"
+- The page row turns into an inline text input seeded with the current name, text selected
+- Name validation matches Add Page: lowercase, alphanumeric and hyphens only, no spaces, must be unique within the project
+- On confirm: renames both `[old].tsx` and `[old].module.css` to `[new].tsx` and `[new].module.css`, rewrites the component name and CSS-module import inside the TSX, and updates the active page reference so the canvas stays on the renamed page
+- On Escape or blur: cancels with no changes
+
+**Notes**
+
+Renaming a page is a multi-step refactor on disk, similar to the element rename story (#6) but at the file level. It must be atomic from the user's perspective — either everything updates or nothing does. The rename operation must follow this sequence:
+
+1. User confirms the new name
+2. Read the current `.tsx` into memory
+3. Rewrite the `import styles from './[old].module.css'` line to reference the new module
+4. Rewrite the component function name: derive the new PascalCase name from the slug (e.g. `checkout-flow` → `CheckoutFlow`) and replace the `export default function` binding. If the user has manually edited the component signature so the regex doesn't match cleanly, fail the rename with a clear error rather than corrupting the file
+5. Write the updated TSX to the new path (`[new].tsx`)
+6. Write the CSS to the new path (`[new].module.css`) — contents unchanged
+7. Delete the two old files
+8. Update Zustand / project state to point at the new files
+
+Order matters: write new files first, then delete old ones, so a crash mid-rename leaves duplicate files rather than no files. A subsequent project re-open will surface both and the user can remove whichever they don't want.
+
+This should go through a dedicated IPC channel `page:rename` so the two-file atomic write is explicit and can't accidentally be reused for the generic file-write path.
+
+chokidar will fire for four files (two creates, two deletes). The sync bridge needs to treat rename-triggered events as expected, not as external edits.
+
+Open questions to resolve during implementation:
+
+- Should rename update references to this page from elsewhere? Today there are no cross-page references in Scamp, but if we add routing / linking later this will need revisiting
+- Does the undo stack need to know about renames, or is rename a boundary the undo history gets cleared at (like external edits are today)?

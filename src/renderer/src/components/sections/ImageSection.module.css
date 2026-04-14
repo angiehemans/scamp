@@ -1,0 +1,103 @@
+.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.sourcePath {
+  flex: 1;
+  font-size: 11px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replaceBtn {
+  padding: 2px 8px;
+  font-size: 10px;
+  background: #2c2c2c;
+  color: #ccc;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.replaceBtn:hover {
+  background: #363636;
+}
+
+.altInput {
+  width: 100%;
+  padding: 3px 6px;
+  font-size: 11px;
+  background: #2c2c2c;
+  color: #ccc;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  outline: none;
+}
+
+.altInput:focus {
+  border-color: #6a6aff;
+}
+
+.segmented {
+  display: flex;
+  gap: 0;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.segmentedBtn {
+  flex: 1;
+  padding: 3px 4px;
+  font-size: 10px;
+  background: #2c2c2c;
+  color: #999;
+  border: none;
+  border-right: 1px solid #3a3a3a;
+  cursor: pointer;
+}
+
+.segmentedBtn:last-child {
+  border-right: none;
+}
+
+.segmentedBtn:hover {
+  background: #363636;
+}
+
+.segmentedActive {
+  background: #4a4a4a;
+  color: #fff;
+}
+
+.positionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  width: 60px;
+}
+
+.positionBtn {
+  width: 18px;
+  height: 18px;
+  background: #2c2c2c;
+  border: 1px solid #3a3a3a;
+  border-radius: 2px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.positionBtn:hover {
+  background: #363636;
+}
+
+.positionActive {
+  background: #4a4a4a;
+  border-color: #6a6aff;
+}

@@ -21,6 +21,12 @@ files. Anything you write here is parsed and re-rendered on the canvas.
 Each page is two files: \`[page-name].tsx\` and \`[page-name].module.css\`.
 Do not rename, move, or split these files.
 
+Images live in the \`assets/\` folder. Reference them with relative paths:
+- \`<img>\` elements: \`src="./assets/hero.png"\`
+- Background images: \`background-image: url("./assets/hero.png")\`
+
+Do not delete files from \`assets/\` unless the user asks.
+
 ## Component conventions
 - Each page exports a single default React component.
 - The root element uses \`styles.root\` and \`data-scamp-id="root"\`.

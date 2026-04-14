@@ -1,0 +1,44 @@
+.tooltip {
+  position: fixed;
+  /* Trigger's top-left in viewport; translate up & left so the tooltip
+     sits above the trigger, horizontally centered on it. The 10px gap
+     matches the design's 10px margin around the bubble. */
+  transform: translate(-50%, calc(-100% - 10px));
+  pointer-events: none;
+  z-index: 10000;
+
+  height: 24px;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  background: #0f0f0f;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  box-shadow: rgba(0, 0, 0, 0.2) 0 2px 8px 0;
+
+  /* Fade in so the tooltip doesn't snap when it appears. */
+  animation: tooltipFadeIn 120ms ease-out;
+}
+
+.tooltipText {
+  margin: 0;
+  font-family: 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+  color: #e0e0e0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 6px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, calc(-100% - 10px));
+  }
+}

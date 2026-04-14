@@ -24,7 +24,7 @@ type ClassDeclarations = Map<string, RawDeclaration[]>;
 
 type RawElement = {
   id: string;
-  type: 'rectangle' | 'text';
+  type: 'rectangle' | 'text' | 'image';
   /** The HTML tag name as written in the source file. Captured so the
    *  generator can round-trip semantic tags like h1, section, header. */
   tag: string;
@@ -34,6 +34,10 @@ type RawElement = {
   text: string | null;
   /** Human-readable name from `data-scamp-name`, if present. */
   name: string | null;
+  /** Image src attribute, if present. */
+  src: string | null;
+  /** Image alt attribute, if present. */
+  alt: string | null;
 };
 
 const CLASS_NAME_RE = /\{?\s*styles\.([A-Za-z_][A-Za-z0-9_]*)\s*\}?/;
@@ -72,9 +76,11 @@ const TEXT_TAGS = new Set([
 const inferElementType = (
   className: string,
   tagName: string
-): 'rectangle' | 'text' => {
+): 'rectangle' | 'text' | 'image' => {
+  if (className.startsWith('img_')) return 'image';
   if (className.startsWith('text_')) return 'text';
   if (className.startsWith('rect_')) return 'rectangle';
+  if (tagName === 'img') return 'image';
   return TEXT_TAGS.has(tagName) ? 'text' : 'rectangle';
 };
 
@@ -117,7 +123,7 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
         let parsedName: string | null = null;
         if (className.includes('_') && rawId !== ROOT_ELEMENT_ID) {
           const prefix = className.slice(0, className.lastIndexOf('_'));
-          if (prefix !== 'rect' && prefix !== 'text') {
+          if (prefix !== 'rect' && prefix !== 'text' && prefix !== 'img') {
             parsedName = prefix;
           }
         }
@@ -131,6 +137,8 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
           childIds: [],
           text: null,
           name: parsedName,
+          src: attribs['src'] ?? null,
+          alt: attribs['alt'] ?? null,
         };
         if (parentId) {
           const parent = byId.get(parentId);
@@ -211,8 +219,8 @@ const makeRoot = (): ScampElement => ({
 /** The HTML tag we'd default to for an element of this type. Used to
  *  decide whether the parsed `tag` is the default (and can be omitted)
  *  or a deliberate semantic override (and should be stored). */
-const defaultTagForType = (type: 'rectangle' | 'text'): string =>
-  type === 'text' ? 'p' : 'div';
+const defaultTagForType = (type: 'rectangle' | 'text' | 'image'): string =>
+  type === 'image' ? 'img' : type === 'text' ? 'p' : 'div';
 
 const makeBaseline = (raw: RawElement): ScampElement => ({
   ...DEFAULT_RECT_STYLES,
@@ -229,6 +237,8 @@ const makeBaseline = (raw: RawElement): ScampElement => ({
   // `tag` field and the generator emits a `<div>` again.
   ...(raw.tag !== defaultTagForType(raw.type) ? { tag: raw.tag } : {}),
   ...(raw.name !== null ? { name: raw.name } : {}),
+  ...(raw.src !== null ? { src: raw.src } : {}),
+  ...(raw.alt !== null ? { alt: raw.alt } : {}),
 });
 
 /**

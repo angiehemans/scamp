@@ -2,6 +2,7 @@ import { DragEvent, useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode';
 import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from '@lib/element';
+import { Tooltip } from './controls/Tooltip';
 import styles from './ElementTree.module.css';
 
 /**
@@ -151,6 +152,7 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
       onDrop={handleDrop}
     >
       {showBefore && <div className={styles.dropLine} />}
+      <Tooltip label={`.${classNameFor(element)}`}>
       <button
         type="button"
         className={`${styles.row} ${isSelected ? styles.rowSelected : ''}`}
@@ -171,7 +173,6 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
             inputRef.current?.select();
           });
         }}
-        title={`.${classNameFor(element)}`}
       >
         <span className={styles.icon} aria-hidden="true">
           {element.type === 'text' ? 'T' : '▢'}
@@ -207,6 +208,7 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
           <span className={styles.label}>{labelFor(element)}</span>
         )}
       </button>
+      </Tooltip>
       {showAfter && <div className={styles.dropLine} />}
     </div>
   );

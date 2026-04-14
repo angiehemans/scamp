@@ -21,7 +21,7 @@ export type TextAlign = 'left' | 'center' | 'right';
 
 export type ScampElement = {
   id: string;
-  type: 'rectangle' | 'text';
+  type: 'rectangle' | 'text' | 'image';
   parentId: string | null;
   childIds: string[];
 
@@ -83,6 +83,10 @@ export type ScampElement = {
   textAlign?: TextAlign;
   lineHeight?: number;
   letterSpacing?: number;
+
+  // Image only
+  src?: string;
+  alt?: string;
 
   // Passthrough — properties the canvas can't visually represent
   customProperties: Record<string, string>;

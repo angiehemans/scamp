@@ -42,6 +42,26 @@ export type ThemeToken = {
   value: string;
 };
 
+export type CopyImageArgs = {
+  sourcePath: string;
+  projectPath: string;
+};
+
+export type CopyImageResult = {
+  relativePath: string;
+  fileName: string;
+};
+
+export type ChooseImageArgs = {
+  /** Optional directory to open the dialog in (e.g. project assets folder). */
+  defaultPath?: string;
+};
+
+export type ChooseImageResult = {
+  canceled: boolean;
+  path: string | null;
+};
+
 export type CreateProjectArgs = {
   /** The directory in which to create the new project subfolder. */
   parentPath: string;
@@ -80,6 +100,12 @@ export type PageCreateArgs = {
 export type PageDeleteArgs = {
   projectPath: string;
   pageName: string;
+};
+
+export type PageDuplicateArgs = {
+  projectPath: string;
+  sourcePageName: string;
+  newPageName: string;
 };
 
 // Terminal IPC payloads

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Settings } from '@shared/types';
 import { ColorInput } from './controls/ColorInput';
+import { Tooltip } from './controls/Tooltip';
 import styles from './SettingsPage.module.css';
 
 type Props = {
@@ -57,12 +58,11 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
             <span className={styles.rowLabel}>Default folder</span>
             <div className={styles.rowControl}>
               {settings.defaultProjectsFolder ? (
-                <span
-                  className={styles.folderPath}
-                  title={settings.defaultProjectsFolder}
-                >
-                  {settings.defaultProjectsFolder}
-                </span>
+                <Tooltip label={settings.defaultProjectsFolder}>
+                  <span className={styles.folderPath}>
+                    {settings.defaultProjectsFolder}
+                  </span>
+                </Tooltip>
               ) : (
                 <span className={styles.folderNone}>Not set</span>
               )}
