@@ -174,7 +174,7 @@ const elementToStyle = (
           URL_RELATIVE_RE,
           (_match, relPath: string) => {
             const absPath = `${projectDir}/${relPath.slice(2)}`;
-            return `url("scamp-asset://localhost${encodeURI(absPath)}")`;
+            return `url("scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}")`;
           }
         );
       }
@@ -298,7 +298,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     if (activePage && resolvedSrc.startsWith('./')) {
       const projectDir = activePage.tsxPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
       const absPath = `${projectDir}/${resolvedSrc.slice(2)}`;
-      resolvedSrc = `scamp-asset://localhost${encodeURI(absPath)}`;
+      resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
     }
     props['src'] = resolvedSrc;
     props['alt'] = element.alt ?? '';
