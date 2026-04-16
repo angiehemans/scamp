@@ -1,0 +1,95 @@
+.page {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  background: #141414;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #2c2c2c;
+  background: #1f1f1f;
+}
+
+.backButton {
+  background: none;
+  border: 1px solid #2c2c2c;
+  border-radius: 6px;
+  color: #e6e6e6;
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.backButton:hover {
+  background: #2c2c2c;
+}
+
+.headerTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.headerProject {
+  margin-left: auto;
+  font-size: 12px;
+  color: #888;
+}
+
+.body {
+  flex: 1;
+  padding: 32px 24px;
+  max-width: 640px;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  margin: 0 0 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #888;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.rowLabel {
+  width: 180px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.rowControl {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.placeholder {
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+}

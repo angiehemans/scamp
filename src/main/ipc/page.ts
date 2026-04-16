@@ -7,8 +7,11 @@ import type {
   PageDeleteArgs,
   PageDuplicateArgs,
   PageFile,
+  PageRenameArgs,
 } from '@shared/types';
 import { DEFAULT_PAGE_CSS, defaultPageTsx } from '@shared/agentMd';
+import { suppressNextChange } from '../watcher';
+import { renamePageFiles } from './pageRename';
 
 const PAGE_NAME_RE = /^[a-zA-Z0-9-]+$/;
 
@@ -136,4 +139,7 @@ export const registerPageIpc = (): void => {
   ipcMain.handle(IPC.PageCreate, (_e, args: PageCreateArgs) => handleCreate(args));
   ipcMain.handle(IPC.PageDelete, (_e, args: PageDeleteArgs) => handleDelete(args));
   ipcMain.handle(IPC.PageDuplicate, (_e, args: PageDuplicateArgs) => handleDuplicate(args));
+  ipcMain.handle(IPC.PageRename, (_e, args: PageRenameArgs) =>
+    renamePageFiles(args, suppressNextChange)
+  );
 };

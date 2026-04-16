@@ -3,6 +3,7 @@ import { StartScreen } from './components/StartScreen';
 import { ProjectShell } from './components/ProjectShell';
 import { SettingsPage } from './components/SettingsPage';
 import { initSyncBridge } from './syncBridge';
+import { useFontsStore } from '@store/fontsSlice';
 import type { ProjectData } from '@shared/types';
 
 type View = 'start' | 'project' | 'settings';
@@ -13,6 +14,13 @@ export const App = (): JSX.Element => {
 
   useEffect(() => {
     return initSyncBridge();
+  }, []);
+
+  // Warm the system-font list on app start. The call is cheap on a
+  // warm session and falls back to a baseline list if the Local Font
+  // Access API isn't available.
+  useEffect(() => {
+    void useFontsStore.getState().loadSystemFonts();
   }, []);
 
   if (view === 'settings') {
@@ -32,7 +40,6 @@ export const App = (): JSX.Element => {
           setView('start');
         }}
         onProjectChange={setProject}
-        onOpenSettings={() => setView('settings')}
       />
     );
   }

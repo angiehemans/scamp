@@ -127,10 +127,16 @@ element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules
 
 ## CSS Variables and Tokens
 
-The project includes a \`theme.css\` file with global CSS custom properties
-(design tokens). Define color tokens there:
+The project includes a \`theme.css\` file with two sections:
+
+1. **Font imports** — optional \`@import url(...)\` lines at the top
+   referencing Google Fonts. Scamp's Fonts panel manages these.
+2. **Design tokens** — CSS custom properties inside \`:root\`.
 
 \`\`\`css
+/* scamp: font imports — managed by Project Settings → Fonts */
+@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
+
 :root {
   --color-primary: #3b82f6;
   --color-text: #111111;
@@ -147,6 +153,12 @@ Reference tokens in module CSS files using \`var()\`:
 
 Do not modify \`theme.css\` unless the user asks for design system updates.
 
+## Project config
+
+Each project also has a \`scamp.config.json\` file at the root. It holds
+per-project settings like the artboard background colour. Scamp
+reads and writes this file; don't modify it unless the user asks.
+
 ## What NOT to change
 - Do not alter the import line at the top of the TSX file.
 - Do not rename the default export function.
@@ -154,7 +166,9 @@ Do not modify \`theme.css\` unless the user asks for design system updates.
   for a new page.
 - Do not strip the \`min-height\` / \`width\` / \`position\` lines from
   \`.root\` — they're load-bearing for how the canvas renders the page.
-- Do not delete \`theme.css\` — it holds the project's design tokens.
+- Do not delete \`theme.css\` — it holds the project's design tokens
+  and font imports.
+- Do not delete \`scamp.config.json\` — it holds per-project settings.
 `;
 
 /**

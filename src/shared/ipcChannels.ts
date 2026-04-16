@@ -18,6 +18,7 @@ export const IPC = {
   PageCreate: 'page:create',
   PageDelete: 'page:delete',
   PageDuplicate: 'page:duplicate',
+  PageRename: 'page:rename',
 
   // Recent projects
   RecentProjectsGet: 'recentProjects:get',
@@ -27,6 +28,10 @@ export const IPC = {
   SettingsGet: 'settings:get',
   SettingsSetDefaultFolder: 'settings:setDefaultFolder',
   SettingsUpdate: 'settings:update',
+
+  // Per-project config (scamp.config.json)
+  ProjectConfigRead: 'projectConfig:read',
+  ProjectConfigWrite: 'projectConfig:write',
 
   // Images
   FileCopyImage: 'file:copyImage',

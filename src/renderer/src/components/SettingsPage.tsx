@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Settings } from '@shared/types';
-import { ColorInput } from './controls/ColorInput';
 import { Tooltip } from './controls/Tooltip';
 import styles from './SettingsPage.module.css';
 
@@ -29,14 +28,6 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
 
   const handleClearFolder = async (): Promise<void> => {
     const next = await window.scamp.setDefaultProjectsFolder(null);
-    setSettings(next);
-  };
-
-  const updateField = async <K extends keyof Settings>(
-    key: K,
-    value: Settings[K]
-  ): Promise<void> => {
-    const next = await window.scamp.updateSettings({ [key]: value });
     setSettings(next);
   };
 
@@ -86,18 +77,6 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
           </div>
         </div>
 
-        <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Canvas</h2>
-          <div className={styles.row}>
-            <span className={styles.rowLabel}>Artboard background</span>
-            <div className={styles.rowControl}>
-              <ColorInput
-                value={settings.artboardBackground}
-                onChange={(value) => updateField('artboardBackground', value)}
-              />
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,10 +1,11 @@
-import { app, BrowserWindow, nativeTheme, net, protocol, shell } from 'electron';
+import { app, BrowserWindow, nativeTheme, net, protocol, session, shell } from 'electron';
 import { join } from 'path';
 import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
 import { registerSettingsIpc } from './ipc/settings';
+import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
@@ -66,6 +67,22 @@ protocol.registerSchemesAsPrivileged([
 app.whenReady().then(() => {
   nativeTheme.themeSource = 'dark';
 
+  // Grant `local-fonts` so the renderer can call
+  // `window.queryLocalFonts()` and enumerate the user's installed
+  // fonts. Scamp loads its own local content — there's no
+  // third-party origin to worry about.
+  //
+  // Electron's TS types predate the Chromium permission, so we widen
+  // to string for the comparison.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => {
+    if ((permission as string) === 'local-fonts') return cb(true);
+    cb(false);
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
+    if ((permission as string) === 'local-fonts') return true;
+    return false;
+  });
+
   protocol.handle('scamp-asset', (request) => {
     // URL form: `scamp-asset://localhost/<encoded-absolute-path>`
     // Parse with URL to get a correctly decoded pathname.
@@ -79,6 +96,7 @@ app.whenReady().then(() => {
   registerPageIpc();
   registerRecentProjectsIpc();
   registerSettingsIpc();
+  registerProjectConfigIpc();
   registerTerminalIpc();
   registerThemeIpc();
   registerImageIpc();

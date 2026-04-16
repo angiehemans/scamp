@@ -1,10 +1,26 @@
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
-import { parseThemeCss } from '@lib/parseTheme';
+import { parseThemeFile } from '@lib/parseTheme';
+import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { useFontsStore } from '@store/fontsSlice';
 import { useCanvasStore, type ActivePage } from '@store/canvasSlice';
 import type { ScampElement } from '@lib/element';
 
 const WRITE_DEBOUNCE_MS = 200;
+
+/**
+ * Module-scoped handle to the active bridge's debounced-write flusher.
+ * Populated by `initSyncBridge` on mount and cleared on teardown. Used
+ * by operations that change the active page's on-disk identity
+ * (e.g. page rename) and need to force pending edits to land on the
+ * OLD paths before the swap, so the debounced timer can't fire against
+ * files that have just been deleted.
+ */
+let pendingFlush: (() => void) | null = null;
+
+export const flushPendingPageWrite = (): void => {
+  pendingFlush?.();
+};
 
 /**
  * Wires the canvas store to the file system.
@@ -72,6 +88,11 @@ export const initSyncBridge = (): (() => void) => {
     const state = useCanvasStore.getState();
     if (!state.activePage) return;
     writeIfDirty(state.elements, state.rootElementId, state.activePage);
+  };
+
+  pendingFlush = (): void => {
+    cancelWriteTimer();
+    flushDebouncedWrite();
   };
 
   const cancelWriteTimer = (): void => {
@@ -201,14 +222,24 @@ export const initSyncBridge = (): (() => void) => {
   };
   window.addEventListener('beforeunload', handleBeforeUnload);
 
-  // Listen for theme.css changes and update the token store.
+  // Listen for theme.css changes and update both the token store and
+  // the project-fonts store — the file now holds both.
   const offTheme = window.scamp.onThemeChanged((content: string) => {
-    const tokens = parseThemeCss(content);
-    useCanvasStore.getState().setThemeTokens(tokens);
+    const parsed = parseThemeFile(content);
+    useCanvasStore.getState().setThemeTokens(parsed.tokens);
+    const families = parsed.fontImportUrls.flatMap((url) => {
+      const result = parseGoogleFontsEmbed(url);
+      return result.ok ? result.value.families : [];
+    });
+    useFontsStore.getState().setProjectFonts({
+      families,
+      urls: parsed.fontImportUrls,
+    });
   });
 
   return () => {
     cancelWriteTimer();
+    pendingFlush = null;
     window.removeEventListener('beforeunload', handleBeforeUnload);
     unsubStore();
     offFile();

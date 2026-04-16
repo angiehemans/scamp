@@ -1,0 +1,157 @@
+.trigger {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 24px;
+  background: #151515;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  padding: 0 8px;
+  font-size: 14px;
+  color: #e0e0e0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.trigger:focus,
+.triggerOpen {
+  outline: none;
+  border-color: #4a8cff;
+}
+
+.triggerLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triggerPlaceholder {
+  color: #666;
+}
+
+.triggerCaret {
+  flex-shrink: 0;
+  color: #666;
+  font-size: 10px;
+}
+
+.popover {
+  position: fixed;
+  z-index: 100;
+  width: 260px;
+  background: #1f1f1f;
+  border: 1px solid #2c2c2c;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+.search {
+  margin: 0;
+  height: 30px;
+  background: #151515;
+  border: none;
+  border-bottom: 1px solid #2c2c2c;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #e0e0e0;
+  font-family: inherit;
+}
+
+.search:focus {
+  outline: none;
+}
+
+/* Scroll container that drives the windowed list. Fixed height so the
+ * popover doesn't resize as the filter narrows. */
+.listViewport {
+  height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Spacer sized to the full virtual list height — positions the
+ * absolutely-placed rows at their correct scroll offset. */
+.listSpacer {
+  position: relative;
+  width: 100%;
+}
+
+.row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowBadge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+  background: #2c2c2c;
+  border-radius: 3px;
+  padding: 2px 6px;
+  /* Render in the default UI font so the preview font doesn't affect
+   * the badge's readability. */
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.rowActive {
+  background: #1d3a6e;
+}
+
+.row:hover {
+  background: #2c2c2c;
+}
+
+.rowActive:hover {
+  background: #1d3a6e;
+}
+
+.rowEmpty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+  text-align: center;
+}
+
+.rowUnknown {
+  color: #888;
+  font-style: italic;
+}

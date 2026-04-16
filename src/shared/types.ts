@@ -31,8 +31,38 @@ export type ChooseFolderResult = {
 export type Settings = {
   /** The folder under which `New Project` creates project subdirectories. */
   defaultProjectsFolder: string | null;
+  /**
+   * Background color of the artboard — the area behind the canvas.
+   * @deprecated Moved to per-project config (`scamp.config.json`). Kept
+   * on the type for one release so old installs don't crash on a
+   * missing key; no UI reads from it.
+   */
+  artboardBackground: string;
+};
+
+/**
+ * Per-project configuration persisted as `scamp.config.json` at the
+ * project root. Holds settings that are scoped to one project rather
+ * than the whole app (artboard colour, future: snap grid, default
+ * element names, etc.). Non-CSS concepts live here; CSS-flavoured
+ * concepts (colour tokens, font imports) live in `theme.css`.
+ */
+export type ProjectConfig = {
   /** Background color of the artboard — the area behind the canvas. */
   artboardBackground: string;
+};
+
+export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
+  artboardBackground: '#0f0f0f',
+};
+
+export type ProjectConfigReadArgs = {
+  projectPath: string;
+};
+
+export type ProjectConfigWriteArgs = {
+  projectPath: string;
+  config: ProjectConfig;
 };
 
 export type ThemeToken = {
@@ -105,6 +135,12 @@ export type PageDeleteArgs = {
 export type PageDuplicateArgs = {
   projectPath: string;
   sourcePageName: string;
+  newPageName: string;
+};
+
+export type PageRenameArgs = {
+  projectPath: string;
+  oldPageName: string;
   newPageName: string;
 };
 

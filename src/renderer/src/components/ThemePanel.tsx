@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useFontsStore } from '@store/fontsSlice';
+import { serializeThemeFile } from '@lib/parseTheme';
 import type { ThemeToken } from '@shared/types';
 import { ColorInput } from './controls/ColorInput';
 import { Tooltip } from './controls/Tooltip';
@@ -14,13 +16,6 @@ type PendingDelete = {
   index: number;
   name: string;
   usageCount: number;
-};
-
-/** Generate theme.css content from a list of tokens. */
-const generateThemeCss = (tokens: ReadonlyArray<ThemeToken>): string => {
-  if (tokens.length === 0) return ':root {\n}\n';
-  const lines = tokens.map((t) => `  ${t.name}: ${t.value};`);
-  return `:root {\n${lines.join('\n')}\n}\n`;
 };
 
 /** Validate a token name: must start with --, no spaces. */
@@ -66,9 +61,15 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   const writeTokens = useCallback(
     async (tokens: ThemeToken[]): Promise<void> => {
       try {
+        // Preserve the font imports that live alongside tokens in
+        // theme.css — the fonts panel writes to the same file.
+        const urls = useFontsStore.getState().projectFontUrls;
         await window.scamp.writeTheme({
           projectPath,
-          content: generateThemeCss(tokens),
+          content: serializeThemeFile({
+            tokens,
+            fontImportUrls: [...urls],
+          }),
         });
         setError(null);
       } catch (e) {

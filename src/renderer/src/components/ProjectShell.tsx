@@ -1,8 +1,12 @@
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
-import type { ProjectData, PageFile, Settings } from '@shared/types';
+import type { ProjectData, PageFile, ProjectConfig } from '@shared/types';
+import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
-import { parseThemeCss } from '@lib/parseTheme';
+import { flushPendingPageWrite } from '../syncBridge';
+import { parseThemeFile } from '@lib/parseTheme';
+import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { useFontsStore } from '@store/fontsSlice';
 import { clampToParent } from '@lib/bounds';
 import { Viewport } from '../canvas/Viewport';
 import { Toolbar } from './Toolbar';
@@ -16,6 +20,7 @@ import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { PageContextMenu, type PageMenuItem } from './PageContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ProjectSettingsPage } from './ProjectSettingsPage';
 import styles from './ProjectShell.module.css';
 
 type Props = {
@@ -23,14 +28,12 @@ type Props = {
   onClose: () => void;
   /** Called after a page is added, duplicated, or deleted. */
   onProjectChange?: (next: ProjectData) => void;
-  onOpenSettings?: () => void;
 };
 
 export const ProjectShell = ({
   project,
   onClose,
   onProjectChange,
-  onOpenSettings,
 }: Props): JSX.Element => {
   const [activePageName, setActivePageName] = useState<string | null>(
     project.pages[0]?.name ?? null
@@ -39,9 +42,9 @@ export const ProjectShell = ({
   // the bottom of the list. `{ duplicate: name }` replaces the named row
   // with an input seeded from that page. `null` means no editing in
   // progress and the sidebar behaves normally.
-  const [pageEdit, setPageEdit] = useState<'new' | { duplicate: string } | null>(
-    null
-  );
+  const [pageEdit, setPageEdit] = useState<
+    'new' | { duplicate: string } | { rename: string } | null
+  >(null);
   const [pageEditBusy, setPageEditBusy] = useState(false);
   const [pageEditError, setPageEditError] = useState<string | null>(null);
   // Right-click context menu — stores the viewport coords and the page
@@ -53,14 +56,37 @@ export const ProjectShell = ({
   } | null>(null);
   // Page pending deletion (confirmation dialog is open).
   const [deletingPageName, setDeletingPageName] = useState<string | null>(null);
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const refreshSettings = useCallback(async (): Promise<void> => {
-    const next = await window.scamp.getSettings();
-    setSettings(next);
-  }, []);
+  // Per-project config loaded from scamp.config.json. Default values
+  // render immediately so the canvas doesn't flash a wrong background
+  // while the first read is in flight.
+  const [projectConfig, setProjectConfig] = useState<ProjectConfig>(
+    DEFAULT_PROJECT_CONFIG
+  );
+  const [showProjectSettings, setShowProjectSettings] = useState(false);
   useEffect(() => {
-    void refreshSettings();
-  }, [refreshSettings]);
+    let cancelled = false;
+    const load = async (): Promise<void> => {
+      const next = await window.scamp.readProjectConfig({
+        projectPath: project.path,
+      });
+      if (!cancelled) setProjectConfig(next);
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [project.path]);
+
+  const handleProjectConfigChange = useCallback(
+    (next: ProjectConfig): void => {
+      setProjectConfig(next);
+      void window.scamp.writeProjectConfig({
+        projectPath: project.path,
+        config: next,
+      });
+    },
+    [project.path]
+  );
 
   const loadPage = useCanvasStore((s) => s.loadPage);
   const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
@@ -87,14 +113,67 @@ export const ProjectShell = ({
     setTerminalEverOpened(false);
   }, [project.path]);
 
-  // Load theme tokens from theme.css on project open.
+  // Keep a `<link rel="stylesheet">` per project font URL in
+  // `document.head` so the canvas preview actually loads the
+  // referenced Google Fonts stylesheet. Reconciles on delta: unchanged
+  // URLs keep their tag (and the browser's cached stylesheet) across
+  // renders.
+  const projectFontUrls = useFontsStore((s) => s.projectFontUrls);
+  useEffect(() => {
+    const ATTR = 'data-scamp-font-import';
+    const existing = new Map<string, HTMLLinkElement>();
+    document
+      .querySelectorAll<HTMLLinkElement>(`link[${ATTR}]`)
+      .forEach((el) => {
+        const u = el.getAttribute(ATTR);
+        if (u) existing.set(u, el);
+      });
+    const wanted = new Set(projectFontUrls);
+    for (const [url, el] of existing) {
+      if (!wanted.has(url)) el.remove();
+    }
+    for (const url of projectFontUrls) {
+      if (existing.has(url)) continue;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url;
+      link.setAttribute(ATTR, url);
+      document.head.appendChild(link);
+    }
+  }, [projectFontUrls]);
+  // On ProjectShell unmount (project closed) strip every injected tag
+  // so a different project doesn't inherit this one's fonts.
+  useEffect(() => {
+    return () => {
+      document
+        .querySelectorAll<HTMLLinkElement>(`link[data-scamp-font-import]`)
+        .forEach((el) => el.remove());
+    };
+  }, []);
+
+  // Load theme tokens + font imports from theme.css on project open.
   useEffect(() => {
     const loadTheme = async (): Promise<void> => {
       const content = await window.scamp.readTheme({ projectPath: project.path });
-      const tokens = parseThemeCss(content);
-      useCanvasStore.getState().setThemeTokens(tokens);
+      const parsed = parseThemeFile(content);
+      useCanvasStore.getState().setThemeTokens(parsed.tokens);
+      // Derive family names from the import URLs — re-parsing the URL
+      // is cheap and keeps the URL as the single source of truth.
+      const families = parsed.fontImportUrls.flatMap((url) => {
+        const result = parseGoogleFontsEmbed(url);
+        return result.ok ? result.value.families : [];
+      });
+      useFontsStore.getState().setProjectFonts({
+        families,
+        urls: parsed.fontImportUrls,
+      });
     };
     void loadTheme();
+    return () => {
+      // Clear when the project unmounts so a stale project's fonts
+      // don't linger in the picker.
+      useFontsStore.getState().setProjectFonts({ families: [], urls: [] });
+    };
   }, [project.path]);
 
   // Parse + load the selected page whenever it changes. The store's
@@ -381,6 +460,37 @@ export const ProjectShell = ({
     }
   };
 
+  const handleRenamePage = async (
+    oldName: string,
+    newName: string
+  ): Promise<void> => {
+    setPageEditBusy(true);
+    setPageEditError(null);
+    try {
+      // Ensure any pending debounced write lands on the OLD files
+      // before the rename swaps them out from under us.
+      flushPendingPageWrite();
+      const newPage = await window.scamp.renamePage({
+        projectPath: project.path,
+        oldPageName: oldName,
+        newPageName: newName,
+      });
+      const nextPages = project.pages.map((p) =>
+        p.name === oldName ? newPage : p
+      );
+      onProjectChange?.({ ...project, pages: nextPages });
+      if (activePageName === oldName) {
+        setActivePageName(newPage.name);
+      }
+      // Rename is a file-level operation outside the canvas history.
+      useCanvasStore.temporal.getState().clear();
+      resetPageEdit();
+    } catch (e) {
+      setPageEditError(e instanceof Error ? e.message : String(e));
+      setPageEditBusy(false);
+    }
+  };
+
   const handleDeletePage = async (name: string): Promise<void> => {
     try {
       await window.scamp.deletePage({ projectPath: project.path, pageName: name });
@@ -407,6 +517,13 @@ export const ProjectShell = ({
 
   const buildMenuItems = (pageName: string): PageMenuItem[] => [
     {
+      label: 'Rename',
+      onSelect: () => {
+        setPageEditError(null);
+        setPageEdit({ rename: pageName });
+      },
+    },
+    {
       label: 'Duplicate',
       onSelect: () => {
         setPageEditError(null);
@@ -430,7 +547,7 @@ export const ProjectShell = ({
           ← Projects
         </button>
         <Toolbar
-          onOpenSettings={onOpenSettings}
+          onOpenSettings={() => setShowProjectSettings(true)}
           onOpenTheme={() => setShowThemePanel(true)}
         />
         <span className={styles.spacer} />
@@ -468,7 +585,13 @@ export const ProjectShell = ({
                 const isDuplicating =
                   pageEdit !== null &&
                   pageEdit !== 'new' &&
+                  'duplicate' in pageEdit &&
                   pageEdit.duplicate === page.name;
+                const isRenaming =
+                  pageEdit !== null &&
+                  pageEdit !== 'new' &&
+                  'rename' in pageEdit &&
+                  pageEdit.rename === page.name;
                 if (isDuplicating) {
                   // Seed with `[name]-copy` and select just the "-copy"
                   // portion so the user can retype it instantly.
@@ -480,6 +603,26 @@ export const ProjectShell = ({
                         existingNames={existingPageNames}
                         selectRange={[page.name.length, seed.length]}
                         onConfirm={(name) => void handleDuplicatePage(page.name, name)}
+                        onCancel={resetPageEdit}
+                        error={pageEditError}
+                        busy={pageEditBusy}
+                      />
+                    </li>
+                  );
+                }
+                if (isRenaming) {
+                  // Exclude the current name from collision checks so
+                  // "rename home → home" surfaces as an explicit no-op
+                  // from the IPC rather than as a spurious collision.
+                  const otherNames = existingPageNames.filter(
+                    (n) => n !== page.name
+                  );
+                  return (
+                    <li key={page.name}>
+                      <PageNameInput
+                        initialValue={page.name}
+                        existingNames={otherNames}
+                        onConfirm={(name) => void handleRenamePage(page.name, name)}
                         onCancel={resetPageEdit}
                         error={pageEditError}
                         busy={pageEditBusy}
@@ -536,9 +679,7 @@ export const ProjectShell = ({
             <ElementTree />
           </div>
         </aside>
-        <Viewport
-          artboardBackground={settings?.artboardBackground}
-        />
+        <Viewport artboardBackground={projectConfig.artboardBackground} />
         <PropertiesPanel />
       </div>
       {bottomPanel === 'code' && <CodePanel />}
@@ -559,6 +700,15 @@ export const ProjectShell = ({
         <ThemePanel
           projectPath={project.path}
           onClose={() => setShowThemePanel(false)}
+        />
+      )}
+      {showProjectSettings && (
+        <ProjectSettingsPage
+          projectName={project.name}
+          projectPath={project.path}
+          config={projectConfig}
+          onChange={handleProjectConfigChange}
+          onBack={() => setShowProjectSettings(false)}
         />
       )}
       {pageMenu && (

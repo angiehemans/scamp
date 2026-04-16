@@ -18,6 +18,7 @@ import {
 import { validateProjectName } from '@shared/projectName';
 import { addRecentProject } from './recentProjects';
 import { watchProject } from '../watcher';
+import { ensureProjectConfig } from './projectConfig';
 
 const chooseFolder = async (): Promise<ChooseFolderResult> => {
   const result = await dialog.showOpenDialog({
@@ -117,6 +118,7 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
     DEFAULT_THEME_CSS,
     'utf-8'
   );
+  await ensureProjectConfig(projectPath);
 
   await addRecentProject({ name, path: projectPath });
   await watchProject(projectPath);
@@ -132,6 +134,9 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   } catch {
     await fs.writeFile(themePath, DEFAULT_THEME_CSS, 'utf-8');
   }
+  // Backfill scamp.config.json with defaults for projects created
+  // before per-project settings existed.
+  await ensureProjectConfig(args.folderPath);
   await addRecentProject({ name: project.name, path: project.path });
   await watchProject(args.folderPath);
   return project;

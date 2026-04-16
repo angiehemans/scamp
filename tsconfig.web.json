@@ -25,6 +25,7 @@
   "include": [
     "src/renderer/**/*",
     "src/shared/**/*",
-    "test/**/*"
+    "test/**/*",
+    "src/main/ipc/pageRename.ts"
   ]
 }

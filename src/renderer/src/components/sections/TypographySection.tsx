@@ -1,9 +1,11 @@
 import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
 
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { NumberInput } from '../controls/NumberInput';
 import { ColorInput } from '../controls/ColorInput';
 import { EnumSelect } from '../controls/EnumSelect';
+import { FontPicker } from '../controls/FontPicker';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import type { FontWeight, TextAlign } from '@lib/element';
 import { Section, Row } from './Section';
@@ -11,28 +13,6 @@ import { Section, Row } from './Section';
 type Props = {
   elementId: string;
 };
-
-const FONT_FAMILY_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: '', label: 'System font' },
-  { value: 'Inter, sans-serif', label: 'Inter' },
-  { value: 'Roboto, sans-serif', label: 'Roboto' },
-  { value: 'Open Sans, sans-serif', label: 'Open Sans' },
-  { value: 'Lato, sans-serif', label: 'Lato' },
-  { value: 'Montserrat, sans-serif', label: 'Montserrat' },
-  { value: 'Poppins, sans-serif', label: 'Poppins' },
-  { value: 'Source Sans 3, sans-serif', label: 'Source Sans 3' },
-  { value: 'Nunito, sans-serif', label: 'Nunito' },
-  { value: 'Raleway, sans-serif', label: 'Raleway' },
-  { value: 'Ubuntu, sans-serif', label: 'Ubuntu' },
-  { value: 'Arial, Helvetica, sans-serif', label: 'Arial / Helvetica' },
-  { value: 'Verdana, Geneva, sans-serif', label: 'Verdana' },
-  { value: 'Playfair Display, serif', label: 'Playfair Display' },
-  { value: 'Merriweather, serif', label: 'Merriweather' },
-  { value: 'Georgia, serif', label: 'Georgia' },
-  { value: 'Times New Roman, Times, serif', label: 'Times New Roman' },
-  { value: 'Courier New, Courier, monospace', label: 'Courier New' },
-  { value: 'Ubuntu Mono, monospace', label: 'Ubuntu Mono' },
-];
 
 const FONT_WEIGHT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
   { value: '400', label: '400' },
@@ -58,16 +38,20 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   const projectColors = useCanvasStore(selectProjectColors);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+  const allFonts = useFontsStore(selectAllFonts);
+
   if (!element || element.type !== 'text') return null;
 
   return (
     <Section title="Typography">
       <Row label="">
-        <EnumSelect
+        <FontPicker
           value={element.fontFamily ?? ''}
-          options={FONT_FAMILY_OPTIONS}
+          fonts={allFonts}
           onChange={(value) =>
-            patchElement(elementId, { fontFamily: value.length > 0 ? value : undefined })
+            patchElement(elementId, {
+              fontFamily: value.length > 0 ? value : undefined,
+            })
           }
           title="Font family"
         />

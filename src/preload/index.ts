@@ -15,6 +15,10 @@ import type {
   PageDeleteArgs,
   PageDuplicateArgs,
   PageFile,
+  PageRenameArgs,
+  ProjectConfig,
+  ProjectConfigReadArgs,
+  ProjectConfigWriteArgs,
   ProjectData,
   RecentProject,
   Settings,
@@ -60,6 +64,9 @@ const api = {
   duplicatePage: (args: PageDuplicateArgs): Promise<PageFile> =>
     ipcRenderer.invoke(IPC.PageDuplicate, args),
 
+  renamePage: (args: PageRenameArgs): Promise<PageFile> =>
+    ipcRenderer.invoke(IPC.PageRename, args),
+
   getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
     ipcRenderer.invoke(IPC.RecentProjectsGet),
 
@@ -74,6 +81,12 @@ const api = {
 
   updateSettings: (patch: Partial<Settings>): Promise<Settings> =>
     ipcRenderer.invoke(IPC.SettingsUpdate, patch),
+
+  readProjectConfig: (args: ProjectConfigReadArgs): Promise<ProjectConfig> =>
+    ipcRenderer.invoke(IPC.ProjectConfigRead, args),
+
+  writeProjectConfig: (args: ProjectConfigWriteArgs): Promise<ProjectConfig> =>
+    ipcRenderer.invoke(IPC.ProjectConfigWrite, args),
 
   onFileChanged: (handler: (payload: FileChangedPayload) => void): (() => void) => {
     const listener = (_e: IpcRendererEvent, payload: FileChangedPayload): void => handler(payload);
