@@ -9,6 +9,7 @@ import { BorderSection } from './sections/BorderSection';
 import { TagSection } from './sections/TagSection';
 import { TypographySection } from './sections/TypographySection';
 import { ImageSection } from './sections/ImageSection';
+import { VisibilitySection } from './sections/VisibilitySection';
 import styles from './PropertiesPanel.module.css';
 
 /**
@@ -51,6 +52,7 @@ export const UiPanel = (): JSX.Element => {
         <LayoutSection elementId={elementId} />
         <SpacingSection elementId={elementId} hideMargin />
         <BackgroundSection elementId={elementId} />
+        <VisibilitySection elementId={elementId} />
       </div>
     );
   }
@@ -66,6 +68,7 @@ export const UiPanel = (): JSX.Element => {
       {isImage && <ImageSection elementId={elementId} />}
       {isText && <TagSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}
+      <VisibilitySection elementId={elementId} />
     </div>
   );
 };

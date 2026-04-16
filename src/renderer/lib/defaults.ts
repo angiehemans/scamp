@@ -23,6 +23,8 @@ export const DEFAULT_RECT_STYLES = {
   borderWidth: [0, 0, 0, 0] as [number, number, number, number],
   borderStyle: 'none' as const,
   borderColor: '#000000',
+  opacity: 1,
+  visibilityMode: 'visible' as const,
 };
 
 export type DefaultRectStyles = typeof DEFAULT_RECT_STYLES;
@@ -50,6 +52,8 @@ export const DEFAULT_ROOT_STYLES = {
   borderWidth: [0, 0, 0, 0] as [number, number, number, number],
   borderStyle: 'none' as const,
   borderColor: '#000000',
+  opacity: 1,
+  visibilityMode: 'visible' as const,
 };
 
 export type DefaultRootStyles = typeof DEFAULT_ROOT_STYLES;

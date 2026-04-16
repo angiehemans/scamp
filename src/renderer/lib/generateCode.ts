@@ -162,20 +162,33 @@ export const elementDeclarationLines = (
     if (el.backgroundColor !== DEFAULT_ROOT_STYLES.backgroundColor) {
       lines.push(`background: ${el.backgroundColor};`);
     }
-    if (el.display !== DEFAULT_ROOT_STYLES.display) {
-      lines.push(`display: ${el.display};`);
+    // Visibility "none" emits `display: none` and suppresses flex
+    // declarations it would override. Flex declarations still come out
+    // when visibility is visible/hidden so the latent state round-trips.
+    if (el.visibilityMode === 'none') {
+      lines.push('display: none;');
+    } else {
+      if (el.display !== DEFAULT_ROOT_STYLES.display) {
+        lines.push(`display: ${el.display};`);
+      }
+      if (el.flexDirection !== DEFAULT_ROOT_STYLES.flexDirection) {
+        lines.push(`flex-direction: ${el.flexDirection};`);
+      }
+      if (el.gap !== DEFAULT_ROOT_STYLES.gap) {
+        lines.push(`gap: ${el.gap}px;`);
+      }
+      if (el.alignItems !== DEFAULT_ROOT_STYLES.alignItems) {
+        lines.push(`align-items: ${el.alignItems};`);
+      }
+      if (el.justifyContent !== DEFAULT_ROOT_STYLES.justifyContent) {
+        lines.push(`justify-content: ${el.justifyContent};`);
+      }
     }
-    if (el.flexDirection !== DEFAULT_ROOT_STYLES.flexDirection) {
-      lines.push(`flex-direction: ${el.flexDirection};`);
+    if (el.visibilityMode === 'hidden') {
+      lines.push('visibility: hidden;');
     }
-    if (el.gap !== DEFAULT_ROOT_STYLES.gap) {
-      lines.push(`gap: ${el.gap}px;`);
-    }
-    if (el.alignItems !== DEFAULT_ROOT_STYLES.alignItems) {
-      lines.push(`align-items: ${el.alignItems};`);
-    }
-    if (el.justifyContent !== DEFAULT_ROOT_STYLES.justifyContent) {
-      lines.push(`justify-content: ${el.justifyContent};`);
+    if (el.opacity !== DEFAULT_ROOT_STYLES.opacity) {
+      lines.push(`opacity: ${el.opacity};`);
     }
     const [pt, pr, pb, pl] = el.padding;
     if (pt || pr || pb || pl) {
@@ -216,21 +229,27 @@ export const elementDeclarationLines = (
       lines.push(`height: ${el.heightValue}px;`);
     }
 
-    // Display + flex container properties
-    if (el.display !== DEFAULT_RECT_STYLES.display) {
-      lines.push(`display: ${el.display};`);
-    }
-    if (el.flexDirection !== DEFAULT_RECT_STYLES.flexDirection) {
-      lines.push(`flex-direction: ${el.flexDirection};`);
-    }
-    if (el.gap !== DEFAULT_RECT_STYLES.gap) {
-      lines.push(`gap: ${el.gap}px;`);
-    }
-    if (el.alignItems !== DEFAULT_RECT_STYLES.alignItems) {
-      lines.push(`align-items: ${el.alignItems};`);
-    }
-    if (el.justifyContent !== DEFAULT_RECT_STYLES.justifyContent) {
-      lines.push(`justify-content: ${el.justifyContent};`);
+    // Visibility "none" emits `display: none` and suppresses flex
+    // declarations it would override. Flex declarations still come out
+    // when visibility is visible/hidden so the latent state round-trips.
+    if (el.visibilityMode === 'none') {
+      lines.push('display: none;');
+    } else {
+      if (el.display !== DEFAULT_RECT_STYLES.display) {
+        lines.push(`display: ${el.display};`);
+      }
+      if (el.flexDirection !== DEFAULT_RECT_STYLES.flexDirection) {
+        lines.push(`flex-direction: ${el.flexDirection};`);
+      }
+      if (el.gap !== DEFAULT_RECT_STYLES.gap) {
+        lines.push(`gap: ${el.gap}px;`);
+      }
+      if (el.alignItems !== DEFAULT_RECT_STYLES.alignItems) {
+        lines.push(`align-items: ${el.alignItems};`);
+      }
+      if (el.justifyContent !== DEFAULT_RECT_STYLES.justifyContent) {
+        lines.push(`justify-content: ${el.justifyContent};`);
+      }
     }
 
     // Padding (only when any side is non-zero)
@@ -263,17 +282,27 @@ export const elementDeclarationLines = (
       lines.push(`border-color: ${el.borderColor};`);
     }
 
-    // Text properties (only on text elements, only when set)
+    // Text properties (only on text elements, only when set). Size-
+    // related values are stored as full CSS strings so token refs and
+    // non-px units round-trip without extra state.
     if (el.type === 'text') {
       if (el.fontFamily !== undefined) lines.push(`font-family: ${el.fontFamily};`);
-      if (el.fontSize !== undefined) lines.push(`font-size: ${el.fontSize}px;`);
+      if (el.fontSize !== undefined) lines.push(`font-size: ${el.fontSize};`);
       if (el.fontWeight !== undefined) lines.push(`font-weight: ${el.fontWeight};`);
       if (el.color !== undefined) lines.push(`color: ${el.color};`);
       if (el.textAlign !== undefined) lines.push(`text-align: ${el.textAlign};`);
       if (el.lineHeight !== undefined) lines.push(`line-height: ${el.lineHeight};`);
       if (el.letterSpacing !== undefined) {
-        lines.push(`letter-spacing: ${el.letterSpacing}px;`);
+        lines.push(`letter-spacing: ${el.letterSpacing};`);
       }
+    }
+
+    // Visibility + opacity
+    if (el.visibilityMode === 'hidden') {
+      lines.push('visibility: hidden;');
+    }
+    if (el.opacity !== DEFAULT_RECT_STYLES.opacity) {
+      lines.push(`opacity: ${el.opacity};`);
     }
 
     // Position — POC uses absolute positioning within the parent, except

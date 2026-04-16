@@ -1,12 +1,14 @@
+import { useMemo } from 'react';
 import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
 
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
-import { NumberInput } from '../controls/NumberInput';
+import { classifyToken } from '@lib/tokenClassify';
 import { ColorInput } from '../controls/ColorInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FontPicker } from '../controls/FontPicker';
 import { SegmentedControl } from '../controls/SegmentedControl';
+import { TokenOrNumberInput } from '../controls/TokenOrNumberInput';
 import type { FontWeight, TextAlign } from '@lib/element';
 import { Section, Row } from './Section';
 
@@ -40,6 +42,22 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
   const allFonts = useFontsStore(selectAllFonts);
 
+  // Filter theme tokens by category so each input only offers tokens
+  // that make sense for that property.
+  const fontSizeTokens = useMemo(
+    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    [themeTokens]
+  );
+  const lineHeightTokens = useMemo(
+    () => themeTokens.filter((t) => classifyToken(t.value) === 'lineHeight'),
+    [themeTokens]
+  );
+  const fontFamilyTokens = useMemo(
+    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontFamily'),
+    [themeTokens]
+  );
+  const letterSpacingTokens = fontSizeTokens; // lengths work for both
+
   if (!element || element.type !== 'text') return null;
 
   return (
@@ -48,6 +66,7 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
         <FontPicker
           value={element.fontFamily ?? ''}
           fonts={allFonts}
+          fontTokens={fontFamilyTokens}
           onChange={(value) =>
             patchElement(elementId, {
               fontFamily: value.length > 0 ? value : undefined,
@@ -57,13 +76,14 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
         />
       </Row>
       <Row label="">
-        <NumberInput
+        <TokenOrNumberInput
           prefix="Sz"
           title="Font size"
           value={element.fontSize}
+          tokens={fontSizeTokens}
+          defaultUnit="px"
           onChange={(value) => patchElement(elementId, { fontSize: value })}
-          min={1}
-          allowEmpty
+          onOpenTheme={openThemePanel ?? undefined}
           placeholder="auto"
         />
         <EnumSelect
@@ -92,20 +112,24 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
         />
       </Row>
       <Row label="">
-        <NumberInput
+        <TokenOrNumberInput
           prefix="LH"
           title="Line height"
           value={element.lineHeight}
+          tokens={lineHeightTokens}
+          defaultUnit=""
           onChange={(value) => patchElement(elementId, { lineHeight: value })}
-          allowEmpty
+          onOpenTheme={openThemePanel ?? undefined}
           placeholder="auto"
         />
-        <NumberInput
+        <TokenOrNumberInput
           prefix="LS"
           title="Letter spacing"
           value={element.letterSpacing}
+          tokens={letterSpacingTokens}
+          defaultUnit="px"
           onChange={(value) => patchElement(elementId, { letterSpacing: value })}
-          allowEmpty
+          onOpenTheme={openThemePanel ?? undefined}
           placeholder="0"
         />
       </Row>

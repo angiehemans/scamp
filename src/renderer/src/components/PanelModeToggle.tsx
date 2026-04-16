@@ -3,7 +3,7 @@ import { SegmentedControl } from './controls/SegmentedControl';
 import styles from './PropertiesPanel.module.css';
 
 const OPTIONS = [
-  { value: 'ui' as const, label: 'UI' },
+  { value: 'ui' as const, label: 'Visual' },
   { value: 'css' as const, label: 'CSS' },
 ];
 

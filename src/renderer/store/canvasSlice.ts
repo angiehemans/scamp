@@ -225,7 +225,7 @@ const makeText = (input: NewTextInput, id: string): ScampElement => ({
   heightValue: TEXT_DEFAULT_HEIGHT,
   customProperties: {},
   text: input.text ?? 'Text',
-  fontSize: 14,
+  fontSize: '14px',
   fontWeight: 400,
   color: '#222222',
   textAlign: 'left',

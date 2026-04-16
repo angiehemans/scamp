@@ -4,7 +4,7 @@ User stories ordered easiest to hardest.
 
 ---
 
-## 1. Visibility and opacity controls
+## 1. Visibility and opacity controls [done]
 
 **User story**
 
@@ -37,7 +37,7 @@ translucent without having to write CSS manually.
 
 ---
 
-## 2. Typography tokens in the theme file
+## 2. Typography tokens in the theme file  [done]
 
 **User story**
 

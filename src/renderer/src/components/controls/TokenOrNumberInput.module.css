@@ -1,0 +1,196 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  background: #151515;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  padding: 0 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+}
+
+.row:focus-within {
+  border-color: #4a8cff;
+}
+
+.prefix {
+  font-size: 16px;
+  font-weight: 400;
+  color: #777;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: none;
+  padding: 0 2px;
+  font-size: 14px;
+  color: #e0e0e0;
+  font-family: 'Ubuntu Mono', monospace;
+}
+
+.input:focus {
+  outline: none;
+}
+
+/* Token pill — replaces the input when a `var(...)` is stored. */
+.pill {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  background: #1d3a6e;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #cfe0ff;
+  font-family: 'Ubuntu Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pillLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pillClear {
+  background: transparent;
+  border: none;
+  color: #8fb3ff;
+  padding: 0 2px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.pillClear:hover {
+  color: #fff;
+}
+
+.tokenButton {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: #777;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  width: 20px;
+  border-radius: 3px;
+}
+
+.tokenButton:hover {
+  color: #e0e0e0;
+  background: #2c2c2c;
+}
+
+.tokenButtonActive {
+  color: #4a8cff;
+}
+
+.popover {
+  position: fixed;
+  z-index: 100;
+  background: #1f1f1f;
+  border: 1px solid #2c2c2c;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.popoverBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+.tokenList {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.tokenRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #2c2c2c;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: #e0e0e0;
+}
+
+.tokenRow:last-child {
+  border-bottom: none;
+}
+
+.tokenRow:hover {
+  background: #2c2c2c;
+}
+
+.tokenRowIcon {
+  color: #777;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.tokenRowName {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tokenRowValue {
+  font-size: 11px;
+  color: #666;
+  flex-shrink: 0;
+  font-family: 'Ubuntu Mono', monospace;
+}
+
+.empty {
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 12px;
+}
+
+.addTokenButton {
+  background: transparent;
+  border: 1px dashed #2c2c2c;
+  border-radius: 4px;
+  padding: 6px 14px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.addTokenButton:hover {
+  color: #e0e0e0;
+  border-color: #4a8cff;
+}

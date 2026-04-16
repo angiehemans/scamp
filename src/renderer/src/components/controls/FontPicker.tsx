@@ -7,9 +7,11 @@ import {
   useRef,
   useState,
 } from 'react';
+import { IconColorSwatch } from '@tabler/icons-react';
 import { filterFonts } from '@lib/fontFilter';
 import { formatFontValue, quoteFamilyName } from '@lib/fontFallback';
 import type { AvailableFont } from '@store/fontsSlice';
+import type { ThemeToken } from '@shared/types';
 import { Tooltip } from './Tooltip';
 import styles from './FontPicker.module.css';
 
@@ -21,6 +23,8 @@ type Props = {
   value: string;
   /** Available fonts with their source (system vs project). */
   fonts: ReadonlyArray<AvailableFont>;
+  /** Font-family theme tokens — shown at the top of the dropdown. */
+  fontTokens?: ReadonlyArray<ThemeToken>;
   /**
    * Called with the full formatted CSS expression — `formatFontValue()`
    * output — so the caller writes it straight to `element.fontFamily`.
@@ -30,6 +34,8 @@ type Props = {
   /** Tooltip shown on hover of the closed trigger. */
   title?: string;
 };
+
+const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
 
 const ROW_HEIGHT = 28;
 const VIEWPORT_HEIGHT = 280;
@@ -56,6 +62,8 @@ type Option = {
   unknown?: boolean;
   /** Badge text shown at the right of the row (e.g. "Project"). */
   badge?: string;
+  /** True when this row is a theme token — renders the swatch icon. */
+  isToken?: boolean;
 };
 
 /**
@@ -82,6 +90,7 @@ const primaryFamily = (value: string): string => {
 export const FontPicker = ({
   value,
   fonts,
+  fontTokens = [],
   onChange,
   title,
 }: Props): JSX.Element => {
@@ -97,11 +106,18 @@ export const FontPicker = ({
   const searchRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  // Label shown on the closed trigger.
+  // Label shown on the closed trigger. When the stored value is a
+  // `var(--name)` reference, show the token name rather than whatever
+  // `primaryFamily` would extract.
   const triggerLabel = useMemo(() => {
-    if (value.trim().length === 0) return null;
-    return primaryFamily(value);
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return null;
+    const m = trimmed.match(VAR_RE);
+    if (m) return m[1] ?? trimmed;
+    return primaryFamily(trimmed);
   }, [value]);
+
+  const triggerIsToken = VAR_RE.test(value.trim());
 
   // Options visible in the dropdown for the current query. The system
   // default and (when applicable) a "Custom" row for a stored value we
@@ -128,9 +144,27 @@ export const FontPicker = ({
         previewFamily: null,
       });
     }
+    // Theme tokens for font-family — shown above the enumerated fonts
+    // so they're always easy to pick.
+    for (const token of fontTokens) {
+      if (q.length > 0 && !token.name.toLowerCase().includes(q)) continue;
+      result.push({
+        value: `var(${token.name})`,
+        label: token.name,
+        previewFamily: primaryFamily(token.value) || null,
+        badge: 'Token',
+        isToken: true,
+      });
+    }
     // Preserve the stored value as a first-class row if it's not in the
-    // enumerated font list — otherwise it'd vanish from the dropdown.
-    if (value.length > 0 && !currentIsKnown && q.length === 0) {
+    // enumerated font list AND isn't a token we already surfaced.
+    const storedIsToken = VAR_RE.test(value.trim());
+    if (
+      value.length > 0 &&
+      !currentIsKnown &&
+      !storedIsToken &&
+      q.length === 0
+    ) {
       result.push({
         value,
         label: currentFamily || value,
@@ -148,7 +182,7 @@ export const FontPicker = ({
       });
     }
     return result;
-  }, [fonts, query, value]);
+  }, [fonts, fontTokens, query, value]);
 
   // Reset active row when the filtered list changes under us.
   useEffect(() => {
@@ -310,13 +344,19 @@ export const FontPicker = ({
       className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
       onClick={() => setOpen((v) => !v)}
       // Render the trigger itself in the selected font so it doubles as
-      // a preview.
+      // a preview. Tokens skip this — we show the token name in the
+      // default UI font alongside a swatch icon.
       style={
-        triggerLabel
+        triggerLabel && !triggerIsToken
           ? { fontFamily: quoteFamilyName(triggerLabel) }
           : undefined
       }
     >
+      {triggerIsToken && (
+        <span className={styles.triggerIcon} aria-hidden="true">
+          <IconColorSwatch size={14} stroke={1.75} />
+        </span>
+      )}
       <span
         className={`${styles.triggerLabel} ${
           triggerLabel ? '' : styles.triggerPlaceholder
@@ -394,6 +434,11 @@ export const FontPicker = ({
                         }}
                         onClick={() => commit(option)}
                       >
+                        {option.isToken && (
+                          <span className={styles.rowIcon} aria-hidden="true">
+                            <IconColorSwatch size={14} stroke={1.75} />
+                          </span>
+                        )}
                         <span className={styles.rowLabel}>
                           {option.unknown
                             ? `Custom: ${option.label}`

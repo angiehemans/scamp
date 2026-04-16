@@ -20,10 +20,20 @@ describe('DEFAULT_RECT_STYLES', () => {
       borderWidth: [0, 0, 0, 0],
       borderStyle: 'none',
       borderColor: '#000000',
+      opacity: 1,
+      visibilityMode: 'visible',
     });
   });
 
   it('has padding as a 4-tuple', () => {
     expect(DEFAULT_RECT_STYLES.padding).toHaveLength(4);
+  });
+
+  it('opacity defaults to fully opaque', () => {
+    expect(DEFAULT_RECT_STYLES.opacity).toBe(1);
+  });
+
+  it('visibilityMode defaults to visible', () => {
+    expect(DEFAULT_RECT_STYLES.visibilityMode).toBe('visible');
   });
 });

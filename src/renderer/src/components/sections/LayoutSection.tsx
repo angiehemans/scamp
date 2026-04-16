@@ -46,6 +46,27 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
 
   const isFlex = element.display === 'flex';
 
+  // When the element is hidden with `display: none`, flex/layout
+  // controls are meaningless — surface that clearly rather than showing
+  // interactive controls that won't affect the output CSS.
+  if (element.visibilityMode === 'none') {
+    return (
+      <Section title="Layout">
+        <div
+          style={{
+            fontSize: 12,
+            color: '#888',
+            padding: '8px 0',
+            lineHeight: 1.4,
+          }}
+        >
+          Layout is disabled while Visibility is set to None — the
+          element is removed from the page.
+        </div>
+      </Section>
+    );
+  }
+
   return (
     <Section title="Layout">
       <Row label="">

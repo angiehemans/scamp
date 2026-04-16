@@ -50,6 +50,14 @@
   flex-shrink: 0;
 }
 
+/* Inline suffix — unit hint (e.g. "%" icon) at the right of an input row. */
+.inputSuffix {
+  color: #777;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
 .numberInput {
   text-align: left;
 }
@@ -319,6 +327,9 @@ font-size: 11px !important;
   padding: 0 6px;
   font-size: 14px;
   color: #e0e0e0;
+  /* Native <select> elements don't inherit the document font in most
+   * browsers — set it explicitly to match the rest of the panel. */
+  font-family: 'Ubuntu Mono', monospace;
   appearance: none;
   cursor: pointer;
 }
@@ -326,6 +337,13 @@ font-size: 11px !important;
 .select:focus {
   outline: none;
   border-color: #4a8cff;
+}
+
+/* Dropdown options come from the OS shell on some platforms and won't
+ * always honor this, but setting it lets the platforms that do (Linux,
+ * macOS in Chromium) render the menu in our app font. */
+.select option {
+  font-family: 'Ubuntu Mono', monospace;
 }
 
 .segmented {

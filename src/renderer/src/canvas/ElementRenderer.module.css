@@ -18,3 +18,24 @@
   outline-offset: 2px !important;
   cursor: text;
 }
+
+/* "Visibility: None" — the designer has set display:none. On the
+ * canvas we still render the element so it stays selectable, but we
+ * dim it and lay a diagonal stripe over it so it reads as hidden. The
+ * generated CSS still emits `display: none;`. */
+.hiddenNone {
+  position: relative;
+}
+
+.hiddenNone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.18) 0 6px,
+    transparent 6px 12px
+  );
+  border-radius: inherit;
+}

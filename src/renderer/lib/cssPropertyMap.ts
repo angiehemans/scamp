@@ -28,7 +28,23 @@ export const cssToScampProperty: Record<string, Mapper> = {
   background: (v) => ({ backgroundColor: v }),
   'background-color': (v) => ({ backgroundColor: v }),
   'border-radius': (v) => ({ borderRadius: parseBorderRadiusShorthand(v) }),
-  display: (v) => (v === 'flex' ? { display: 'flex' } : { display: 'none' }),
+  display: (v) => {
+    if (v === 'flex') return { display: 'flex' };
+    if (v === 'none') return { visibilityMode: 'none' };
+    // Other display values (block, inline-block, …) map back to the
+    // non-flex sentinel in our model.
+    return { display: 'none' };
+  },
+  visibility: (v) => {
+    if (v === 'hidden') return { visibilityMode: 'hidden' };
+    if (v === 'visible') return { visibilityMode: 'visible' };
+    return {};
+  },
+  opacity: (v) => {
+    const n = Number(v.trim());
+    if (!Number.isFinite(n)) return {};
+    return { opacity: Math.min(1, Math.max(0, n)) };
+  },
   'flex-direction': (v) => {
     if (v === 'row' || v === 'column') return { flexDirection: v };
     return {};
@@ -84,23 +100,23 @@ export const cssToScampProperty: Record<string, Mapper> = {
   'line-height': (v) => {
     const trimmed = v.trim();
     if (trimmed.length === 0) return {};
-    // Reject px form for POC — only unitless multipliers.
-    if (/px$/.test(trimmed)) return {};
-    const n = Number(trimmed);
-    if (!Number.isFinite(n)) return {};
-    return { lineHeight: n };
+    return { lineHeight: trimmed };
   },
   'letter-spacing': (v) => {
     const trimmed = v.trim();
     if (trimmed.length === 0) return {};
-    return { letterSpacing: parsePx(trimmed) };
+    return { letterSpacing: trimmed };
   },
   'font-family': (v) => {
     const trimmed = v.trim();
     if (trimmed.length === 0) return {};
     return { fontFamily: trimmed };
   },
-  'font-size': (v) => ({ fontSize: parsePx(v) }),
+  'font-size': (v) => {
+    const trimmed = v.trim();
+    if (trimmed.length === 0) return {};
+    return { fontSize: trimmed };
+  },
   'font-weight': (v) => {
     const n = parseInt(v, 10);
     if (n === 400 || n === 500 || n === 600 || n === 700) {

@@ -26,6 +26,8 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   borderWidth: [0, 0, 0, 0],
   borderStyle: 'none',
   borderColor: '#000000',
+  opacity: 1,
+  visibilityMode: 'visible',
   customProperties: {},
 });
 
@@ -359,7 +361,7 @@ describe('generateCode — CSS', () => {
         id: 't001',
         type: 'text',
         text: 'Hi',
-        fontSize: 14,
+        fontSize: '14px',
         fontWeight: 600,
         color: '#222222',
         textAlign: 'center',
@@ -399,12 +401,12 @@ describe('generateCode — CSS', () => {
         id: 't001',
         type: 'text',
         text: 'Hi',
-        lineHeight: 1.5,
-        letterSpacing: 2,
+        lineHeight: '1.5',
+        letterSpacing: '2px',
       }),
       // A rectangle with lineHeight/letterSpacing accidentally set must
       // not emit them — only text elements get those declarations.
-      a1b2: makeRect({ id: 'a1b2', lineHeight: 1.5, letterSpacing: 2 }),
+      a1b2: makeRect({ id: 'a1b2', lineHeight: '1.5', letterSpacing: '2px' }),
     };
     const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
     const textBlock = extractBlock(css, '.text_t001');
@@ -418,7 +420,7 @@ describe('generateCode — CSS', () => {
   it('omits line-height and letter-spacing when undefined on a text element', () => {
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: makeRoot(['t001']),
-      t001: makeRect({ id: 't001', type: 'text', text: 'Hi', fontSize: 14 }),
+      t001: makeRect({ id: 't001', type: 'text', text: 'Hi', fontSize: '14px' }),
     };
     const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
     const block = extractBlock(css, '.text_t001');
@@ -470,6 +472,85 @@ describe('generateCode — element naming', () => {
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
     expect(tsx).toContain('data-scamp-id="rect_a1b2"');
+  });
+});
+
+describe('opacity and visibility', () => {
+  it('omits opacity when it equals the default', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2' }),
+    };
+    const { css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(css).not.toContain('opacity:');
+  });
+
+  it('emits opacity when it differs from the default', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', opacity: 0.5 }),
+    };
+    const { css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(extractBlock(css, '.rect_a1b2')).toContain('opacity: 0.5;');
+  });
+
+  it('emits visibility: hidden when visibilityMode is hidden', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', visibilityMode: 'hidden' }),
+    };
+    const { css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(extractBlock(css, '.rect_a1b2')).toContain('visibility: hidden;');
+  });
+
+  it('emits display: none and suppresses flex emits when visibilityMode is none', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({
+        id: 'a1b2',
+        visibilityMode: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+      }),
+    };
+    const { css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    const block = extractBlock(css, '.rect_a1b2');
+    expect(block).toContain('display: none;');
+    expect(block).not.toContain('display: flex;');
+    expect(block).not.toContain('flex-direction:');
+    expect(block).not.toContain('gap:');
+  });
+
+  it('emits nothing for visibility when visibilityMode is visible', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2' }),
+    };
+    const { css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    const block = extractBlock(css, '.rect_a1b2');
+    expect(block).not.toContain('visibility:');
+    expect(block).not.toContain('display: none;');
   });
 });
 

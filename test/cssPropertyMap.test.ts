@@ -143,14 +143,19 @@ describe('cssToScampProperty', () => {
   });
 
   describe('line-height', () => {
-    it('parses a unitless decimal', () => {
-      expect(apply('line-height', '1.5')).toEqual({ lineHeight: 1.5 });
+    it('preserves a unitless decimal as a string', () => {
+      expect(apply('line-height', '1.5')).toEqual({ lineHeight: '1.5' });
     });
-    it('parses an integer multiplier', () => {
-      expect(apply('line-height', '2')).toEqual({ lineHeight: 2 });
+    it('preserves an integer multiplier as a string', () => {
+      expect(apply('line-height', '2')).toEqual({ lineHeight: '2' });
     });
-    it('rejects px form for POC', () => {
-      expect(apply('line-height', '24px')).toEqual({});
+    it('preserves px form as a string (no longer rejected)', () => {
+      expect(apply('line-height', '24px')).toEqual({ lineHeight: '24px' });
+    });
+    it('preserves var() refs', () => {
+      expect(apply('line-height', 'var(--leading-tight)')).toEqual({
+        lineHeight: 'var(--leading-tight)',
+      });
     });
     it('drops empty input', () => {
       expect(apply('line-height', '')).toEqual({});
@@ -158,11 +163,16 @@ describe('cssToScampProperty', () => {
   });
 
   describe('letter-spacing', () => {
-    it('parses a px value', () => {
-      expect(apply('letter-spacing', '2px')).toEqual({ letterSpacing: 2 });
+    it('preserves a px value as a string', () => {
+      expect(apply('letter-spacing', '2px')).toEqual({ letterSpacing: '2px' });
     });
-    it('parses a negative px value', () => {
-      expect(apply('letter-spacing', '-1px')).toEqual({ letterSpacing: -1 });
+    it('preserves a negative px value', () => {
+      expect(apply('letter-spacing', '-1px')).toEqual({ letterSpacing: '-1px' });
+    });
+    it('preserves rem / em forms', () => {
+      expect(apply('letter-spacing', '0.05em')).toEqual({
+        letterSpacing: '0.05em',
+      });
     });
     it('drops empty input', () => {
       expect(apply('letter-spacing', '')).toEqual({});
@@ -170,8 +180,16 @@ describe('cssToScampProperty', () => {
   });
 
   describe('text properties', () => {
-    it('maps font-size', () => {
-      expect(apply('font-size', '14px')).toEqual({ fontSize: 14 });
+    it('maps font-size as a string', () => {
+      expect(apply('font-size', '14px')).toEqual({ fontSize: '14px' });
+    });
+    it('preserves rem font-size', () => {
+      expect(apply('font-size', '1.125rem')).toEqual({ fontSize: '1.125rem' });
+    });
+    it('preserves var() font-size', () => {
+      expect(apply('font-size', 'var(--text-lg)')).toEqual({
+        fontSize: 'var(--text-lg)',
+      });
     });
     it('maps a recognised font-weight', () => {
       expect(apply('font-weight', '600')).toEqual({ fontWeight: 600 });
@@ -187,6 +205,53 @@ describe('cssToScampProperty', () => {
     });
     it('drops unsupported text-align', () => {
       expect(apply('text-align', 'justify')).toEqual({});
+    });
+  });
+
+  describe('display', () => {
+    it('maps display: flex to the flex sentinel', () => {
+      expect(apply('display', 'flex')).toEqual({ display: 'flex' });
+    });
+    it('maps display: none to visibilityMode', () => {
+      expect(apply('display', 'none')).toEqual({ visibilityMode: 'none' });
+    });
+    it('maps other display values back to the non-flex sentinel', () => {
+      expect(apply('display', 'block')).toEqual({ display: 'none' });
+    });
+  });
+
+  describe('visibility', () => {
+    it('maps visibility: hidden', () => {
+      expect(apply('visibility', 'hidden')).toEqual({
+        visibilityMode: 'hidden',
+      });
+    });
+    it('maps visibility: visible', () => {
+      expect(apply('visibility', 'visible')).toEqual({
+        visibilityMode: 'visible',
+      });
+    });
+    it('drops other visibility values', () => {
+      expect(apply('visibility', 'collapse')).toEqual({});
+    });
+  });
+
+  describe('opacity', () => {
+    it('parses a decimal', () => {
+      expect(apply('opacity', '0.5')).toEqual({ opacity: 0.5 });
+    });
+    it('parses an integer', () => {
+      expect(apply('opacity', '1')).toEqual({ opacity: 1 });
+      expect(apply('opacity', '0')).toEqual({ opacity: 0 });
+    });
+    it('clamps above 1', () => {
+      expect(apply('opacity', '1.5')).toEqual({ opacity: 1 });
+    });
+    it('clamps below 0', () => {
+      expect(apply('opacity', '-0.2')).toEqual({ opacity: 0 });
+    });
+    it('drops non-numeric values', () => {
+      expect(apply('opacity', 'auto')).toEqual({});
     });
   });
 });

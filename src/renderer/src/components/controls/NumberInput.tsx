@@ -1,4 +1,4 @@
-import { KeyboardEvent, useEffect, useState } from 'react';
+import { KeyboardEvent, ReactNode, useEffect, useState } from 'react';
 import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
@@ -15,6 +15,8 @@ type Props = {
   allowEmpty?: boolean;
   /** Inline prefix label shown inside the input (e.g. "W", "H", "X"). */
   prefix?: string;
+  /** Inline suffix — typically a unit indicator icon (e.g. `%`). */
+  suffix?: ReactNode;
   /** Tooltip shown on hover. */
   title?: string;
 };
@@ -33,6 +35,7 @@ export const NumberInput = ({
   placeholder,
   allowEmpty = false,
   prefix,
+  suffix,
   title,
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState<string>(value === undefined ? '' : String(value));
@@ -105,10 +108,10 @@ export const NumberInput = ({
     }
   };
 
-  if (prefix) {
+  if (prefix || suffix) {
     const body = (
       <div className={styles.colorInputRow}>
-        <span className={styles.inputPrefix}>{prefix}</span>
+        {prefix && <span className={styles.inputPrefix}>{prefix}</span>}
         <input
           type="text"
           inputMode="numeric"
@@ -119,6 +122,7 @@ export const NumberInput = ({
           onBlur={commit}
           onKeyDown={handleKeyDown}
         />
+        {suffix && <span className={styles.inputSuffix}>{suffix}</span>}
       </div>
     );
     return title ? <Tooltip label={title}>{body}</Tooltip> : body;

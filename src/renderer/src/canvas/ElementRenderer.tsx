@@ -30,6 +30,23 @@ const resolveTokenColor = (
   return found ? found.value : 'transparent';
 };
 
+/**
+ * Resolve a `var(--name)` reference against theme tokens for non-colour
+ * properties. Unknown tokens return the raw value so React's inline
+ * style system gets something it understands (falling back to browser
+ * default rather than the "transparent" sentinel we use for colours).
+ */
+const resolveTokenValue = (
+  value: string | undefined,
+  tokens: ReadonlyArray<ThemeToken>
+): string | undefined => {
+  if (!value) return value;
+  const m = value.match(VAR_RE);
+  if (!m) return value;
+  const found = tokens.find((t) => t.name === m[1]);
+  return found ? found.value : value;
+};
+
 type Props = {
   elementId: string;
 };
@@ -143,17 +160,36 @@ const elementToStyle = (
     base.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
   }
   if (el.type === 'text') {
-    if (el.fontFamily !== undefined) base.fontFamily = el.fontFamily;
-    if (el.fontSize !== undefined) base.fontSize = el.fontSize;
+    if (el.fontFamily !== undefined)
+      base.fontFamily = resolveTokenValue(el.fontFamily, tokens);
+    if (el.fontSize !== undefined)
+      base.fontSize = resolveTokenValue(el.fontSize, tokens);
     if (el.fontWeight !== undefined) base.fontWeight = el.fontWeight;
     if (el.color !== undefined) base.color = resolveTokenColor(el.color, tokens);
     if (el.textAlign !== undefined) base.textAlign = el.textAlign;
-    if (el.lineHeight !== undefined) base.lineHeight = el.lineHeight;
-    if (el.letterSpacing !== undefined) base.letterSpacing = el.letterSpacing;
+    if (el.lineHeight !== undefined)
+      base.lineHeight = resolveTokenValue(el.lineHeight, tokens);
+    if (el.letterSpacing !== undefined)
+      base.letterSpacing = resolveTokenValue(el.letterSpacing, tokens);
   }
   if (el.type === 'image') {
     base.objectFit = 'cover';
     base.display = 'block';
+  }
+  // Visibility + opacity
+  // - `visibility: hidden` renders literally so canvas matches export.
+  // - `visibility: none` is NOT applied literally (would hit-test out of
+  //   existence); the `.hiddenNone` class dims + stripes the element so
+  //   it stays selectable. CSS export still emits `display: none`.
+  if (el.visibilityMode === 'hidden') {
+    base.visibility = 'hidden';
+  }
+  // Dim the element by 65% when hidden-none; combine with user opacity
+  // so a 50%-opaque element reads as ~17% when also hidden.
+  const hiddenMultiplier = el.visibilityMode === 'none' ? 0.35 : 1;
+  const effectiveOpacity = (el.opacity ?? 1) * hiddenMultiplier;
+  if (effectiveOpacity !== 1) {
+    base.opacity = effectiveOpacity;
   }
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually
@@ -273,7 +309,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     'data-element-id': element.id,
     className: `${styles.element} ${isSelected ? styles.selected : ''} ${
       isText && isEditing ? styles.textEditing : ''
-    }`.trim(),
+    } ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
     style,
     ref: elementRef,
   };

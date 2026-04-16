@@ -35,10 +35,24 @@
   color: #666;
 }
 
+.triggerIcon {
+  flex-shrink: 0;
+  color: #4a8cff;
+  display: flex;
+  align-items: center;
+}
+
 .triggerCaret {
   flex-shrink: 0;
   color: #666;
   font-size: 10px;
+}
+
+.rowIcon {
+  flex-shrink: 0;
+  color: #4a8cff;
+  display: flex;
+  align-items: center;
 }
 
 .popover {

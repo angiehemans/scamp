@@ -250,7 +250,7 @@ describe('parseCode — text elements', () => {
   it('parses text styling', () => {
     const { elements } = parseCode(TSX_TEXT, CSS_TEXT);
     const t = elements['t001'];
-    expect(t?.fontSize).toBe(14);
+    expect(t?.fontSize).toBe('14px');
     expect(t?.fontWeight).toBe(600);
     expect(t?.color).toBe('#222222');
     expect(t?.textAlign).toBe('center');

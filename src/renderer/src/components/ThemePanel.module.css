@@ -50,12 +50,152 @@
   color: #fff;
 }
 
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #2c2c2c;
+  margin-bottom: -4px;
+}
+
+.tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #777;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tab:hover {
+  color: #ccc;
+}
+
+.tabActive {
+  color: #e0e0e0;
+  border-bottom-color: #4a8cff;
+}
+
+.tabCount {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #555;
+}
+
 .tokenList {
   display: flex;
   flex-direction: column;
   gap: 8px;
   overflow: visible;
   max-height: 50vh;
+}
+
+.typographyIcon {
+  color: #777;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.tokenValue {
+  flex: 1;
+  min-width: 0;
+  background: #151515;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+  color: #e0e0e0;
+  font-family: 'Ubuntu Mono', monospace;
+}
+
+.tokenValue:focus {
+  outline: none;
+  border-color: #4a8cff;
+}
+
+.tokenValueCell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.tokenBadge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  background: #2c2c2c;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.tokenBadgeButton {
+  border: none;
+  cursor: pointer;
+  width: 56px;
+  display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tokenBadgeButton:hover {
+  color: #e0e0e0;
+  background: #3a3a3a;
+}
+
+.badgeWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.badgeMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+}
+
+.badgeMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  background: #1f1f1f;
+  border: 1px solid #2c2c2c;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  min-width: 100px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.badgeMenuItem {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #ccc;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.badgeMenuItem:hover {
+  background: #2c2c2c;
+  color: #e0e0e0;
+}
+
+.badgeMenuItemActive {
+  color: #4a8cff;
 }
 
 .tokenRow {

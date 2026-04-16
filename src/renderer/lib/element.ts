@@ -74,15 +74,33 @@ export type ScampElement = {
   borderStyle: BorderStyle;
   borderColor: string;
 
+  /** CSS `opacity` as a 0..1 number. Default 1. */
+  opacity: number;
+  /**
+   * Visibility state. Maps to CSS as:
+   *   - 'visible' → no declaration emitted
+   *   - 'hidden'  → `visibility: hidden;`
+   *   - 'none'    → `display: none;` (suppresses flex emits)
+   */
+  visibilityMode: 'visible' | 'hidden' | 'none';
+
   // Text only
   text?: string;
   fontFamily?: string;
-  fontSize?: number;
+  /**
+   * Full CSS `font-size` value, e.g. `"16px"`, `"1rem"`, or a token
+   * reference like `"var(--text-lg)"`. Stored as a string so token
+   * refs and non-px units round-trip without a parallel "raw" field.
+   */
+  fontSize?: string;
   fontWeight?: FontWeight;
   color?: string;
   textAlign?: TextAlign;
-  lineHeight?: number;
-  letterSpacing?: number;
+  /** CSS `line-height` — unitless number (`"1.5"`), length (`"20px"`),
+   * or a token reference (`"var(--leading-normal)"`). */
+  lineHeight?: string;
+  /** CSS `letter-spacing` — length or token reference. */
+  letterSpacing?: string;
 
   // Image only
   src?: string;
@@ -302,6 +320,8 @@ export const groupSiblings = (
     borderWidth: [0, 0, 0, 0],
     borderStyle: 'none',
     borderColor: '#000000',
+    opacity: 1,
+    visibilityMode: 'visible',
     customProperties: {},
   };
 
