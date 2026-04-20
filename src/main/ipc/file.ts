@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import { dirname, basename, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
@@ -11,9 +12,13 @@ import { suppressNextChange } from '../watcher';
 /**
  * Atomic write: write to a sibling .tmp file then rename. Prevents readers
  * (chokidar / external editors) from seeing a half-written file.
+ *
+ * Each write uses a unique tmp filename so concurrent writes to the same
+ * target don't collide (one rename consuming the other's tmp → ENOENT).
  */
 const atomicWrite = async (path: string, content: string): Promise<void> => {
-  const tmp = join(dirname(path), `.${basename(path)}.tmp`);
+  const suffix = randomBytes(4).toString('hex');
+  const tmp = join(dirname(path), `.${basename(path)}.${suffix}.tmp`);
   await fs.writeFile(tmp, content, 'utf-8');
   await fs.rename(tmp, path);
 };
