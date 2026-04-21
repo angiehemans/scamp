@@ -16,6 +16,7 @@ import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
 import { ThemePanel } from './ThemePanel';
 import { ZoomControls } from './ZoomControls';
+import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { PageContextMenu, type PageMenuItem } from './PageContextMenu';
@@ -581,6 +582,7 @@ export const ProjectShell = ({
             Terminal {bottomPanel === 'terminal' ? '▾' : '▸'}
           </button>
         </Tooltip>
+        <SaveStatusIndicator />
         <span className={styles.projectName}>{project.name}</span>
       </header>
       <div className={styles.body}>

@@ -7,6 +7,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { elementDeclarationLines, classNameFor } from '@lib/generateCode';
 import { createCssCompletion } from '@lib/cssCompletion';
 import type { ScampElement } from '@lib/element';
+import { savePatch } from '../syncBridge';
 import styles from './PropertiesPanel.module.css';
 
 const buildClassBody = (el: ScampElement, parent: ScampElement | null): string => {
@@ -101,7 +102,7 @@ export const CssPanel = (): JSX.Element => {
     if (!target) return;
     if (!dirtyRef.current) return;
     try {
-      await window.scamp.patchFile({
+      await savePatch({
         cssPath: target.cssPath,
         className: target.className,
         newDeclarations: draftRef.current,

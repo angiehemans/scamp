@@ -1,0 +1,97 @@
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.saved {
+  color: #6b7280;
+  background: transparent;
+  animation: fadeIn 220ms ease-out;
+}
+
+.saved .glyph {
+  color: #10b981;
+}
+
+.saving {
+  color: #d1d5db;
+  background: #2c2c2c;
+}
+
+.unsaved {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.unsaved .glyph {
+  color: #f59e0b;
+}
+
+.error {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.error .glyph {
+  color: #ef4444;
+}
+
+.errorMessage {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.retryButton {
+  background: #1f1f1f;
+  border: 1px solid #4b5563;
+  color: #e5e7eb;
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.retryButton:hover {
+  background: #2c2c2c;
+  border-color: #6b7280;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

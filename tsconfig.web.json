@@ -26,6 +26,7 @@
     "src/renderer/**/*",
     "src/shared/**/*",
     "test/**/*",
-    "src/main/ipc/pageRename.ts"
+    "src/main/ipc/pageRename.ts",
+    "src/main/pendingWrites.ts"
   ]
 }

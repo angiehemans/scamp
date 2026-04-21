@@ -13,6 +13,7 @@ export const IPC = {
   FileWrite: 'file:write',
   FilePatch: 'file:patch',
   FileChanged: 'file:changed',
+  FileWriteAck: 'file:writeAck',
 
   // Page operations
   PageCreate: 'page:create',

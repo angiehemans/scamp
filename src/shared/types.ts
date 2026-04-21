@@ -122,6 +122,27 @@ export type FileChangedPayload = {
   cssContent: string | null;
 };
 
+/**
+ * Emitted by main once a chokidar stability event confirms a write
+ * initiated by the renderer has settled on disk. Correlated by
+ * `writeId` — the opaque id returned from `file:write` / `file:patch`.
+ *
+ * Per-path (tsx and css acks arrive as separate events) so the renderer
+ * can track which sibling has landed.
+ */
+export type FileWriteAckPayload = {
+  writeId: string;
+  path: string;
+};
+
+export type FileWriteResult = {
+  writeId: string;
+};
+
+export type FilePatchResult = {
+  writeId: string;
+};
+
 export type PageCreateArgs = {
   projectPath: string;
   pageName: string;

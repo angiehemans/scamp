@@ -9,7 +9,10 @@ import type {
   CreateProjectArgs,
   FileChangedPayload,
   FilePatchArgs,
+  FilePatchResult,
+  FileWriteAckPayload,
   FileWriteArgs,
+  FileWriteResult,
   OpenProjectArgs,
   PageCreateArgs,
   PageDeleteArgs,
@@ -49,10 +52,10 @@ const api = {
   readProject: (args: OpenProjectArgs): Promise<ProjectData> =>
     ipcRenderer.invoke(IPC.ProjectRead, args),
 
-  writeFile: (args: FileWriteArgs): Promise<void> =>
+  writeFile: (args: FileWriteArgs): Promise<FileWriteResult> =>
     ipcRenderer.invoke(IPC.FileWrite, args),
 
-  patchFile: (args: FilePatchArgs): Promise<void> =>
+  patchFile: (args: FilePatchArgs): Promise<FilePatchResult> =>
     ipcRenderer.invoke(IPC.FilePatch, args),
 
   createPage: (args: PageCreateArgs): Promise<PageFile> =>
@@ -92,6 +95,12 @@ const api = {
     const listener = (_e: IpcRendererEvent, payload: FileChangedPayload): void => handler(payload);
     ipcRenderer.on(IPC.FileChanged, listener);
     return () => ipcRenderer.removeListener(IPC.FileChanged, listener);
+  },
+
+  onFileWriteAck: (handler: (payload: FileWriteAckPayload) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: FileWriteAckPayload): void => handler(payload);
+    ipcRenderer.on(IPC.FileWriteAck, listener);
+    return () => ipcRenderer.removeListener(IPC.FileWriteAck, listener);
   },
 
   // Images

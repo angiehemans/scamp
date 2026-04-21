@@ -4,19 +4,28 @@ import { promises as fs } from 'fs';
 import { extname, basename, dirname, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type { FileChangedPayload } from '@shared/types';
+import {
+  createPendingWriteTracker,
+  type PendingWriteTracker,
+} from './pendingWrites';
 
 let watcher: FSWatcher | null = null;
 let mainWindow: BrowserWindow | null = null;
 let watchedPath: string | null = null;
 
-/**
- * Suppression set for paths the renderer just wrote. Prevents the
- * canvas from re-parsing files it produced itself, which would cause flicker.
- * Entries are auto-cleared after a short window.
- */
-const suppressed = new Map<string, NodeJS.Timeout>();
+const ACK_EXPIRY_MS = 400;
 
-const SUPPRESS_MS = 400;
+/**
+ * Tracks paths the renderer has just written, pending a chokidar
+ * stability event. On a matching event we emit `file:writeAck` so the
+ * save-status indicator can transition, and (for page writes)
+ * suppress the `file:changed` broadcast so the renderer doesn't
+ * re-parse its own output.
+ */
+const pending: PendingWriteTracker = createPendingWriteTracker((payload) => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send(IPC.FileWriteAck, payload);
+}, ACK_EXPIRY_MS);
 
 export const initWatcher = (win: BrowserWindow): void => {
   mainWindow = win;
@@ -56,18 +65,40 @@ export const watchProject = async (folderPath: string): Promise<void> => {
   watcher.on('change', handle);
 };
 
+export const registerPendingWrite = (
+  path: string,
+  writeId: string,
+  suppressChanged: boolean
+): void => {
+  pending.register(path, writeId, suppressChanged);
+};
+
+/**
+ * Cancel a previously registered pending write — used when the write
+ * itself failed, so no ack ever gets emitted (the renderer will
+ * transition to `error` via the IPC rejection path instead).
+ */
+export const cancelPendingWrite = (path: string): void => {
+  pending.cancel(path);
+};
+
+/**
+ * Legacy suppression entry-point for flows that have no save-status
+ * indicator to acknowledge (e.g. page rename). Registers a pending
+ * write with a throwaway id — the renderer isn't listening for it.
+ */
 export const suppressNextChange = (path: string): void => {
-  const existing = suppressed.get(path);
-  if (existing) clearTimeout(existing);
-  const t = setTimeout(() => {
-    suppressed.delete(path);
-  }, SUPPRESS_MS);
-  suppressed.set(path, t);
+  pending.register(path, `suppress-${Date.now()}`, true);
 };
 
 const emitChange = async (changedPath: string): Promise<void> => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (suppressed.has(changedPath)) return;
+
+  // Consume any pending-write entry first. The tracker emits the ack
+  // regardless; we only need to decide whether to forward the
+  // `file:changed` broadcast too.
+  const consumed = pending.consume(changedPath);
+  if (consumed?.suppressChanged) return;
 
   // theme.css changes get their own event so the renderer can reload
   // design tokens without a full page re-parse.

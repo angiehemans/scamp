@@ -1,15 +1,32 @@
 import { useCallback, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useAppLogStore } from '@store/appLogSlice';
 import { TerminalView } from './TerminalView';
+import { AppLogView } from './AppLogView';
 import { Tooltip } from './controls/Tooltip';
 import styles from './TerminalPanel.module.css';
 
-const MAX_TABS = 3;
+const MAX_SHELLS = 3;
 
-type Tab = {
+/**
+ * A `shell` tab hosts a real pty; a `log` tab renders the app-event
+ * log view (save failures etc.). The log tab is pinned — it can't be
+ * closed — and is always the first tab so diagnostics are easy to
+ * find.
+ */
+type ShellTab = {
+  kind: 'shell';
   /** Stable React key, distinct from the pty id (which the child manages). */
   key: number;
 };
+
+type LogTab = {
+  kind: 'log';
+};
+
+type Tab = ShellTab | LogTab;
+
+const LOG_TAB: LogTab = { kind: 'log' };
 
 type Props = {
   cwd: string;
@@ -24,32 +41,34 @@ type Props = {
 
 export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
   const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
-  const [tabs, setTabs] = useState<Tab[]>([{ key: 1 }]);
-  const [activeKey, setActiveKey] = useState<number>(1);
+  const [shells, setShells] = useState<ShellTab[]>([{ kind: 'shell', key: 1 }]);
+  const [activeTab, setActiveTab] = useState<Tab>({ kind: 'shell', key: 1 });
   const [nextKey, setNextKey] = useState<number>(2);
+  const logEntryCount = useAppLogStore((s) => s.entries.length);
 
   const handleAddTab = (): void => {
-    if (tabs.length >= MAX_TABS) return;
-    const tab: Tab = { key: nextKey };
-    setTabs([...tabs, tab]);
-    setActiveKey(nextKey);
+    if (shells.length >= MAX_SHELLS) return;
+    const tab: ShellTab = { kind: 'shell', key: nextKey };
+    setShells([...shells, tab]);
+    setActiveTab(tab);
     setNextKey(nextKey + 1);
   };
 
-  const handleCloseTab = (key: number): void => {
-    const remaining = tabs.filter((t) => t.key !== key);
-    setTabs(remaining);
+  const handleCloseShell = (key: number): void => {
+    const remaining = shells.filter((t) => t.key !== key);
+    setShells(remaining);
     if (remaining.length === 0) {
-      // No tabs left — hide the panel and seed a fresh tab so the next
-      // time the user opens the terminal there's something ready.
+      // No shells left — hide the panel and seed a fresh shell so the
+      // next time the user opens the terminal there's something ready.
       setBottomPanel('none');
-      setTabs([{ key: nextKey }]);
-      setActiveKey(nextKey);
+      const seed: ShellTab = { kind: 'shell', key: nextKey };
+      setShells([seed]);
+      setActiveTab(seed);
       setNextKey(nextKey + 1);
       return;
     }
-    if (activeKey === key) {
-      setActiveKey(remaining[0]!.key);
+    if (activeTab.kind === 'shell' && activeTab.key === key) {
+      setActiveTab(remaining[0]!);
     }
   };
 
@@ -57,6 +76,11 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
     // node-pty exit happens when the user types `exit`. We leave the tab in
     // place so they can read the final output; closing it is their choice.
   }, []);
+
+  const isActive = (tab: Tab): boolean => {
+    if (tab.kind === 'log') return activeTab.kind === 'log';
+    return activeTab.kind === 'shell' && activeTab.key === tab.key;
+  };
 
   return (
     <div
@@ -68,11 +92,21 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
       <div className={styles.header}>
         <span className={styles.title}>Terminal</span>
         <div className={styles.tabs}>
-          {tabs.map((tab, idx) => (
+          <div
+            key="app-log"
+            className={`${styles.tab} ${isActive(LOG_TAB) ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(LOG_TAB)}
+          >
+            <span>App Log</span>
+            {logEntryCount > 0 && (
+              <span className={styles.badge}>{logEntryCount}</span>
+            )}
+          </div>
+          {shells.map((tab, idx) => (
             <div
               key={tab.key}
-              className={`${styles.tab} ${activeKey === tab.key ? styles.tabActive : ''}`}
-              onClick={() => setActiveKey(tab.key)}
+              className={`${styles.tab} ${isActive(tab) ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(tab)}
             >
               <span>{`Shell ${idx + 1}`}</span>
               <Tooltip label="Close">
@@ -80,7 +114,7 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
                   className={styles.tabClose}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCloseTab(tab.key);
+                    handleCloseShell(tab.key);
                   }}
                   type="button"
                 >
@@ -89,7 +123,7 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
               </Tooltip>
             </div>
           ))}
-          {tabs.length < MAX_TABS && (
+          {shells.length < MAX_SHELLS && (
             <Tooltip label="New shell">
               <button className={styles.addTab} onClick={handleAddTab} type="button">
                 +
@@ -109,11 +143,18 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
         </Tooltip>
       </div>
       <div className={styles.body}>
-        {tabs.map((tab) => (
+        <div
+          key="app-log-content"
+          className={styles.tabContent}
+          style={{ display: isActive(LOG_TAB) ? 'block' : 'none' }}
+        >
+          <AppLogView />
+        </div>
+        {shells.map((tab) => (
           <div
             key={tab.key}
             className={styles.tabContent}
-            style={{ display: activeKey === tab.key ? 'block' : 'none' }}
+            style={{ display: isActive(tab) ? 'block' : 'none' }}
           >
             <TerminalView cwd={cwd} onExit={handleExit} />
           </div>

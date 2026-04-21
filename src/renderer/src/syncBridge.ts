@@ -4,9 +4,23 @@ import { parseThemeFile } from '@lib/parseTheme';
 import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
 import { useFontsStore } from '@store/fontsSlice';
 import { useCanvasStore, type ActivePage } from '@store/canvasSlice';
+import {
+  useSaveStatusStore,
+  type LastWriteAttempt,
+} from '@store/saveStatusSlice';
+import { useAppLogStore } from '@store/appLogSlice';
 import type { ScampElement } from '@lib/element';
 
 const WRITE_DEBOUNCE_MS = 200;
+
+/**
+ * Safety net for the "save is confirmed" transition. The main-process
+ * watcher already emits an ack on its own 400 ms expiry, so the bridge
+ * should receive one event per write even on filesystems that skip
+ * the chokidar stability event. This larger window only catches the
+ * case where IPC itself fails to deliver the ack.
+ */
+const ACK_WATCHDOG_MS = 2000;
 
 /**
  * Module-scoped handle to the active bridge's debounced-write flusher.
@@ -23,14 +37,193 @@ export const flushPendingPageWrite = (): void => {
 };
 
 /**
+ * A write that has been dispatched but not yet fully confirmed. We
+ * consider a write confirmed only when (a) the IPC promise resolves
+ * AND (b) chokidar's stability event fires for every expected sibling
+ * path. Tracking both prevents the indicator flashing green before the
+ * OS actually settles on disk.
+ */
+type PendingSave = {
+  attempt: LastWriteAttempt;
+  ipcDone: boolean;
+  acked: Set<string>;
+  expected: Set<string>;
+  watchdog: ReturnType<typeof setTimeout>;
+};
+
+const pendingSaves = new Map<string, PendingSave>();
+
+/**
+ * Acks that arrived before their `pendingSaves` entry could be
+ * registered — chokidar's stability event can fire faster than the
+ * IPC round-trip returns. Drained by the IPC `.then` callback when
+ * the matching writeId finally registers.
+ */
+const earlyAcks = new Map<string, Set<string>>();
+
+/**
+ * The most recent dispatched attempt, regardless of current status.
+ * `retryLastSave` uses this to re-issue after an error.
+ */
+let lastDispatchedAttempt: LastWriteAttempt | null = null;
+
+const clearPending = (writeId: string): void => {
+  const entry = pendingSaves.get(writeId);
+  if (!entry) return;
+  clearTimeout(entry.watchdog);
+  pendingSaves.delete(writeId);
+};
+
+const maybeConfirm = (writeId: string): void => {
+  const entry = pendingSaves.get(writeId);
+  if (!entry) return;
+  if (!entry.ipcDone) return;
+  for (const path of entry.expected) {
+    if (!entry.acked.has(path)) return;
+  }
+  clearPending(writeId);
+  useSaveStatusStore.getState().markConfirmed();
+};
+
+const handleAck = (writeId: string, path: string): void => {
+  const entry = pendingSaves.get(writeId);
+  if (entry) {
+    entry.acked.add(path);
+    maybeConfirm(writeId);
+    return;
+  }
+  // Ack arrived before dispatch's `.then` registered the pending save.
+  // Buffer it — the dispatcher drains this set when it finally runs.
+  const buffer = earlyAcks.get(writeId) ?? new Set<string>();
+  buffer.add(path);
+  earlyAcks.set(writeId, buffer);
+};
+
+const reportError = (message: string, attempt: LastWriteAttempt): void => {
+  useSaveStatusStore.getState().markError(message, attempt);
+  useAppLogStore.getState().log('error', `Save failed: ${message}`);
+};
+
+/**
+ * Record a just-dispatched write in the pending-saves map and check
+ * whether it's already confirmable (acks that arrived before IPC
+ * resolved land in `earlyAcks`).
+ */
+const registerPendingSave = (
+  writeId: string,
+  attempt: LastWriteAttempt,
+  expected: Set<string>
+): void => {
+  const entry: PendingSave = {
+    attempt,
+    ipcDone: true,
+    acked: new Set<string>(),
+    expected,
+    watchdog: setTimeout(() => {
+      if (!pendingSaves.has(writeId)) return;
+      clearPending(writeId);
+      reportError('No confirmation from disk watcher', attempt);
+    }, ACK_WATCHDOG_MS),
+  };
+  const buffered = earlyAcks.get(writeId);
+  if (buffered) {
+    for (const p of buffered) entry.acked.add(p);
+    earlyAcks.delete(writeId);
+  }
+  pendingSaves.set(writeId, entry);
+  maybeConfirm(writeId);
+};
+
+/**
+ * Dispatch a page write and wire its IPC result + ack correlation
+ * into the save-status state machine. Both writeIfDirty (debounced)
+ * and retryLastSave go through here so the tracking is consistent.
+ */
+const dispatchPageWrite = (attempt: Extract<LastWriteAttempt, { kind: 'write' }>): void => {
+  useSaveStatusStore.getState().markSaving(attempt);
+  lastDispatchedAttempt = attempt;
+
+  const expected = new Set<string>([attempt.tsxPath, attempt.cssPath]);
+
+  void window.scamp
+    .writeFile({
+      tsxPath: attempt.tsxPath,
+      cssPath: attempt.cssPath,
+      tsxContent: attempt.tsxContent,
+      cssContent: attempt.cssContent,
+    })
+    .then(({ writeId }) => {
+      registerPendingSave(writeId, attempt, expected);
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      reportError(message, attempt);
+    });
+};
+
+const dispatchPatchWrite = (
+  attempt: Extract<LastWriteAttempt, { kind: 'patch' }>
+): Promise<void> => {
+  useSaveStatusStore.getState().markSaving(attempt);
+  lastDispatchedAttempt = attempt;
+  const expected = new Set<string>([attempt.cssPath]);
+
+  return window.scamp
+    .patchFile({
+      cssPath: attempt.cssPath,
+      className: attempt.className,
+      newDeclarations: attempt.newDeclarations,
+    })
+    .then(({ writeId }) => {
+      registerPendingSave(writeId, attempt, expected);
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      reportError(message, attempt);
+      throw err;
+    });
+};
+
+/**
+ * Commit a CSS panel patch through the save-status pipeline. The
+ * CssPanel previously called `window.scamp.patchFile` directly; routing
+ * through here keeps the "Saving…" / "Saved" transitions consistent
+ * between canvas-driven writes and panel edits.
+ */
+export const savePatch = async (attempt: {
+  cssPath: string;
+  className: string;
+  newDeclarations: string;
+}): Promise<void> => {
+  await dispatchPatchWrite({ kind: 'patch', ...attempt });
+};
+
+/**
+ * Re-dispatch the last attempted save. Invoked by the error-state
+ * retry button on the save-status indicator.
+ */
+export const retryLastSave = (): void => {
+  const attempt = lastDispatchedAttempt;
+  if (!attempt) return;
+  if (attempt.kind === 'write') {
+    dispatchPageWrite(attempt);
+  } else {
+    void dispatchPatchWrite(attempt);
+  }
+};
+
+/**
  * Wires the canvas store to the file system.
  *
  *   - On any canvas state change: regenerate code and write the page files
- *     after a 200ms debounce. The write is suppressed in the main process
- *     so chokidar won't re-read what we just wrote.
+ *     after a 200ms debounce. The write is acked by the main process so
+ *     chokidar won't re-read what we just wrote.
  *   - On `file:changed` for the active page: parse the new file content
  *     and reload the canvas — but only if the parsed tree differs from
  *     the current state, so external no-op changes don't cause flicker.
+ *   - On `file:writeAck`: correlate against the pending-saves map and
+ *     transition the save-status indicator to "Saved" once both IPC
+ *     resolution and all expected path acks have landed.
  *   - When the canvas state is loaded from a parse result, the next
  *     subscribe tick refreshes a "last written" cache so the load doesn't
  *     immediately write itself back to disk.
@@ -69,13 +262,20 @@ export const initSyncBridge = (): (() => void) => {
       rootId: rootElementId,
       pageName: page.name,
     });
-    if (code.tsx === lastSerializedTsx && code.css === lastSerializedCss) return;
+    if (code.tsx === lastSerializedTsx && code.css === lastSerializedCss) {
+      // No-op dedupe: the debounce fired but the generated code matches
+      // what's already on disk. Advance the indicator out of "unsaved"
+      // anyway so idle canvases don't get stuck showing pending work.
+      useSaveStatusStore.getState().markClean();
+      return;
+    }
     lastSerializedTsx = code.tsx;
     lastSerializedCss = code.css;
     // Mirror the just-written content into the store so the bottom code
     // panel reflects what's on disk without waiting for chokidar.
     useCanvasStore.getState().setPageSource({ tsx: code.tsx, css: code.css });
-    void window.scamp.writeFile({
+    dispatchPageWrite({
+      kind: 'write',
       tsxPath: page.tsxPath,
       cssPath: page.cssPath,
       tsxContent: code.tsx,
@@ -140,7 +340,8 @@ export const initSyncBridge = (): (() => void) => {
         const onDisk = state.pageSource;
         if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
           state.setPageSource({ tsx: code.tsx, css: code.css });
-          void window.scamp.writeFile({
+          dispatchPageWrite({
+            kind: 'write',
             tsxPath: state.activePage.tsxPath,
             cssPath: state.activePage.cssPath,
             tsxContent: code.tsx,
@@ -156,8 +357,10 @@ export const initSyncBridge = (): (() => void) => {
         return;
       }
 
-      // Genuine canvas edit — update the code preview immediately so the
-      // user sees changes reflected without waiting for the debounced write.
+      // Genuine canvas edit — mark the indicator and update the code
+      // preview immediately so the user sees changes reflected without
+      // waiting for the debounced write.
+      useSaveStatusStore.getState().markUnsaved();
       const previewCode = generateCode({
         elements: state.elements,
         rootId: state.rootElementId,
@@ -171,6 +374,10 @@ export const initSyncBridge = (): (() => void) => {
     } catch (err) {
       console.warn('[syncBridge] store subscription error:', err);
     }
+  });
+
+  const offAck = window.scamp.onFileWriteAck((payload) => {
+    handleAck(payload.writeId, payload.path);
   });
 
   const offFile = window.scamp.onFileChanged((payload) => {
@@ -258,6 +465,7 @@ export const initSyncBridge = (): (() => void) => {
     window.removeEventListener('beforeunload', handleBeforeUnload);
     unsubStore();
     offFile();
+    offAck();
     offTheme();
   };
 };
