@@ -311,18 +311,169 @@ describe('parseCode — root handling', () => {
     });
   });
 
-  it('reads min-height on the root as the base page height', () => {
+  it('keeps an old-format root min-height declaration in customProperties (migration is handled by the detector)', () => {
+    // After the canvas-size rework, `min-height` is no longer a
+    // root-specific typed field — the root uses `height: auto` as its
+    // default. An unrecognised declaration lands in customProperties
+    // like any other unmapped CSS; the migration flow is the one
+    // responsible for stripping the old three-tuple on project open.
     const tsx = `<div data-scamp-id="root" className={styles.root}></div>`;
     const css = `.root {
-      width: 1440px;
       min-height: 1200px;
-      position: relative;
     }`;
     const { elements } = parseCode(tsx, css);
     const root = elements[ROOT_ELEMENT_ID];
-    expect(root?.heightValue).toBe(1200);
-    // Since `min-height` is rewritten to `height` for the mapper, no
-    // residue should land in customProperties.
-    expect(root?.customProperties).toEqual({});
+    expect(root?.customProperties).toEqual({ 'min-height': '1200px' });
+  });
+});
+
+describe('parseCode — attribute bag', () => {
+  it('collects unknown attributes into the attributes bag', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <a data-scamp-id="a001" className={styles.text_a001} href="/about" target="_self">About</a>
+    </div>`;
+    const css = `.text_a001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['a001']?.tag).toBe('a');
+    expect(elements['a001']?.attributes).toEqual({
+      href: '/about',
+      target: '_self',
+    });
+  });
+
+  it('stores boolean-present attributes as empty strings', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <video data-scamp-id="v001" className={styles.img_v001} src="clip.mp4" controls autoplay muted />
+    </div>`;
+    const css = `.img_v001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['v001']?.attributes).toEqual({
+      src: 'clip.mp4',
+      controls: '',
+      autoplay: '',
+      muted: '',
+    });
+    // src moves into the bag for non-img media tags.
+    expect(elements['v001']?.src).toBeUndefined();
+  });
+
+  it('omits the attributes field when there are no extras', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="a1b2" className={styles.rect_a1b2} />
+    </div>`;
+    const css = `.rect_a1b2 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['a1b2']?.attributes).toBeUndefined();
+  });
+
+  it('preserves attribute name case (htmlFor, tabIndex)', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <label data-scamp-id="l001" className={styles.text_l001} htmlFor="email" tabIndex="0">Email</label>
+    </div>`;
+    const css = `.text_l001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['l001']?.attributes).toEqual({
+      htmlFor: 'email',
+      tabIndex: '0',
+    });
+  });
+});
+
+describe('parseCode — input element type', () => {
+  it('recognises the input_ class prefix as the input element type', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <input data-scamp-id="i001" className={styles.input_i001} type="email" />
+    </div>`;
+    const css = `.input_i001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['i001']?.type).toBe('input');
+    expect(elements['i001']?.attributes).toEqual({ type: 'email' });
+  });
+
+  it('falls back to input type from the tag name when the class has no prefix', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <textarea data-scamp-id="t001" className={styles.weird} rows="3" />
+    </div>`;
+    const css = `.weird {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['t001']?.type).toBe('input');
+    expect(elements['t001']?.tag).toBe('textarea');
+  });
+});
+
+describe('parseCode — expanded text tag set', () => {
+  it('classifies the expanded semantic text tags by tag name', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <pre data-scamp-id="t001" className={styles.text_t001}>code</pre>
+      <time data-scamp-id="t002" className={styles.text_t002}>noon</time>
+      <figcaption data-scamp-id="t003" className={styles.text_t003}>cap</figcaption>
+      <legend data-scamp-id="t004" className={styles.text_t004}>leg</legend>
+      <li data-scamp-id="t005" className={styles.text_t005}>item</li>
+    </div>`;
+    const css = `.text_t001 {} .text_t002 {} .text_t003 {} .text_t004 {} .text_t005 {}`;
+    const { elements } = parseCode(tsx, css);
+    for (const id of ['t001', 't002', 't003', 't004', 't005']) {
+      expect(elements[id]?.type).toBe('text');
+    }
+    expect(elements['t001']?.tag).toBe('pre');
+    expect(elements['t005']?.tag).toBe('li');
+  });
+});
+
+describe('parseCode — select options', () => {
+  it('collects option children into the selectOptions list', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <select data-scamp-id="s001" className={styles.input_s001}>
+        <option value="us">United States</option>
+        <option value="ca" selected>Canada</option>
+      </select>
+    </div>`;
+    const css = `.input_s001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['s001']?.selectOptions).toEqual([
+      { value: 'us', label: 'United States' },
+      { value: 'ca', label: 'Canada', selected: true },
+    ]);
+    // Options are NOT stored as canvas elements.
+    expect(Object.keys(elements).filter((id) => id !== ROOT_ELEMENT_ID && id !== 's001')).toEqual([]);
+  });
+
+  it('omits selectOptions when the select has no options', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <select data-scamp-id="s001" className={styles.input_s001} />
+    </div>`;
+    const css = `.input_s001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['s001']?.selectOptions).toEqual([]);
+  });
+});
+
+describe('parseCode — svg source', () => {
+  it('captures inner svg source verbatim', () => {
+    const raw = `
+        <circle cx="50" cy="50" r="40" fill="red" />
+        <rect x="10" y="10" width="20" height="20" />`;
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <svg data-scamp-id="v001" className={styles.img_v001} viewBox="0 0 100 100">${raw}
+      </svg>
+    </div>`;
+    const css = `.img_v001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['v001']?.tag).toBe('svg');
+    expect(elements['v001']?.svgSource).toContain('<circle cx="50" cy="50" r="40" fill="red" />');
+    expect(elements['v001']?.svgSource).toContain('<rect x="10" y="10" width="20" height="20" />');
+    // The children inside the svg are NOT canvas elements.
+    expect(Object.keys(elements).filter((id) => id !== ROOT_ELEMENT_ID && id !== 'v001')).toEqual([]);
+    // viewBox is preserved in the attribute bag.
+    expect(elements['v001']?.attributes?.['viewBox']).toBe('0 0 100 100');
+  });
+
+  it('stores svgSource as null-omit when the svg is self-closing', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <svg data-scamp-id="v001" className={styles.img_v001} />
+    </div>`;
+    const css = `.img_v001 {}`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['v001']?.svgSource).toBeUndefined();
   });
 });

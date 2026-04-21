@@ -1,0 +1,142 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #1f1f1f;
+  border: none;
+  color: #c0c0c0;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.button:hover {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.caret {
+  font-size: 10px;
+  color: #777;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  padding: 12px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.presetGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.presetButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  background: #1f1f1f;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #c0c0c0;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.presetButton:hover {
+  background: #2c2c2c;
+  color: #fff;
+}
+
+.presetActive {
+  background: #2c3a5a;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.presetActive:hover {
+  background: #334466;
+}
+
+.presetName {
+  font-weight: 600;
+}
+
+.presetWidth {
+  font-size: 11px;
+  color: #777;
+  font-variant-numeric: tabular-nums;
+}
+
+.presetActive .presetWidth {
+  color: #b0c4ff;
+}
+
+.customRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  background: #151515;
+  border: 1px solid #2c2c2c;
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 13px;
+  color: #e0e0e0;
+  font-variant-numeric: tabular-nums;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #4a8cff;
+}
+
+.unit {
+  font-size: 12px;
+  color: #777;
+}
+
+.toggleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #c0c0c0;
+  cursor: pointer;
+}

@@ -12,7 +12,7 @@ import {
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import type { ThemeToken } from '@shared/types';
 
-export type Tool = 'select' | 'rectangle' | 'text' | 'image';
+export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 
 export type NewRectInput = {
   parentId: string;
@@ -37,6 +37,14 @@ export type NewImageInput = {
   height: number;
   src: string;
   alt?: string;
+};
+
+export type NewInputInput = {
+  parentId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 export type ActivePage = {
@@ -133,6 +141,7 @@ type CanvasState = {
   createRectangle: (input: NewRectInput) => string;
   createText: (input: NewTextInput) => string;
   createImage: (input: NewImageInput) => string;
+  createInput: (input: NewInputInput) => string;
   duplicateElement: (id: string) => string | null;
   /** Snapshot the selected element subtree into the internal clipboard. */
   copyElement: (id: string) => void;
@@ -246,6 +255,46 @@ const makeImage = (input: NewImageInput, id: string): ScampElement => ({
   alt: input.alt ?? '',
 });
 
+/**
+ * Default visual treatment for an input drawn on the canvas — a
+ * subtle outlined box so the user can see what they drew. Users are
+ * free to re-style from the panel.
+ */
+const NEW_INPUT_BACKGROUND = '#ffffff';
+const NEW_INPUT_BORDER_COLOR = '#cbd5e1';
+
+const makeInput = (input: NewInputInput, id: string): ScampElement => ({
+  ...DEFAULT_RECT_STYLES,
+  id,
+  type: 'input',
+  parentId: input.parentId,
+  childIds: [],
+  x: input.x,
+  y: input.y,
+  widthValue: input.width,
+  heightValue: input.height,
+  backgroundColor: NEW_INPUT_BACKGROUND,
+  borderWidth: [1, 1, 1, 1],
+  borderStyle: 'solid',
+  borderColor: NEW_INPUT_BORDER_COLOR,
+  borderRadius: [4, 4, 4, 4],
+  customProperties: {},
+  attributes: { type: 'text' },
+});
+
+/**
+ * When a new rectangle or text element is drawn inside a `<ul>` or
+ * `<ol>`, default its tag to `<li>` so the output semantic is correct
+ * without the user having to open the Element section.
+ */
+const tagForListChildContext = (
+  parent: ScampElement | undefined
+): string | undefined => {
+  if (!parent) return undefined;
+  if (parent.tag === 'ul' || parent.tag === 'ol') return 'li';
+  return undefined;
+};
+
 /** Pick a fresh element id that doesn't collide with any existing one. */
 const freshId = (existing: ReadonlySet<string>): string => {
   for (let i = 0; i < 32; i += 1) {
@@ -293,11 +342,13 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     set((state) => {
       const parent = state.elements[input.parentId];
       if (!parent) return state;
+      const contextTag = tagForListChildContext(parent);
       const newRect = makeRectangle(input, id);
+      const withTag = contextTag ? { ...newRect, tag: contextTag } : newRect;
       return {
         elements: {
           ...state.elements,
-          [id]: newRect,
+          [id]: withTag,
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -311,11 +362,13 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     set((state) => {
       const parent = state.elements[input.parentId];
       if (!parent) return state;
+      const contextTag = tagForListChildContext(parent);
       const newText = makeText(input, id);
+      const withTag = contextTag ? { ...newText, tag: contextTag } : newText;
       return {
         elements: {
           ...state.elements,
-          [id]: newText,
+          [id]: withTag,
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -335,6 +388,24 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         elements: {
           ...state.elements,
           [id]: newImage,
+          [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
+        },
+        selectedElementIds: [id],
+      };
+    });
+    return id;
+  },
+
+  createInput: (input) => {
+    const id = generateElementId();
+    set((state) => {
+      const parent = state.elements[input.parentId];
+      if (!parent) return state;
+      const newInput = makeInput(input, id);
+      return {
+        elements: {
+          ...state.elements,
+          [id]: newInput,
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -412,19 +483,33 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
 
       // Offset the top-level clone so it's visually distinct from the
       // original. Skip the offset for flex children — flex layout owns
-      // their position so x/y is meaningless. Clamp to parent bounds so
-      // the duplicate doesn't escape the canvas.
+      // their position so x/y is meaningless. Clamp to parent bounds
+      // so the duplicate doesn't escape the canvas — but when the
+      // parent is root, the parent's stored widthValue/heightValue is
+      // stale (root defaults to stretch/auto). Skip clamping there and
+      // trust the offset.
       const cloneRoot = result.cloned[result.newId]!;
       const offset = isFlexChild ? 0 : 20;
-      const maxX = Math.max(0, parent.widthValue - cloneRoot.widthValue);
-      const maxY = Math.max(0, parent.heightValue - cloneRoot.heightValue);
+      const parentIsRoot = parent.id === ROOT_ELEMENT_ID;
       const updatedClone = isFlexChild
         ? cloneRoot
-        : {
-            ...cloneRoot,
-            x: Math.min(maxX, cloneRoot.x + offset),
-            y: Math.min(maxY, cloneRoot.y + offset),
-          };
+        : parentIsRoot
+          ? {
+              ...cloneRoot,
+              x: cloneRoot.x + offset,
+              y: cloneRoot.y + offset,
+            }
+          : {
+              ...cloneRoot,
+              x: Math.min(
+                Math.max(0, parent.widthValue - cloneRoot.widthValue),
+                cloneRoot.x + offset
+              ),
+              y: Math.min(
+                Math.max(0, parent.heightValue - cloneRoot.heightValue),
+                cloneRoot.y + offset
+              ),
+            };
 
       // Insert the clone right after the original in childIds so it
       // appears as the next sibling — important for flex layouts where

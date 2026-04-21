@@ -1,9 +1,11 @@
 .toolbar {
   display: flex;
+  align-items: center;
   gap: 4px;
-  padding: 4px;
-  background: #1f1f1f;
-  border-radius: 8px;
+  /* No background / border — the Toolbar is mounted inside
+     `.elementToolbar` in ProjectShell, which owns the strip
+     styling. Keeping this container transparent lets the strip's
+     background show through consistently. */
 }
 
 .button {

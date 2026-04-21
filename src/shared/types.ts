@@ -50,11 +50,38 @@ export type Settings = {
 export type ProjectConfig = {
   /** Background color of the artboard — the area behind the canvas. */
   artboardBackground: string;
+  /**
+   * Width of the canvas viewport frame in logical pixels. Purely a
+   * design-tool preference — never written to the page CSS. Typical
+   * presets: 390 (Mobile), 768 (Tablet), 1440 (Desktop), 1920 (Wide),
+   * or any custom value.
+   */
+  canvasWidth: number;
+  /**
+   * When true, the viewport frame clips content that extends outside
+   * its width. Useful for previewing how a layout behaves at a
+   * specific width without content spilling. Does NOT affect the
+   * root element's CSS.
+   */
+  canvasOverflowHidden: boolean;
+  /**
+   * One-shot flag — set after the user has dismissed the canvas-size
+   * migration banner. Once true, the banner never shows again for
+   * this project even if subsequent opens somehow re-trigger the
+   * migration detector.
+   */
+  canvasMigrationAcknowledged?: boolean;
 };
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   artboardBackground: '#0f0f0f',
+  canvasWidth: 1440,
+  canvasOverflowHidden: false,
 };
+
+/** Canvas-width bounds used by both the panel control and the parser. */
+export const MIN_CANVAS_WIDTH = 100;
+export const MAX_CANVAS_WIDTH = 4000;
 
 export type ProjectConfigReadArgs = {
   projectPath: string;

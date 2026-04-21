@@ -4,6 +4,7 @@ import {
   IconSquare,
   IconLetterT,
   IconPhoto,
+  IconForms,
   IconPalette,
   IconSettings,
 } from '@tabler/icons-react';
@@ -25,6 +26,7 @@ const TOOLS: ToolDef[] = [
   { tool: 'rectangle', label: 'Rectangle', shortcut: 'R', icon: <IconSquare size={ICON_SIZE} /> },
   { tool: 'text', label: 'Text', shortcut: 'T', icon: <IconLetterT size={ICON_SIZE} /> },
   { tool: 'image', label: 'Image', shortcut: 'I', icon: <IconPhoto size={ICON_SIZE} /> },
+  { tool: 'input', label: 'Input', shortcut: 'F', icon: <IconForms size={ICON_SIZE} /> },
 ];
 
 type Props = {
@@ -47,6 +49,7 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
       if (e.key === 'v' || e.key === 'V') setTool('select');
       if (e.key === 't' || e.key === 'T') setTool('text');
       if (e.key === 'i' || e.key === 'I') setTool('image');
+      if (e.key === 'f' || e.key === 'F') setTool('input');
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);

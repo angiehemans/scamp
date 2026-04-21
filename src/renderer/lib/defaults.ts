@@ -30,12 +30,21 @@ export const DEFAULT_RECT_STYLES = {
 export type DefaultRectStyles = typeof DEFAULT_RECT_STYLES;
 
 /**
- * Defaults for the page-root element. Distinct from rect defaults because
- * the root is a 1440×900 white page frame, not an empty 100×100 hidden box.
+ * Defaults for the page-root element.
  *
- * Both `generateCode` and `parseCode` use this object as the baseline for
- * the root element so the user can override any of these properties from
- * the panel and have them round-trip cleanly.
+ * The root is treated like any other rectangle for emission purposes —
+ * there's no root-specific sizing branch in `generateCode` — but its
+ * DEFAULTS differ: a white page background, and web-idiomatic
+ * sizing (`width: 100%; height: auto`) that works outside Scamp
+ * without assuming a specific viewport.
+ *
+ * Both `generateCode` and `parseCode` use this object as the baseline
+ * for the root so the user can override any property from the panel
+ * and have them round-trip cleanly.
+ *
+ * The `widthValue` / `heightValue` numbers are fallbacks used only
+ * when the user switches the corresponding mode to 'fixed' from the
+ * panel — they have no effect in the default stretch/auto mode.
  */
 export const DEFAULT_ROOT_STYLES = {
   display: 'none' as const,
@@ -45,7 +54,9 @@ export const DEFAULT_ROOT_STYLES = {
   justifyContent: 'flex-start' as const,
   padding: [0, 0, 0, 0] as [number, number, number, number],
   margin: [0, 0, 0, 0] as [number, number, number, number],
+  widthMode: 'stretch' as const,
   widthValue: 1440,
+  heightMode: 'auto' as const,
   heightValue: 900,
   backgroundColor: '#ffffff',
   borderRadius: [0, 0, 0, 0] as [number, number, number, number],

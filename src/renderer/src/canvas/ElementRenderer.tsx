@@ -13,6 +13,7 @@ import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { tagFor } from '@lib/generateCode';
 import { customPropsToStyle } from '@lib/customProps';
 import type { ThemeToken } from '@shared/types';
+import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
 
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
@@ -23,6 +24,36 @@ const VOID_TAGS = new Set([
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
   'link', 'meta', 'source', 'track', 'wbr',
 ]);
+
+/**
+ * A handful of tags we deliberately render with a different element on
+ * the canvas than in the generated TSX. The canvas is a design surface,
+ * not a runtime — a real `<dialog open>` would go modal, a real
+ * `<svg>` would try to interpret its source. Both scenarios interfere
+ * with placing, selecting, and sizing the box.
+ *
+ * The generator still emits the true tag to disk; this override only
+ * affects the DOM node React renders inside the canvas iframe.
+ */
+const canvasRenderTag = (tag: string): string => {
+  if (tag === 'dialog') return 'div';
+  if (tag === 'svg') return 'div';
+  return tag;
+};
+
+/**
+ * Attribute names we never forward from the element's `attributes`
+ * bag to the canvas DOM. Each has a reason:
+ *   - tag-specific side effects we don't want on a design surface
+ *     (`open` on dialog, `href` on anchor → navigation, etc.)
+ *   - React/JSX-only names the DOM wouldn't understand
+ */
+const CANVAS_SKIP_ATTRS_BY_TAG: Record<string, ReadonlySet<string>> = {
+  a: new Set(['href', 'target']),
+  dialog: new Set(['open']),
+  form: new Set(['action', 'method']),
+  button: new Set(['type']),
+};
 
 /** Resolve a `var(--name)` reference against theme tokens. */
 const resolveTokenColor = (
@@ -135,7 +166,15 @@ const elementToStyle = (
     top: isRoot || inFlexParent ? undefined : el.y,
     width: effectiveWidth,
     height: effectiveHeight,
-    minHeight: isRoot ? heightStyle : undefined,
+    // Canvas-only floor on the root's rendered height. Without this,
+    // root defaults to `height: auto` and collapses to its content
+    // size — flex layout then has no vertical space to distribute, so
+    // `justify-content: center` on a flex-column root appears not to
+    // work. Matches the frame's visible min-height so the user's flex
+    // centering intent reads correctly on the canvas. NOT written to
+    // the exported CSS — users who want centering in production still
+    // need to set `min-height: 100vh` themselves.
+    minHeight: isRoot ? `${EMPTY_FRAME_MIN_HEIGHT}px` : undefined,
     ...flexProps,
     background: resolveTokenColor(el.backgroundColor, tokens),
     borderRadius: `${el.borderRadius[0]}px ${el.borderRadius[1]}px ${el.borderRadius[2]}px ${el.borderRadius[3]}px`,
@@ -290,7 +329,8 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const style = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir);
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
-  const tag = tagFor(element) as ElementType;
+  const storedTag = tagFor(element);
+  const tag = canvasRenderTag(storedTag) as ElementType;
 
   const handleEditableBlur = (e: FocusEvent<HTMLElement>): void => {
     const next = e.currentTarget.textContent ?? '';
@@ -320,6 +360,30 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     ref: elementRef,
   };
 
+  // Forward tag-specific attributes from the element's attribute bag
+  // to the canvas DOM so the preview reflects them (e.g. input
+  // placeholder, textarea rows, video controls). A small per-tag deny
+  // list blocks attrs that would trigger side effects (navigation,
+  // form submission) on the canvas.
+  if (element.attributes) {
+    const skip = CANVAS_SKIP_ATTRS_BY_TAG[storedTag] ?? new Set<string>();
+    for (const [name, value] of Object.entries(element.attributes)) {
+      if (skip.has(name)) continue;
+      // Boolean attributes stored as "" map to React-style `true`.
+      props[name] = value === '' ? true : value;
+    }
+  }
+
+  // Interaction side-effects prevention for tags that would otherwise
+  // navigate or submit. The canvas is a design surface, not a runtime.
+  if (storedTag === 'a' || storedTag === 'button') {
+    const prevOnClick = props['onClick'];
+    props['onClick'] = (e: PointerEvent<HTMLElement>) => {
+      e.preventDefault();
+      if (typeof prevOnClick === 'function') (prevOnClick as (ev: typeof e) => void)(e);
+    };
+  }
+
   if (isText && isEditing) {
     props['contentEditable'] = true;
     props['suppressContentEditableWarning'] = true;
@@ -330,7 +394,10 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     props['onPointerDown'] = (e: PointerEvent<HTMLElement>) => e.stopPropagation();
   }
 
-  if (isImage) {
+  // Only real `<img>` elements carry typed src/alt. Other media tags
+  // (video, iframe, svg) store their src/title/etc. in the attribute
+  // bag, which we've already spread above.
+  if (isImage && storedTag === 'img') {
     // The element stores a relative path (e.g. `./assets/hero.png`) that
     // makes sense from the project root. In the Electron renderer, relative
     // URLs resolve against the dev-server or the app's HTML file — neither

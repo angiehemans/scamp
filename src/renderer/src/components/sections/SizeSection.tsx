@@ -116,29 +116,3 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   );
 };
 
-export const RootSizeSection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
-  const patchElement = useCanvasStore((s) => s.patchElement);
-  if (!element) return null;
-
-  return (
-    <Section title="Page size">
-      <Row label="">
-        <NumberInput
-          prefix="W"
-          title="Width"
-          value={element.widthValue}
-          onChange={(value) => patchElement(elementId, { widthValue: value ?? 0 })}
-          min={0}
-        />
-        <NumberInput
-          prefix="H"
-          title="Min height"
-          value={element.heightValue}
-          onChange={(value) => patchElement(elementId, { heightValue: value ?? 0 })}
-          min={0}
-        />
-      </Row>
-    </Section>
-  );
-};

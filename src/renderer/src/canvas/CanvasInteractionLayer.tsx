@@ -84,6 +84,10 @@ const DEFAULT_IMAGE_SIZE = 200;
 const CLICK_DRAG_THRESHOLD = 5;
 const DEFAULT_NEW_RECT_SIZE = 200;
 
+/** Default size for an input element placed via click (not drag). */
+const DEFAULT_NEW_INPUT_WIDTH = 240;
+const DEFAULT_NEW_INPUT_HEIGHT = 32;
+
 /**
  * Hit-test the cursor against existing elements. Returns the deepest
  * `data-element-id` under the point. We rely on `document.elementsFromPoint`
@@ -148,6 +152,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const createRectangle = useCanvasStore((s) => s.createRectangle);
   const createText = useCanvasStore((s) => s.createText);
   const createImage = useCanvasStore((s) => s.createImage);
+  const createInput = useCanvasStore((s) => s.createInput);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
   const moveElement = useCanvasStore((s) => s.moveElement);
   const resizeElement = useCanvasStore((s) => s.resizeElement);
@@ -209,9 +214,54 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     };
   };
 
-  /** Look up a parent element's inner-bounds size, falling back to root. */
+  /**
+   * Look up a parent element's inner-bounds size for clamping at the
+   * end of a draw. For non-root rects the stored
+   * widthValue/heightValue is authoritative. For the root, stored
+   * values are stale (root defaults to stretch/auto), so width comes
+   * from the DOM and height is treated as unbounded — a user should
+   * be able to draw a rectangle below the current content extent and
+   * have the page grow to accommodate it.
+   */
   const parentSizeOf = (parentId: string | null): { w: number; h: number } => {
     const id = parentId ?? ROOT_ELEMENT_ID;
+    if (id === ROOT_ELEMENT_ID) {
+      const measured = measureElementInFrame(ROOT_ELEMENT_ID);
+      const rootWidth =
+        measured?.w ?? elements[ROOT_ELEMENT_ID]?.widthValue ?? 1440;
+      return { w: rootWidth, h: Number.POSITIVE_INFINITY };
+    }
+    const el = elements[id];
+    if (!el) return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
+    return { w: el.widthValue, h: el.heightValue };
+  };
+
+  /**
+   * Bounds for clamping move / resize operations. Unlike
+   * `parentSizeOf` (which treats root height as unbounded so draws
+   * can extend the page), move and resize clamp against the parent's
+   * CURRENT visible extent — otherwise the user can drag an element
+   * completely off the bottom of the page with no way to get it back.
+   *
+   * For root we use the canvas frame's rendered height rather than
+   * root's own offsetHeight: root defaults to `height: auto` and its
+   * children are `position: absolute`, which contribute nothing to
+   * the CSS content-driven height — root would measure as zero and
+   * every move would be locked at y=0.
+   */
+  const parentMoveBoundsOf = (
+    parentId: string | null
+  ): { w: number; h: number } => {
+    const id = parentId ?? ROOT_ELEMENT_ID;
+    if (id === ROOT_ELEMENT_ID) {
+      const frame = frameRef.current;
+      const measured = measureElementInFrame(ROOT_ELEMENT_ID);
+      const el = elements[ROOT_ELEMENT_ID];
+      return {
+        w: measured?.w ?? el?.widthValue ?? 1440,
+        h: frame?.offsetHeight ?? el?.heightValue ?? 900,
+      };
+    }
     const el = elements[id];
     if (!el) return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
     return { w: el.widthValue, h: el.heightValue };
@@ -299,7 +349,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       return;
     }
 
-    if (activeTool === 'rectangle') {
+    if (activeTool === 'rectangle' || activeTool === 'input') {
       const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
       const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
       const { x, y } = toFrame(e.clientX, e.clientY);
@@ -416,7 +466,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     if (move) {
       const el = elements[move.id];
       if (!el) return;
-      const parent = parentSizeOf(el.parentId);
+      const parent = parentMoveBoundsOf(el.parentId);
       const dx = (e.clientX - move.pointerStartX) / scale;
       const dy = (e.clientY - move.pointerStartY) / scale;
       const proposedX = move.originX + dx;
@@ -498,7 +548,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     if (resize) {
       const el = elements[resize.id];
       if (!el) return;
-      const parent = parentSizeOf(el.parentId);
+      const parent = parentMoveBoundsOf(el.parentId);
       const dx = (e.clientX - resize.pointerStartX) / scale;
       const dy = (e.clientY - resize.pointerStartY) / scale;
       let { originX: nx, originY: ny, originW: nw, originH: nh } = resize;
@@ -545,13 +595,23 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       // If the gesture was effectively a click (no meaningful drag),
       // drop a default-sized rect centered on the cursor instead. The
       // clamp helper afterwards keeps it inside the parent bounds.
-      const defaultSize = pendingImage ? DEFAULT_IMAGE_SIZE : DEFAULT_NEW_RECT_SIZE;
+      const wasInput = activeTool === 'input';
+      const defaultWidth = pendingImage
+        ? DEFAULT_IMAGE_SIZE
+        : wasInput
+          ? DEFAULT_NEW_INPUT_WIDTH
+          : DEFAULT_NEW_RECT_SIZE;
+      const defaultHeight = pendingImage
+        ? DEFAULT_IMAGE_SIZE
+        : wasInput
+          ? DEFAULT_NEW_INPUT_HEIGHT
+          : DEFAULT_NEW_RECT_SIZE;
       const wasClick =
         dragW < CLICK_DRAG_THRESHOLD && dragH < CLICK_DRAG_THRESHOLD;
-      const x = wasClick ? draw.startX - defaultSize / 2 : dragX;
-      const y = wasClick ? draw.startY - defaultSize / 2 : dragY;
-      const w = wasClick ? defaultSize : dragW;
-      const h = wasClick ? defaultSize : dragH;
+      const x = wasClick ? draw.startX - defaultWidth / 2 : dragX;
+      const y = wasClick ? draw.startY - defaultHeight / 2 : dragY;
+      const w = wasClick ? defaultWidth : dragW;
+      const h = wasClick ? defaultHeight : dragH;
 
       const clamped = clampToParent(x, y, w, h, parent.w, parent.h);
       if (clamped.w >= MIN_SIZE && clamped.h >= MIN_SIZE) {
@@ -566,6 +626,14 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
             alt: pendingImage.alt,
           });
           setPendingImage(null);
+        } else if (wasInput) {
+          createInput({
+            parentId: draw.parentId,
+            x: Math.round(clamped.x),
+            y: Math.round(clamped.y),
+            width: Math.round(clamped.w),
+            height: Math.round(clamped.h),
+          });
         } else {
           createRectangle({
             parentId: draw.parentId,

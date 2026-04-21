@@ -1,35 +1,11 @@
-.container {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  /* Scroll in both directions when the zoomed frame exceeds the
-     container. At the default fit-to-width zoom the frame fits
-     horizontally so no scrollbar appears. */
-  overflow: auto;
-  display: flex;
-  align-items: flex-start;
-  /* flex-start instead of center so the left edge isn't clipped when
-     the frame overflows horizontally. Horizontal centering is handled
-     by margin:auto on .frame instead. */
-  justify-content: flex-start;
-  padding: 48px;
-  box-sizing: border-box;
-  /* Canvas background color is set via inline style from settings.
-     Default fallback only. */
-  background-color: #0f0f0f;
-}
-
-/* Reserves scaled space inside the container so scrolling/centering
-   accounts for `transform: scale` on the frame (which doesn't affect
-   layout on its own). */
+/* Reserves the scaled footprint of the frame in normal flow so the
+   enclosing scroll container (the artboard) allocates enough space
+   even though `transform: scale` doesn't affect layout on its own. */
 .frameShell {
   position: relative;
   flex-shrink: 0;
-  margin-left: auto;
-  margin-right: auto;
-  /* The shell is a layout-only spacer — it must never intercept pointer
-     events meant for the frame and interaction layer inside it. */
+  /* The shell is a layout-only spacer — it must never intercept
+     pointer events meant for the frame and interaction layer inside it. */
   pointer-events: none;
 }
 
@@ -41,10 +17,10 @@
   position: absolute;
   top: 0;
   left: 0;
-  /* The canvas background comes from the root element's backgroundColor
-     via ElementRenderer. This transparent default lets it show through. */
-  background: transparent;
-  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
+  /* Empty-state white backdrop so blank projects read as "blank page"
+     rather than "invisible box". The root element renders on top and
+     paints its own backgroundColor. */
+  background: #ffffff;
   /* Reset to the browser default font stack so the app's Ubuntu Mono
      doesn't leak into the user's design. Elements set their own
      font-family via the typed field; everything else gets system-ui. */

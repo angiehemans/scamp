@@ -48,7 +48,14 @@ const componentNameFromPage = (pageName: string): string => {
 export const classNameFor = (el: ScampElement): string => {
   if (el.id === ROOT_ELEMENT_ID) return 'root';
   const prefix = el.name ? slugifyName(el.name) : '';
-  const defaultPrefix = el.type === 'image' ? 'img' : el.type === 'rectangle' ? 'rect' : 'text';
+  const defaultPrefix =
+    el.type === 'image'
+      ? 'img'
+      : el.type === 'input'
+        ? 'input'
+        : el.type === 'rectangle'
+          ? 'rect'
+          : 'text';
   return `${prefix.length > 0 ? prefix : defaultPrefix}_${el.id}`;
 };
 
@@ -58,11 +65,64 @@ const indent = (level: number): string => '  '.repeat(level);
 const defaultTagFor = (el: ScampElement): string => {
   if (el.id === ROOT_ELEMENT_ID) return 'div';
   if (el.type === 'image') return 'img';
+  if (el.type === 'input') return 'input';
   return el.type === 'text' ? 'p' : 'div';
 };
 
 /** The actual tag to emit / render — explicit override wins over the default. */
 export const tagFor = (el: ScampElement): string => el.tag ?? defaultTagFor(el);
+
+/**
+ * HTML tags rendered as void / self-closing in our output. Covers the
+ * HTML5 void-element set plus the cases we care about in the generator
+ * (img / input are the common ones). Textarea and select are NOT void
+ * even when empty.
+ */
+const VOID_TAGS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'source',
+  'track',
+  'wbr',
+]);
+
+/**
+ * Format one bag entry as a JSX attribute. Boolean-style entries stored
+ * as the empty string (`""`) emit bare (`controls`); everything else is
+ * double-quoted with HTML-escaped value. Attribute name is emitted
+ * verbatim so user-written React-style casing (`htmlFor`,
+ * `tabIndex`, …) round-trips unchanged.
+ */
+const formatAttribute = (name: string, value: string): string => {
+  if (value === '') return name;
+  return `${name}="${escapeHtml(value)}"`;
+};
+
+/**
+ * Render the `<option>` children of a `<select>` element. Each option
+ * is emitted on its own line, indented one level past the select.
+ * Boolean `selected` follows the same empty-string convention as other
+ * boolean attributes.
+ */
+const renderSelectOptions = (
+  options: ReadonlyArray<{ value: string; label: string; selected?: boolean }>,
+  level: number
+): string =>
+  options
+    .map((opt) => {
+      const attrs: string[] = [`value="${escapeHtml(opt.value)}"`];
+      if (opt.selected) attrs.push('selected');
+      return `${indent(level)}<option ${attrs.join(' ')}>${escapeHtml(opt.label)}</option>`;
+    })
+    .join('\n');
 
 /**
  * Render a single element + its descendants as a JSX subtree.
@@ -76,15 +136,55 @@ const renderJsx = (
 ): string => {
   const className = classNameFor(el);
   const tag = tagFor(el);
-  // Image elements emit src and alt attributes.
-  const imgAttrs = el.type === 'image'
-    ? ` src="${escapeHtml(el.src ?? '')}" alt="${escapeHtml(el.alt ?? '')}"`
-    : '';
-  const open = `<${tag} data-scamp-id="${className}" className={styles.${className}}${imgAttrs}`;
 
-  // Image elements are always self-closing (no children, no text).
-  if (el.type === 'image') {
+  // Baseline attributes every element carries. Typed `src` / `alt`
+  // only apply to actual `<img>` — other image-family tags (video,
+  // iframe, svg) carry their own attribute sets via the generic bag
+  // because `alt` is invalid on them and `src` has tag-specific
+  // semantics.
+  const baseAttrs = [
+    `data-scamp-id="${className}"`,
+    `className={styles.${className}}`,
+  ];
+  if (el.type === 'image' && tag === 'img') {
+    baseAttrs.push(`src="${escapeHtml(el.src ?? '')}"`);
+    baseAttrs.push(`alt="${escapeHtml(el.alt ?? '')}"`);
+  }
+  // Generic attribute bag. Iteration order matches insertion order so
+  // round-trips stay text-stable.
+  if (el.attributes) {
+    for (const [name, value] of Object.entries(el.attributes)) {
+      baseAttrs.push(formatAttribute(name, value));
+    }
+  }
+
+  const open = `<${tag} ${baseAttrs.join(' ')}`;
+
+  // Self-closing void tags (img, input, br, …). No children, no text,
+  // no inner source possible.
+  if (VOID_TAGS.has(tag)) {
     return `${indent(level)}${open} />`;
+  }
+
+  // SVG gets the verbatim inner source. No padding newlines around it
+  // — whatever the user stored is what lands on disk, so the parser
+  // can slice the same bytes back into `svgSource` on round-trip.
+  if (tag === 'svg') {
+    const source = el.svgSource ?? '';
+    if (source.length === 0) {
+      return `${indent(level)}${open} />`;
+    }
+    return `${indent(level)}${open}>${source}</${tag}>`;
+  }
+
+  // Select: emit options as inline children regardless of childIds.
+  if (tag === 'select') {
+    const options = el.selectOptions ?? [];
+    if (options.length === 0) {
+      return `${indent(level)}${open} />`;
+    }
+    const optionLines = renderSelectOptions(options, level + 1);
+    return `${indent(level)}${open}>\n${optionLines}\n${indent(level)}</${tag}>`;
   }
 
   const hasText = el.type === 'text' && typeof el.text === 'string' && el.text.length > 0;
@@ -146,173 +246,121 @@ export const elementDeclarationLines = (
   // should NOT have absolute positioning. Position/left/top become
   // meaningless because flex layout owns its placement.
   const inFlexParent = parent?.display === 'flex';
+  // Different default set for root vs any other rect — a root defaults
+  // to a white page background and web-idiomatic sizing (100% / auto)
+  // so the exported CSS works outside Scamp. Everything else flows
+  // through the same code path.
+  const BASE = isRoot ? DEFAULT_ROOT_STYLES : DEFAULT_RECT_STYLES;
 
-  if (isRoot) {
-    // Root is the page frame — always emit width, min-height, position so
-    // the page renders predictably outside scamp. We use `min-height`
-    // rather than `height` so the page can grow vertically when its
-    // content exceeds the base canvas size, exactly like a real web page.
+  // Sizing. The 'auto' mode is the implicit CSS default (no
+  // declaration), so we deliberately emit nothing for it — that's
+  // how round-trips stay text-stable for files that simply omit a
+  // width or height.
+  if (el.widthMode === 'stretch') {
+    lines.push(`width: 100%;`);
+  } else if (el.widthMode === 'fit-content') {
+    lines.push(`width: fit-content;`);
+  } else if (el.widthMode === 'fixed' && el.widthValue !== BASE.widthValue) {
     lines.push(`width: ${el.widthValue}px;`);
-    lines.push(`min-height: ${el.heightValue}px;`);
-    lines.push(`position: relative;`);
+  }
+  if (el.heightMode === 'stretch') {
+    lines.push(`height: 100%;`);
+  } else if (el.heightMode === 'fit-content') {
+    lines.push(`height: fit-content;`);
+  } else if (el.heightMode === 'fixed' && el.heightValue !== BASE.heightValue) {
+    lines.push(`height: ${el.heightValue}px;`);
+  }
 
-    // Background, flex container properties, padding, border, and border
-    // radius are emitted only when they differ from the root defaults so
-    // an unedited page produces clean output.
-    if (el.backgroundColor !== DEFAULT_ROOT_STYLES.backgroundColor) {
-      lines.push(`background: ${el.backgroundColor};`);
-    }
-    // Visibility "none" emits `display: none` and suppresses flex
-    // declarations it would override. Flex declarations still come out
-    // when visibility is visible/hidden so the latent state round-trips.
-    if (el.visibilityMode === 'none') {
-      lines.push('display: none;');
-    } else {
-      if (el.display !== DEFAULT_ROOT_STYLES.display) {
-        lines.push(`display: ${el.display};`);
-      }
-      if (el.flexDirection !== DEFAULT_ROOT_STYLES.flexDirection) {
-        lines.push(`flex-direction: ${el.flexDirection};`);
-      }
-      if (el.gap !== DEFAULT_ROOT_STYLES.gap) {
-        lines.push(`gap: ${el.gap}px;`);
-      }
-      if (el.alignItems !== DEFAULT_ROOT_STYLES.alignItems) {
-        lines.push(`align-items: ${el.alignItems};`);
-      }
-      if (el.justifyContent !== DEFAULT_ROOT_STYLES.justifyContent) {
-        lines.push(`justify-content: ${el.justifyContent};`);
-      }
-    }
-    if (el.visibilityMode === 'hidden') {
-      lines.push('visibility: hidden;');
-    }
-    if (el.opacity !== DEFAULT_ROOT_STYLES.opacity) {
-      lines.push(`opacity: ${el.opacity};`);
-    }
-    const [pt, pr, pb, pl] = el.padding;
-    if (pt || pr || pb || pl) {
-      lines.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
-    }
-    // Note: margin is intentionally NOT emitted for the root element — the
-    // page frame doesn't sit inside another box on disk.
-    const [rtl, rtr, rbr, rbl] = el.borderRadius;
-    if (rtl || rtr || rbr || rbl) {
-      lines.push(`border-radius: ${rtl}px ${rtr}px ${rbr}px ${rbl}px;`);
-    }
-    const [rwt, rwr, rwb, rwl] = el.borderWidth;
-    const hasRootBorder = rwt || rwr || rwb || rwl ||
-      el.borderStyle !== DEFAULT_ROOT_STYLES.borderStyle ||
-      el.borderColor !== DEFAULT_ROOT_STYLES.borderColor;
-    if (hasRootBorder) {
-      lines.push(`border-width: ${rwt}px ${rwr}px ${rwb}px ${rwl}px;`);
-      lines.push(`border-style: ${el.borderStyle};`);
-      lines.push(`border-color: ${el.borderColor};`);
-    }
+  // Visibility "none" emits `display: none` and suppresses flex
+  // declarations it would override. Flex declarations still come out
+  // when visibility is visible/hidden so the latent state round-trips.
+  if (el.visibilityMode === 'none') {
+    lines.push('display: none;');
   } else {
-    // Sizing. The 'auto' mode is the implicit CSS default (no
-    // declaration), so we deliberately emit nothing for it — that's
-    // how round-trips stay text-stable for files that simply omit a
-    // width or height.
-    if (el.widthMode === 'stretch') {
-      lines.push(`width: 100%;`);
-    } else if (el.widthMode === 'fit-content') {
-      lines.push(`width: fit-content;`);
-    } else if (el.widthMode === 'fixed' && el.widthValue !== DEFAULT_RECT_STYLES.widthValue) {
-      lines.push(`width: ${el.widthValue}px;`);
+    if (el.display !== BASE.display) {
+      lines.push(`display: ${el.display};`);
     }
-    if (el.heightMode === 'stretch') {
-      lines.push(`height: 100%;`);
-    } else if (el.heightMode === 'fit-content') {
-      lines.push(`height: fit-content;`);
-    } else if (el.heightMode === 'fixed' && el.heightValue !== DEFAULT_RECT_STYLES.heightValue) {
-      lines.push(`height: ${el.heightValue}px;`);
+    if (el.flexDirection !== BASE.flexDirection) {
+      lines.push(`flex-direction: ${el.flexDirection};`);
     }
+    if (el.gap !== BASE.gap) {
+      lines.push(`gap: ${el.gap}px;`);
+    }
+    if (el.alignItems !== BASE.alignItems) {
+      lines.push(`align-items: ${el.alignItems};`);
+    }
+    if (el.justifyContent !== BASE.justifyContent) {
+      lines.push(`justify-content: ${el.justifyContent};`);
+    }
+  }
 
-    // Visibility "none" emits `display: none` and suppresses flex
-    // declarations it would override. Flex declarations still come out
-    // when visibility is visible/hidden so the latent state round-trips.
-    if (el.visibilityMode === 'none') {
-      lines.push('display: none;');
-    } else {
-      if (el.display !== DEFAULT_RECT_STYLES.display) {
-        lines.push(`display: ${el.display};`);
-      }
-      if (el.flexDirection !== DEFAULT_RECT_STYLES.flexDirection) {
-        lines.push(`flex-direction: ${el.flexDirection};`);
-      }
-      if (el.gap !== DEFAULT_RECT_STYLES.gap) {
-        lines.push(`gap: ${el.gap}px;`);
-      }
-      if (el.alignItems !== DEFAULT_RECT_STYLES.alignItems) {
-        lines.push(`align-items: ${el.alignItems};`);
-      }
-      if (el.justifyContent !== DEFAULT_RECT_STYLES.justifyContent) {
-        lines.push(`justify-content: ${el.justifyContent};`);
-      }
-    }
+  // Padding (only when any side is non-zero)
+  const [pt, pr, pb, pl] = el.padding;
+  if (pt || pr || pb || pl) {
+    lines.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
+  }
 
-    // Padding (only when any side is non-zero)
-    const [pt, pr, pb, pl] = el.padding;
-    if (pt || pr || pb || pl) {
-      lines.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
-    }
-
-    // Margin (only when any side is non-zero) — same conditional pattern.
+  // Margin — skipped on root because the page frame doesn't sit inside
+  // another box on disk, and an exported `.root { margin: ... }` would
+  // collide with the user's body/app-shell layout.
+  if (!isRoot) {
     const [mt, mr, mb, ml] = el.margin;
     if (mt || mr || mb || ml) {
       lines.push(`margin: ${mt}px ${mr}px ${mb}px ${ml}px;`);
     }
+  }
 
-    // Appearance
-    if (el.backgroundColor !== DEFAULT_RECT_STYLES.backgroundColor) {
-      lines.push(`background: ${el.backgroundColor};`);
-    }
-    const [tl, tr, br, bl] = el.borderRadius;
-    if (tl || tr || br || bl) {
-      lines.push(`border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
-    }
-    const [bwt, bwr, bwb, bwl] = el.borderWidth;
-    const hasBorder = bwt || bwr || bwb || bwl ||
-      el.borderStyle !== DEFAULT_RECT_STYLES.borderStyle ||
-      el.borderColor !== DEFAULT_RECT_STYLES.borderColor;
-    if (hasBorder) {
-      lines.push(`border-width: ${bwt}px ${bwr}px ${bwb}px ${bwl}px;`);
-      lines.push(`border-style: ${el.borderStyle};`);
-      lines.push(`border-color: ${el.borderColor};`);
-    }
+  // Appearance
+  if (el.backgroundColor !== BASE.backgroundColor) {
+    lines.push(`background: ${el.backgroundColor};`);
+  }
+  const [tl, tr, br, bl] = el.borderRadius;
+  if (tl || tr || br || bl) {
+    lines.push(`border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
+  }
+  const [bwt, bwr, bwb, bwl] = el.borderWidth;
+  const hasBorder = bwt || bwr || bwb || bwl ||
+    el.borderStyle !== BASE.borderStyle ||
+    el.borderColor !== BASE.borderColor;
+  if (hasBorder) {
+    lines.push(`border-width: ${bwt}px ${bwr}px ${bwb}px ${bwl}px;`);
+    lines.push(`border-style: ${el.borderStyle};`);
+    lines.push(`border-color: ${el.borderColor};`);
+  }
 
-    // Text properties (only on text elements, only when set). Size-
-    // related values are stored as full CSS strings so token refs and
-    // non-px units round-trip without extra state.
-    if (el.type === 'text') {
-      if (el.fontFamily !== undefined) lines.push(`font-family: ${el.fontFamily};`);
-      if (el.fontSize !== undefined) lines.push(`font-size: ${el.fontSize};`);
-      if (el.fontWeight !== undefined) lines.push(`font-weight: ${el.fontWeight};`);
-      if (el.color !== undefined) lines.push(`color: ${el.color};`);
-      if (el.textAlign !== undefined) lines.push(`text-align: ${el.textAlign};`);
-      if (el.lineHeight !== undefined) lines.push(`line-height: ${el.lineHeight};`);
-      if (el.letterSpacing !== undefined) {
-        lines.push(`letter-spacing: ${el.letterSpacing};`);
-      }
+  // Text properties (only on text elements, only when set). Size-
+  // related values are stored as full CSS strings so token refs and
+  // non-px units round-trip without extra state.
+  if (el.type === 'text') {
+    if (el.fontFamily !== undefined) lines.push(`font-family: ${el.fontFamily};`);
+    if (el.fontSize !== undefined) lines.push(`font-size: ${el.fontSize};`);
+    if (el.fontWeight !== undefined) lines.push(`font-weight: ${el.fontWeight};`);
+    if (el.color !== undefined) lines.push(`color: ${el.color};`);
+    if (el.textAlign !== undefined) lines.push(`text-align: ${el.textAlign};`);
+    if (el.lineHeight !== undefined) lines.push(`line-height: ${el.lineHeight};`);
+    if (el.letterSpacing !== undefined) {
+      lines.push(`letter-spacing: ${el.letterSpacing};`);
     }
+  }
 
-    // Visibility + opacity
-    if (el.visibilityMode === 'hidden') {
-      lines.push('visibility: hidden;');
-    }
-    if (el.opacity !== DEFAULT_RECT_STYLES.opacity) {
-      lines.push(`opacity: ${el.opacity};`);
-    }
+  // Visibility + opacity
+  if (el.visibilityMode === 'hidden') {
+    lines.push('visibility: hidden;');
+  }
+  if (el.opacity !== BASE.opacity) {
+    lines.push(`opacity: ${el.opacity};`);
+  }
 
-    // Position — POC uses absolute positioning within the parent, except
-    // when the parent is a flex container, in which case we let the flex
-    // layout engine place this element.
-    if (!inFlexParent) {
-      lines.push(`position: absolute;`);
-      lines.push(`left: ${el.x}px;`);
-      lines.push(`top: ${el.y}px;`);
-    }
+  // Position. Root is always `position: relative` (no coordinates —
+  // it's the outermost element and has no parent to anchor against).
+  // Non-root uses absolute positioning within the parent EXCEPT when
+  // the parent is a flex container; flex layout owns placement there.
+  if (isRoot) {
+    lines.push(`position: relative;`);
+  } else if (!inFlexParent) {
+    lines.push(`position: absolute;`);
+    lines.push(`left: ${el.x}px;`);
+    lines.push(`top: ${el.y}px;`);
   }
 
   // customProperties always go last, in insertion order. They round-trip

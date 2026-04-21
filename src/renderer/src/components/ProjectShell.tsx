@@ -1,7 +1,14 @@
-import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useState } from 'react';
+import {
+  type MouseEvent as ReactMouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ProjectData, PageFile, ProjectConfig } from '@shared/types';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
+import { ROOT_ELEMENT_ID } from '@lib/element';
 import { parseCode } from '@lib/parseCode';
 import { flushPendingPageWrite } from '../syncBridge';
 import { parseThemeFile } from '@lib/parseTheme';
@@ -16,6 +23,8 @@ import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
 import { ThemePanel } from './ThemePanel';
 import { ZoomControls } from './ZoomControls';
+import { CanvasSizeControl } from './CanvasSizeControl';
+import { MigrationBanner } from './MigrationBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
@@ -64,6 +73,15 @@ export const ProjectShell = ({
     DEFAULT_PROJECT_CONFIG
   );
   const [showProjectSettings, setShowProjectSettings] = useState(false);
+  // Set true when parseCode detected the legacy root three-tuple on
+  // any page load in this session. Cleared when the user dismisses
+  // the banner (which also persists `canvasMigrationAcknowledged` to
+  // scamp.config.json so the banner never reappears).
+  const [showMigrationBanner, setShowMigrationBanner] = useState(false);
+  // Ref to the artboard scroll container. Passed to `Viewport` so
+  // fit-to-width zoom can observe the real scroll area, and used here
+  // for the click-to-deselect handler on empty canvas space.
+  const artboardScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let cancelled = false;
     const load = async (): Promise<void> => {
@@ -197,6 +215,12 @@ export const ProjectShell = ({
       resetForNewPage();
       return;
     }
+    // Surface the one-time migration banner when the parser had to
+    // strip the legacy root sizing three-tuple. Skipped when the user
+    // has already dismissed it on a prior open of this project.
+    if (parsed.migrated && !projectConfig.canvasMigrationAcknowledged) {
+      setShowMigrationBanner(true);
+    }
     loadPage(
       { name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath },
       parsed.elements,
@@ -205,7 +229,37 @@ export const ProjectShell = ({
     // Fresh page load — clear undo history so the user can't undo past
     // the initial state of this page.
     useCanvasStore.temporal.getState().clear();
-  }, [activePageName, project.pages, loadPage, resetForNewPage]);
+  }, [
+    activePageName,
+    project.pages,
+    loadPage,
+    resetForNewPage,
+    projectConfig.canvasMigrationAcknowledged,
+  ]);
+
+  const handleDismissMigrationBanner = useCallback((): void => {
+    setShowMigrationBanner(false);
+    handleProjectConfigChange({
+      ...projectConfig,
+      canvasMigrationAcknowledged: true,
+    });
+  }, [projectConfig, handleProjectConfigChange]);
+
+  // Background click on the artboard scroll area (outside any frame
+  // content) clears selection. Lives here rather than inside Viewport
+  // because the scroll container moved up with the "artboard is the
+  // scroll" restructure.
+  useEffect(() => {
+    const node = artboardScrollRef.current;
+    if (!node) return;
+    const handler = (e: MouseEvent): void => {
+      if (e.target === node) {
+        useCanvasStore.getState().selectElement(null);
+      }
+    };
+    node.addEventListener('mousedown', handler);
+    return () => node.removeEventListener('mousedown', handler);
+  }, []);
 
   const toggleCodePanel = (): void => {
     setBottomPanel(bottomPanel === 'code' ? 'none' : 'code');
@@ -554,10 +608,6 @@ export const ProjectShell = ({
         <button className={styles.backButton} onClick={onClose} type="button">
           ← Projects
         </button>
-        <Toolbar
-          onOpenSettings={() => setShowProjectSettings(true)}
-          onOpenTheme={() => setShowThemePanel(true)}
-        />
         <span className={styles.spacer} />
         <ZoomControls />
         <Tooltip label="Toggle code panel">
@@ -585,6 +635,9 @@ export const ProjectShell = ({
         <SaveStatusIndicator />
         <span className={styles.projectName}>{project.name}</span>
       </header>
+      {showMigrationBanner && (
+        <MigrationBanner onDismiss={handleDismissMigrationBanner} />
+      )}
       <div className={styles.body}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarSection}>
@@ -688,7 +741,44 @@ export const ProjectShell = ({
             <ElementTree />
           </div>
         </aside>
-        <Viewport artboardBackground={projectConfig.artboardBackground} />
+        <div className={styles.artboard}>
+          <div
+            ref={artboardScrollRef}
+            className={styles.artboardScroll}
+            style={{ backgroundColor: projectConfig.artboardBackground }}
+          >
+            <div className={styles.canvasContent}>
+              <div className={styles.canvasHeader}>
+                <button
+                  type="button"
+                  className={styles.canvasHeaderBadge}
+                  onClick={() =>
+                    useCanvasStore.getState().selectElement(ROOT_ELEMENT_ID)
+                  }
+                  title="Select page root"
+                >
+                  {activePageName ?? 'Page'}
+                </button>
+                <span className={styles.canvasHeaderSpacer} />
+                <CanvasSizeControl
+                  config={projectConfig}
+                  onChange={handleProjectConfigChange}
+                />
+              </div>
+              <Viewport
+                canvasWidth={projectConfig.canvasWidth}
+                canvasOverflowHidden={projectConfig.canvasOverflowHidden}
+                scrollContainerRef={artboardScrollRef}
+              />
+            </div>
+          </div>
+          <div className={styles.elementToolbar}>
+            <Toolbar
+              onOpenSettings={() => setShowProjectSettings(true)}
+              onOpenTheme={() => setShowThemePanel(true)}
+            />
+          </div>
+        </div>
         <PropertiesPanel />
       </div>
       {bottomPanel === 'code' && <CodePanel />}

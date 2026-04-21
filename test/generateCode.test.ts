@@ -8,9 +8,9 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   type: 'rectangle',
   parentId: null,
   childIds,
-  widthMode: 'fixed',
+  widthMode: 'stretch',
   widthValue: 1440,
-  heightMode: 'fixed',
+  heightMode: 'auto',
   heightValue: 900,
   x: 0,
   y: 0,
@@ -165,21 +165,36 @@ describe('generateCode — flex parent', () => {
 });
 
 describe('generateCode — CSS', () => {
-  it('always emits root width / min-height / position', () => {
+  it('emits a near-empty root block (stretch/auto defaults) with position: relative', () => {
     const { css } = generateCode({
       elements: { [ROOT_ELEMENT_ID]: makeRoot() },
       rootId: ROOT_ELEMENT_ID,
       pageName: 'home',
     });
     expect(css).toContain('.root {');
-    expect(css).toContain('width: 1440px;');
-    // The page root uses `min-height` so the page can grow vertically
-    // when its content exceeds the base canvas size.
-    expect(css).toContain('min-height: 900px;');
-    // ...and never a fixed `height:` declaration. The `\n  ` prefix
-    // ensures we don't accidentally match the `height` substring inside
-    // `min-height:`.
+    // With stretch width + auto height as the new defaults, no width /
+    // height / min-height declarations land in CSS. The root behaves
+    // like a normal full-width web page.
+    expect(css).not.toContain('width: 1440px;');
+    expect(css).not.toContain('min-height:');
     expect(css).not.toContain('\n  height:');
+    // `position: relative` IS emitted so absolute-positioned children
+    // anchor to the root both on the canvas and in the exported app.
+    expect(css).toContain('position: relative;');
+  });
+
+  it('emits an explicit fixed width on the root when the user sets one', () => {
+    const root: ScampElement = {
+      ...makeRoot(),
+      widthMode: 'fixed',
+      widthValue: 1200,
+    };
+    const { css } = generateCode({
+      elements: { [ROOT_ELEMENT_ID]: root },
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(css).toContain('width: 1200px;');
     expect(css).toContain('position: relative;');
   });
 
@@ -472,6 +487,178 @@ describe('generateCode — element naming', () => {
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
     expect(tsx).toContain('data-scamp-id="rect_a1b2"');
+  });
+});
+
+describe('generateCode — attribute bag', () => {
+  it('emits each entry in the attributes bag as a JSX attribute', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({
+        id: 'a1b2',
+        tag: 'a',
+        text: 'About',
+        type: 'text',
+        attributes: { href: '/about', target: '_self' },
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<a data-scamp-id="text_a1b2"');
+    expect(tsx).toContain('href="/about"');
+    expect(tsx).toContain('target="_self"');
+  });
+
+  it('emits empty-string attributes as bare boolean HTML attributes', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeRect({
+        id: 'v001',
+        type: 'image',
+        tag: 'video',
+        src: 'clip.mp4',
+        alt: '',
+        attributes: { controls: '', autoplay: '', muted: '', loop: '' },
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    // `controls=""` would emit with quotes — empty string stays bare.
+    expect(tsx).toMatch(/ controls(?= )/);
+    expect(tsx).toMatch(/ autoplay(?= )/);
+    expect(tsx).toMatch(/ muted(?= )/);
+    expect(tsx).toMatch(/ loop(?= )/);
+    expect(tsx).not.toContain('controls=""');
+  });
+
+  it('HTML-escapes attribute values', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({
+        id: 'a1b2',
+        attributes: { 'data-x': 'a "quoted" & <risky> value' },
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('data-x="a &quot;quoted&quot; &amp; &lt;risky&gt; value"');
+  });
+
+  it('preserves attribute name case (React-style htmlFor)', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['l001']),
+      l001: makeRect({
+        id: 'l001',
+        type: 'text',
+        tag: 'label',
+        text: 'Email',
+        attributes: { htmlFor: 'email' },
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('htmlFor="email"');
+  });
+});
+
+describe('generateCode — select options', () => {
+  it('emits option children from the selectOptions list', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['s001']),
+      s001: makeRect({
+        id: 's001',
+        type: 'input',
+        tag: 'select',
+        selectOptions: [
+          { value: 'us', label: 'United States' },
+          { value: 'ca', label: 'Canada', selected: true },
+        ],
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<select data-scamp-id="input_s001"');
+    expect(tsx).toContain('<option value="us">United States</option>');
+    expect(tsx).toContain('<option value="ca" selected>Canada</option>');
+    expect(tsx).toContain('</select>');
+  });
+
+  it('self-closes a select with no options', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['s001']),
+      s001: makeRect({ id: 's001', type: 'input', tag: 'select', selectOptions: [] }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<select data-scamp-id="input_s001"');
+    expect(tsx).toMatch(/<select[^>]*\/>/);
+  });
+});
+
+describe('generateCode — svg source', () => {
+  it('emits svgSource verbatim between the svg open and close tags', () => {
+    const raw = '<circle cx="50" cy="50" r="40" fill="red" />';
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeRect({
+        id: 'v001',
+        type: 'image',
+        tag: 'svg',
+        svgSource: `\n  ${raw}\n`,
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<svg data-scamp-id="img_v001"');
+    expect(tsx).toContain(raw);
+    expect(tsx).toContain('</svg>');
+  });
+
+  it('self-closes an empty svg', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeRect({ id: 'v001', type: 'image', tag: 'svg' }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toMatch(/<svg[^>]*\/>/);
+  });
+});
+
+describe('generateCode — input element type', () => {
+  it('uses input_ class prefix for input-type elements', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['i001']),
+      i001: makeRect({
+        id: 'i001',
+        type: 'input',
+        attributes: { type: 'email', placeholder: 'you@example.com' },
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<input data-scamp-id="input_i001"');
+    expect(tsx).toContain('type="email"');
+    expect(tsx).toContain('placeholder="you@example.com"');
+    expect(css).toContain('.input_i001 {');
+  });
+
+  it('self-closes void input/img tags', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['i001']),
+      i001: makeRect({ id: 'i001', type: 'input', attributes: { type: 'text' } }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toMatch(/<input[^>]*\/>/);
+  });
+
+  it('does not self-close textarea even when empty', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['t001']),
+      t001: makeRect({
+        id: 't001',
+        type: 'input',
+        tag: 'textarea',
+        attributes: { rows: '3', placeholder: 'Say hi' },
+      }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    // Textarea is not in VOID_TAGS, so it renders as <textarea ... />
+    // via the "no children and no text" fall-through. Regardless, the
+    // panel writes rows/placeholder attrs that should appear.
+    expect(tsx).toContain('<textarea data-scamp-id="input_t001"');
+    expect(tsx).toContain('rows="3"');
   });
 });
 

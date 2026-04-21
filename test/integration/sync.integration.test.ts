@@ -12,9 +12,9 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   type: 'rectangle',
   parentId: null,
   childIds,
-  widthMode: 'fixed',
+  widthMode: 'stretch',
   widthValue: 1440,
-  heightMode: 'fixed',
+  heightMode: 'auto',
   heightValue: 900,
   x: 0,
   y: 0,
@@ -317,6 +317,143 @@ describe('sync round-trip integration', () => {
     expect(parsed.elements).toEqual(elements);
     expect(parsed.elements.a1b2!.name).toBe('hero_card');
     expect(parsed.elements.t001!.name).toBe('title');
+  });
+
+  it('round-trips tag-specific attributes (href, target, datetime, booleans)', async () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a001', 't001']),
+      a001: makeRect({
+        id: 'a001',
+        type: 'text',
+        tag: 'a',
+        text: 'About',
+        widthValue: 120,
+        heightValue: 32,
+        attributes: { href: '/about', target: '_self' },
+      }),
+      t001: makeRect({
+        id: 't001',
+        type: 'text',
+        tag: 'time',
+        text: 'Noon',
+        widthValue: 80,
+        heightValue: 24,
+        attributes: { datetime: '2026-04-20T12:00' },
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    const tsxPath = path.join(tmpDir, 'home.tsx');
+    const cssPath = path.join(tmpDir, 'home.module.css');
+    await fs.writeFile(tsxPath, tsx, 'utf-8');
+    await fs.writeFile(cssPath, css, 'utf-8');
+    const parsed = parseCode(
+      await fs.readFile(tsxPath, 'utf-8'),
+      await fs.readFile(cssPath, 'utf-8')
+    );
+    expect(parsed.elements).toEqual(elements);
+  });
+
+  it('round-trips a video element with boolean attributes', async () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeRect({
+        id: 'v001',
+        type: 'image',
+        tag: 'video',
+        widthValue: 320,
+        heightValue: 240,
+        attributes: { src: 'clip.mp4', controls: '', autoplay: '', muted: '' },
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<video data-scamp-id="img_v001"');
+    const tsxPath = path.join(tmpDir, 'home.tsx');
+    const cssPath = path.join(tmpDir, 'home.module.css');
+    await fs.writeFile(tsxPath, tsx, 'utf-8');
+    await fs.writeFile(cssPath, css, 'utf-8');
+    const parsed = parseCode(
+      await fs.readFile(tsxPath, 'utf-8'),
+      await fs.readFile(cssPath, 'utf-8')
+    );
+    expect(parsed.elements).toEqual(elements);
+  });
+
+  it('round-trips a select with options', async () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['s001']),
+      s001: makeRect({
+        id: 's001',
+        type: 'input',
+        tag: 'select',
+        widthValue: 200,
+        heightValue: 32,
+        selectOptions: [
+          { value: 'us', label: 'United States' },
+          { value: 'ca', label: 'Canada', selected: true },
+        ],
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    const tsxPath = path.join(tmpDir, 'home.tsx');
+    const cssPath = path.join(tmpDir, 'home.module.css');
+    await fs.writeFile(tsxPath, tsx, 'utf-8');
+    await fs.writeFile(cssPath, css, 'utf-8');
+    const parsed = parseCode(
+      await fs.readFile(tsxPath, 'utf-8'),
+      await fs.readFile(cssPath, 'utf-8')
+    );
+    expect(parsed.elements).toEqual(elements);
+  });
+
+  it('round-trips an svg with verbatim inner source', async () => {
+    const svgSource = `\n        <circle cx="50" cy="50" r="40" fill="red" />\n        <rect x="10" y="10" width="20" height="20" />\n      `;
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeRect({
+        id: 'v001',
+        type: 'image',
+        tag: 'svg',
+        widthValue: 120,
+        heightValue: 120,
+        attributes: { viewBox: '0 0 100 100' },
+        svgSource,
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<circle cx="50" cy="50" r="40" fill="red" />');
+    const tsxPath = path.join(tmpDir, 'home.tsx');
+    const cssPath = path.join(tmpDir, 'home.module.css');
+    await fs.writeFile(tsxPath, tsx, 'utf-8');
+    await fs.writeFile(cssPath, css, 'utf-8');
+    const parsed = parseCode(
+      await fs.readFile(tsxPath, 'utf-8'),
+      await fs.readFile(cssPath, 'utf-8')
+    );
+    expect(parsed.elements).toEqual(elements);
+  });
+
+  it('round-trips an input element with a type attribute', async () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['i001']),
+      i001: makeRect({
+        id: 'i001',
+        type: 'input',
+        widthValue: 240,
+        heightValue: 32,
+        attributes: { type: 'email', placeholder: 'you@example.com' },
+      }),
+    };
+    const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain('<input data-scamp-id="input_i001"');
+    const tsxPath = path.join(tmpDir, 'home.tsx');
+    const cssPath = path.join(tmpDir, 'home.module.css');
+    await fs.writeFile(tsxPath, tsx, 'utf-8');
+    await fs.writeFile(cssPath, css, 'utf-8');
+    const parsed = parseCode(
+      await fs.readFile(tsxPath, 'utf-8'),
+      await fs.readFile(cssPath, 'utf-8')
+    );
+    expect(parsed.elements).toEqual(elements);
   });
 
   it('round-trips a root with custom flex layout and background', async () => {

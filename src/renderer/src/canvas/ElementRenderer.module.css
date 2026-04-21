@@ -2,6 +2,27 @@
   /* Base class kept minimal — runtime styles come from element state. */
 }
 
+/* Reset browser-default chrome on interactive / form semantic tags so a
+ * `button`-tagged rectangle looks like the box the user drew, not a
+ * system button. Users can re-add whatever appearance they want via
+ * the properties panel. Targets the element regardless of whether
+ * it's rendered as the semantic tag (a, button) or as a replaced
+ * div (dialog, svg). */
+.element:is(button, a, select, input, textarea, fieldset, legend) {
+  all: unset;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  display: block;
+}
+
+/* Re-expose the selectable/caret behaviours that `all: unset` strips. */
+.element:is(input, textarea, select) {
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Selection highlight lives on the element itself rather than as a separate
  * overlay div, so it works for any layout (flex children included) and
  * always sits at the element's true rendered position. `outline-offset:

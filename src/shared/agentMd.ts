@@ -86,17 +86,55 @@ When creating new elements, prefer descriptive names:
 Use semantic HTML. Scamp captures the actual tag name and renders it
 on the canvas, so the design preview matches what ships.
 
-- Text elements (default prefix \`text_\` or custom name) can use any of:
-  \`p\`, \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`h5\`, \`h6\`, \`span\`, \`a\`,
-  \`label\`, \`strong\`, \`em\`, \`blockquote\`, \`code\`, \`small\`.
-  Default if you don't care: \`p\`.
-- Container elements (default prefix \`rect_\` or custom name) can use any
-  block-level HTML tag — \`div\`, \`section\`, \`header\`, \`nav\`, \`footer\`,
-  \`article\`, \`aside\`, \`main\`, \`form\`, etc. Default: \`div\`.
-- Pick the tag that best describes the content. A page hero is a
-  \`<header>\`. A page title is an \`<h1>\`. A paragraph of body copy
-  is a \`<p>\`. The user will thank you (and so will their accessibility
-  audit).
+There are four element types, identified by the class-name prefix:
+
+- **Text** (\`text_\` prefix or custom name) — any text-bearing tag:
+  \`p\`, \`h1\`–\`h6\`, \`span\`, \`a\`, \`label\`, \`blockquote\`, \`pre\`,
+  \`code\`, \`strong\`, \`em\`, \`small\`, \`time\`, \`figcaption\`, \`legend\`,
+  \`li\`. Default: \`p\`.
+- **Container** (\`rect_\` prefix or custom name) — block-level tags:
+  \`div\`, \`section\`, \`article\`, \`aside\`, \`main\`, \`header\`,
+  \`footer\`, \`nav\`, \`figure\`, \`form\`, \`fieldset\`, \`ul\`, \`ol\`,
+  \`li\`, \`details\`, \`summary\`, \`dialog\`, \`button\`, \`a\`. Default:
+  \`div\`.
+- **Image / media** (\`img_\` prefix or custom name) — \`img\`, \`video\`,
+  \`iframe\`, \`svg\`. Default: \`img\`.
+- **Input / form control** (\`input_\` prefix or custom name) — \`input\`,
+  \`textarea\`, \`select\`. Default: \`input\`.
+
+Pick the tag that best describes the content. A page hero is a
+\`<header>\`. A page title is an \`<h1>\`. A paragraph of body copy is
+a \`<p>\`. The user will thank you (and so will their accessibility
+audit).
+
+### Tag-specific attributes
+
+Scamp preserves every attribute you write on an element verbatim through
+round-trips, so feel free to add the attributes a real HTML tag needs:
+
+- \`<a>\` — \`href\`, \`target\`
+- \`<button>\` — \`type\` (\`button\` / \`submit\` / \`reset\`)
+- \`<form>\` — \`method\` (\`get\` / \`post\`), \`action\`
+- \`<label>\` — \`htmlFor\` (React's spelling of HTML's \`for\`)
+- \`<time>\` — \`datetime\`
+- \`<blockquote>\` — \`cite\`
+- \`<dialog>\` — \`open\` (bare, no value)
+- \`<video>\` — \`src\`, \`controls\`, \`autoplay\`, \`loop\`, \`muted\`
+  (bare for booleans)
+- \`<iframe>\` — \`src\`, \`title\`
+- \`<input>\` — \`type\` (text/email/password/number/checkbox/radio/
+  range/date/file), \`placeholder\`
+- \`<textarea>\` — \`rows\`, \`placeholder\`
+
+### Two tags with dedicated syntax
+
+- **\`<select>\`** children must be \`<option value="x">Label</option>\`
+  elements only — don't nest other canvas elements inside. Scamp
+  manages options through a typed list rather than as nested children.
+- **\`<svg>\`** inner markup is preserved byte-for-byte but NOT rendered
+  on the canvas (svg shows as a placeholder rectangle). Edit the raw
+  source through the Element section in the properties panel, or in
+  the TSX file directly — either way round-trips cleanly.
 
 Example:
 
@@ -106,18 +144,26 @@ Example:
     <h1 data-scamp-id="page_title_t1a2" className={styles.page_title_t1a2}>About</h1>
     <p data-scamp-id="bio_t3b4" className={styles.bio_t3b4}>I'm Angie...</p>
   </header>
-  <section data-scamp-id="content_s5c6" className={styles.content_s5c6}>
-    <h2 data-scamp-id="section_title_t7d8" className={styles.section_title_t7d8}>What I do</h2>
-  </section>
+  <nav data-scamp-id="nav_nav0" className={styles.rect_nav0}>
+    <a data-scamp-id="link_l1n2" className={styles.text_l1n2} href="/about" target="_self">About</a>
+  </nav>
+  <form data-scamp-id="signup_f1a2" className={styles.rect_f1a2} method="post" action="/signup">
+    <label data-scamp-id="email_lbl1" className={styles.text_lbl1} htmlFor="email">Email</label>
+    <input data-scamp-id="email_in01" className={styles.input_in01} type="email" placeholder="you@example.com" />
+  </form>
 </div>
 \`\`\`
 
 ## CSS conventions
 - One property per line.
 - Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
-- The page root uses \`min-height\` (NOT \`height\`) so the page can
-  grow vertically with its content. Do not change \`min-height\` to
-  \`height\` on \`.root\`.
+- The page root is a regular rectangle in Scamp — it defaults to
+  \`width: 100%\`, \`height: auto\`, and \`position: relative\` so the
+  exported component works anywhere. Scamp does NOT write the canvas
+  viewport size (1440, 768, etc.) into \`.root\` — that's a design-tool
+  preference stored separately in \`scamp.config.json\`. Don't
+  re-introduce fixed pixel dimensions on \`.root\` unless the user
+  specifically wants a fixed-width page.
 - Width / height values:
   - \`width: 100%\` and \`height: 100%\` mean stretch to fill the parent.
   - \`width: fit-content\` and \`height: fit-content\` mean shrink to content.
@@ -183,8 +229,8 @@ reads and writes this file; don't modify it unless the user asks.
 - Do not rename the default export function.
 - Do not add new \`.tsx\` / \`.module.css\` files unless the user asks
   for a new page.
-- Do not strip the \`min-height\` / \`width\` / \`position\` lines from
-  \`.root\` — they're load-bearing for how the canvas renders the page.
+- Do not strip \`position: relative\` from \`.root\` — absolute-
+  positioned children rely on it to anchor to the page root.
 - Do not delete \`theme.css\` — it holds the project's design tokens
   and font imports.
 - Do not delete \`scamp.config.json\` — it holds per-project settings.
@@ -221,10 +267,12 @@ export default function ${componentName}() {
 
 /**
  * Default page CSS module content.
+ *
+ * Empty-by-default: the root element's shape is supplied by Scamp's
+ * defaults (`width: 100%; height: auto; position: relative`). Only
+ * user overrides land in this file, keeping the exported CSS free of
+ * canvas-tool artefacts.
  */
 export const DEFAULT_PAGE_CSS = `.root {
-  width: 1440px;
-  min-height: 900px;
-  position: relative;
 }
 `;

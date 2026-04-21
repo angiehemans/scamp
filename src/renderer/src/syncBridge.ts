@@ -58,8 +58,17 @@ const pendingSaves = new Map<string, PendingSave>();
  * registered — chokidar's stability event can fire faster than the
  * IPC round-trip returns. Drained by the IPC `.then` callback when
  * the matching writeId finally registers.
+ *
+ * Each entry carries a self-expiry timer so background writes that
+ * bypass the save-status pipeline (e.g. format-migration writes on
+ * project open) don't leak their acks forever.
  */
-const earlyAcks = new Map<string, Set<string>>();
+type EarlyAck = {
+  paths: Set<string>;
+  timer: ReturnType<typeof setTimeout>;
+};
+const earlyAcks = new Map<string, EarlyAck>();
+const EARLY_ACK_TTL_MS = 1000;
 
 /**
  * The most recent dispatched attempt, regardless of current status.
@@ -92,11 +101,20 @@ const handleAck = (writeId: string, path: string): void => {
     maybeConfirm(writeId);
     return;
   }
-  // Ack arrived before dispatch's `.then` registered the pending save.
-  // Buffer it — the dispatcher drains this set when it finally runs.
-  const buffer = earlyAcks.get(writeId) ?? new Set<string>();
-  buffer.add(path);
-  earlyAcks.set(writeId, buffer);
+  // Ack arrived before dispatch's `.then` registered the pending save
+  // (fast filesystems can race chokidar ahead of IPC resolution), OR
+  // the write was never tracked at all (e.g. format-migration writes
+  // on project open bypass the indicator). Buffer with a short TTL
+  // so dispatches can drain, but stray acks don't leak.
+  const existing = earlyAcks.get(writeId);
+  if (existing) {
+    existing.paths.add(path);
+    return;
+  }
+  const timer = setTimeout(() => {
+    earlyAcks.delete(writeId);
+  }, EARLY_ACK_TTL_MS);
+  earlyAcks.set(writeId, { paths: new Set<string>([path]), timer });
 };
 
 const reportError = (message: string, attempt: LastWriteAttempt): void => {
@@ -127,7 +145,8 @@ const registerPendingSave = (
   };
   const buffered = earlyAcks.get(writeId);
   if (buffered) {
-    for (const p of buffered) entry.acked.add(p);
+    clearTimeout(buffered.timer);
+    for (const p of buffered.paths) entry.acked.add(p);
     earlyAcks.delete(writeId);
   }
   pendingSaves.set(writeId, entry);
@@ -326,27 +345,37 @@ export const initSyncBridge = (): (() => void) => {
 
       // The change came from a load — refresh the write cache. If the
       // re-generated code differs from what's on disk (e.g. old-format
-      // data-scamp-id), write the canonical version back to migrate the
-      // file to the current format.
+      // data-scamp-id, `<div></div>` vs `<div />`), write the canonical
+      // version back to migrate the file to the current format.
+      //
+      // Migration writes bypass the save-status indicator — the user
+      // didn't ask for a save and shouldn't see "Saving…" / "Save
+      // failed" flash on project open. We still go through the main
+      // process so chokidar suppression works, but we don't await a
+      // confirmation; failures log to the app log only.
       if (state.isLoading) {
         const code = generateCode({
           elements: state.elements,
           rootId: state.rootElementId,
           pageName: state.activePage.name,
         });
-        // If the regenerated code differs from the on-disk source, write
-        // it back to migrate the file format (e.g. short → full class
-        // name in data-scamp-id).
         const onDisk = state.pageSource;
         if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
           state.setPageSource({ tsx: code.tsx, css: code.css });
-          dispatchPageWrite({
-            kind: 'write',
-            tsxPath: state.activePage.tsxPath,
-            cssPath: state.activePage.cssPath,
-            tsxContent: code.tsx,
-            cssContent: code.css,
-          });
+          const page = state.activePage;
+          void window.scamp
+            .writeFile({
+              tsxPath: page.tsxPath,
+              cssPath: page.cssPath,
+              tsxContent: code.tsx,
+              cssContent: code.css,
+            })
+            .catch((err: unknown) => {
+              const message = err instanceof Error ? err.message : String(err);
+              useAppLogStore
+                .getState()
+                .log('warn', `Format migration write failed: ${message}`);
+            });
         }
         lastSerializedTsx = code.tsx;
         lastSerializedCss = code.css;

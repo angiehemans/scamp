@@ -19,9 +19,22 @@ export type BorderStyle = 'none' | 'solid' | 'dashed' | 'dotted';
 export type FontWeight = 400 | 500 | 600 | 700;
 export type TextAlign = 'left' | 'center' | 'right';
 
+export type ElementType = 'rectangle' | 'text' | 'image' | 'input';
+
+/**
+ * One entry in a `<select>` element's option list. Options are not
+ * canvas elements — they're managed as a typed list on the parent
+ * select element and emitted as inline JSX children at generate time.
+ */
+export type SelectOption = {
+  value: string;
+  label: string;
+  selected?: boolean;
+};
+
 export type ScampElement = {
   id: string;
-  type: 'rectangle' | 'text' | 'image';
+  type: ElementType;
   parentId: string | null;
   childIds: string[];
 
@@ -30,6 +43,8 @@ export type ScampElement = {
    * generates as the default for its type:
    *   - rectangles → `div`
    *   - text → `p`
+   *   - image → `img`
+   *   - input → `input`
    *
    * Setting this lets agents and hand-written files use semantic tags
    * like `h1`, `h2`, `section`, `header`, `nav`, etc. — the parser
@@ -38,6 +53,32 @@ export type ScampElement = {
    * size match what the user will see in production).
    */
   tag?: string;
+
+  /**
+   * Generic HTML attribute bag — mirrors how `customProperties` works
+   * for CSS. Tag-specific panel fields write here (`href`, `target`,
+   * `method`, `action`, `datetime`, `for`, `cite`, `controls`,
+   * `autoplay`, `type` for button/input, etc.) and the parser collects
+   * any attribute it isn't already typed to handle. Boolean attributes
+   * are stored as the empty string `""` and emitted bare.
+   */
+  attributes?: Record<string, string>;
+
+  /**
+   * Only meaningful when `tag === 'select'`. The options the select
+   * renders. Stored as a list on the element rather than as nested
+   * canvas elements so they can be edited inline in the properties
+   * panel without cluttering the layers tree.
+   */
+  selectOptions?: ReadonlyArray<SelectOption>;
+
+  /**
+   * Only meaningful when `tag === 'svg'`. The raw inner source between
+   * the `<svg>` open and close tags, preserved verbatim so the
+   * generator can re-emit it byte-for-byte. The canvas does NOT render
+   * this — svg elements show as placeholder rectangles on the canvas.
+   */
+  svgSource?: string;
 
   /**
    * Optional human-readable name. When set, the slugified version
