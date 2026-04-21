@@ -28,6 +28,13 @@
   flex-shrink: 0;
   margin-left: auto;
   margin-right: auto;
+  /* The shell is a layout-only spacer — it must never intercept pointer
+     events meant for the frame and interaction layer inside it. */
+  pointer-events: none;
+}
+
+.frameShell > * {
+  pointer-events: auto;
 }
 
 .frame {

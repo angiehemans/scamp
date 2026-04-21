@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StartScreen } from './components/StartScreen';
 import { ProjectShell } from './components/ProjectShell';
 import { SettingsPage } from './components/SettingsPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { initSyncBridge } from './syncBridge';
 import { useFontsStore } from '@store/fontsSlice';
 import type { ProjectData } from '@shared/types';
@@ -33,14 +34,16 @@ export const App = (): JSX.Element => {
 
   if (view === 'project' && project) {
     return (
-      <ProjectShell
-        project={project}
-        onClose={() => {
-          setProject(null);
-          setView('start');
-        }}
-        onProjectChange={setProject}
-      />
+      <ErrorBoundary>
+        <ProjectShell
+          project={project}
+          onClose={() => {
+            setProject(null);
+            setView('start');
+          }}
+          onProjectChange={setProject}
+        />
+      </ErrorBoundary>
     );
   }
 

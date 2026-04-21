@@ -103,70 +103,74 @@ export const initSyncBridge = (): (() => void) => {
   };
 
   const unsubStore = useCanvasStore.subscribe((state, prev) => {
-    // Active page changed — flush any pending edit to the OUTGOING page
-    // BEFORE we drop the cache and start tracking the new page. Without
-    // this, edits made within the debounce window before a page switch
-    // would be silently lost.
-    if (state.activePage !== prev.activePage) {
-      cancelWriteTimer();
-      if (prev.activePage) {
-        writeIfDirty(prev.elements, prev.rootElementId, prev.activePage);
+    try {
+      // Active page changed — flush any pending edit to the OUTGOING page
+      // BEFORE we drop the cache and start tracking the new page. Without
+      // this, edits made within the debounce window before a page switch
+      // would be silently lost.
+      if (state.activePage !== prev.activePage) {
+        cancelWriteTimer();
+        if (prev.activePage) {
+          writeIfDirty(prev.elements, prev.rootElementId, prev.activePage);
+        }
+        lastSerializedTsx = null;
+        lastSerializedCss = null;
       }
-      lastSerializedTsx = null;
-      lastSerializedCss = null;
-    }
 
-    // Nothing relevant changed.
-    if (state.elements === prev.elements && state.activePage === prev.activePage) {
-      return;
-    }
+      // Nothing relevant changed.
+      if (state.elements === prev.elements && state.activePage === prev.activePage) {
+        return;
+      }
 
-    if (!state.activePage) return;
+      if (!state.activePage) return;
 
-    // The change came from a load — refresh the write cache. If the
-    // re-generated code differs from what's on disk (e.g. old-format
-    // data-scamp-id), write the canonical version back to migrate the
-    // file to the current format.
-    if (state.isLoading) {
-      const code = generateCode({
+      // The change came from a load — refresh the write cache. If the
+      // re-generated code differs from what's on disk (e.g. old-format
+      // data-scamp-id), write the canonical version back to migrate the
+      // file to the current format.
+      if (state.isLoading) {
+        const code = generateCode({
+          elements: state.elements,
+          rootId: state.rootElementId,
+          pageName: state.activePage.name,
+        });
+        // If the regenerated code differs from the on-disk source, write
+        // it back to migrate the file format (e.g. short → full class
+        // name in data-scamp-id).
+        const onDisk = state.pageSource;
+        if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
+          state.setPageSource({ tsx: code.tsx, css: code.css });
+          void window.scamp.writeFile({
+            tsxPath: state.activePage.tsxPath,
+            cssPath: state.activePage.cssPath,
+            tsxContent: code.tsx,
+            cssContent: code.css,
+          });
+        }
+        lastSerializedTsx = code.tsx;
+        lastSerializedCss = code.css;
+        // Defer clearing the flag so any in-flight subscribers also see it.
+        queueMicrotask(() => {
+          useCanvasStore.setState({ isLoading: false });
+        });
+        return;
+      }
+
+      // Genuine canvas edit — update the code preview immediately so the
+      // user sees changes reflected without waiting for the debounced write.
+      const previewCode = generateCode({
         elements: state.elements,
         rootId: state.rootElementId,
         pageName: state.activePage.name,
       });
-      // If the regenerated code differs from the on-disk source, write
-      // it back to migrate the file format (e.g. short → full class
-      // name in data-scamp-id).
-      const onDisk = state.pageSource;
-      if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
-        state.setPageSource({ tsx: code.tsx, css: code.css });
-        void window.scamp.writeFile({
-          tsxPath: state.activePage.tsxPath,
-          cssPath: state.activePage.cssPath,
-          tsxContent: code.tsx,
-          cssContent: code.css,
-        });
-      }
-      lastSerializedTsx = code.tsx;
-      lastSerializedCss = code.css;
-      // Defer clearing the flag so any in-flight subscribers also see it.
-      queueMicrotask(() => {
-        useCanvasStore.setState({ isLoading: false });
-      });
-      return;
+      state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
+
+      // Schedule the debounced disk write.
+      cancelWriteTimer();
+      writeTimer = setTimeout(flushDebouncedWrite, WRITE_DEBOUNCE_MS);
+    } catch (err) {
+      console.warn('[syncBridge] store subscription error:', err);
     }
-
-    // Genuine canvas edit — update the code preview immediately so the
-    // user sees changes reflected without waiting for the debounced write.
-    const previewCode = generateCode({
-      elements: state.elements,
-      rootId: state.rootElementId,
-      pageName: state.activePage.name,
-    });
-    state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
-
-    // Schedule the debounced disk write.
-    cancelWriteTimer();
-    writeTimer = setTimeout(flushDebouncedWrite, WRITE_DEBOUNCE_MS);
   });
 
   const offFile = window.scamp.onFileChanged((payload) => {
@@ -179,36 +183,47 @@ export const initSyncBridge = (): (() => void) => {
       return;
     }
     if (payload.tsxContent === null || payload.cssContent === null) return;
-    const parsed = parseCode(payload.tsxContent, payload.cssContent);
 
-    // Always mirror the new on-disk source into the store so the code
-    // panel reflects exactly what the agent / external editor wrote
-    // (including comments, ordering, etc.) — even if the parsed tree
-    // round-trips to the same canvas state.
-    const nextSource = { tsx: payload.tsxContent, css: payload.cssContent };
-    state.setPageSource(nextSource);
+    // External editors (Claude Code, vim, etc.) can trigger chokidar
+    // mid-write — the file content may be truncated or malformed. Guard
+    // the entire parse → diff → reload pipeline so a transient bad read
+    // logs a warning instead of crashing the renderer process.
+    try {
+      const parsed = parseCode(payload.tsxContent, payload.cssContent);
 
-    // Skip the canvas reload when the parsed tree round-trips to the
-    // same code — prevents flicker during agent edits that don't actually
-    // change a canvas-mappable property.
-    const currentCode = generateCode({
-      elements: state.elements,
-      rootId: state.rootElementId,
-      pageName: state.activePage.name,
-    });
-    const nextCode = generateCode({
-      elements: parsed.elements,
-      rootId: parsed.rootId,
-      pageName: state.activePage.name,
-    });
-    if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
-      return;
+      // Always mirror the new on-disk source into the store so the code
+      // panel reflects exactly what the agent / external editor wrote
+      // (including comments, ordering, etc.) — even if the parsed tree
+      // round-trips to the same canvas state.
+      const nextSource = { tsx: payload.tsxContent, css: payload.cssContent };
+      state.setPageSource(nextSource);
+
+      // Skip the canvas reload when the parsed tree round-trips to the
+      // same code — prevents flicker during agent edits that don't actually
+      // change a canvas-mappable property.
+      const currentCode = generateCode({
+        elements: state.elements,
+        rootId: state.rootElementId,
+        pageName: state.activePage.name,
+      });
+      const nextCode = generateCode({
+        elements: parsed.elements,
+        rootId: parsed.rootId,
+        pageName: state.activePage.name,
+      });
+      if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
+        return;
+      }
+
+      state.reloadElements(parsed.elements, nextSource);
+      // External edits invalidate the undo history — the old states
+      // reference element maps that no longer match the file on disk.
+      useCanvasStore.temporal.getState().clear();
+    } catch (err) {
+      // Transient parse failure — the next chokidar event (once the
+      // external write settles) will deliver valid content and succeed.
+      console.warn('[syncBridge] skipping malformed file change:', err);
     }
-
-    state.reloadElements(parsed.elements, nextSource);
-    // External edits invalidate the undo history — the old states
-    // reference element maps that no longer match the file on disk.
-    useCanvasStore.temporal.getState().clear();
   });
 
   // Flush any queued write when the renderer is about to go away

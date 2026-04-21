@@ -18,6 +18,12 @@ import styles from './ElementRenderer.module.css';
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
 const URL_RELATIVE_RE = /url\(\s*["']?(\.\/[^"')]+)["']?\s*\)/g;
 
+/** HTML void elements — React throws if createElement receives children for these. */
+const VOID_TAGS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+  'link', 'meta', 'source', 'track', 'wbr',
+]);
+
 /** Resolve a `var(--name)` reference against theme tokens. */
 const resolveTokenColor = (
   value: string,
@@ -340,8 +346,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     props['alt'] = element.alt ?? '';
   }
 
-  // Image elements are self-closing (no children, no text).
-  if (isImage) {
+  // Void HTML elements (img, input, br, hr, etc.) cannot have children
+  // in React — even an empty array throws. Short-circuit for any void
+  // tag so agent-written markup that uses <input />, <br />, etc.
+  // renders without crashing.
+  if (VOID_TAGS.has(tag as string)) {
     return createElement(tag, props);
   }
 

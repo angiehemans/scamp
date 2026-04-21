@@ -43,8 +43,8 @@ export const watchProject = async (folderPath: string): Promise<void> => {
     ignoreInitial: true,
     depth: 1,
     awaitWriteFinish: {
-      stabilityThreshold: 50,
-      pollInterval: 20,
+      stabilityThreshold: 200,
+      pollInterval: 50,
     },
   });
 
@@ -66,14 +66,14 @@ export const suppressNextChange = (path: string): void => {
 };
 
 const emitChange = async (changedPath: string): Promise<void> => {
-  if (!mainWindow) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
   if (suppressed.has(changedPath)) return;
 
   // theme.css changes get their own event so the renderer can reload
   // design tokens without a full page re-parse.
   if (basename(changedPath) === 'theme.css') {
     const content = await readIfExists(changedPath);
-    if (content !== null) {
+    if (content !== null && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC.ThemeChanged, content);
     }
     return;
@@ -92,6 +92,9 @@ const emitChange = async (changedPath: string): Promise<void> => {
 
   const tsxContent = await readIfExists(tsxPath);
   const cssContent = await readIfExists(cssPath);
+
+  // Window may have been destroyed during the async reads above.
+  if (mainWindow.isDestroyed()) return;
 
   const payload: FileChangedPayload = {
     path: changedPath,

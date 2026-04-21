@@ -188,7 +188,14 @@ export const ProjectShell = ({
       resetForNewPage();
       return;
     }
-    const parsed = parseCode(page.tsxContent, page.cssContent);
+    let parsed: ReturnType<typeof parseCode>;
+    try {
+      parsed = parseCode(page.tsxContent, page.cssContent);
+    } catch (err) {
+      console.error('[ProjectShell] parseCode failed for', page.name, err);
+      resetForNewPage();
+      return;
+    }
     loadPage(
       { name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath },
       parsed.elements,

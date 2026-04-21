@@ -11,6 +11,16 @@ import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
 import { initWatcher, disposeWatcher } from './watcher';
 
+// Prevent unhandled rejections from silently killing the main process.
+// chokidar callbacks, IPC handlers, and file I/O all run async — a
+// rejected promise with no .catch() would otherwise crash with no trace.
+process.on('uncaughtException', (err) => {
+  console.error('[main] uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[main] unhandled rejection:', reason);
+});
+
 const createWindow = (): void => {
   const win = new BrowserWindow({
     width: 1440,
@@ -29,6 +39,15 @@ const createWindow = (): void => {
 
   win.on('ready-to-show', () => {
     win.show();
+  });
+
+  // Detect renderer process crashes so they aren't completely silent.
+  win.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[main] renderer crashed:', details.reason, details.exitCode);
+  });
+
+  win.on('unresponsive', () => {
+    console.error('[main] renderer became unresponsive');
   });
 
   // Renderer reloads (Ctrl+R, devtools reload, HMR full reload) tear down

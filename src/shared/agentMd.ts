@@ -17,6 +17,25 @@ files. Anything you write here is parsed and re-rendered on the canvas.
 - One class = one rule block, always
 - \`data-scamp-id\` must always match the CSS class name exactly
 
+## File editing order — CSS first, then TSX
+
+Scamp watches for file changes. When the TSX file is saved, Scamp
+immediately parses it and auto-scaffolds empty CSS class blocks for
+any new elements it finds. If you write the TSX first and then try
+to edit the CSS, the file will have changed underneath you and your
+edit will fail.
+
+**Always write or edit the CSS module file before the TSX file.**
+
+1. Add / update styles in \`[page].module.css\`
+2. Then add / update markup in \`[page].tsx\`
+
+This way, when Scamp parses the new TSX, the CSS already contains
+your styles and no scaffolding overwrites them.
+
+If you are making changes to both files, re-read the CSS file after
+writing the TSX to pick up any changes Scamp may have made.
+
 ## Project structure
 Each page is two files: \`[page-name].tsx\` and \`[page-name].module.css\`.
 Do not rename, move, or split these files.
