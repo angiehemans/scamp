@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { NumberInput } from '../controls/NumberInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import type { WidthMode, HeightMode } from '@lib/element';
@@ -66,7 +67,7 @@ const useMeasuredSize = (
 };
 
 export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   if (!element) return null;
 
@@ -75,7 +76,11 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   const isHeightFixed = element.heightMode === 'fixed';
 
   return (
-    <Section title="Size">
+    <Section
+      title="Size"
+      elementId={elementId}
+      fields={['widthMode', 'widthValue', 'heightMode', 'heightValue']}
+    >
       <Row label="">
         <NumberInput
           prefix="W"

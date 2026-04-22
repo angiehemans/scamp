@@ -11,6 +11,7 @@ import {
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { tagFor } from '@lib/generateCode';
+import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { customPropsToStyle } from '@lib/customProps';
 import type { ThemeToken } from '@shared/types';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
@@ -265,17 +266,28 @@ const elementToStyle = (
 };
 
 export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
-  const parentDisplay = useCanvasStore((s) => {
+  const rawElement = useCanvasStore((s) => s.elements[elementId]);
+  const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
+  const breakpoints = useCanvasStore((s) => s.breakpoints);
+  // Resolve breakpoint overrides at render time. When the active
+  // breakpoint is desktop (or the element has no overrides), this is
+  // a no-op identity return, so no extra allocation.
+  const element = rawElement
+    ? resolveElementAtBreakpoint(rawElement, activeBreakpointId, breakpoints)
+    : undefined;
+  // Parent display / flex-direction at the active breakpoint — a
+  // parent's display override (e.g. flex at tablet, block at desktop)
+  // changes how THIS element lays out as a flex item vs absolute, so
+  // we resolve the parent through the cascade too.
+  const parentResolved = useCanvasStore((s) => {
     const el = s.elements[elementId];
     if (!el || !el.parentId) return undefined;
-    return s.elements[el.parentId]?.display;
+    const parent = s.elements[el.parentId];
+    if (!parent) return undefined;
+    return resolveElementAtBreakpoint(parent, s.activeBreakpointId, s.breakpoints);
   });
-  const parentDirection = useCanvasStore((s) => {
-    const el = s.elements[elementId];
-    if (!el || !el.parentId) return undefined;
-    return s.elements[el.parentId]?.flexDirection;
-  });
+  const parentDisplay = parentResolved?.display;
+  const parentDirection = parentResolved?.flexDirection;
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const activePage = useCanvasStore((s) => s.activePage);
   const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));

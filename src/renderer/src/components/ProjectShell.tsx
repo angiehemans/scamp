@@ -107,6 +107,13 @@ export const ProjectShell = ({
     [project.path]
   );
 
+  // Mirror the project's breakpoint table into the canvas store so
+  // deeply-nested components (ElementRenderer, cascaded styles) can
+  // read it without prop drilling.
+  useEffect(() => {
+    useCanvasStore.getState().setBreakpoints(projectConfig.breakpoints);
+  }, [projectConfig.breakpoints]);
+
   const loadPage = useCanvasStore((s) => s.loadPage);
   const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
@@ -209,7 +216,9 @@ export const ProjectShell = ({
     }
     let parsed: ReturnType<typeof parseCode>;
     try {
-      parsed = parseCode(page.tsxContent, page.cssContent);
+      parsed = parseCode(page.tsxContent, page.cssContent, {
+        breakpoints: projectConfig.breakpoints,
+      });
     } catch (err) {
       console.error('[ProjectShell] parseCode failed for', page.name, err);
       resetForNewPage();
@@ -224,7 +233,8 @@ export const ProjectShell = ({
     loadPage(
       { name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath },
       parsed.elements,
-      { tsx: page.tsxContent, css: page.cssContent }
+      { tsx: page.tsxContent, css: page.cssContent },
+      parsed.customMediaBlocks
     );
     // Fresh page load — clear undo history so the user can't undo past
     // the initial state of this page.

@@ -7,10 +7,11 @@ import {
   reorderElementPure,
   ROOT_ELEMENT_ID,
   ungroupSiblings,
+  type BreakpointOverride,
   type ScampElement,
 } from '@lib/element';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
-import type { ThemeToken } from '@shared/types';
+import { DEFAULT_BREAKPOINTS, type Breakpoint, type ThemeToken } from '@shared/types';
 
 export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 
@@ -123,6 +124,31 @@ type CanvasState = {
    */
   userZoom: number | null;
 
+  /**
+   * The breakpoint the user is currently editing. `'desktop'` means
+   * edits land on the element's base (top-level) style fields. Any
+   * other id means edits land in `element.breakpointOverrides[id]`
+   * and the canvas renders with the cascaded styles at that
+   * breakpoint. Transient UI state — not persisted.
+   */
+  activeBreakpointId: string;
+
+  /**
+   * Mirror of `ProjectConfig.breakpoints` — kept in the store so
+   * deeply-nested components (ElementRenderer) can read the table
+   * without prop-drilling. Synced by `ProjectShell` on project load
+   * and whenever the config changes.
+   */
+  breakpoints: Breakpoint[];
+
+  /**
+   * `@media` blocks the parser couldn't route to a known breakpoint
+   * (min-width, prefers-color-scheme, custom max-widths…). Kept in
+   * the store so `generateCode` can re-emit them untouched on every
+   * write. Replaced whole-hog on page load / external edit.
+   */
+  pageCustomMediaBlocks: ReadonlyArray<string>;
+
   /** Design tokens parsed from the project's theme.css file. */
   themeTokens: ThemeToken[];
 
@@ -159,15 +185,35 @@ type CanvasState = {
   moveElement: (id: string, x: number, y: number) => void;
   resizeElement: (id: string, x: number, y: number, width: number, height: number) => void;
   patchElement: (id: string, patch: Partial<ScampElement>) => void;
+  /**
+   * Clear one or more fields from a specific breakpoint's override.
+   * Used by the panel's "reset override" affordance. When the override
+   * becomes empty after the clear, the whole breakpoint key is
+   * deleted from the element so round-trips stay text-stable.
+   * No-op when `breakpointId === 'desktop'` — base fields aren't
+   * overrides and don't get reset this way.
+   */
+  resetElementFieldsAtBreakpoint: (
+    id: string,
+    breakpointId: string,
+    fields: ReadonlyArray<keyof BreakpointOverride>
+  ) => void;
   loadPage: (
     page: ActivePage,
     elements: Record<string, ScampElement>,
-    source: PageSource
+    source: PageSource,
+    customMediaBlocks?: ReadonlyArray<string>
   ) => void;
-  reloadElements: (elements: Record<string, ScampElement>, source: PageSource) => void;
+  reloadElements: (
+    elements: Record<string, ScampElement>,
+    source: PageSource,
+    customMediaBlocks?: ReadonlyArray<string>
+  ) => void;
   setPageSource: (source: PageSource) => void;
   setBottomPanel: (panel: BottomPanel) => void;
   setPanelMode: (mode: PanelMode) => void;
+  setActiveBreakpoint: (id: string) => void;
+  setBreakpoints: (breakpoints: Breakpoint[]) => void;
   /** Walk one step up the discrete zoom ladder. */
   zoomIn: () => void;
   /** Walk one step down the discrete zoom ladder. */
@@ -295,6 +341,89 @@ const tagForListChildContext = (
   return undefined;
 };
 
+/**
+ * Fields that are NEVER written into a breakpoint override — they're
+ * identity / tree / TSX-level concepts that can't meaningfully change
+ * per-breakpoint. A patch containing any of these applies them to
+ * the element's top-level fields regardless of the active breakpoint.
+ */
+const BASE_ONLY_PATCH_FIELDS = new Set<keyof ScampElement>([
+  'id',
+  'type',
+  'parentId',
+  'childIds',
+  'breakpointOverrides',
+  'tag',
+  'attributes',
+  'selectOptions',
+  'svgSource',
+  'text',
+  'name',
+]);
+
+/**
+ * Apply a patch to an element while respecting the active breakpoint.
+ * When active is desktop (or no breakpoint override applies), the
+ * patch writes through to top-level fields as before. In non-desktop
+ * mode, style fields route into `breakpointOverrides[activeId]` —
+ * identity / content fields still go to the top level because they
+ * can't be per-breakpoint in our model.
+ *
+ * Pure — takes the element + patch, returns the next element.
+ */
+const applyPatchWithBreakpointRouting = (
+  el: ScampElement,
+  patch: Partial<ScampElement>,
+  activeBreakpointId: string
+): ScampElement => {
+  // Split the patch into base (always-top-level) and style (goes to
+  // override when non-desktop).
+  const basePatch: Partial<ScampElement> = {};
+  const stylePatch: BreakpointOverride = {};
+  for (const key of Object.keys(patch) as Array<keyof ScampElement>) {
+    if (BASE_ONLY_PATCH_FIELDS.has(key)) {
+      (basePatch as Record<string, unknown>)[key] = patch[key];
+    } else {
+      (stylePatch as Record<string, unknown>)[key] = patch[key];
+    }
+  }
+
+  if (activeBreakpointId === 'desktop') {
+    // Desktop: merge everything straight onto the element.
+    return { ...el, ...basePatch, ...stylePatch };
+  }
+
+  // Non-desktop: base patch still lands on top-level (identity/content
+  // fields aren't breakpoint-specific); style patch lands in the
+  // override bucket for the active breakpoint.
+  const mergedBase = Object.keys(basePatch).length > 0 ? { ...el, ...basePatch } : el;
+  const styleKeys = Object.keys(stylePatch);
+  if (styleKeys.length === 0) return mergedBase;
+
+  const existingOverride = mergedBase.breakpointOverrides?.[activeBreakpointId] ?? {};
+  // customProperties merge object-wise so a new entry doesn't wipe
+  // earlier ones at the same breakpoint.
+  const mergedCustom =
+    'customProperties' in stylePatch && stylePatch.customProperties
+      ? {
+          ...(existingOverride.customProperties ?? {}),
+          ...stylePatch.customProperties,
+        }
+      : existingOverride.customProperties;
+  const nextOverride: BreakpointOverride = {
+    ...existingOverride,
+    ...stylePatch,
+    ...(mergedCustom !== undefined ? { customProperties: mergedCustom } : {}),
+  };
+  return {
+    ...mergedBase,
+    breakpointOverrides: {
+      ...mergedBase.breakpointOverrides,
+      [activeBreakpointId]: nextOverride,
+    },
+  };
+};
+
 /** Pick a fresh element id that doesn't collide with any existing one. */
 const freshId = (existing: ReadonlySet<string>): string => {
   for (let i = 0; i < 32; i += 1) {
@@ -318,6 +447,9 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   bottomPanel: 'none',
   panelMode: 'ui',
   userZoom: null,
+  activeBreakpointId: 'desktop',
+  breakpoints: [...DEFAULT_BREAKPOINTS],
+  pageCustomMediaBlocks: [],
   themeTokens: [],
   clipboard: null,
 
@@ -648,9 +780,12 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
-      return {
-        elements: { ...state.elements, [id]: { ...el, x, y } },
-      };
+      const next = applyPatchWithBreakpointRouting(
+        el,
+        { x, y },
+        state.activeBreakpointId
+      );
+      return { elements: { ...state.elements, [id]: next } };
     }),
 
   resizeElement: (id, x, y, width, height) =>
@@ -661,44 +796,79 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       // we always switch to fixed mode — otherwise resizing a stretched
       // or fit-content element would silently store a value that the
       // generator wouldn't emit.
-      return {
-        elements: {
-          ...state.elements,
-          [id]: {
-            ...el,
-            x,
-            y,
-            widthValue: width,
-            heightValue: height,
-            widthMode: 'fixed',
-            heightMode: 'fixed',
-          },
+      const next = applyPatchWithBreakpointRouting(
+        el,
+        {
+          x,
+          y,
+          widthValue: width,
+          heightValue: height,
+          widthMode: 'fixed',
+          heightMode: 'fixed',
         },
-      };
+        state.activeBreakpointId
+      );
+      return { elements: { ...state.elements, [id]: next } };
     }),
 
   patchElement: (id, patch) =>
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
+      const next = applyPatchWithBreakpointRouting(
+        el,
+        patch,
+        state.activeBreakpointId
+      );
+      return { elements: { ...state.elements, [id]: next } };
+    }),
+
+  resetElementFieldsAtBreakpoint: (id, breakpointId, fields) =>
+    set((state) => {
+      if (breakpointId === 'desktop') return state;
+      const el = state.elements[id];
+      if (!el || !el.breakpointOverrides) return state;
+      const existing = el.breakpointOverrides[breakpointId];
+      if (!existing) return state;
+      const nextOverride: BreakpointOverride = { ...existing };
+      for (const field of fields) {
+        delete nextOverride[field];
+      }
+      const overrides = { ...el.breakpointOverrides };
+      if (Object.keys(nextOverride).length === 0) {
+        // Empty override object — drop the breakpoint key so
+        // generateCode won't emit an empty @media rule.
+        delete overrides[breakpointId];
+      } else {
+        overrides[breakpointId] = nextOverride;
+      }
+      // If no breakpoints have any overrides, delete the whole field
+      // so round-trips stay text-stable.
+      const { breakpointOverrides: _, ...elWithoutOverrides } = el;
+      const nextElement: ScampElement =
+        Object.keys(overrides).length === 0
+          ? (elWithoutOverrides as ScampElement)
+          : { ...el, breakpointOverrides: overrides };
       return {
-        elements: { ...state.elements, [id]: { ...el, ...patch } },
+        elements: { ...state.elements, [id]: nextElement },
       };
     }),
 
-  loadPage: (page, elements, source) =>
+  loadPage: (page, elements, source, customMediaBlocks) =>
     set({
       activePage: page,
       elements,
       pageSource: source,
+      pageCustomMediaBlocks: customMediaBlocks ?? [],
       selectedElementIds: [],
       isLoading: true,
     }),
 
-  reloadElements: (elements, source) =>
+  reloadElements: (elements, source, customMediaBlocks) =>
     set((state) => ({
       elements,
       pageSource: source,
+      pageCustomMediaBlocks: customMediaBlocks ?? state.pageCustomMediaBlocks,
       // Drop any selection that no longer exists in the new tree (the file
       // could have been edited externally to remove an element).
       selectedElementIds: state.selectedElementIds.filter((id) => id in elements),
@@ -710,6 +880,10 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
 
   setPanelMode: (mode) => set({ panelMode: mode }),
+
+  setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
+
+  setBreakpoints: (breakpoints) => set({ breakpoints }),
 
   zoomIn: () =>
     set((state) => {

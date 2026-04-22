@@ -1,5 +1,14 @@
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
-import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from './element';
+import {
+  ROOT_ELEMENT_ID,
+  slugifyName,
+  type BreakpointOverride,
+  type ScampElement,
+} from './element';
+import {
+  DESKTOP_BREAKPOINT_ID,
+  type Breakpoint,
+} from '@shared/types';
 
 /**
  * Pure function: produces real TSX + CSS module text from canvas state.
@@ -17,6 +26,20 @@ export type GenerateCodeArgs = {
   elements: Record<string, ScampElement>;
   rootId: string;
   pageName: string;
+  /**
+   * Project's breakpoint table, ordered widest first. Used to emit
+   * `@media (max-width: Npx)` blocks after the base class rules.
+   * When omitted (or only contains desktop), no `@media` output is
+   * emitted — backwards-compatible with callers that predate the
+   * breakpoints feature.
+   */
+  breakpoints?: ReadonlyArray<Breakpoint>;
+  /**
+   * Raw `@media` blocks that the parser couldn't match to a known
+   * breakpoint. Appended verbatim at the very end of the CSS so
+   * agent-written / hand-written queries round-trip untouched.
+   */
+  customMediaBlocks?: ReadonlyArray<string>;
 };
 
 export type GeneratedCode = {
@@ -372,6 +395,152 @@ export const elementDeclarationLines = (
   return lines;
 };
 
+/**
+ * Emit CSS declarations for a single breakpoint override. Unlike
+ * `elementDeclarationLines` (which skips values equal to defaults),
+ * this emits a declaration for every field explicitly set in the
+ * override — the override's presence IS the user's intent.
+ *
+ * Paired with the element so width/height declarations can resolve
+ * the mode+value combination. When only `widthMode` is in the
+ * override, the value falls back to the element's base value.
+ */
+export const breakpointOverrideLines = (
+  override: BreakpointOverride,
+  element: ScampElement
+): string[] => {
+  const lines: string[] = [];
+  const has = (k: keyof BreakpointOverride): boolean =>
+    Object.prototype.hasOwnProperty.call(override, k);
+
+  // Width — needs both mode and value. Either being in the override
+  // triggers emission.
+  if (has('widthMode') || has('widthValue')) {
+    const mode = override.widthMode ?? element.widthMode;
+    const value = override.widthValue ?? element.widthValue;
+    if (mode === 'stretch') lines.push(`width: 100%;`);
+    else if (mode === 'fit-content') lines.push(`width: fit-content;`);
+    else if (mode === 'fixed') lines.push(`width: ${value}px;`);
+    else if (mode === 'auto') lines.push(`width: auto;`);
+  }
+  if (has('heightMode') || has('heightValue')) {
+    const mode = override.heightMode ?? element.heightMode;
+    const value = override.heightValue ?? element.heightValue;
+    if (mode === 'stretch') lines.push(`height: 100%;`);
+    else if (mode === 'fit-content') lines.push(`height: fit-content;`);
+    else if (mode === 'fixed') lines.push(`height: ${value}px;`);
+    else if (mode === 'auto') lines.push(`height: auto;`);
+  }
+
+  // Display / visibility. `visibility: none` means `display: none` in
+  // our model; emit that instead of the raw display value.
+  if (has('visibilityMode') && override.visibilityMode === 'none') {
+    lines.push('display: none;');
+  } else if (has('display') && override.display !== undefined) {
+    lines.push(`display: ${override.display};`);
+  }
+  if (has('flexDirection') && override.flexDirection) {
+    lines.push(`flex-direction: ${override.flexDirection};`);
+  }
+  if (has('gap') && override.gap !== undefined) {
+    lines.push(`gap: ${override.gap}px;`);
+  }
+  if (has('alignItems') && override.alignItems) {
+    lines.push(`align-items: ${override.alignItems};`);
+  }
+  if (has('justifyContent') && override.justifyContent) {
+    lines.push(`justify-content: ${override.justifyContent};`);
+  }
+
+  if (has('padding') && override.padding) {
+    const [t, r, b, l] = override.padding;
+    lines.push(`padding: ${t}px ${r}px ${b}px ${l}px;`);
+  }
+  if (has('margin') && override.margin) {
+    const [t, r, b, l] = override.margin;
+    lines.push(`margin: ${t}px ${r}px ${b}px ${l}px;`);
+  }
+
+  if (has('backgroundColor') && override.backgroundColor !== undefined) {
+    lines.push(`background: ${override.backgroundColor};`);
+  }
+  if (has('borderRadius') && override.borderRadius) {
+    const [tl, tr, br, bl] = override.borderRadius;
+    lines.push(`border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
+  }
+  if (has('borderWidth') && override.borderWidth) {
+    const [t, r, b, l] = override.borderWidth;
+    lines.push(`border-width: ${t}px ${r}px ${b}px ${l}px;`);
+  }
+  if (has('borderStyle') && override.borderStyle) {
+    lines.push(`border-style: ${override.borderStyle};`);
+  }
+  if (has('borderColor') && override.borderColor !== undefined) {
+    lines.push(`border-color: ${override.borderColor};`);
+  }
+
+  if (has('opacity') && override.opacity !== undefined) {
+    lines.push(`opacity: ${override.opacity};`);
+  }
+  if (has('visibilityMode') && override.visibilityMode === 'hidden') {
+    lines.push('visibility: hidden;');
+  } else if (has('visibilityMode') && override.visibilityMode === 'visible') {
+    lines.push('visibility: visible;');
+  }
+
+  // Text properties — only meaningful on text elements but cheap to
+  // emit based on presence in the override.
+  if (has('fontFamily') && override.fontFamily !== undefined) {
+    lines.push(`font-family: ${override.fontFamily};`);
+  }
+  if (has('fontSize') && override.fontSize !== undefined) {
+    lines.push(`font-size: ${override.fontSize};`);
+  }
+  if (has('fontWeight') && override.fontWeight !== undefined) {
+    lines.push(`font-weight: ${override.fontWeight};`);
+  }
+  if (has('color') && override.color !== undefined) {
+    lines.push(`color: ${override.color};`);
+  }
+  if (has('textAlign') && override.textAlign !== undefined) {
+    lines.push(`text-align: ${override.textAlign};`);
+  }
+  if (has('lineHeight') && override.lineHeight !== undefined) {
+    lines.push(`line-height: ${override.lineHeight};`);
+  }
+  if (has('letterSpacing') && override.letterSpacing !== undefined) {
+    lines.push(`letter-spacing: ${override.letterSpacing};`);
+  }
+
+  // Position — x/y emit as left/top. Root at a breakpoint still gets
+  // `position: relative` if that's overridden through customProperties
+  // (rare), but otherwise positioning-scheme stays the same.
+  if (has('x') && override.x !== undefined) {
+    lines.push(`left: ${override.x}px;`);
+  }
+  if (has('y') && override.y !== undefined) {
+    lines.push(`top: ${override.y}px;`);
+  }
+
+  // customProperties: free-form CSS the user / agent wrote at this
+  // breakpoint. Emitted verbatim, in insertion order, last.
+  if (override.customProperties) {
+    for (const [key, value] of Object.entries(override.customProperties)) {
+      lines.push(`${key}: ${value};`);
+    }
+  }
+
+  return lines;
+};
+
+/** True when the override object has any field set — used to decide
+ *  whether an @media block needs a rule for this element. Type guard
+ *  so callers get a narrowed non-undefined value. */
+const overrideHasAny = (
+  override: BreakpointOverride | undefined
+): override is BreakpointOverride =>
+  override !== undefined && Object.keys(override).length > 0;
+
 const collectElementsDfs = (
   elements: Record<string, ScampElement>,
   rootId: string
@@ -389,21 +558,57 @@ const collectElementsDfs = (
 
 const generateCss = (
   elements: Record<string, ScampElement>,
-  rootId: string
+  rootId: string,
+  breakpoints: ReadonlyArray<Breakpoint>,
+  customMediaBlocks: ReadonlyArray<string>
 ): string => {
   const ordered = collectElementsDfs(elements, rootId);
-  const blocks = ordered.map((el) => {
+
+  // Base class blocks — one per element, in DFS order.
+  const baseBlocks = ordered.map((el) => {
     const parent = el.parentId ? elements[el.parentId] : null;
     const lines = elementDeclarationLines(el, parent);
     const body = lines.map((line) => `  ${line}`).join('\n');
     return `.${classNameFor(el)} {\n${body}\n}`;
   });
-  return `${blocks.join('\n\n')}\n`;
+
+  // @media blocks — widest first (excluding desktop, which is the
+  // base). Source order with max-width queries means narrower
+  // breakpoints appearing later win the cascade when both match.
+  const mediaBlocks: string[] = [];
+  for (const bp of breakpoints) {
+    if (bp.id === DESKTOP_BREAKPOINT_ID) continue;
+    const rules: string[] = [];
+    for (const el of ordered) {
+      const override = el.breakpointOverrides?.[bp.id];
+      if (!overrideHasAny(override)) continue;
+      const lines = breakpointOverrideLines(override, el);
+      if (lines.length === 0) continue;
+      const body = lines.map((line) => `    ${line}`).join('\n');
+      rules.push(`  .${classNameFor(el)} {\n${body}\n  }`);
+    }
+    if (rules.length === 0) continue;
+    mediaBlocks.push(
+      `@media (max-width: ${bp.width}px) {\n${rules.join('\n\n')}\n}`
+    );
+  }
+
+  // Custom @media blocks — agent/user-written queries we don't
+  // understand. Appended verbatim so they survive the round-trip.
+  const customBlocks = customMediaBlocks.filter((b) => b.trim().length > 0);
+
+  const allBlocks = [...baseBlocks, ...mediaBlocks, ...customBlocks];
+  return `${allBlocks.join('\n\n')}\n`;
 };
 
 export const generateCode = (args: GenerateCodeArgs): GeneratedCode => {
   return {
     tsx: generateTsx(args.elements, args.rootId, args.pageName),
-    css: generateCss(args.elements, args.rootId),
+    css: generateCss(
+      args.elements,
+      args.rootId,
+      args.breakpoints ?? [],
+      args.customMediaBlocks ?? []
+    ),
   };
 };

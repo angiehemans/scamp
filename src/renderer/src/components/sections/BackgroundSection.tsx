@@ -1,4 +1,5 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
@@ -28,7 +29,7 @@ const BG_POSITION_OPTIONS = [
 ] as const;
 
 export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   const projectColors = useCanvasStore(selectProjectColors);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
@@ -81,7 +82,11 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
   };
 
   return (
-    <Section title="Background">
+    <Section
+      title="Background"
+      elementId={elementId}
+      fields={['backgroundColor']}
+    >
       <Row label="">
         <ColorInput
           value={element.backgroundColor}

@@ -192,6 +192,7 @@ const dispatchPatchWrite = (
       cssPath: attempt.cssPath,
       className: attempt.className,
       newDeclarations: attempt.newDeclarations,
+      ...(attempt.media ? { media: attempt.media } : {}),
     })
     .then(({ writeId }) => {
       registerPendingSave(writeId, attempt, expected);
@@ -213,6 +214,7 @@ export const savePatch = async (attempt: {
   cssPath: string;
   className: string;
   newDeclarations: string;
+  media?: { maxWidth: number };
 }): Promise<void> => {
   await dispatchPatchWrite({ kind: 'patch', ...attempt });
 };
@@ -276,10 +278,13 @@ export const initSyncBridge = (): (() => void) => {
     rootElementId: string,
     page: ActivePage
   ): void => {
+    const store = useCanvasStore.getState();
     const code = generateCode({
       elements,
       rootId: rootElementId,
       pageName: page.name,
+      breakpoints: store.breakpoints,
+      customMediaBlocks: store.pageCustomMediaBlocks,
     });
     if (code.tsx === lastSerializedTsx && code.css === lastSerializedCss) {
       // No-op dedupe: the debounce fired but the generated code matches
@@ -358,6 +363,8 @@ export const initSyncBridge = (): (() => void) => {
           elements: state.elements,
           rootId: state.rootElementId,
           pageName: state.activePage.name,
+          breakpoints: state.breakpoints,
+          customMediaBlocks: state.pageCustomMediaBlocks,
         });
         const onDisk = state.pageSource;
         if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
@@ -394,6 +401,8 @@ export const initSyncBridge = (): (() => void) => {
         elements: state.elements,
         rootId: state.rootElementId,
         pageName: state.activePage.name,
+        breakpoints: state.breakpoints,
+        customMediaBlocks: state.pageCustomMediaBlocks,
       });
       state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
 
@@ -425,7 +434,9 @@ export const initSyncBridge = (): (() => void) => {
     // the entire parse → diff → reload pipeline so a transient bad read
     // logs a warning instead of crashing the renderer process.
     try {
-      const parsed = parseCode(payload.tsxContent, payload.cssContent);
+      const parsed = parseCode(payload.tsxContent, payload.cssContent, {
+        breakpoints: state.breakpoints,
+      });
 
       // Always mirror the new on-disk source into the store so the code
       // panel reflects exactly what the agent / external editor wrote
@@ -441,17 +452,21 @@ export const initSyncBridge = (): (() => void) => {
         elements: state.elements,
         rootId: state.rootElementId,
         pageName: state.activePage.name,
+        breakpoints: state.breakpoints,
+        customMediaBlocks: state.pageCustomMediaBlocks,
       });
       const nextCode = generateCode({
         elements: parsed.elements,
         rootId: parsed.rootId,
         pageName: state.activePage.name,
+        breakpoints: state.breakpoints,
+        customMediaBlocks: parsed.customMediaBlocks,
       });
       if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
         return;
       }
 
-      state.reloadElements(parsed.elements, nextSource);
+      state.reloadElements(parsed.elements, nextSource, parsed.customMediaBlocks);
       // External edits invalidate the undo history — the old states
       // reference element maps that no longer match the file on disk.
       useCanvasStore.temporal.getState().clear();

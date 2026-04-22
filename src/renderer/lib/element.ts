@@ -149,7 +149,45 @@ export type ScampElement = {
 
   // Passthrough — properties the canvas can't visually represent
   customProperties: Record<string, string>;
+
+  /**
+   * Per-breakpoint style overrides keyed by breakpoint id (matching
+   * entries in `ProjectConfig.breakpoints`). Each value carries ONLY
+   * the fields the user overrode at that breakpoint — everything
+   * else cascades from the base (desktop) styles on this element.
+   *
+   * Desktop is not stored here: it's the element's top-level fields.
+   * When a breakpoint's override object would become empty (all
+   * overrides removed), the key is deleted so round-trips stay
+   * text-stable.
+   */
+  breakpointOverrides?: Record<string, BreakpointOverride>;
 };
+
+/**
+ * Which `ScampElement` fields a breakpoint can override. Excludes
+ * identity / tree fields (id, type, parentId, childIds) and the
+ * override map itself — a breakpoint can't re-parent an element or
+ * nest its own overrides. Also excludes TSX-level fields (tag,
+ * attributes, selectOptions, svgSource) and the `text` content —
+ * breakpoints change CSS only.
+ */
+export type BreakpointOverride = Partial<
+  Omit<
+    ScampElement,
+    | 'id'
+    | 'type'
+    | 'parentId'
+    | 'childIds'
+    | 'breakpointOverrides'
+    | 'tag'
+    | 'attributes'
+    | 'selectOptions'
+    | 'svgSource'
+    | 'text'
+    | 'name'
+  >
+>;
 
 /**
  * The id used for the implicit page-root element. Stays constant across

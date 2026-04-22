@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ProjectConfig } from '@shared/types';
-import { MAX_CANVAS_WIDTH, MIN_CANVAS_WIDTH } from '@shared/types';
+import type { Breakpoint, ProjectConfig } from '@shared/types';
+import {
+  DESKTOP_BREAKPOINT_ID,
+  MAX_CANVAS_WIDTH,
+  MIN_CANVAS_WIDTH,
+} from '@shared/types';
 import { clampCanvasWidth } from '@shared/projectConfig';
+import { useCanvasStore } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
 import styles from './CanvasSizeControl.module.css';
-
-type Preset = {
-  label: string;
-  width: number;
-};
-
-const PRESETS: ReadonlyArray<Preset> = [
-  { label: 'Mobile', width: 390 },
-  { label: 'Tablet', width: 768 },
-  { label: 'Desktop', width: 1440 },
-  { label: 'Wide', width: 1920 },
-];
 
 type Props = {
   config: ProjectConfig;
@@ -23,15 +16,28 @@ type Props = {
 };
 
 /**
- * Toolbar control for the canvas viewport size. Displays the current
- * width; opens a popover with preset buttons, a custom-width input,
- * and the overflow-hidden toggle. All changes commit immediately via
- * `onChange`, which writes through `scamp.config.json`.
+ * Toolbar control for the canvas viewport size + active breakpoint.
+ *
+ * The button's label reflects the active breakpoint (or a custom-
+ * width readout when no preset matches). Clicking opens a popover
+ * with:
+ *   - A segmented list of the project's breakpoints. Clicking one
+ *     sets canvas width AND active breakpoint — so subsequent
+ *     property-panel edits land inside that breakpoint's @media
+ *     block.
+ *   - A custom-width input. Typing a value that doesn't match any
+ *     breakpoint drops the active breakpoint to `desktop` so edits
+ *     apply to the base CSS.
+ *   - An overflow-hidden toggle (a viewport-frame preview helper,
+ *     never written to CSS).
  */
 export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState<string>(String(config.canvasWidth));
   const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
+  const setActiveBreakpoint = useCanvasStore((s) => s.setActiveBreakpoint);
 
   useEffect(() => {
     setCustom(String(config.canvasWidth));
@@ -55,8 +61,10 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
     };
   }, [open]);
 
-  const setWidth = (width: number): void => {
-    onChange({ ...config, canvasWidth: clampCanvasWidth(width) });
+  /** Pick a preset: updates canvas width AND active breakpoint. */
+  const selectBreakpoint = (bp: Breakpoint): void => {
+    onChange({ ...config, canvasWidth: clampCanvasWidth(bp.width) });
+    setActiveBreakpoint(bp.id);
   };
 
   const setOverflow = (overflow: boolean): void => {
@@ -71,17 +79,23 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
     }
     const clamped = clampCanvasWidth(parsed);
     setCustom(String(clamped));
-    setWidth(clamped);
+    onChange({ ...config, canvasWidth: clamped });
+    // A custom width means we're NOT editing a specific breakpoint —
+    // drop back to desktop so panel edits target the base CSS.
+    const match = config.breakpoints.find((b) => b.width === clamped);
+    setActiveBreakpoint(match ? match.id : DESKTOP_BREAKPOINT_ID);
   };
 
-  const currentPreset = PRESETS.find((p) => p.width === config.canvasWidth);
-  const buttonLabel = currentPreset
-    ? `${currentPreset.label} · ${config.canvasWidth}`
+  const activeBreakpoint = config.breakpoints.find(
+    (b) => b.id === activeBreakpointId
+  );
+  const buttonLabel = activeBreakpoint
+    ? `${activeBreakpoint.label} · ${config.canvasWidth}`
     : `${config.canvasWidth}px`;
 
   return (
     <div className={styles.wrap} ref={wrapRef}>
-      <Tooltip label="Canvas width">
+      <Tooltip label="Canvas width · active breakpoint">
         <button
           className={styles.button}
           type="button"
@@ -97,19 +111,19 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
       </Tooltip>
       {open && (
         <div className={styles.popover} role="dialog">
-          <div className={styles.sectionLabel}>Preset</div>
+          <div className={styles.sectionLabel}>Breakpoint</div>
           <div className={styles.presetGrid}>
-            {PRESETS.map((preset) => (
+            {config.breakpoints.map((bp) => (
               <button
-                key={preset.label}
+                key={bp.id}
                 className={`${styles.presetButton} ${
-                  preset.width === config.canvasWidth ? styles.presetActive : ''
+                  bp.id === activeBreakpointId ? styles.presetActive : ''
                 }`}
                 type="button"
-                onClick={() => setWidth(preset.width)}
+                onClick={() => selectBreakpoint(bp)}
               >
-                <span className={styles.presetName}>{preset.label}</span>
-                <span className={styles.presetWidth}>{preset.width}</span>
+                <span className={styles.presetName}>{bp.label}</span>
+                <span className={styles.presetWidth}>{bp.width}</span>
               </button>
             ))}
           </div>

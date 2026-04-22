@@ -18,6 +18,11 @@ export type LastWriteAttempt =
       cssPath: string;
       className: string;
       newDeclarations: string;
+      /**
+       * Media scope for the patch, when it targets an `@media
+       * (max-width: Npx)` block. Omitted for base-class patches.
+       */
+      media?: { maxWidth: number };
     };
 
 export type SaveState =

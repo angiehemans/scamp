@@ -1,5 +1,6 @@
 import { IconPercentage } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { NumberInput } from '../controls/NumberInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Section, Row } from './Section';
@@ -20,7 +21,7 @@ const VISIBILITY_OPTIONS: ReadonlyArray<{ value: VisibilityMode; label: string }
 const toPercent = (opacity: number): number => Math.round(opacity * 100);
 
 export const VisibilitySection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   if (!element) return null;
 
@@ -33,7 +34,11 @@ export const VisibilitySection = ({ elementId }: Props): JSX.Element | null => {
   };
 
   return (
-    <Section title="Visibility">
+    <Section
+      title="Visibility"
+      elementId={elementId}
+      fields={['opacity', 'visibilityMode']}
+    >
       <Row label="Opacity">
         <NumberInput
           value={currentPercent}

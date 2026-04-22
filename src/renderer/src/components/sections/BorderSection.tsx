@@ -1,4 +1,5 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FourSideInput } from '../controls/FourSideInput';
@@ -17,7 +18,7 @@ const BORDER_STYLE_OPTIONS: ReadonlyArray<{ value: BorderStyle; label: string }>
 ];
 
 export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   const projectColors = useCanvasStore(selectProjectColors);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
@@ -25,7 +26,11 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
   if (!element) return null;
 
   return (
-    <Section title="Border">
+    <Section
+      title="Border"
+      elementId={elementId}
+      fields={['borderColor', 'borderStyle', 'borderWidth', 'borderRadius']}
+    >
       <Row label="">
         <ColorInput
           value={element.borderColor}

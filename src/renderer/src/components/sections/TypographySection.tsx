@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
 
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { classifyToken } from '@lib/tokenClassify';
 import { ColorInput } from '../controls/ColorInput';
@@ -35,7 +36,7 @@ const isFontWeight = (n: number): n is FontWeight =>
   n === 400 || n === 500 || n === 600 || n === 700;
 
 export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   const projectColors = useCanvasStore(selectProjectColors);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
@@ -61,7 +62,19 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   if (!element || element.type !== 'text') return null;
 
   return (
-    <Section title="Typography">
+    <Section
+      title="Typography"
+      elementId={elementId}
+      fields={[
+        'fontFamily',
+        'fontSize',
+        'fontWeight',
+        'color',
+        'textAlign',
+        'lineHeight',
+        'letterSpacing',
+      ]}
+    >
       <Row label="">
         <FontPicker
           value={element.fontFamily ?? ''}

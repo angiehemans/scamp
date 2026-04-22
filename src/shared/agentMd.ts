@@ -13,7 +13,9 @@ files. Anything you write here is parsed and re-rendered on the canvas.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
   in \`hero_card_a1b2\`) — it's the element's unique identifier
 - Never combine multiple selectors into one rule block
-- Never add media queries to generated class blocks
+- Never nest media queries inside class rules; use top-level
+  \`@media (max-width: Npx)\` blocks at the bottom of the file (see
+  "Responsive breakpoints" below)
 - One class = one rule block, always
 - \`data-scamp-id\` must always match the CSS class name exactly
 
@@ -187,8 +189,58 @@ fields it can later expose via UI controls. Everything else
 (\`box-shadow\`, \`transform\`, \`letter-spacing\`, \`line-height\`,
 \`font-family\`, \`margin\`, \`opacity\`, animations, gradients, …)
 round-trips through the file untouched AND is applied to the rendered
-element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules
-(\`@media\`, \`@keyframes\`) are not parsed and should not be added.
+element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules other
+than \`@media (max-width: Npx)\` are not parsed into the canvas model.
+
+## Responsive breakpoints
+
+Scamp writes per-breakpoint overrides as top-level \`@media
+(max-width: Npx)\` blocks AT THE BOTTOM of the CSS module, AFTER every
+base class rule. Each breakpoint has its own block containing one
+class rule per element that overrides a property at that width:
+
+\`\`\`css
+.rect_a1b2 {
+  width: 100%;
+  padding: 24px;
+}
+
+.rect_c3d4 {
+  background: #eee;
+}
+
+@media (max-width: 768px) {
+  .rect_a1b2 {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .rect_a1b2 {
+    padding: 8px;
+  }
+  .rect_c3d4 {
+    width: 100%;
+  }
+}
+\`\`\`
+
+Rules for agents:
+
+- **Only \`max-width\` queries are parsed.** \`min-width\`,
+  \`prefers-color-scheme\`, \`orientation\`, and other query shapes are
+  preserved verbatim but Scamp's canvas won't react to them.
+- **Only pixel values are parsed.** \`max-width: 48rem\` won't be
+  matched to a project breakpoint; use \`max-width: 768px\` etc.
+- **The \`Npx\` value must match a breakpoint defined in the
+  project.** Default breakpoints are 768 (tablet) and 390 (mobile).
+  Unknown widths are preserved verbatim but treated as opaque.
+- **Emit breakpoints widest-first** (tablet before mobile) so the CSS
+  cascade picks the narrowest matching override.
+- **Never nest \`@media\` inside a class rule** — only the top-level
+  form above is parsed.
+- **Desktop is the base.** Put desktop styles directly on the class,
+  not inside a \`@media\` block.
 
 ## CSS Variables and Tokens
 

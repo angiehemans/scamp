@@ -4,11 +4,17 @@ import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
 import { cssToScampProperty, isMappedProperty } from './cssPropertyMap';
 import {
   ROOT_ELEMENT_ID,
+  type BreakpointOverride,
   type ElementType,
   type ScampElement,
   type SelectOption,
 } from './element';
 import { parsePx } from './parsers';
+import {
+  DEFAULT_BREAKPOINTS,
+  DESKTOP_BREAKPOINT_ID,
+  type Breakpoint,
+} from '@shared/types';
 
 /**
  * Pure function: real TSX + CSS module text → canvas state.
@@ -30,6 +36,25 @@ export type ParsedTree = {
    * parses return `false`.
    */
   migrated?: boolean;
+  /**
+   * Any `@media` blocks the parser couldn't match to a known
+   * breakpoint — agent-written `min-width` queries, prefers-color-
+   * scheme, orientation, and custom max-widths that aren't in the
+   * project config. Preserved verbatim as raw CSS so `generateCode`
+   * can re-emit them untouched.
+   */
+  customMediaBlocks: string[];
+};
+
+export type ParseCodeOptions = {
+  /**
+   * The project's breakpoint table. Used to route `@media
+   * (max-width: Npx)` declarations into `element.breakpointOverrides`
+   * keyed by the matching breakpoint's id. When omitted, defaults
+   * are used — handy for tests and for call sites that don't have
+   * project config loaded yet.
+   */
+  breakpoints?: ReadonlyArray<Breakpoint>;
 };
 
 /**
@@ -378,33 +403,163 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
   return elements;
 };
 
+type ParsedCss = {
+  /** Base (non-@media) declarations keyed by class name. */
+  byClass: ClassDeclarations;
+  /**
+   * `@media (max-width: Npx)` declarations whose N matches a known
+   * breakpoint's width. Outer key is breakpoint id; inner key is
+   * class name. Populated when the parser can route an @media block
+   * to a known breakpoint.
+   */
+  byBreakpoint: Map<string, ClassDeclarations>;
+  /**
+   * Raw CSS text of @media blocks the parser couldn't route — either
+   * the query shape isn't `(max-width: Npx)` or the width doesn't
+   * match any known breakpoint. Preserved verbatim for round-trip.
+   */
+  customMediaBlocks: string[];
+};
+
+/** Extract a numeric max-width from a media query condition like
+ *  `(max-width: 768px)`. Returns null for anything else so we don't
+ *  silently mis-route min-width, orientation, or complex queries. */
+const parseMaxWidthParam = (params: string): number | null => {
+  const match = params
+    .trim()
+    .match(/^\(\s*max-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)$/);
+  if (!match) return null;
+  const n = Number(match[1]);
+  return Number.isFinite(n) ? n : null;
+};
+
 /**
- * Parse a CSS module file into a class-name → declarations map. Uses
- * postcss so multi-line values, comments, and unusual whitespace round-trip
- * cleanly.
+ * Parse a CSS module file into class-keyed declarations plus any
+ * `@media` declarations the parser can route to a known breakpoint.
+ * Unrecognised @media blocks are preserved verbatim so the generator
+ * can re-emit them untouched on round-trip.
  */
-const parseCssDeclarations = (css: string): ClassDeclarations => {
-  const map: ClassDeclarations = new Map();
+const parseCssDeclarations = (
+  css: string,
+  breakpoints: ReadonlyArray<Breakpoint>
+): ParsedCss => {
+  const byClass: ClassDeclarations = new Map();
+  const byBreakpoint = new Map<string, ClassDeclarations>();
+  const customMediaBlocks: string[] = [];
+
   let root: postcss.Root;
   try {
     root = postcss.parse(css);
   } catch {
-    return map;
+    return { byClass, byBreakpoint, customMediaBlocks };
   }
-  root.walkRules((rule) => {
-    // Only handle simple `.classname` selectors. Anything else is
-    // unsupported in scamp output and we leave it alone.
-    const selector = rule.selector.trim();
-    if (!selector.startsWith('.')) return;
+
+  // Walk top-level rules first — these are the base class blocks.
+  // Using direct iteration (not walkRules) so we skip rules nested
+  // inside @media; those get handled in the at-rule walk below.
+  for (const node of root.nodes) {
+    if (node.type !== 'rule') continue;
+    const selector = node.selector.trim();
+    if (!selector.startsWith('.')) continue;
     const className = selector.slice(1);
     const decls: RawDeclaration[] = [];
-    rule.walkDecls((decl) => {
+    node.walkDecls((decl) => {
       decls.push({ prop: decl.prop, value: decl.value });
     });
-    // Last rule wins if a class is duplicated.
-    map.set(className, decls);
-  });
-  return map;
+    byClass.set(className, decls);
+  }
+
+  // Walk top-level @media at-rules. Route known (max-width: Npx)
+  // queries into the breakpoint bucket; stash everything else as
+  // raw CSS for verbatim re-emit.
+  const widthToId = new Map<number, string>();
+  for (const bp of breakpoints) {
+    if (bp.id === DESKTOP_BREAKPOINT_ID) continue;
+    widthToId.set(bp.width, bp.id);
+  }
+
+  for (const node of root.nodes) {
+    if (node.type !== 'atrule' || node.name !== 'media') continue;
+    const maxWidth = parseMaxWidthParam(node.params);
+    const bpId = maxWidth !== null ? widthToId.get(maxWidth) : undefined;
+    if (!bpId) {
+      customMediaBlocks.push(node.toString());
+      continue;
+    }
+    // Extract per-class declarations inside this @media.
+    const bucket = byBreakpoint.get(bpId) ?? new Map<string, RawDeclaration[]>();
+    node.walkRules((rule) => {
+      const selector = rule.selector.trim();
+      if (!selector.startsWith('.')) return;
+      const className = selector.slice(1);
+      const decls: RawDeclaration[] = [];
+      rule.walkDecls((decl) => {
+        decls.push({ prop: decl.prop, value: decl.value });
+      });
+      bucket.set(className, decls);
+    });
+    byBreakpoint.set(bpId, bucket);
+  }
+
+  return { byClass, byBreakpoint, customMediaBlocks };
+};
+
+/**
+ * Apply a list of declarations as a breakpoint override. Unlike
+ * `applyDeclarations` (which overlays onto a full element baseline
+ * and returns a full element), this returns a Partial carrying just
+ * the fields the declarations touch — the right shape for
+ * `element.breakpointOverrides[bpId]`.
+ */
+const applyDeclarationsAsOverride = (
+  decls: RawDeclaration[]
+): BreakpointOverride => {
+  let override: BreakpointOverride = {};
+  const customProperties: Record<string, string> = {};
+
+  for (const { prop, value } of decls) {
+    if (prop === 'position') continue;
+    if (prop === 'left') {
+      override = { ...override, x: parsePx(value) };
+      continue;
+    }
+    if (prop === 'top') {
+      override = { ...override, y: parsePx(value) };
+      continue;
+    }
+    if (prop === 'margin-top') {
+      const m = override.margin ?? [0, 0, 0, 0];
+      override = { ...override, margin: [parsePx(value), m[1], m[2], m[3]] };
+      continue;
+    }
+    if (prop === 'margin-right') {
+      const m = override.margin ?? [0, 0, 0, 0];
+      override = { ...override, margin: [m[0], parsePx(value), m[2], m[3]] };
+      continue;
+    }
+    if (prop === 'margin-bottom') {
+      const m = override.margin ?? [0, 0, 0, 0];
+      override = { ...override, margin: [m[0], m[1], parsePx(value), m[3]] };
+      continue;
+    }
+    if (prop === 'margin-left') {
+      const m = override.margin ?? [0, 0, 0, 0];
+      override = { ...override, margin: [m[0], m[1], m[2], parsePx(value)] };
+      continue;
+    }
+    if (isMappedProperty(prop)) {
+      const mapper = cssToScampProperty[prop]!;
+      const delta = mapper(value);
+      override = { ...override, ...delta };
+      continue;
+    }
+    customProperties[prop] = value;
+  }
+
+  if (Object.keys(customProperties).length > 0) {
+    override = { ...override, customProperties };
+  }
+  return override;
 };
 
 const makeRoot = (): ScampElement => ({
@@ -517,9 +672,14 @@ const applyDeclarations = (
   return { ...element, customProperties };
 };
 
-export const parseCode = (tsx: string, css: string): ParsedTree => {
+export const parseCode = (
+  tsx: string,
+  css: string,
+  options?: ParseCodeOptions
+): ParsedTree => {
+  const breakpoints = options?.breakpoints ?? DEFAULT_BREAKPOINTS;
   const rawElements = parseTsxStructure(tsx);
-  const declarationsByClass = parseCssDeclarations(css);
+  const parsedCss = parseCssDeclarations(css, breakpoints);
   const elements: Record<string, ScampElement> = {};
 
   // Always start with a root, even if the TSX is missing one. Downstream
@@ -532,7 +692,7 @@ export const parseCode = (tsx: string, css: string): ParsedTree => {
     if (isRoot) rootSeen = true;
 
     const baseline = makeBaseline(raw);
-    let decls = declarationsByClass.get(raw.className) ?? [];
+    let decls = parsedCss.byClass.get(raw.className) ?? [];
     if (isRoot) {
       // Detect and strip the legacy three-tuple (pre-canvas-rework)
       // so the new stretch/auto defaults take over. Leaves any other
@@ -554,13 +714,29 @@ export const parseCode = (tsx: string, css: string): ParsedTree => {
     // those defaults rather than being forced to auto on the width axis.
     const hasWidth = decls.some((d) => d.prop === 'width');
     const hasHeight = decls.some((d) => d.prop === 'height');
-    const finalElement = isRoot
+    let finalElement: ScampElement = isRoot
       ? applied
       : {
           ...applied,
           widthMode: hasWidth ? applied.widthMode : 'auto',
           heightMode: hasHeight ? applied.heightMode : 'auto',
         };
+
+    // Fold in any breakpoint overrides for this element's class.
+    const overrides: Record<string, BreakpointOverride> = {};
+    for (const bp of breakpoints) {
+      if (bp.id === DESKTOP_BREAKPOINT_ID) continue;
+      const classesForBp = parsedCss.byBreakpoint.get(bp.id);
+      if (!classesForBp) continue;
+      const bpDecls = classesForBp.get(raw.className);
+      if (!bpDecls || bpDecls.length === 0) continue;
+      const override = applyDeclarationsAsOverride(bpDecls);
+      if (Object.keys(override).length > 0) overrides[bp.id] = override;
+    }
+    if (Object.keys(overrides).length > 0) {
+      finalElement = { ...finalElement, breakpointOverrides: overrides };
+    }
+
     elements[raw.id] = finalElement;
   }
 
@@ -568,5 +744,10 @@ export const parseCode = (tsx: string, css: string): ParsedTree => {
     elements[ROOT_ELEMENT_ID] = makeRoot();
   }
 
-  return { elements, rootId: ROOT_ELEMENT_ID, ...(migrated ? { migrated: true } : {}) };
+  return {
+    elements,
+    rootId: ROOT_ELEMENT_ID,
+    customMediaBlocks: parsedCss.customMediaBlocks,
+    ...(migrated ? { migrated: true } : {}),
+  };
 };

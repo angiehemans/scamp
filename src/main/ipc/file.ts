@@ -60,7 +60,12 @@ const handlePatch = async (args: FilePatchArgs): Promise<FilePatchResult> => {
   registerPendingWrite(args.cssPath, writeId, false);
   try {
     const original = await fs.readFile(args.cssPath, 'utf-8');
-    const next = patchClassBlock(original, args.className, args.newDeclarations);
+    const next = patchClassBlock(
+      original,
+      args.className,
+      args.newDeclarations,
+      args.media
+    );
     await atomicWrite(args.cssPath, next);
   } catch (err) {
     cancelPendingWrite(args.cssPath);

@@ -6,6 +6,12 @@
   gap: 8px;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .heading {
   font-size: 12px;
   font-weight: 600;
@@ -61,4 +67,18 @@
 /* When a row has only one child, let it span full width. */
 .rowControl > :only-child {
   grid-column: 1 / -1;
+}
+
+/* Breakpoint-override indicator. Appears next to the section title
+   when any of the section's fields is set in the active breakpoint's
+   override. Hover for a list of overridden CSS properties;
+   right-click to reset the whole section's overrides. */
+.overrideDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4a8cff;
+  box-shadow: 0 0 0 2px rgba(74, 140, 255, 0.2);
+  cursor: context-menu;
 }

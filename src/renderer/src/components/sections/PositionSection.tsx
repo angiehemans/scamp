@@ -1,4 +1,5 @@
 import { useCanvasStore } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { NumberInput } from '../controls/NumberInput';
 import { Section, Row } from './Section';
 
@@ -7,12 +8,12 @@ type Props = {
 };
 
 export const PositionSection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   if (!element) return null;
 
   return (
-    <Section title="Position">
+    <Section title="Position" elementId={elementId} fields={['x', 'y']}>
       <Row label="">
         <NumberInput
           prefix="X"

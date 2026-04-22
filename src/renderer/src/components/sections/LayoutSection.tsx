@@ -1,4 +1,5 @@
 import { useCanvasStore } from '@store/canvasSlice';
+import { useResolvedElement } from '@store/useResolvedElement';
 import { NumberInput } from '../controls/NumberInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { SegmentedControl } from '../controls/SegmentedControl';
@@ -40,7 +41,7 @@ const JUSTIFY_OPTIONS: ReadonlyArray<{ value: JustifyContent; label: string }> =
 ];
 
 export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
-  const element = useCanvasStore((s) => s.elements[elementId]);
+  const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
   if (!element) return null;
 
@@ -68,7 +69,17 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
   }
 
   return (
-    <Section title="Layout">
+    <Section
+      title="Layout"
+      elementId={elementId}
+      fields={[
+        'display',
+        'flexDirection',
+        'alignItems',
+        'justifyContent',
+        'gap',
+      ]}
+    >
       <Row label="">
         <SegmentedControl<DisplayMode>
           value={element.display}

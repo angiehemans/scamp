@@ -47,6 +47,22 @@ export type Settings = {
  * element names, etc.). Non-CSS concepts live here; CSS-flavoured
  * concepts (colour tokens, font imports) live in `theme.css`.
  */
+/**
+ * One entry in a project's breakpoint table. The `id` is the stable
+ * key used in `ScampElement.breakpointOverrides`; the `width` is the
+ * `max-width` value written into the `@media` query. Desktop is
+ * included as a breakpoint but has no `@media` wrapper — its
+ * "overrides" are the element's top-level fields.
+ */
+export type Breakpoint = {
+  id: string;
+  label: string;
+  width: number;
+};
+
+/** Stable id of the desktop breakpoint — treated specially throughout. */
+export const DESKTOP_BREAKPOINT_ID = 'desktop';
+
 export type ProjectConfig = {
   /** Background color of the artboard — the area behind the canvas. */
   artboardBackground: string;
@@ -71,12 +87,26 @@ export type ProjectConfig = {
    * migration detector.
    */
   canvasMigrationAcknowledged?: boolean;
+  /**
+   * Responsive breakpoints for this project, ordered widest first.
+   * Style edits in non-desktop mode land inside `@media
+   * (max-width: Npx)` blocks keyed by each breakpoint's width.
+   * Desktop (the widest) is the base — it has no `@media` wrapper.
+   */
+  breakpoints: Breakpoint[];
 };
+
+export const DEFAULT_BREAKPOINTS: Breakpoint[] = [
+  { id: DESKTOP_BREAKPOINT_ID, label: 'Desktop', width: 1440 },
+  { id: 'tablet', label: 'Tablet', width: 768 },
+  { id: 'mobile', label: 'Mobile', width: 390 },
+];
 
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   artboardBackground: '#0f0f0f',
   canvasWidth: 1440,
   canvasOverflowHidden: false,
+  breakpoints: DEFAULT_BREAKPOINTS,
 };
 
 /** Canvas-width bounds used by both the panel control and the parser. */
@@ -141,6 +171,14 @@ export type FilePatchArgs = {
   cssPath: string;
   className: string;
   newDeclarations: string;
+  /**
+   * When present, the patch operates on the class rule INSIDE an
+   * `@media (max-width: Npx)` block rather than on the base class.
+   * The at-rule is created if it doesn't already exist; the class
+   * rule is created inside it if missing. Omit for a base-class
+   * patch (existing behavior).
+   */
+  media?: { maxWidth: number };
 };
 
 export type FileChangedPayload = {

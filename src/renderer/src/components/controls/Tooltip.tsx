@@ -3,8 +3,14 @@ import { createPortal } from 'react-dom';
 import styles from './Tooltip.module.css';
 
 type Props = {
-  /** Tooltip text shown on hover. */
+  /** Tooltip body text shown on hover. Supports `\n` line breaks. */
   label: string;
+  /**
+   * Optional header rendered above the body with a subtle
+   * border-bottom separator. Used by richer tooltips (e.g. the
+   * section override indicator's "Style Overrides" block).
+   */
+  header?: string;
   /**
    * The element to hover over. Must be a single React element that can
    * accept `onMouseEnter` / `onMouseLeave` / `onFocus` / `onBlur` handlers.
@@ -27,7 +33,12 @@ type Position = {
  * The wrapper clones the child and attaches hover/focus handlers — it
  * doesn't add an extra DOM node, so layout of the trigger is preserved.
  */
-export const Tooltip = ({ label, children, delay = 400 }: Props): JSX.Element => {
+export const Tooltip = ({
+  label,
+  header,
+  children,
+  delay = 400,
+}: Props): JSX.Element => {
   const [position, setPosition] = useState<Position | null>(null);
   const timerRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -104,6 +115,9 @@ export const Tooltip = ({ label, children, delay = 400 }: Props): JSX.Element =>
             }}
             role="tooltip"
           >
+            {header !== undefined && (
+              <p className={styles.tooltipHeader}>{header}</p>
+            )}
             <p className={styles.tooltipText}>{label}</p>
           </div>,
           document.body
