@@ -32,6 +32,7 @@ import type {
   TerminalKillArgs,
   TerminalResizeArgs,
   TerminalWriteArgs,
+  TestBootstrap,
 } from '@shared/types';
 
 /**
@@ -147,6 +148,12 @@ const api = {
     ipcRenderer.on(IPC.TerminalExit, listener);
     return () => ipcRenderer.removeListener(IPC.TerminalExit, listener);
   },
+
+  // E2E test bootstrap. Returns { e2e: false, autoOpenProjectPath: null }
+  // in normal use; only populated when the main process was launched
+  // with SCAMP_E2E=1.
+  getTestBootstrap: (): Promise<TestBootstrap> =>
+    ipcRenderer.invoke(IPC.TestGetBootstrap),
 };
 
 contextBridge.exposeInMainWorld('scamp', api);

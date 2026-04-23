@@ -1,5 +1,7 @@
-import { app, BrowserWindow, nativeTheme, net, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, session, shell } from 'electron';
 import { join } from 'path';
+import { IPC } from '@shared/ipcChannels';
+import type { TestBootstrap } from '@shared/types';
 import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
@@ -10,6 +12,18 @@ import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
 import { initWatcher, disposeWatcher } from './watcher';
+
+const TEST_BOOTSTRAP: TestBootstrap = {
+  e2e: process.env['SCAMP_E2E'] === '1',
+  autoOpenProjectPath:
+    process.env['SCAMP_E2E'] === '1'
+      ? process.env['SCAMP_E2E_OPEN_PROJECT'] ?? null
+      : null,
+};
+
+const registerTestIpc = (): void => {
+  ipcMain.handle(IPC.TestGetBootstrap, (): TestBootstrap => TEST_BOOTSTRAP);
+};
 
 // Prevent unhandled rejections from silently killing the main process.
 // chokidar callbacks, IPC handlers, and file I/O all run async — a
@@ -119,6 +133,7 @@ app.whenReady().then(() => {
   registerTerminalIpc();
   registerThemeIpc();
   registerImageIpc();
+  registerTestIpc();
 
   createWindow();
 

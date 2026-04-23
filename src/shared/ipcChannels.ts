@@ -50,6 +50,9 @@ export const IPC = {
   TerminalKill: 'terminal:kill',
   TerminalData: 'terminal:data',
   TerminalExit: 'terminal:exit',
+
+  // E2E test bootstrap (only live when SCAMP_E2E=1)
+  TestGetBootstrap: 'test:getBootstrap',
 } as const;
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

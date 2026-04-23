@@ -265,3 +265,13 @@ export type TerminalExitPayload = {
   id: string;
   exitCode: number;
 };
+
+/**
+ * Returned by `test:getBootstrap`. Off in normal usage; only populated
+ * when the app is launched with `SCAMP_E2E=1`. The renderer uses this
+ * to skip the Start Screen and auto-open a test project.
+ */
+export type TestBootstrap = {
+  e2e: boolean;
+  autoOpenProjectPath: string | null;
+};

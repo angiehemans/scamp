@@ -24,6 +24,22 @@ export const App = (): JSX.Element => {
     void useFontsStore.getState().loadSystemFonts();
   }, []);
 
+  // E2E hook: when the main process was launched with SCAMP_E2E=1 and
+  // SCAMP_E2E_OPEN_PROJECT points at a seeded project folder, skip the
+  // Start Screen and jump straight into that project. Disabled in
+  // normal use — the bootstrap flags are null unless the env var is set.
+  useEffect(() => {
+    void (async () => {
+      const bootstrap = await window.scamp.getTestBootstrap();
+      if (!bootstrap.e2e || !bootstrap.autoOpenProjectPath) return;
+      const opened = await window.scamp.openProject({
+        folderPath: bootstrap.autoOpenProjectPath,
+      });
+      setProject(opened);
+      setView('project');
+    })();
+  }, []);
+
   if (view === 'settings') {
     return (
       <SettingsPage
