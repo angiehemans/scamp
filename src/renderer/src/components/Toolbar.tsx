@@ -56,13 +56,15 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
   }, [setTool]);
 
   return (
-    <div className={styles.toolbar}>
+    <div className={styles.toolbar} data-testid="element-toolbar" data-active-tool={activeTool}>
       {TOOLS.map((t) => (
         <Tooltip key={t.tool} label={`${t.label} (${t.shortcut})`}>
           <button
             className={`${styles.button} ${activeTool === t.tool ? styles.active : ''}`}
             onClick={() => setTool(t.tool)}
             type="button"
+            aria-pressed={activeTool === t.tool}
+            data-tool={t.tool}
           >
             {t.icon}
             {t.label}

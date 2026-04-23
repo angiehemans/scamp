@@ -93,6 +93,8 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="dialog"
           aria-expanded={open}
+          data-testid="canvas-size-button"
+          data-active-breakpoint={activeBreakpointId}
         >
           {buttonLabel}
           <span className={styles.caret} aria-hidden="true">
@@ -101,7 +103,7 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
         </button>
       </Tooltip>
       {open && (
-        <div className={styles.popover} role="dialog">
+        <div className={styles.popover} role="dialog" data-testid="canvas-size-popover">
           <div className={styles.sectionLabel}>Breakpoint</div>
           <div className={styles.presetGrid}>
             {config.breakpoints.map((bp) => (

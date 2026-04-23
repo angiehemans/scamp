@@ -446,7 +446,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={styles.dialog}>
+      <div className={styles.dialog} data-testid="theme-panel">
         <div className={styles.header}>
           <h2 className={styles.title}>Theme Tokens</h2>
           <button

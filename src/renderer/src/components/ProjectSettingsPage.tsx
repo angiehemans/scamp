@@ -145,6 +145,11 @@ const BreakpointsEditor = ({
                 className={styles.bpRemove}
                 onClick={() => removeAt(idx)}
                 disabled={isDesktop}
+                aria-label={
+                  isDesktop
+                    ? `Remove ${bp.label} (disabled)`
+                    : `Remove ${bp.label}`
+                }
                 title={
                   isDesktop
                     ? 'Desktop is the base breakpoint and cannot be removed'

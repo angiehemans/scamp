@@ -6,6 +6,40 @@ import { promises as fs } from 'fs';
 import { createTestProject, type TestProject } from './project';
 
 /**
+ * Replace `dialog.showOpenDialog` in the main process so the next call
+ * resolves to `filePaths: [filePath]` without opening a native dialog.
+ * Used by image-tool / background-image specs that would otherwise
+ * hang on a real file picker. The patch lives for the rest of the
+ * Electron session — tests should re-stub per scenario if needed.
+ */
+export const stubOpenDialog = async (
+  app: ElectronApplication,
+  filePath: string
+): Promise<void> => {
+  await app.evaluate(({ dialog }, p) => {
+    const patched = async (): Promise<{ canceled: boolean; filePaths: string[] }> => ({
+      canceled: false,
+      filePaths: [p],
+    });
+    // Playwright gives us access to the live `dialog` module — override
+    // both showOpenDialog and its sync variant just in case.
+    dialog.showOpenDialog = patched as typeof dialog.showOpenDialog;
+  }, filePath);
+};
+
+/** A minimal 1x1 PNG suitable for image-tool tests. */
+const PNG_BYTES = Buffer.from(
+  '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63f8cfc0f01f00050001ff5ca2bf430000000049454e44ae426082',
+  'hex'
+);
+
+export const writeFixtureImage = async (dir: string, name = 'pixel.png'): Promise<string> => {
+  const filePath = path.join(dir, name);
+  await fs.writeFile(filePath, PNG_BYTES);
+  return filePath;
+};
+
+/**
  * Path to the built Electron main entry. `npm run build` must have been
  * executed before launching — Playwright doesn't start the dev server.
  */

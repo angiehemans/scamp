@@ -51,7 +51,7 @@ export const Section = ({
 
   if (!collapsible) {
     return (
-      <section className={styles.section}>
+      <section className={styles.section} data-panel-section={title}>
         <div className={styles.titleRow}>
           <h3 className={styles.heading}>{title}</h3>
           {indicator}
@@ -63,7 +63,7 @@ export const Section = ({
 
   const handleToggle = (): void => setOpen((v) => !v);
   return (
-    <section className={styles.section}>
+    <section className={styles.section} data-panel-section={title}>
       <div className={styles.titleRow}>
         <button
           className={styles.toggle}
@@ -119,6 +119,7 @@ const OverrideIndicator = ({
         className={styles.overrideDot}
         onContextMenu={handleContextMenu}
         aria-label={`Overridden styles: ${label}`}
+        data-testid="override-dot"
       />
     </Tooltip>
   );

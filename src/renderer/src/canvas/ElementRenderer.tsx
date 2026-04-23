@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
-import { tagFor } from '@lib/generateCode';
+import { classNameFor, tagFor } from '@lib/generateCode';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { customPropsToStyle } from '@lib/customProps';
 import type { ThemeToken } from '@shared/types';
@@ -363,7 +363,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   // text directly inside (so the tag wraps the text the way real HTML
   // does), rectangles render their child elements recursively.
   const props: Record<string, unknown> = {
-    'data-scamp-id': element.id,
+    // `data-scamp-id` mirrors the CSS class name, matching what the code
+    // generator writes to disk. `data-element-id` is the raw internal id
+    // used by canvas hit-testing and selection — keep it separate so
+    // renames don't force a refactor of every lookup site.
+    'data-scamp-id': classNameFor(element),
     'data-element-id': element.id,
     className: `${styles.element} ${isSelected ? styles.selected : ''} ${
       isText && isEditing ? styles.textEditing : ''

@@ -92,8 +92,9 @@ export const PrefixSuffixInput = ({
     ? `${styles.colorInputRow} ${styles.colorInputRowSwatch}`
     : styles.colorInputRow;
 
+  const prefixAttr = typeof prefix === 'string' ? prefix : undefined;
   const row = (
-    <div className={rowClass}>
+    <div className={rowClass} data-prefix={prefixAttr}>
       {prefix !== undefined &&
         (typeof prefix === 'string' ? (
           <span className={styles.inputPrefix}>{prefix}</span>

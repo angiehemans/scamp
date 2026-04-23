@@ -47,14 +47,22 @@ export const PropertiesPanel = (): JSX.Element => {
 
   if (!selectedId) {
     return (
-      <aside className={styles.panel}>
+      <aside
+        className={styles.panel}
+        data-testid="properties-panel"
+        data-panel-mode="empty"
+      >
         <ShortcutsTable />
       </aside>
     );
   }
 
   return (
-    <aside className={styles.panel}>
+    <aside
+      className={styles.panel}
+      data-testid="properties-panel"
+      data-panel-mode={panelMode}
+    >
       <PanelHeader />
       <PanelModeToggle />
       {panelMode === 'ui' ? <UiPanel /> : <CssPanel />}

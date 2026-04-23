@@ -150,6 +150,9 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      data-testid="layers-row"
+      data-element-id={element.id}
+      data-element-class={classNameFor(element)}
     >
       {showBefore && <div className={styles.dropLine} />}
       <Tooltip label={`.${classNameFor(element)}`}>

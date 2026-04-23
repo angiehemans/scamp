@@ -85,6 +85,8 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
   return (
     <div
       className={styles.panel}
+      data-testid="terminal-panel"
+      data-hidden={hidden ? 'true' : 'false'}
       // Hidden mode keeps the DOM tree (and the pty processes inside
       // each TerminalView) alive while occupying zero layout space.
       style={hidden ? { display: 'none' } : undefined}

@@ -118,6 +118,9 @@ export const Viewport = ({
       <div
         ref={frameRef}
         className={styles.frame}
+        data-testid="canvas-frame"
+        data-canvas-width={frameW}
+        data-canvas-scale={scale}
         data-cursor={
           activeTool === 'rectangle' || activeTool === 'image'
             ? 'crosshair'

@@ -1,5 +1,8 @@
+import { expect, type Page } from '@playwright/test';
 import { promises as fs } from 'fs';
 import * as path from 'path';
+
+import { saveStatus } from './selectors';
 
 export type PageFiles = {
   tsx: string;
@@ -27,4 +30,16 @@ export const projectFileExists = async (
   } catch {
     return false;
   }
+};
+
+/**
+ * Wait until the save-status indicator lands on `saved`. The sync
+ * bridge debounces writes ~200 ms, then the IPC round-trip + watcher
+ * ack take another beat — settle time is usually <1 s in tests but
+ * can spike on slow CI, so we give this a generous timeout.
+ */
+export const waitForSaved = async (page: Page, timeout = 10_000): Promise<void> => {
+  await expect(saveStatus(page)).toHaveAttribute('data-status', 'saved', {
+    timeout,
+  });
 };

@@ -150,7 +150,7 @@ export const TokenOrNumberInput = ({
   };
 
   const rowEl = (
-    <div className={styles.row}>
+    <div className={styles.row} data-prefix={prefix}>
       {prefix && <span className={styles.prefix}>{prefix}</span>}
       {showingToken ? (
         <div className={styles.pill}>

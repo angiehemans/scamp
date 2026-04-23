@@ -746,7 +746,10 @@ export const ProjectShell = ({
               </button>
             )}
           </div>
-          <div className={`${styles.sidebarSection} ${styles.sidebarLayers}`}>
+          <div
+            className={`${styles.sidebarSection} ${styles.sidebarLayers}`}
+            data-testid="layers-panel"
+          >
             <h2 className={styles.sidebarTitle}>Layers</h2>
             <ElementTree />
           </div>
