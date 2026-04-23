@@ -9,8 +9,8 @@
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
-  background: #232323;
-  border-bottom: 1px solid #333;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-strong);
 }
 
 /* The artboard is the vertical column between the two sidebars. It
@@ -24,7 +24,7 @@
   position: relative;
   min-width: 0;
   min-height: 0;
-  background: #0f0f0f;
+  background: var(--bg-canvas);
 }
 
 /* The actual scroll container. `inset: 0` fills the artboard so its
@@ -67,8 +67,8 @@
   align-items: center;
   padding: 6px 12px;
   background: #222222;
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
 }
 
 /* Let the inner Toolbar span the strip so its own spacer pushes the
@@ -99,8 +99,8 @@
   padding: 4px 8px;
   background: #222222;
   border: none;
-  border-radius: 4px;
-  color: #c0c0c0;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
@@ -109,22 +109,22 @@
 }
 
 .canvasHeaderBadge:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .backButton {
   background: none;
   border: none;
-  color: #e6e6e6;
+  color: var(--text-primary);
 font-size: 14px;
   cursor: pointer;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .backButton:hover {
-  background: #333;
+  background: var(--border-strong);
 }
 
 .projectName {
@@ -137,29 +137,29 @@ font-size: 14px;
 }
 
 .toggleButton {
-  background: #1f1f1f;
+  background: var(--bg-raised);
   border: none;
-  color: #c0c0c0;
+  color: var(--text-primary);
 font-size: 13px;
   font-weight: 500;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   margin-right: 8px;
 }
 
 .toggleButton:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .toggleActive {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 .toggleActive:hover {
-  background: #3b82f6;
+  background: var(--accent);
 }
 
 .body {
@@ -170,8 +170,8 @@ font-size: 13px;
 
 .sidebar {
   width: 240px;
-  background: #1a1a1a;
-  border-right: 1px solid #2c2c2c;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -179,7 +179,7 @@ font-size: 13px;
 
 .sidebarSection {
   padding: 12px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -208,7 +208,7 @@ font-size: 13px;
 font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #777;
+  color: var(--text-secondary);
   letter-spacing: 0.5px;
 }
 
@@ -226,20 +226,20 @@ font-size: 12px;
   text-align: left;
   background: none;
   border: none;
-  color: #e6e6e6;
+  color: var(--text-primary);
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 font-size: 14px;
   cursor: pointer;
 }
 
 .pageButton:hover {
-  background: #2c2c2c;
+  background: var(--bg-hover);
 }
 
 .pageActive {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .addPageButton {
@@ -247,9 +247,9 @@ font-size: 14px;
   width: 100%;
   text-align: left;
   background: transparent;
-  border: 1px dashed #3a3a3a;
-  border-radius: 4px;
-  color: #888;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   padding: 6px 10px;
   font-size: 13px;
   cursor: pointer;
@@ -257,8 +257,8 @@ font-size: 14px;
 }
 
 .addPageButton:hover {
-  background: #2c2c2c;
-  color: #ccc;
+  background: var(--bg-hover);
+  color: var(--text-primary);
   border-color: #4a4a4a;
 }
 
@@ -267,22 +267,22 @@ font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0f0f0f;
+  background: var(--bg-canvas);
 }
 
 .placeholder {
   text-align: center;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .dim {
 font-size: 13px;
-  color: #555;
+  color: var(--text-tertiary);
 }
 
 .placeholder code {
-  background: #232323;
+  background: var(--bg-header);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 font-size: 12px;
 }

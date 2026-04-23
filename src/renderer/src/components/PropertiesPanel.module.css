@@ -1,7 +1,7 @@
 .panel {
   width: 260px;
-  background: #1a1a1a;
-  border-left: 1px solid #2c2c2c;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -10,7 +10,7 @@
 .placeholder {
   padding: 24px 16px;
   font-size: 13px;
-  color: #666;
+  color: var(--text-tertiary);
   text-align: center;
 }
 
@@ -24,7 +24,7 @@
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: #888;
+  color: var(--text-secondary);
   margin: 0 0 12px;
 }
 
@@ -34,7 +34,7 @@
 }
 
 .shortcutsTable tr {
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
 }
 
 .shortcutsTable td {
@@ -44,7 +44,7 @@
 }
 
 .shortcutKeys {
-  color: #ccc;
+  color: var(--text-primary);
   white-space: nowrap;
   width: 1%;
   padding-right: 12px;
@@ -52,7 +52,7 @@
 }
 
 .shortcutDesc {
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .header {
@@ -60,7 +60,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
 }
 
 .label {
@@ -68,29 +68,29 @@ font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .className {
 font-size: 13px;
   color: #cfe0fb;
-  background: #0f0f0f;
+  background: var(--bg-canvas);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .multiBadge {
   margin-left: auto;
 font-size: 11px;
-  color: #f5d199;
-  background: #2c2618;
+  color: var(--warn-text);
+  background: var(--warn-bg);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .modeToggleWrap {
   padding: 8px 12px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
 }
 
 .uiPanelBody {
@@ -113,21 +113,21 @@ font-size: 13px;
 }
 
 .editorWrap :global(.cm-scroller) {
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
 }
 
 .error {
   padding: 8px 12px;
-  background: #4b1d1d;
-  color: #fca5a5;
+  background: var(--error-bg);
+  color: var(--error-text);
 font-size: 13px;
-  border-top: 1px solid #2c2c2c;
+  border-top: 1px solid var(--border);
 }
 
 .unmapped {
   padding: 8px 12px;
-  background: #2c2618;
-  color: #f5d199;
+  background: var(--warn-bg);
+  color: var(--warn-text);
 font-size: 12px;
   border-top: 1px solid #3a2e1c;
 }
@@ -135,14 +135,14 @@ font-size: 12px;
 .hint {
   padding: 8px 12px;
 font-size: 11px;
-  color: #555;
-  border-top: 1px solid #2c2c2c;
+  color: var(--text-tertiary);
+  border-top: 1px solid var(--border);
   line-height: 1.5;
 }
 
 .hint code {
-  background: #0f0f0f;
+  background: var(--bg-canvas);
   padding: 1px 4px;
   border-radius: 3px;
-  color: #888;
+  color: var(--text-secondary);
 }

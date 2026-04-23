@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   height: 280px;
-  background: #0f0f0f;
-  border-top: 1px solid #2c2c2c;
+  background: var(--bg-canvas);
+  border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -12,8 +12,8 @@
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  background: #1f1f1f;
-  border-bottom: 1px solid #2c2c2c;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
 }
 
 .title {
@@ -21,7 +21,7 @@ font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #888;
+  color: var(--text-secondary);
   margin-right: 4px;
 }
 
@@ -37,25 +37,25 @@ font-size: 12px;
   gap: 6px;
   padding: 4px 8px;
   background: #161616;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 font-size: 12px;
-  color: #c0c0c0;
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .tab:hover {
-  background: #232323;
+  background: var(--bg-header);
 }
 
 .tabActive {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .tabClose {
   background: none;
   border: none;
-  color: #777;
+  color: var(--text-secondary);
 font-size: 13px;
   cursor: pointer;
   padding: 0;
@@ -63,7 +63,7 @@ font-size: 13px;
 }
 
 .tabClose:hover {
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .badge {
@@ -73,8 +73,8 @@ font-size: 13px;
   min-width: 16px;
   height: 14px;
   padding: 0 4px;
-  background: #ef4444;
-  color: #fff;
+  background: var(--status-error);
+  color: var(--text-inverse);
   font-size: 10px;
   font-weight: 600;
   border-radius: 7px;
@@ -84,18 +84,18 @@ font-size: 13px;
 .addTab {
   background: none;
   border: 1px dashed #444;
-  color: #777;
+  color: var(--text-secondary);
 font-size: 13px;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   line-height: 1;
 }
 
 .addTab:hover {
   border-color: #666;
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .spacer {
@@ -105,16 +105,16 @@ font-size: 13px;
 .closePanel {
   background: none;
   border: none;
-  color: #777;
+  color: var(--text-secondary);
 font-size: 17px;
   cursor: pointer;
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .closePanel:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .body {

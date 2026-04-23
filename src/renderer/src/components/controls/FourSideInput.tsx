@@ -1,6 +1,4 @@
-import { KeyboardEvent, useEffect, useState } from 'react';
-import { Tooltip } from './Tooltip';
-import styles from './Controls.module.css';
+import { PrefixSuffixInput } from './PrefixSuffixInput';
 
 type FourSideValue = [number, number, number, number];
 
@@ -60,42 +58,30 @@ const toShorthand = (v: FourSideValue): string => {
   return `${t} ${r} ${b} ${l}`;
 };
 
+const tupleEq = (a: FourSideValue, b: FourSideValue): boolean =>
+  a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+
 /**
  * A single text input for editing a [top, right, bottom, left] tuple using
  * CSS shorthand notation. Accepts 1–4 values separated by spaces or commas.
  *
- * Shows a preview of the resolved individual sides below the input when the
- * sides differ. Invalid input reverts on blur.
+ * Invalid input reverts on blur via the PrefixSuffixInput value sync.
  */
-export const FourSideInput = ({ value, onChange, min = 0, prefix, title }: Props): JSX.Element => {
-  const [draft, setDraft] = useState(toShorthand(value));
-
-  useEffect(() => {
-    setDraft(toShorthand(value));
-  }, [value]);
-
-  const commit = (): void => {
+export const FourSideInput = ({
+  value,
+  onChange,
+  min = 0,
+  prefix,
+  title,
+}: Props): JSX.Element => {
+  const handleCommit = (draft: string): void => {
     const parsed = parseShorthand(draft, min);
-    if (!parsed) {
-      // Invalid — revert to current value.
-      setDraft(toShorthand(value));
-      return;
-    }
-    const changed =
-      parsed[0] !== value[0] ||
-      parsed[1] !== value[1] ||
-      parsed[2] !== value[2] ||
-      parsed[3] !== value[3];
-    if (changed) onChange(parsed);
-    setDraft(toShorthand(parsed));
+    if (!parsed) return;
+    if (!tupleEq(parsed, value)) onChange(parsed);
   };
 
-  /**
-   * Step every side by the same delta. When the current draft doesn't
-   * parse, fall back to the committed `value` so a garbage-in state
-   * can't strand the user.
-   */
-  const step = (delta: number): void => {
+  const handleArrow = (draft: string, direction: 1 | -1, shift: boolean): void => {
+    const delta = (shift ? 10 : 1) * direction;
     const base = parseShorthand(draft, min) ?? value;
     const next: FourSideValue = [
       Math.max(min, base[0] + delta),
@@ -103,49 +89,21 @@ export const FourSideInput = ({ value, onChange, min = 0, prefix, title }: Props
       Math.max(min, base[2] + delta),
       Math.max(min, base[3] + delta),
     ];
-    const changed =
-      next[0] !== value[0] ||
-      next[1] !== value[1] ||
-      next[2] !== value[2] ||
-      next[3] !== value[3];
-    setDraft(toShorthand(next));
-    if (changed) onChange(next);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter') {
-      e.currentTarget.blur();
-      return;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      step(e.shiftKey ? 10 : 1);
-      return;
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      step(e.shiftKey ? -10 : -1);
-      return;
-    }
+    if (!tupleEq(next, value)) onChange(next);
   };
 
   const allEqual = value[0] === value[1] && value[1] === value[2] && value[2] === value[3];
   const tooltip =
     title ?? (!allEqual ? `T:${value[0]} R:${value[1]} B:${value[2]} L:${value[3]}` : undefined);
 
-  const body = (
-    <div className={styles.colorInputRow}>
-      {prefix && <span className={styles.inputPrefix}>{prefix}</span>}
-      <input
-        type="text"
-        className={styles.colorText}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={handleKeyDown}
-        placeholder="0"
-      />
-    </div>
+  return (
+    <PrefixSuffixInput
+      value={toShorthand(value)}
+      onCommit={handleCommit}
+      onArrow={handleArrow}
+      prefix={prefix}
+      placeholder="0"
+      title={tooltip}
+    />
   );
-  return tooltip ? <Tooltip label={tooltip}>{body}</Tooltip> : body;
 };

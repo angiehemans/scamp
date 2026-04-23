@@ -28,14 +28,14 @@
  * always sits at the element's true rendered position. `outline-offset:
  * -2px` draws the outline 2px inside the element bounds. */
 .selected {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
 /* Text-edit mode lives on the element itself now (the dynamic tag IS
  * the contentEditable target), so the dashed indicator goes there. */
 .textEditing {
-  outline: 1px dashed #3b82f6 !important;
+  outline: 1px dashed var(--accent) !important;
   outline-offset: 2px !important;
   cursor: text;
 }

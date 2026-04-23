@@ -8,25 +8,25 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #1f1f1f;
+  background: var(--bg-raised);
   border: none;
-  color: #c0c0c0;
+  color: var(--text-primary);
   font-size: 12px;
   font-weight: 500;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
 
 .button:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .caret {
   font-size: 10px;
-  color: #777;
+  color: var(--text-secondary);
 }
 
 .popover {
@@ -34,9 +34,9 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 240px;
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
   padding: 12px;
   z-index: 100;
@@ -48,7 +48,7 @@
 .sectionLabel {
   font-size: 11px;
   font-weight: 600;
-  color: #888;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -64,25 +64,25 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  background: #1f1f1f;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
-  color: #c0c0c0;
+  color: var(--text-primary);
   font-size: 12px;
   cursor: pointer;
   text-align: left;
 }
 
 .presetButton:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .presetActive {
-  background: #2c3a5a;
-  border-color: #3b82f6;
-  color: #fff;
+  background: var(--info-border);
+  border-color: var(--accent);
+  color: var(--text-inverse);
 }
 
 .presetActive:hover {
@@ -95,7 +95,7 @@
 
 .presetWidth {
   font-size: 11px;
-  color: #777;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -109,34 +109,11 @@
   gap: 6px;
 }
 
-.input {
-  flex: 1;
-  min-width: 0;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
-  padding: 0 6px;
-  font-size: 13px;
-  color: #e0e0e0;
-  font-variant-numeric: tabular-nums;
-}
-
-.input:focus {
-  outline: none;
-  border-color: #4a8cff;
-}
-
-.unit {
-  font-size: 12px;
-  color: #777;
-}
-
 .toggleRow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #c0c0c0;
+  color: var(--text-primary);
   cursor: pointer;
 }

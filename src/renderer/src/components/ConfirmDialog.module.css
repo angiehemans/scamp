@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,9 +11,9 @@
 .dialog {
   width: 360px;
   max-width: calc(100vw - 32px);
-  background: #1f1f1f;
-  border: 1px solid #2c2c2c;
-  border-radius: 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   box-shadow: rgba(0, 0, 0, 0.5) 0 8px 32px;
   padding: 20px;
 }
@@ -22,58 +22,18 @@
   margin: 0 0 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .message {
   margin: 0 0 20px;
   font-size: 13px;
   line-height: 1.5;
-  color: #bbb;
+  color: var(--text-primary);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.cancelButton,
-.confirmButton,
-.destructiveButton {
-  padding: 6px 14px;
-  font-size: 13px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.cancelButton {
-  background: transparent;
-  color: #ccc;
-  border: 1px solid #3a3a3a;
-}
-
-.cancelButton:hover {
-  background: #2c2c2c;
-}
-
-.confirmButton {
-  background: #4a8cff;
-  color: #fff;
-  border: 1px solid #4a8cff;
-}
-
-.confirmButton:hover {
-  background: #5a9cff;
-}
-
-.destructiveButton {
-  background: #c94040;
-  color: #fff;
-  border: 1px solid #c94040;
-}
-
-.destructiveButton:hover {
-  background: #d95050;
 }

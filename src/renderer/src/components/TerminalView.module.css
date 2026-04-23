@@ -1,7 +1,7 @@
 .terminal {
   width: 100%;
   height: 100%;
-  background: #0f0f0f;
+  background: var(--bg-canvas);
   padding: 6px 8px;
   box-sizing: border-box;
 }

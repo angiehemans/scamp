@@ -1,6 +1,6 @@
 .preview {
   position: absolute;
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px dashed #3b82f6;
+  background: rgba(74, 140, 255, 0.15);
+  border: 1px dashed var(--accent);
   pointer-events: none;
 }

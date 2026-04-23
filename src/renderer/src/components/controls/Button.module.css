@@ -1,0 +1,72 @@
+.button {
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* ---------- Sizes ---------- */
+.sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.md {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* ---------- Variants ---------- */
+.primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+}
+
+.primary:not(:disabled):hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.secondary {
+  background: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.secondary:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.destructive {
+  background: var(--status-error);
+  color: var(--text-inverse);
+  border-color: var(--status-error);
+}
+
+.destructive:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.ghost:not(:disabled):hover {
+  background: var(--bg-hover);
+}

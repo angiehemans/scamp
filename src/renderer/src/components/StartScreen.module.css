@@ -12,8 +12,8 @@
 .sidebar {
   width: 240px;
   flex-shrink: 0;
-  background: #1a1a1a;
-  border-right: 1px solid #2c2c2c;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding: 24px 16px;
@@ -28,7 +28,7 @@
 .sidebarSubtitle {
   margin: 0 0 32px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-tertiary);
 }
 
 .sidebarActions {
@@ -52,12 +52,12 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 10px;
 }
 
 .footerPath {
-  color: #888;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -72,7 +72,7 @@
 .linkButton {
   background: none;
   border: none;
-  color: #3b82f6;
+  color: var(--accent);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -90,7 +90,7 @@
 .secondary {
   width: 100%;
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: none;
   font-size: 14px;
   font-weight: 500;
@@ -99,8 +99,8 @@
 }
 
 .primary {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 .primary:hover {
@@ -113,8 +113,8 @@
 }
 
 .secondary {
-  background: #333;
-  color: #e6e6e6;
+  background: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .secondary:hover {
@@ -138,7 +138,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .recentList {
@@ -153,12 +153,12 @@
 .recentItem {
   display: flex;
   align-items: stretch;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .recentItem:hover {
-  background: #1f1f1f;
+  background: var(--bg-raised);
 }
 
 .recentMissing {
@@ -190,12 +190,12 @@
 
 .recentPath {
   font-size: 12px;
-  color: #666;
+  color: var(--text-tertiary);
 }
 
 .recentLabel {
   font-size: 12px;
-  color: #fca5a5;
+  color: var(--error-text);
 }
 
 .recentRemove {
@@ -209,7 +209,7 @@
 }
 
 .recentRemove:hover {
-  color: #e6e6e6;
+  color: var(--text-primary);
 }
 
 /* ---- Empty + welcome states ---- */
@@ -219,7 +219,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
@@ -242,20 +242,20 @@
 .welcomeText {
   margin: 0;
   font-size: 14px;
-  color: #888;
+  color: var(--text-secondary);
   max-width: 400px;
   line-height: 1.5;
 }
 
 .welcomeButton {
   padding: 10px 24px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: none;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  background: #3b82f6;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
   font-family: inherit;
 }
 
@@ -268,8 +268,8 @@
 .error {
   margin-bottom: 8px;
   padding: 8px 12px;
-  background: #4b1d1d;
-  color: #fca5a5;
-  border-radius: 6px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-radius: var(--radius-md);
   font-size: 13px;
 }

@@ -1,4 +1,6 @@
 import { useEffect } from 'react';
+import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
+import { Button } from './controls/Button';
 import styles from './ConfirmDialog.module.css';
 
 type Props = {
@@ -26,19 +28,18 @@ export const ConfirmDialog = ({
   onConfirm,
   onCancel,
 }: Props): JSX.Element => {
+  useDialogBackdrop({ onClose: onCancel });
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onCancel();
-      } else if (e.key === 'Enter') {
+      if (e.key === 'Enter') {
         e.preventDefault();
         onConfirm();
       }
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onConfirm, onCancel]);
+  }, [onConfirm]);
 
   return (
     <div className={styles.backdrop} onClick={onCancel}>
@@ -51,19 +52,16 @@ export const ConfirmDialog = ({
         <h2 className={styles.title}>{title}</h2>
         <p className={styles.message}>{message}</p>
         <div className={styles.actions}>
-          <button className={styles.cancelButton} onClick={onCancel} type="button">
+          <Button variant="ghost" onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            className={
-              variant === 'destructive' ? styles.destructiveButton : styles.confirmButton
-            }
+          </Button>
+          <Button
+            variant={variant === 'destructive' ? 'destructive' : 'primary'}
             onClick={onConfirm}
-            type="button"
             autoFocus
           >
             {confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

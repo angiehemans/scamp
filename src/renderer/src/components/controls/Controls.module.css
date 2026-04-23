@@ -14,7 +14,7 @@
 .label {
   font-size: 12px;
   font-weight: 600;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .row {
@@ -27,32 +27,32 @@
 .input {
   flex: 1;
   min-width: 0;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 0 6px;
   font-size: 14px;
-  color: #e0e0e0;
-  font-family: 'Ubuntu Mono', monospace;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
 .input:focus {
   outline: none;
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }
 
 /* Inline prefix label inside an input row (e.g. "W", "H", "P", "M"). */
 .inputPrefix {
   font-size: 16px;
   font-weight: 400;
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 /* Inline suffix — unit hint (e.g. "%" icon) at the right of an input row. */
 .inputSuffix {
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -68,7 +68,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-right: 1px solid #2c2c2c;
+  border-right: 1px solid var(--border);
   border-radius: 3px 0 0 3px;
   cursor: pointer;
   flex-shrink: 0;
@@ -89,17 +89,17 @@
 }
 
 /* Integrated input row: optional prefix label + text input, one box.
-   Matches the design's 24px height, #151515 bg, 4px radius. */
+   Matches the design's 24px height, inset-input bg, 4px radius. */
 .colorInputRow {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
-  min-height: 24px;
-  max-height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  max-height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 0 6px;
   /* flex: 1 1 0 forces equal sizing when multiple inputs share a row,
      regardless of content width differences (e.g. "0 2 2 0" vs "4"). */
@@ -122,8 +122,8 @@
   border: none;
   padding: 0 6px;
   font-size: 14px;
-  color: #e0e0e0;
-  font-family: 'Ubuntu Mono', monospace;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
 .colorText:focus {
@@ -140,27 +140,17 @@
   /* Match the SketchPicker's rendered size (including padding/border)
      so the panel doesn't resize when switching tabs. */
   width: 231px;
-  background: #1f1f1f;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-}
-
-.colorPopoverAbove {
-  /* Direction handled by inline style. */
-}
-
-.colorPopoverBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9;
 }
 
 .pickerTabs {
   display: flex;
-  background: #1f1f1f;
-  border-bottom: 1px solid #2c2c2c;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
 }
 
 .pickerTab {
@@ -170,7 +160,7 @@
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 600;
-  color: #777;
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: inherit;
   text-transform: uppercase;
@@ -178,16 +168,16 @@
 }
 
 .pickerTab:hover {
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .pickerTabActive {
-  color: #e0e0e0;
-  border-bottom: 2px solid #4a8cff;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--accent);
 }
 
 .tokenList {
-  background: #1f1f1f;
+  background: var(--bg-raised);
   /* Fixed height matching the SketchPicker body so switching tabs
      doesn't resize the popover. */
   height: 307px;
@@ -203,7 +193,7 @@
   padding: 8px 10px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
@@ -214,29 +204,29 @@
 }
 
 .tokenListItem:hover {
-  background: #2c2c2c;
+  background: var(--bg-hover);
 }
 
 .tokenListItemActive {
-  background: #1d3a6e;
+  background: var(--accent-dark);
 }
 
 .tokenListItemActive:hover {
-  background: #1d3a6e;
+  background: var(--accent-dark);
 }
 
 .tokenListSwatch {
   width: 18px;
   height: 18px;
   border-radius: 3px;
-  border: 1px solid #2c2c2c;
+  border: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .tokenListName {
   flex: 1;
   font-size: 12px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -245,12 +235,12 @@
 
 .tokenListValue {
   font-size: 11px;
-  color: #666;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 
 .inputToken {
-  color: #4a8cff;
+  color: var(--accent);
 }
 
 .tokenListEmpty {
@@ -259,24 +249,24 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
 .tokenListAddButton {
   background: transparent;
-  border: 1px dashed #2c2c2c;
-  border-radius: 4px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
   padding: 6px 14px;
-  color: #888;
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
 }
 
 .tokenListAddButton:hover {
-  color: #e0e0e0;
-  border-color: #4a8cff;
+  color: var(--text-primary);
+  border-color: var(--accent);
 }
 
 /* ---- react-color SketchPicker dark-mode overrides ----
@@ -286,13 +276,13 @@
  * leak outside the color picker. */
 
 .sketchDark input {
-  background: #151515 !important;
-  color: #e0e0e0 !important;
-  border: 1px solid #2c2c2c !important;
-  border-radius: 4px !important;
+  background: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
   padding: 5px 4px 4px !important;
 font-size: 12px !important;
-  font-family: 'Ubuntu Mono', monospace !important;
+  font-family: var(--font-ui) !important;
   box-shadow: none !important;
   height: auto !important;
   width: 100% !important;
@@ -300,11 +290,11 @@ font-size: 12px !important;
 
 .sketchDark input:focus {
   outline: none !important;
-  border-color: #4a8cff !important;
+  border-color: var(--accent) !important;
 }
 
 .sketchDark label {
-  color: #777 !important;
+  color: var(--text-secondary) !important;
 font-size: 11px !important;
   font-weight: 600 !important;
   text-transform: uppercase !important;
@@ -313,45 +303,45 @@ font-size: 11px !important;
 
 /* Preset swatches divider — override the light default border. */
 .sketchDark :global(.flexbox-fix[style*="border-top"]) {
-  border-top-color: #2c2c2c !important;
+  border-top-color: var(--border) !important;
 }
 
 
 .select {
   flex: 1 1 0;
   min-width: 0;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 0 6px;
   font-size: 14px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   /* Native <select> elements don't inherit the document font in most
    * browsers — set it explicitly to match the rest of the panel. */
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
   appearance: none;
   cursor: pointer;
 }
 
 .select:focus {
   outline: none;
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }
 
 /* Dropdown options come from the OS shell on some platforms and won't
  * always honor this, but setting it lets the platforms that do (Linux,
  * macOS in Chromium) render the menu in our app font. */
 .select option {
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
 }
 
 .segmented {
   display: flex;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 2px;
   gap: 2px;
   flex: 1 1 0;
@@ -365,22 +355,22 @@ font-size: 11px !important;
   border-radius: 3px;
   padding: 0 4px;
   font-size: 14px;
-  color: #888;
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: inherit;
 }
 
 .segmentedButton:hover {
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .segmentedButtonActive {
-  background: #2c2c2c;
-  color: #e0e0e0;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .segmentedButtonActive:hover {
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .fourSide {
@@ -393,7 +383,7 @@ font-size: 11px !important;
 
 .fourSidePreview {
   font-size: 10px;
-  color: #666;
+  color: var(--text-tertiary);
   letter-spacing: 0.3px;
 }
 
@@ -405,21 +395,21 @@ font-size: 11px !important;
 
 .linkButton {
   background: transparent;
-  border: 1px solid #2c2c2c;
+  border: 1px solid var(--border);
   border-radius: 3px;
   padding: 2px 6px;
 font-size: 11px;
-  color: #888;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .linkButton:hover {
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .linkButtonActive {
-  background: #2c2c2c;
-  color: #e0e0e0;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .fourSideExpanded {
@@ -436,24 +426,11 @@ font-size: 11px;
 
 .fourSideCellLabel {
 font-size: 11px;
-  color: #666;
+  color: var(--text-tertiary);
   width: 12px;
 }
 
 .fourSideInput {
   flex: 1;
   min-width: 0;
-}
-
-.toggleRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.hint {
-font-size: 11px;
-  color: #666;
-  font-style: italic;
 }

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { Breakpoint, ProjectConfig } from '@shared/types';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
 import { ColorInput } from './controls/ColorInput';
+import { NumberInput } from './controls/NumberInput';
+import { PrefixSuffixInput } from './controls/PrefixSuffixInput';
 import { FontsSection } from './sections/FontsSection';
 import styles from './ProjectSettingsPage.module.css';
 
@@ -120,26 +122,23 @@ const BreakpointsEditor = ({
           const isDesktop = bp.id === DESKTOP_BREAKPOINT_ID;
           return (
             <div key={bp.id} className={styles.bpRow}>
-              <input
-                type="text"
-                className={styles.bpLabel}
-                value={bp.label}
-                onChange={(e) => updateAt(idx, { label: e.target.value })}
-                placeholder="Label"
-              />
+              <div className={styles.bpLabelCell}>
+                <PrefixSuffixInput
+                  value={bp.label}
+                  placeholder="Label"
+                  onCommit={(next) => updateAt(idx, { label: next })}
+                />
+              </div>
               <div className={styles.bpWidthCell}>
-                <input
-                  type="number"
-                  className={styles.bpWidth}
+                <NumberInput
                   value={bp.width}
+                  onChange={(next) => {
+                    if (next !== undefined) updateAt(idx, { width: Math.round(next) });
+                  }}
                   min={100}
                   max={4000}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (Number.isFinite(n)) updateAt(idx, { width: Math.round(n) });
-                  }}
+                  suffix="px"
                 />
-                <span className={styles.bpUnit}>px</span>
               </div>
               <button
                 type="button"

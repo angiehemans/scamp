@@ -14,8 +14,8 @@
 /* "Drop into" highlight — the row's background turns blue while the user
    is dragging another element over its middle band. */
 .rowDropInside .row {
-  background: #1d3a6e;
-  color: #fff;
+  background: var(--accent-dark);
+  color: var(--text-inverse);
 }
 
 /* "Drop before / after" line — a 2px blue line above or below the row. */
@@ -24,7 +24,7 @@
   left: 8px;
   right: 8px;
   height: 2px;
-  background: #3b82f6;
+  background: var(--accent);
   border-radius: 1px;
   pointer-events: none;
   z-index: 2;
@@ -45,7 +45,7 @@
   width: 100%;
   background: none;
   border: none;
-  color: #c0c0c0;
+  color: var(--text-primary);
   font: inherit;
 font-size: 13px;
   text-align: left;
@@ -53,21 +53,21 @@ font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .row:hover {
   background: #262626;
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .rowSelected {
-  background: #1d3a6e;
-  color: #fff;
+  background: var(--accent-dark);
+  color: var(--text-inverse);
 }
 
 .rowSelected:hover {
-  background: #1d3a6e;
+  background: var(--accent-dark);
 }
 
 .icon {
@@ -77,7 +77,7 @@ font-size: 13px;
   width: 14px;
   height: 14px;
 font-size: 11px;
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -95,13 +95,12 @@ font-size: 11px;
 .renameInput {
   flex: 1;
   min-width: 0;
-  background: #151515;
-  border: 1px solid #4a8cff;
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
   border-radius: 3px;
   padding: 1px 4px;
   font: inherit;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   outline: none;
 }
-

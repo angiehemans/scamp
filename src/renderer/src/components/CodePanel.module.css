@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 280px;
   background: #161616;
-  border-top: 1px solid #2c2c2c;
+  border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -11,8 +11,8 @@
   display: flex;
   align-items: center;
   padding: 6px 12px;
-  background: #1f1f1f;
-  border-bottom: 1px solid #2c2c2c;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
 }
 
 .title {
@@ -20,7 +20,7 @@ font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .spacer {
@@ -30,16 +30,16 @@ font-size: 12px;
 .closeButton {
   background: none;
   border: none;
-  color: #777;
+  color: var(--text-secondary);
 font-size: 17px;
   cursor: pointer;
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .closeButton:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .split {
@@ -56,19 +56,19 @@ font-size: 17px;
 }
 
 .pane + .pane {
-  border-left: 1px solid #2c2c2c;
+  border-left: 1px solid var(--border);
 }
 
 .paneHeader {
   padding: 4px 10px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #2c2c2c;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
 font-size: 12px;
 }
 
 .paneHeader code {
-  color: #888;
-  font-family: 'Ubuntu Mono', monospace;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
 }
 
 .editorWrap {
@@ -83,5 +83,5 @@ font-size: 13px;
 }
 
 .editorWrap :global(.cm-scroller) {
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
 }

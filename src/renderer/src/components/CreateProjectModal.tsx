@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { suggestProjectName, validateProjectName } from '@shared/projectName';
+import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
+import { Button } from './controls/Button';
 import styles from './CreateProjectModal.module.css';
 
 type Props = {
@@ -28,14 +30,7 @@ export const CreateProjectModal = ({
     inputRef.current?.focus();
   }, []);
 
-  // Close on Escape.
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !creating) onCancel();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onCancel, creating]);
+  useDialogBackdrop({ onClose: onCancel, disabled: creating });
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -93,17 +88,22 @@ export const CreateProjectModal = ({
         </p>
         {error && <div className={styles.error}>{error}</div>}
         <div className={styles.actions}>
-          <button
-            className={styles.secondary}
-            type="button"
+          <Button
+            variant="secondary"
             onClick={onCancel}
             disabled={creating}
+            fullWidth
           >
             Cancel
-          </button>
-          <button className={styles.primary} type="submit" disabled={creating}>
+          </Button>
+          <Button
+            variant="primary"
+            type="submit"
+            disabled={creating}
+            fullWidth
+          >
             {creating ? 'Creating...' : 'Create Project'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -2,10 +2,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 0 6px;
   flex: 1 1 0;
   min-width: 0;
@@ -13,13 +13,13 @@
 }
 
 .row:focus-within {
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }
 
 .prefix {
   font-size: 16px;
   font-weight: 400;
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
@@ -31,8 +31,8 @@
   border: none;
   padding: 0 2px;
   font-size: 14px;
-  color: #e0e0e0;
-  font-family: 'Ubuntu Mono', monospace;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
 .input:focus {
@@ -47,11 +47,11 @@
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  background: #1d3a6e;
+  background: var(--accent-dark);
   border-radius: 3px;
   font-size: 12px;
   color: #cfe0ff;
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -74,14 +74,14 @@
 }
 
 .pillClear:hover {
-  color: #fff;
+  color: var(--text-inverse);
 }
 
 .tokenButton {
   flex-shrink: 0;
   background: transparent;
   border: none;
-  color: #777;
+  color: var(--text-secondary);
   cursor: pointer;
   padding: 0;
   display: flex;
@@ -93,28 +93,22 @@
 }
 
 .tokenButton:hover {
-  color: #e0e0e0;
-  background: #2c2c2c;
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .tokenButtonActive {
-  color: #4a8cff;
+  color: var(--accent);
 }
 
 .popover {
   position: fixed;
   z-index: 100;
-  background: #1f1f1f;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
-}
-
-.popoverBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9;
 }
 
 .tokenList {
@@ -131,11 +125,11 @@
   padding: 8px 10px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .tokenRow:last-child {
@@ -143,11 +137,11 @@
 }
 
 .tokenRow:hover {
-  background: #2c2c2c;
+  background: var(--bg-hover);
 }
 
 .tokenRowIcon {
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -164,9 +158,9 @@
 
 .tokenRowValue {
   font-size: 11px;
-  color: #666;
+  color: var(--text-tertiary);
   flex-shrink: 0;
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
 }
 
 .empty {
@@ -175,22 +169,22 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
 .addTokenButton {
   background: transparent;
-  border: 1px dashed #2c2c2c;
-  border-radius: 4px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
   padding: 6px 14px;
-  color: #888;
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   font-family: inherit;
 }
 
 .addTokenButton:hover {
-  color: #e0e0e0;
-  border-color: #4a8cff;
+  color: var(--text-primary);
+  border-color: var(--accent);
 }

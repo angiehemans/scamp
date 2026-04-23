@@ -7,6 +7,7 @@ import {
 } from '@shared/types';
 import { clampCanvasWidth } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
+import { NumberInput } from './controls/NumberInput';
 import { Tooltip } from './controls/Tooltip';
 import styles from './CanvasSizeControl.module.css';
 
@@ -33,15 +34,10 @@ type Props = {
  */
 export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
   const [open, setOpen] = useState(false);
-  const [custom, setCustom] = useState<string>(String(config.canvasWidth));
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
   const setActiveBreakpoint = useCanvasStore((s) => s.setActiveBreakpoint);
-
-  useEffect(() => {
-    setCustom(String(config.canvasWidth));
-  }, [config.canvasWidth]);
 
   useEffect(() => {
     if (!open) return;
@@ -71,14 +67,9 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
     onChange({ ...config, canvasOverflowHidden: overflow });
   };
 
-  const handleCustomCommit = (): void => {
-    const parsed = Number(custom);
-    if (!Number.isFinite(parsed)) {
-      setCustom(String(config.canvasWidth));
-      return;
-    }
-    const clamped = clampCanvasWidth(parsed);
-    setCustom(String(clamped));
+  const handleCustomChange = (next: number | undefined): void => {
+    if (next === undefined) return;
+    const clamped = clampCanvasWidth(next);
     onChange({ ...config, canvasWidth: clamped });
     // A custom width means we're NOT editing a specific breakpoint —
     // drop back to desktop so panel edits target the base CSS.
@@ -129,21 +120,13 @@ export const CanvasSizeControl = ({ config, onChange }: Props): JSX.Element => {
           </div>
           <div className={styles.sectionLabel}>Custom width</div>
           <div className={styles.customRow}>
-            <input
-              type="number"
+            <NumberInput
+              value={config.canvasWidth}
+              onChange={handleCustomChange}
               min={MIN_CANVAS_WIDTH}
               max={MAX_CANVAS_WIDTH}
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              onBlur={handleCustomCommit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                }
-              }}
-              className={styles.input}
+              suffix="px"
             />
-            <span className={styles.unit}>px</span>
           </div>
           <label className={styles.toggleRow}>
             <input

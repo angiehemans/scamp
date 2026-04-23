@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { SketchPicker, type ColorResult, type RGBColor } from 'react-color';
 import type { ThemeToken } from '@shared/types';
+import { usePopover } from '../../hooks/usePopover';
 import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
@@ -85,7 +86,8 @@ const PRESET_COLORS = [
 
 type PopoverTab = 'color' | 'tokens';
 
-const PICKER_HEIGHT = 400;
+const POPOVER_WIDTH = 231;
+const POPOVER_HEIGHT = 400;
 
 export const ColorInput = ({
   value,
@@ -94,14 +96,20 @@ export const ColorInput = ({
   tokens,
   onOpenTheme,
 }: Props): JSX.Element => {
-  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; above: boolean }>({
-    top: 0, left: 0, above: false,
-  });
   const [tab, setTab] = useState<PopoverTab>('color');
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const swatchRef = useRef<HTMLButtonElement>(null);
+
+  const popover = usePopover<HTMLButtonElement>({
+    position: {
+      width: POPOVER_WIDTH,
+      desiredMaxHeight: POPOVER_HEIGHT,
+      align: 'left',
+      // Flip above whenever the SketchPicker wouldn't fit below — the
+      // picker is fixed-height so we don't want it clipped by the
+      // viewport edge.
+      minFitBelow: POPOVER_HEIGHT,
+    },
+  });
 
   useEffect(() => {
     setDraft(value);
@@ -124,15 +132,6 @@ export const ColorInput = ({
     [onChange]
   );
 
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open]);
-
   const resolved = resolveVar(value, tokens);
   const pickerColor = parseColorForPicker(resolved);
   const isVarRef = VAR_RE.test(value);
@@ -153,124 +152,107 @@ export const ColorInput = ({
 
   return (
     <div className={`${styles.colorInputRow} ${styles.colorInputRowSwatch}`}>
-        <Tooltip label="Pick color">
+      <Tooltip label="Pick color">
         <button
-          ref={swatchRef}
+          ref={popover.triggerRef}
           type="button"
           className={styles.colorSwatch}
-          onClick={() => {
-            if (!open && swatchRef.current) {
-              const rect = swatchRef.current.getBoundingClientRect();
-              const spaceBelow = window.innerHeight - rect.bottom;
-              const above = spaceBelow < PICKER_HEIGHT;
-              setPopoverPos({
-                top: above ? rect.top : rect.bottom + 4,
-                left: rect.left,
-                above,
-              });
-            }
-            setOpen((v) => !v);
-          }}
+          onClick={popover.toggle}
         >
           <span
             className={styles.colorSwatchInner}
             style={{ background: resolved }}
           />
         </button>
-        </Tooltip>
-        <input
-          type="text"
-          className={styles.colorText}
-          value={displayValue}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitDraft}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur();
-          }}
-        />
-        <div className={styles.colorPickerWrap}>
-          {open && (
-            <>
-              <div
-                className={styles.colorPopoverBackdrop}
-                onClick={() => setOpen(false)}
-              />
-              <div
-                ref={popoverRef}
-                className={`${styles.colorPopover} ${styles.sketchDark}`}
-                style={popoverPos.above
-                  ? { bottom: window.innerHeight - popoverPos.top + 4, left: popoverPos.left }
-                  : { top: popoverPos.top, left: popoverPos.left }
-                }
+      </Tooltip>
+      <input
+        type="text"
+        className={styles.colorText}
+        value={displayValue}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commitDraft}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+      />
+      <div className={styles.colorPickerWrap}>
+        {popover.open && popover.position && (
+          <div
+            ref={popover.popoverRef}
+            className={`${styles.colorPopover} ${styles.sketchDark}`}
+            style={{
+              left: popover.position.left,
+              top: popover.position.top,
+              bottom: popover.position.bottom,
+            }}
+          >
+            <div className={styles.pickerTabs}>
+              <button
+                type="button"
+                className={`${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`}
+                onClick={() => setTab('color')}
               >
-                <div className={styles.pickerTabs}>
-                  <button
-                    type="button"
-                    className={`${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`}
-                    onClick={() => setTab('color')}
-                  >
-                    Color
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`}
-                    onClick={() => setTab('tokens')}
-                  >
-                    Tokens
-                  </button>
-                </div>
-                {tab === 'color' ? (
-                  <SketchPicker
-                    color={pickerColor}
-                    onChangeComplete={handlePickerChange}
-                    presetColors={[...(presetColors ?? PRESET_COLORS)]}
-                    styles={DARK_SKETCH_STYLES}
-                    width="209px"
-                  />
+                Color
+              </button>
+              <button
+                type="button"
+                className={`${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`}
+                onClick={() => setTab('tokens')}
+              >
+                Tokens
+              </button>
+            </div>
+            {tab === 'color' ? (
+              <SketchPicker
+                color={pickerColor}
+                onChangeComplete={handlePickerChange}
+                presetColors={[...(presetColors ?? PRESET_COLORS)]}
+                styles={DARK_SKETCH_STYLES}
+                width="209px"
+              />
+            ) : (
+              <div className={styles.tokenList}>
+                {colorTokens && colorTokens.length > 0 ? (
+                  colorTokens.map((t) => (
+                    <button
+                      key={t.name}
+                      type="button"
+                      className={`${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`}
+                      onClick={() => {
+                        onChange(`var(${t.name})`);
+                        popover.setOpen(false);
+                      }}
+                    >
+                      <span
+                        className={styles.tokenListSwatch}
+                        style={{ background: t.value }}
+                      />
+                      <span className={styles.tokenListName}>{t.name}</span>
+                      <span className={styles.tokenListValue}>{t.value}</span>
+                    </button>
+                  ))
                 ) : (
-                  <div className={styles.tokenList}>
-                    {colorTokens && colorTokens.length > 0 ? (
-                      colorTokens.map((t) => (
-                        <button
-                          key={t.name}
-                          type="button"
-                          className={`${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`}
-                          onClick={() => {
-                            onChange(`var(${t.name})`);
-                            setOpen(false);
-                          }}
-                        >
-                          <span
-                            className={styles.tokenListSwatch}
-                            style={{ background: t.value }}
-                          />
-                          <span className={styles.tokenListName}>{t.name}</span>
-                          <span className={styles.tokenListValue}>{t.value}</span>
-                        </button>
-                      ))
-                    ) : (
-                      <div className={styles.tokenListEmpty}>
-                        <span>No tokens defined yet.</span>
-                        {onOpenTheme && (
-                          <button
-                            type="button"
-                            className={styles.tokenListAddButton}
-                            onClick={() => {
-                              setOpen(false);
-                              onOpenTheme();
-                            }}
-                          >
-                            + Add Tokens
-                          </button>
-                        )}
-                      </div>
+                  <div className={styles.tokenListEmpty}>
+                    <span>No tokens defined yet.</span>
+                    {onOpenTheme && (
+                      <button
+                        type="button"
+                        className={styles.tokenListAddButton}
+                        onClick={() => {
+                          popover.setOpen(false);
+                          onOpenTheme();
+                        }}
+                      >
+                        + Add Tokens
+                      </button>
                     )}
                   </div>
                 )}
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
+    </div>
   );
 };

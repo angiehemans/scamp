@@ -12,9 +12,9 @@
  * its parent's flex flow. A 2px blue bar between siblings. */
 .dropIndicator {
   position: absolute;
-  background: #3b82f6;
+  background: var(--accent);
   border-radius: 1px;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 1px rgba(74, 140, 255, 0.4);
   pointer-events: none;
   z-index: 150;
 }

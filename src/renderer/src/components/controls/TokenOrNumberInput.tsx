@@ -1,16 +1,8 @@
-import {
-  type KeyboardEvent,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconColorSwatch } from '@tabler/icons-react';
 import type { ThemeToken } from '@shared/types';
-import {
-  computePopoverPosition,
-  type PopoverPosition,
-} from '@lib/popoverPosition';
+import { usePopover } from '../../hooks/usePopover';
 import { Tooltip } from './Tooltip';
 import styles from './TokenOrNumberInput.module.css';
 
@@ -87,16 +79,14 @@ export const TokenOrNumberInput = ({
   title,
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState<string>(value ?? '');
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [popoverPos, setPopoverPos] = useState<PopoverPosition | null>(null);
 
-  /**
-   * Ref on the token-picker icon button itself. We measure its client
-   * rect inside the click handler (same pattern ColorInput uses) so
-   * the popover positions synchronously relative to the actual on-
-   * screen button, with no `useLayoutEffect` timing concerns.
-   */
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popover = usePopover<HTMLButtonElement>({
+    position: {
+      width: POPOVER_WIDTH,
+      desiredMaxHeight: POPOVER_MAX_HEIGHT,
+      align: 'right',
+    },
+  });
 
   useEffect(() => {
     setDraft(value ?? '');
@@ -147,25 +137,6 @@ export const TokenOrNumberInput = ({
     }
   };
 
-  /**
-   * Measure the icon button and set the popover position, all
-   * synchronously inside the click. The shared `computePopoverPosition`
-   * handles the math so every token-picker menu in the app behaves the
-   * same (below by default, only flips above when genuinely out of
-   * room, max-height clamped to available space).
-   */
-  const openPopover = (): void => {
-    const btn = buttonRef.current;
-    if (!btn) return;
-    const pos = computePopoverPosition(btn.getBoundingClientRect(), {
-      width: POPOVER_WIDTH,
-      desiredMaxHeight: POPOVER_MAX_HEIGHT,
-      align: 'right',
-    });
-    setPopoverPos(pos);
-    setPopoverOpen(true);
-  };
-
   const showingToken = isVarRef(value);
   const tokenName = showingToken && value ? tokenNameFromValue(value) : '';
 
@@ -175,7 +146,7 @@ export const TokenOrNumberInput = ({
 
   const selectToken = (token: ThemeToken): void => {
     onChange(`var(${token.name})`);
-    setPopoverOpen(false);
+    popover.setOpen(false);
   };
 
   const rowEl = (
@@ -206,15 +177,12 @@ export const TokenOrNumberInput = ({
         />
       )}
       <button
-        ref={buttonRef}
+        ref={popover.triggerRef}
         type="button"
         className={`${styles.tokenButton} ${
           showingToken ? styles.tokenButtonActive : ''
         }`}
-        onClick={() => {
-          if (popoverOpen) setPopoverOpen(false);
-          else openPopover();
-        }}
+        onClick={popover.toggle}
         aria-label="Pick token"
       >
         <IconColorSwatch size={14} stroke={1.75} />
@@ -225,61 +193,56 @@ export const TokenOrNumberInput = ({
   // Render the popover into `document.body` via a portal so it can't
   // be affected by any `transform`, `filter`, or `overflow` on parent
   // components — it positions purely against the viewport.
-  const popoverEl = popoverOpen && popoverPos ? (
-    <>
-      <div
-        className={styles.popoverBackdrop}
-        onMouseDown={() => setPopoverOpen(false)}
-      />
-      <div
-        className={styles.popover}
-        style={{
-          left: popoverPos.left,
-          top: popoverPos.top,
-          bottom: popoverPos.bottom,
-          width: popoverPos.width,
-          maxHeight: popoverPos.maxHeight,
-        }}
-        role="listbox"
-      >
-        {tokens.length === 0 ? (
-          <div className={styles.empty}>
-            <div>No matching tokens yet.</div>
-            {onOpenTheme && (
-              <button
-                type="button"
-                className={styles.addTokenButton}
-                onClick={() => {
-                  setPopoverOpen(false);
-                  onOpenTheme();
-                }}
-              >
-                + Add token
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className={styles.tokenList}>
-            {tokens.map((token) => (
-              <button
-                key={token.name}
-                type="button"
-                role="option"
-                className={styles.tokenRow}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => selectToken(token)}
-              >
-                <span className={styles.tokenRowIcon} aria-hidden="true">
-                  <IconColorSwatch size={14} stroke={1.75} />
-                </span>
-                <span className={styles.tokenRowName}>{token.name}</span>
-                <span className={styles.tokenRowValue}>{token.value}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+  const popoverEl = popover.open && popover.position ? (
+    <div
+      ref={popover.popoverRef}
+      className={styles.popover}
+      style={{
+        left: popover.position.left,
+        top: popover.position.top,
+        bottom: popover.position.bottom,
+        width: popover.position.width,
+        maxHeight: popover.position.maxHeight,
+      }}
+      role="listbox"
+    >
+      {tokens.length === 0 ? (
+        <div className={styles.empty}>
+          <div>No matching tokens yet.</div>
+          {onOpenTheme && (
+            <button
+              type="button"
+              className={styles.addTokenButton}
+              onClick={() => {
+                popover.setOpen(false);
+                onOpenTheme();
+              }}
+            >
+              + Add token
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className={styles.tokenList}>
+          {tokens.map((token) => (
+            <button
+              key={token.name}
+              type="button"
+              role="option"
+              className={styles.tokenRow}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => selectToken(token)}
+            >
+              <span className={styles.tokenRowIcon} aria-hidden="true">
+                <IconColorSwatch size={14} stroke={1.75} />
+              </span>
+              <span className={styles.tokenRowName}>{token.name}</span>
+              <span className={styles.tokenRowValue}>{token.value}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   ) : null;
 
   return (

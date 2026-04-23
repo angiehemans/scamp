@@ -1,26 +1,9 @@
-.input {
-  flex: 1;
-  min-width: 0;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
-  padding: 0 6px;
-  font-size: 13px;
-  color: #e0e0e0;
-}
-
-.input:focus {
-  outline: none;
-  border-color: #4a8cff;
-}
-
 .boolRow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #c0c0c0;
+  color: var(--text-primary);
   cursor: pointer;
 }
 
@@ -39,13 +22,13 @@
 .optionsHeader {
   font-size: 11px;
   font-weight: 600;
-  color: #888;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .optionsEmpty {
-  color: #555;
+  color: var(--text-tertiary);
   font-size: 12px;
   font-style: italic;
 }
@@ -56,48 +39,44 @@
   align-items: center;
 }
 
-.optionRow .input {
-  font-size: 12px;
-}
-
 .pill {
-  width: 24px;
-  height: 24px;
-  border: 1px solid #2c2c2c;
-  background: #151515;
-  color: #555;
-  border-radius: 4px;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px;
 }
 
 .pillActive {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
 }
 
 .iconButton {
-  width: 24px;
-  height: 24px;
+  width: var(--control-h);
+  height: var(--control-h);
   border: 0;
   background: transparent;
-  color: #777;
-  border-radius: 4px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 16px;
 }
 
 .iconButton:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .addRow {
   background: transparent;
-  border: 1px dashed #3a3a3a;
-  border-radius: 4px;
-  color: #888;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
@@ -106,25 +85,25 @@
 }
 
 .addRow:hover {
-  background: #2c2c2c;
-  color: #ccc;
+  background: var(--bg-hover);
+  color: var(--text-primary);
   border-color: #4a4a4a;
 }
 
 .textarea {
   width: 100%;
   min-height: 120px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   resize: vertical;
 }
 
 .textarea:focus {
   outline: none;
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }

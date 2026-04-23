@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,8 +11,8 @@
 .dialog {
   width: 480px;
   max-height: 80vh;
-  background: #232323;
-  border: 1px solid #2c2c2c;
+  background: var(--bg-header);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -37,23 +37,23 @@
 .closeButton {
   background: none;
   border: none;
-  color: #888;
+  color: var(--text-secondary);
   font-size: 18px;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
 }
 
 .closeButton:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
   margin-bottom: -4px;
 }
 
@@ -66,24 +66,24 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #777;
+  color: var(--text-secondary);
   cursor: pointer;
   font-family: inherit;
 }
 
 .tab:hover {
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .tabActive {
-  color: #e0e0e0;
-  border-bottom-color: #4a8cff;
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
 }
 
 .tabCount {
   margin-left: 6px;
   font-size: 11px;
-  color: #555;
+  color: var(--text-tertiary);
 }
 
 .tokenList {
@@ -95,7 +95,7 @@
 }
 
 .typographyIcon {
-  color: #777;
+  color: var(--text-secondary);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -104,18 +104,18 @@
 .tokenValue {
   flex: 1;
   min-width: 0;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 13px;
-  color: #e0e0e0;
-  font-family: 'Ubuntu Mono', monospace;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
 }
 
 .tokenValue:focus {
   outline: none;
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }
 
 .tokenValueCell {
@@ -130,8 +130,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #888;
-  background: #2c2c2c;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
   border-radius: 3px;
   padding: 2px 6px;
   font-family: system-ui, -apple-system, sans-serif;
@@ -147,8 +147,8 @@
 }
 
 .tokenBadgeButton:hover {
-  color: #e0e0e0;
-  background: #3a3a3a;
+  color: var(--text-primary);
+  background: var(--border-strong);
 }
 
 .badgeWrap {
@@ -167,9 +167,9 @@
   top: calc(100% + 4px);
   right: 0;
   z-index: 20;
-  background: #1f1f1f;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   min-width: 100px;
   padding: 4px;
@@ -180,22 +180,22 @@
 .badgeMenuItem {
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 6px 10px;
   font-size: 12px;
-  color: #ccc;
+  color: var(--text-primary);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
 }
 
 .badgeMenuItem:hover {
-  background: #2c2c2c;
-  color: #e0e0e0;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .badgeMenuItemActive {
-  color: #4a8cff;
+  color: var(--accent);
 }
 
 .tokenRow {
@@ -203,26 +203,26 @@
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  background: #1a1a1a;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
 .tokenName {
   flex: 1;
   min-width: 0;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-family: inherit;
 }
 
 .tokenName:focus {
   outline: none;
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }
 
 .tokenColor {
@@ -233,56 +233,56 @@
 .tokenDelete {
   background: none;
   border: none;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 16px;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
 }
 
 .tokenDelete:hover {
-  color: #fca5a5;
-  background: #4b1d1d;
+  color: var(--error-text);
+  background: var(--error-bg);
 }
 
 .addButton {
   width: 100%;
   padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px dashed #2c2c2c;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border);
   background: transparent;
-  color: #888;
+  color: var(--text-secondary);
   font-size: 13px;
   cursor: pointer;
   font-family: inherit;
 }
 
 .addButton:hover {
-  color: #e0e0e0;
-  border-color: #4a8cff;
+  color: var(--text-primary);
+  border-color: var(--accent);
 }
 
 .error {
   padding: 8px 12px;
-  background: #4b1d1d;
-  color: #fca5a5;
-  border-radius: 6px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-radius: var(--radius-md);
   font-size: 13px;
 }
 
 .empty {
   text-align: center;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 13px;
   padding: 16px;
 }
 
 .warning {
   padding: 8px 12px;
-  background: #2c2618;
-  color: #f5d199;
-  border-radius: 6px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border-radius: var(--radius-md);
   font-size: 13px;
 }
 
@@ -290,23 +290,4 @@
   display: flex;
   gap: 8px;
   margin-top: 8px;
-}
-
-.warningButton {
-  padding: 4px 12px;
-  border-radius: 4px;
-  border: none;
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.warningCancel {
-  background: #333;
-  color: #e6e6e6;
-}
-
-.warningConfirm {
-  background: #ef4444;
-  color: #fff;
 }

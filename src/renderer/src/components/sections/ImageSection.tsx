@@ -1,4 +1,5 @@
 import { useCanvasStore } from '@store/canvasSlice';
+import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
 import styles from './ImageSection.module.css';
@@ -7,12 +8,12 @@ type Props = {
   elementId: string;
 };
 
-const OBJ_FIT_OPTIONS: ReadonlyArray<{ value: string; label: string; tooltip: string }> = [
+const OBJ_FIT_OPTIONS = [
   { value: 'cover', label: 'Cover', tooltip: 'Fill the element, cropping the image if needed' },
   { value: 'contain', label: 'Contain', tooltip: 'Fit the whole image inside, leaving empty space if needed' },
   { value: 'fill', label: 'Fill', tooltip: 'Stretch the image to match the element, ignoring aspect ratio' },
   { value: 'none', label: 'None', tooltip: 'Use the image at its natural size' },
-];
+] as const;
 const OBJ_POSITION_OPTIONS = [
   'top left', 'top center', 'top right',
   'center left', 'center', 'center right',
@@ -82,19 +83,11 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
         />
       </Row>
       <Row label="Fit">
-        <div className={styles.segmented}>
-          {OBJ_FIT_OPTIONS.map((opt) => (
-            <Tooltip key={opt.value} label={opt.tooltip}>
-              <button
-                className={`${styles.segmentedBtn} ${objFit === opt.value ? styles.segmentedActive : ''}`}
-                onClick={() => updateCustomProp('object-fit', opt.value)}
-                type="button"
-              >
-                {opt.label}
-              </button>
-            </Tooltip>
-          ))}
-        </div>
+        <SegmentedControl
+          value={objFit}
+          options={OBJ_FIT_OPTIONS}
+          onChange={(value) => updateCustomProp('object-fit', value)}
+        />
       </Row>
       <Row label="Position">
         <div className={styles.positionGrid}>

@@ -44,9 +44,9 @@ body,
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: 'Ubuntu Mono', monospace;
-  background: #1a1a1a;
-  color: #e6e6e6;
+  font-family: var(--font-ui);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -55,8 +55,8 @@ button {
 }
 
 ::selection {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 /* Mac-style overlay scrollbars. The track is transparent so it doesn't

@@ -1,3 +1,4 @@
+import { Button } from './controls/Button';
 import styles from './MigrationBanner.module.css';
 
 type Props = {
@@ -31,14 +32,11 @@ export const MigrationBanner = ({ onDismiss }: Props): JSX.Element => {
           </span>
         </div>
       </div>
-      <button
-        className={styles.dismiss}
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss"
-      >
-        Got it
-      </button>
+      <div className={styles.dismissWrap}>
+        <Button variant="secondary" size="sm" onClick={onDismiss}>
+          Got it
+        </Button>
+      </div>
     </div>
   );
 };

@@ -15,15 +15,15 @@
   align-items: center;
   gap: 12px;
   padding: 16px 24px;
-  border-bottom: 1px solid #2c2c2c;
-  background: #1f1f1f;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
 }
 
 .backButton {
   background: none;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
-  color: #e6e6e6;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
   font-size: 13px;
   padding: 6px 12px;
   cursor: pointer;
@@ -31,7 +31,7 @@
 }
 
 .backButton:hover {
-  background: #2c2c2c;
+  background: var(--bg-hover);
 }
 
 .headerTitle {
@@ -43,7 +43,7 @@
 .headerProject {
   margin-left: auto;
   font-size: 12px;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .body {
@@ -62,7 +62,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .row {
@@ -70,14 +70,14 @@
   align-items: center;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 1px solid #1f1f1f;
+  border-bottom: 1px solid var(--bg-raised);
 }
 
 .rowLabel {
   width: 180px;
   flex-shrink: 0;
   font-size: 13px;
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .rowControl {
@@ -90,25 +90,25 @@
 
 .placeholder {
   font-size: 13px;
-  color: #666;
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
 .sectionHint {
   font-size: 12px;
-  color: #888;
+  color: var(--text-secondary);
   line-height: 1.5;
   margin: 0 0 12px;
   max-width: 500px;
 }
 
 .sectionHint code {
-  background: #1f1f1f;
+  background: var(--bg-raised);
   padding: 1px 5px;
   border-radius: 3px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
-  color: #ccc;
+  color: var(--text-primary);
 }
 
 .bpTable {
@@ -125,21 +125,8 @@
   align-items: center;
 }
 
-.bpLabel {
-  height: 28px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
-  padding: 0 8px;
-  font-size: 13px;
-  color: #e0e0e0;
-  font-family: inherit;
-}
-
-.bpLabel:focus,
-.bpWidth:focus {
-  outline: none;
-  border-color: #4a8cff;
+.bpLabelCell {
+  display: flex;
 }
 
 .bpWidthCell {
@@ -148,39 +135,21 @@
   gap: 6px;
 }
 
-.bpWidth {
-  flex: 1;
-  height: 28px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
-  padding: 0 8px;
-  font-size: 13px;
-  color: #e0e0e0;
-  font-variant-numeric: tabular-nums;
-  font-family: inherit;
-}
-
-.bpUnit {
-  font-size: 12px;
-  color: #777;
-}
-
 .bpRemove {
-  width: 28px;
-  height: 28px;
+  width: var(--row-h);
+  height: var(--row-h);
   background: transparent;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
-  color: #888;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   font-size: 16px;
   cursor: pointer;
 }
 
 .bpRemove:hover:not(:disabled) {
-  background: #2c2c2c;
-  color: #fff;
-  border-color: #3a3a3a;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
+  border-color: var(--border-strong);
 }
 
 .bpRemove:disabled {
@@ -190,9 +159,9 @@
 
 .bpAdd {
   background: transparent;
-  border: 1px dashed #3a3a3a;
-  border-radius: 4px;
-  color: #888;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   padding: 6px 12px;
   font-size: 12px;
   font-family: inherit;
@@ -200,7 +169,7 @@
 }
 
 .bpAdd:hover {
-  background: #1f1f1f;
-  color: #ccc;
+  background: var(--bg-raised);
+  color: var(--text-primary);
   border-color: #4a4a4a;
 }

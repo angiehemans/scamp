@@ -7,6 +7,7 @@ import {
 } from '@lib/elementTags';
 import type { ScampElement, SelectOption } from '@lib/element';
 import { EnumSelect } from '../controls/EnumSelect';
+import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { Section, Row } from './Section';
 import styles from './ElementSection.module.css';
 
@@ -93,13 +94,11 @@ const AttributeFields = ({
         if (spec.kind === 'text') {
           return (
             <Row key={spec.name} label={spec.label}>
-              <input
-                type="text"
-                className={styles.input}
+              <PrefixSuffixInput
                 value={current}
                 placeholder={spec.placeholder}
-                onChange={(e) =>
-                  setAttr(spec.name, e.target.value === '' ? null : e.target.value)
+                onCommit={(next) =>
+                  setAttr(spec.name, next === '' ? null : next)
                 }
               />
             </Row>
@@ -186,19 +185,15 @@ const SelectOptionsEditor = ({ elementId, element }: EditorProps): JSX.Element =
       )}
       {options.map((opt, idx) => (
         <div key={idx} className={styles.optionRow}>
-          <input
-            type="text"
-            className={styles.input}
-            placeholder="value"
+          <PrefixSuffixInput
             value={opt.value}
-            onChange={(e) => patchOption(idx, { value: e.target.value })}
+            placeholder="value"
+            onCommit={(next) => patchOption(idx, { value: next })}
           />
-          <input
-            type="text"
-            className={styles.input}
-            placeholder="label"
+          <PrefixSuffixInput
             value={opt.label}
-            onChange={(e) => patchOption(idx, { label: e.target.value })}
+            placeholder="label"
+            onCommit={(next) => patchOption(idx, { label: next })}
           />
           <button
             type="button"

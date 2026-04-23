@@ -3,9 +3,9 @@
   align-items: flex-start;
   gap: 12px;
   padding: 10px 16px;
-  background: #1a2a4a;
-  border-bottom: 1px solid #2c3a5a;
-  color: #dbe5ff;
+  background: var(--info-bg);
+  border-bottom: 1px solid var(--info-border);
+  color: var(--info-text);
   font-size: 13px;
 }
 
@@ -49,22 +49,9 @@
   padding: 1px 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
-  color: #dbe5ff;
+  color: var(--info-text);
 }
 
-.dismiss {
+.dismissWrap {
   flex-shrink: 0;
-  background: #2c3a5a;
-  border: 1px solid #3b4b6f;
-  color: #dbe5ff;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.dismiss:hover {
-  background: #384a74;
-  border-color: #4b5f8b;
 }

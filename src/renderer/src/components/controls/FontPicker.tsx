@@ -2,7 +2,6 @@ import {
   type KeyboardEvent,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -12,6 +11,7 @@ import { filterFonts } from '@lib/fontFilter';
 import { formatFontValue, quoteFamilyName } from '@lib/fontFallback';
 import type { AvailableFont } from '@store/fontsSlice';
 import type { ThemeToken } from '@shared/types';
+import { usePopover } from '../../hooks/usePopover';
 import { Tooltip } from './Tooltip';
 import styles from './FontPicker.module.css';
 
@@ -42,8 +42,6 @@ const VIEWPORT_HEIGHT = 280;
 const POPOVER_WIDTH = 260;
 /** search input (30) + viewport (280) + borders (~2) */
 const POPOVER_HEIGHT = 312;
-/** Minimum gap between the popover and the window edge. */
-const EDGE_MARGIN = 8;
 /**
  * How many extra rows to render above and below the visible window so
  * fast scrolling doesn't flash blank rows at the edges.
@@ -94,17 +92,25 @@ export const FontPicker = ({
   onChange,
   title,
 }: Props): JSX.Element => {
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
-  const [popoverPos, setPopoverPos] = useState<{ left: number; top: number } | null>(
-    null
-  );
 
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  const popover = usePopover<HTMLButtonElement>({
+    position: {
+      width: POPOVER_WIDTH,
+      desiredMaxHeight: POPOVER_HEIGHT,
+      align: 'left',
+      minFitBelow: POPOVER_HEIGHT,
+    },
+    onClose: () => {
+      setQuery('');
+      popover.triggerRef.current?.focus();
+    },
+  });
 
   // Label shown on the closed trigger. When the stored value is a
   // `var(--name)` reference, show the token name rather than whatever
@@ -194,76 +200,27 @@ export const FontPicker = ({
     if (vp) setScrollTop(vp.scrollTop);
   }, []);
 
-  // Position the popover relative to the trigger once open. Uses fixed
-  // positioning so it escapes any clipping parents (the properties
-  // panel has `overflow: auto`). Flips above the trigger when below
-  // would overflow the window, and clamps horizontally so the popover
-  // always fits the viewport.
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const position = (): void => {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
-      const gap = 4;
-      const spaceBelow = vh - rect.bottom - EDGE_MARGIN;
-      const spaceAbove = rect.top - EDGE_MARGIN;
-      const fitsBelow = spaceBelow >= POPOVER_HEIGHT + gap;
-      const fitsAbove = spaceAbove >= POPOVER_HEIGHT + gap;
-
-      // Prefer below; flip up when below doesn't fit AND above has more
-      // room. If neither side fits the full popover we still pick the
-      // larger side — the internal viewport scrolls so a shorter-than-
-      // ideal popover still works.
-      const placeAbove = !fitsBelow && (fitsAbove || spaceAbove > spaceBelow);
-
-      let top: number;
-      if (placeAbove) {
-        top = rect.top - POPOVER_HEIGHT - gap;
-        if (top < EDGE_MARGIN) top = EDGE_MARGIN;
-      } else {
-        top = rect.bottom + gap;
-        const maxTop = vh - POPOVER_HEIGHT - EDGE_MARGIN;
-        if (top > maxTop) top = Math.max(EDGE_MARGIN, maxTop);
-      }
-
-      let left = rect.left;
-      const maxLeft = vw - POPOVER_WIDTH - EDGE_MARGIN;
-      if (left > maxLeft) left = Math.max(EDGE_MARGIN, maxLeft);
-      if (left < EDGE_MARGIN) left = EDGE_MARGIN;
-
-      setPopoverPos({ left, top });
-    };
-    position();
-    window.addEventListener('resize', position);
-    return () => window.removeEventListener('resize', position);
-  }, [open]);
-
-  // Focus the search input on open. Seed the query with the current
-  // family so the user can immediately refine rather than retype.
+  // Focus the search input on open. Seed the active row on the
+  // currently selected font so Enter without typing confirms the
+  // existing selection.
   useEffect(() => {
-    if (!open) return;
+    if (!popover.open) return;
     setQuery('');
     setScrollTop(0);
     const raf = requestAnimationFrame(() => {
       searchRef.current?.focus();
-      // Position the active row on the currently selected font so Enter
-      // without typing confirms the existing selection.
       const currentIdx = options.findIndex((o) => o.value === value);
-      if (currentIdx >= 0) setActiveIndex(currentIdx);
-      else setActiveIndex(0);
+      setActiveIndex(currentIdx >= 0 ? currentIdx : 0);
     });
     return () => cancelAnimationFrame(raf);
     // We intentionally don't re-run when `options` or `value` change —
     // this effect is a one-shot open handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [popover.open]);
 
   // Scroll the active row into view on arrow-key navigation.
   useEffect(() => {
-    if (!open) return;
+    if (!popover.open) return;
     const vp = viewportRef.current;
     if (!vp) return;
     const rowTop = activeIndex * ROW_HEIGHT;
@@ -273,19 +230,11 @@ export const FontPicker = ({
     } else if (rowBottom > vp.scrollTop + VIEWPORT_HEIGHT) {
       vp.scrollTop = rowBottom - VIEWPORT_HEIGHT;
     }
-  }, [activeIndex, open]);
-
-  const close = (): void => {
-    setOpen(false);
-    setQuery('');
-    // Return focus to the trigger so keyboard navigation in the
-    // properties panel resumes.
-    triggerRef.current?.focus();
-  };
+  }, [activeIndex, popover.open]);
 
   const commit = (option: Option): void => {
     onChange(option.value);
-    close();
+    popover.setOpen(false);
   };
 
   const handleKey = (e: KeyboardEvent<HTMLInputElement>): void => {
@@ -315,13 +264,9 @@ export const FontPicker = ({
       if (selected) commit(selected);
       return;
     }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      close();
-      return;
-    }
     // Stop shortcut keys (V, T, I, etc.) from firing while the user
-    // types into the search field.
+    // types into the search field. Escape is handled by usePopover at
+    // the document level.
     e.stopPropagation();
   };
 
@@ -339,10 +284,10 @@ export const FontPicker = ({
 
   const triggerEl = (
     <button
-      ref={triggerRef}
+      ref={popover.triggerRef}
       type="button"
-      className={`${styles.trigger} ${open ? styles.triggerOpen : ''}`}
-      onClick={() => setOpen((v) => !v)}
+      className={`${styles.trigger} ${popover.open ? styles.triggerOpen : ''}`}
+      onClick={popover.toggle}
       // Render the trigger itself in the selected font so it doubles as
       // a preview. Tokens skip this — we show the token name in the
       // default UI font alongside a swatch icon.
@@ -371,90 +316,92 @@ export const FontPicker = ({
   return (
     <>
       {title ? <Tooltip label={title}>{triggerEl}</Tooltip> : triggerEl}
-      {open && popoverPos && (
-        <>
-          <div className={styles.backdrop} onMouseDown={close} />
+      {popover.open && popover.position && (
+        <div
+          ref={popover.popoverRef}
+          className={styles.popover}
+          style={{
+            left: popover.position.left,
+            top: popover.position.top,
+            bottom: popover.position.bottom,
+          }}
+          role="listbox"
+        >
+          <input
+            ref={searchRef}
+            className={styles.search}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActiveIndex(0);
+              setScrollTop(0);
+              if (viewportRef.current) viewportRef.current.scrollTop = 0;
+            }}
+            onKeyDown={handleKey}
+            placeholder="Search fonts…"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
           <div
-            className={styles.popover}
-            style={{ left: popoverPos.left, top: popoverPos.top }}
-            role="listbox"
+            ref={viewportRef}
+            className={styles.listViewport}
+            onScroll={handleScroll}
           >
-            <input
-              ref={searchRef}
-              className={styles.search}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setActiveIndex(0);
-                setScrollTop(0);
-                if (viewportRef.current) viewportRef.current.scrollTop = 0;
-              }}
-              onKeyDown={handleKey}
-              placeholder="Search fonts…"
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-            />
-            <div
-              ref={viewportRef}
-              className={styles.listViewport}
-              onScroll={handleScroll}
-            >
-              {options.length === 0 ? (
-                <div className={styles.rowEmpty}>No matching fonts</div>
-              ) : (
-                <div
-                  className={styles.listSpacer}
-                  style={{ height: totalHeight }}
-                >
-                  {visibleRows.map((option, i) => {
-                    const idx = firstVisible + i;
-                    const isActive = idx === activeIndex;
-                    return (
-                      <button
-                        key={`${option.value}::${option.label}`}
-                        type="button"
-                        role="option"
-                        aria-selected={isActive}
-                        className={`${styles.row} ${isActive ? styles.rowActive : ''} ${
-                          option.unknown ? styles.rowUnknown : ''
-                        }`}
-                        style={{
-                          top: idx * ROW_HEIGHT,
-                          height: ROW_HEIGHT,
-                          fontFamily: option.previewFamily
-                            ? quoteFamilyName(option.previewFamily)
-                            : undefined,
-                        }}
-                        onMouseEnter={() => setActiveIndex(idx)}
-                        onMouseDown={(e) => {
-                          // Prevent blur of the search input (which would
-                          // close the popover) before onClick fires.
-                          e.preventDefault();
-                        }}
-                        onClick={() => commit(option)}
-                      >
-                        {option.isToken && (
-                          <span className={styles.rowIcon} aria-hidden="true">
-                            <IconColorSwatch size={14} stroke={1.75} />
-                          </span>
-                        )}
-                        <span className={styles.rowLabel}>
-                          {option.unknown
-                            ? `Custom: ${option.label}`
-                            : option.label}
+            {options.length === 0 ? (
+              <div className={styles.rowEmpty}>No matching fonts</div>
+            ) : (
+              <div
+                className={styles.listSpacer}
+                style={{ height: totalHeight }}
+              >
+                {visibleRows.map((option, i) => {
+                  const idx = firstVisible + i;
+                  const isActive = idx === activeIndex;
+                  return (
+                    <button
+                      key={`${option.value}::${option.label}`}
+                      type="button"
+                      role="option"
+                      aria-selected={isActive}
+                      className={`${styles.row} ${isActive ? styles.rowActive : ''} ${
+                        option.unknown ? styles.rowUnknown : ''
+                      }`}
+                      style={{
+                        top: idx * ROW_HEIGHT,
+                        height: ROW_HEIGHT,
+                        fontFamily: option.previewFamily
+                          ? quoteFamilyName(option.previewFamily)
+                          : undefined,
+                      }}
+                      onMouseEnter={() => setActiveIndex(idx)}
+                      onMouseDown={(e) => {
+                        // Prevent blur of the search input (which would
+                        // close the popover) before onClick fires.
+                        e.preventDefault();
+                      }}
+                      onClick={() => commit(option)}
+                    >
+                      {option.isToken && (
+                        <span className={styles.rowIcon} aria-hidden="true">
+                          <IconColorSwatch size={14} stroke={1.75} />
                         </span>
-                        {option.badge && (
-                          <span className={styles.rowBadge}>{option.badge}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      )}
+                      <span className={styles.rowLabel}>
+                        {option.unknown
+                          ? `Custom: ${option.label}`
+                          : option.label}
+                      </span>
+                      {option.badge && (
+                        <span className={styles.rowBadge}>{option.badge}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </>
+        </div>
       )}
     </>
   );

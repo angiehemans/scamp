@@ -1,6 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+// `theme.css` must come first — it declares the `--*` variables that
+// global.css and every module CSS reference.
+import './styles/theme.css';
 import './styles/global.css';
 
 // Catch unhandled errors/rejections so the renderer doesn't crash

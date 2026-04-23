@@ -12,8 +12,8 @@
   position: absolute;
   width: 8px;
   height: 8px;
-  background: #ffffff;
-  border: 1px solid #3b82f6;
+  background: var(--text-inverse);
+  border: 1px solid var(--accent);
   pointer-events: auto;
 }
 

@@ -14,26 +14,26 @@
   gap: 8px;
   background: none;
   border: none;
-  color: #c0c0c0;
+  color: var(--text-primary);
 font-size: 13px;
   font-weight: 500;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .button:hover {
-  background: #2c2c2c;
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-inverse);
 }
 
 .active {
-  background: #3b82f6;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
 }
 
 .active:hover {
-  background: #3b82f6;
+  background: var(--accent);
 }
 
 .spacer {
@@ -42,8 +42,8 @@ font-size: 13px;
 
 .shortcut {
 font-size: 11px;
-  color: #888;
-  background: #0f0f0f;
+  color: var(--text-secondary);
+  background: var(--bg-canvas);
   padding: 1px 5px;
   border-radius: 3px;
 }

@@ -1,0 +1,98 @@
+/*
+ * Scamp app-chrome theme tokens.
+ *
+ * These variables drive the colors, geometry, and typography of the
+ * Scamp UI ITSELF — toolbars, panels, inputs, dialogs. They are
+ * NOT the user's project design tokens; those live in
+ * `<project>/theme.css` and are managed by the Theme panel.
+ *
+ * Module CSS files under `src/renderer/src/` should reference these
+ * variables (`var(--border)`, `var(--accent)`, …) rather than
+ * hard-coded hex values, so a single edit here can reshape the whole
+ * app's chrome.
+ */
+
+:root {
+  /* ---------- Backgrounds (darker → lighter) ---------- */
+  /* Canvas artboard background — the area BEHIND the page frame. */
+  --bg-canvas: #0f0f0f;
+  /* App surface — sidebars, body, default panel bg. */
+  --bg-surface: #1a1a1a;
+  /* Inset controls — inputs, wells, code editors. */
+  --bg-input: #151515;
+  /* Raised / active elements — buttons, tabs, dialogs. */
+  --bg-raised: #1f1f1f;
+  /* Top-of-app chrome — the main header bar. */
+  --bg-header: #232323;
+  /* Hover state on raised elements. */
+  --bg-hover: #2c2c2c;
+
+  /* ---------- Borders & dividers ---------- */
+  /* The workhorse line color. Used for panel edges, input borders,
+     dividers between sections, tooltip borders, etc. */
+  --border: #2c2c2c;
+  /* Quieter divider (e.g. row separator inside a section). */
+  --border-subtle: #232323;
+  /* Slightly brighter border for focused or prominent edges. */
+  --border-strong: #3a3a3a;
+
+  /* ---------- Text (semantic) ---------- */
+  /* Primary reading color — body copy, input values. */
+  --text-primary: #e0e0e0;
+  /* Slightly dimmer — labels, non-active text, icons. */
+  --text-secondary: #888;
+  /* Even dimmer — placeholder, disabled, row separators fade. */
+  --text-tertiary: #555;
+  /* Pure white — used sparingly on colored accents. */
+  --text-inverse: #fff;
+
+  /* ---------- Accent ---------- */
+  /* The app's one blue. Used for focus rings, active tools,
+     selection highlights, override indicators. */
+  --accent: #4a8cff;
+  /* Hover state for filled primary buttons. */
+  --accent-hover: #5a9cff;
+  /* Translucent halo for dot indicators and soft active states. */
+  --accent-muted: rgba(74, 140, 255, 0.2);
+  /* Deep selected-row background (layers panel, etc.). */
+  --accent-dark: #1d3a6e;
+
+  /* ---------- Status ---------- */
+  --status-error: #ef4444;
+  --status-warn: #f59e0b;
+  --status-success: #10b981;
+
+  /* Paired tones for banners / log entries. Background + text chosen
+     so the text reads comfortably on the bg at small sizes. */
+  --info-bg: #1a2a4a;
+  --info-border: #2c3a5a;
+  --info-text: #dbe5ff;
+
+  --warn-bg: #2c2618;
+  --warn-text: #f5d199;
+
+  --error-bg: #4b1d1d;
+  --error-text: #fca5a5;
+
+  /* ---------- Overlay ---------- */
+  /* Modal backdrop (dialogs, confirmations). */
+  --backdrop: rgba(0, 0, 0, 0.5);
+  /* Soft drop shadow on popovers and tooltips. */
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-tooltip: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+  /* ---------- Geometry ---------- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Heights of common controls. Already consistent in code; named
+     so downstream refactors can keep them in sync. */
+  --control-h: 24px;
+  --row-h: 28px;
+
+  /* ---------- Typography ---------- */
+  --font-ui: 'Ubuntu Mono', monospace;
+  --font-sans:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}

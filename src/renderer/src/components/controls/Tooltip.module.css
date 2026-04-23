@@ -7,16 +7,16 @@
   pointer-events: none;
   z-index: 10000;
 
-  min-height: 24px;
+  min-height: var(--control-h);
   width: fit-content;
   display: flex;
   flex-direction: column;
   justify-content: center;
   padding: 4px 6px;
-  background: #0f0f0f;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
-  box-shadow: rgba(0, 0, 0, 0.2) 0 2px 8px 0;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-tooltip);
 
   /* Fade in so the tooltip doesn't snap when it appears. */
   animation: tooltipFadeIn 120ms ease-out;
@@ -27,23 +27,23 @@
   padding: 0 6px 4px;
   /* Matches the tooltip's outer border so the separator feels like
      part of the same chrome. */
-  border-bottom: 1px solid #2c2c2c;
-  font-family: 'Ubuntu Mono', monospace;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
-  color: #e0e0e0;
+  color: var(--text-primary);
   text-align: left;
   white-space: nowrap;
 }
 
 .tooltipText {
   margin: 0;
-  font-family: 'Ubuntu Mono', monospace;
+  font-family: var(--font-ui);
   font-size: 14px;
   font-weight: 400;
   line-height: 1.4;
-  color: #e0e0e0;
+  color: var(--text-primary);
   text-align: left;
   /* `pre-line` preserves \n line breaks so multi-line tooltips (e.g.
      the section override indicator listing properties) render as a

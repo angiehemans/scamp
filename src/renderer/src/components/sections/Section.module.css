@@ -1,6 +1,6 @@
 .section {
   padding: 12px;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -15,7 +15,7 @@
 .heading {
   font-size: 12px;
   font-weight: 600;
-  color: #888;
+  color: var(--text-secondary);
   text-transform: uppercase;
   margin: 0;
 }
@@ -35,13 +35,13 @@
 }
 
 .toggle:hover .heading {
-  color: #bbb;
+  color: var(--text-primary);
 }
 
 .caret {
   width: 10px;
   font-size: 10px;
-  color: #555;
+  color: var(--text-tertiary);
   line-height: 1;
 }
 
@@ -78,7 +78,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4a8cff;
-  box-shadow: 0 0 0 2px rgba(74, 140, 255, 0.2);
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted);
   cursor: context-menu;
 }

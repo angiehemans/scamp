@@ -1,13 +1,13 @@
 .trigger {
   flex: 1 1 0;
   min-width: 0;
-  height: 24px;
-  background: #151515;
-  border: 1px solid #2c2c2c;
-  border-radius: 4px;
+  height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   padding: 0 8px;
   font-size: 14px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -20,7 +20,7 @@
 .trigger:focus,
 .triggerOpen {
   outline: none;
-  border-color: #4a8cff;
+  border-color: var(--accent);
 }
 
 .triggerLabel {
@@ -32,25 +32,25 @@
 }
 
 .triggerPlaceholder {
-  color: #666;
+  color: var(--text-tertiary);
 }
 
 .triggerIcon {
   flex-shrink: 0;
-  color: #4a8cff;
+  color: var(--accent);
   display: flex;
   align-items: center;
 }
 
 .triggerCaret {
   flex-shrink: 0;
-  color: #666;
+  color: var(--text-tertiary);
   font-size: 10px;
 }
 
 .rowIcon {
   flex-shrink: 0;
-  color: #4a8cff;
+  color: var(--accent);
   display: flex;
   align-items: center;
 }
@@ -59,30 +59,24 @@
   position: fixed;
   z-index: 100;
   width: 260px;
-  background: #1f1f1f;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9;
-}
-
 .search {
   margin: 0;
   height: 30px;
-  background: #151515;
+  background: var(--bg-input);
   border: none;
-  border-bottom: 1px solid #2c2c2c;
+  border-bottom: 1px solid var(--border);
   padding: 0 10px;
   font-size: 13px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-family: inherit;
 }
 
@@ -116,7 +110,7 @@
   padding: 0 12px;
   background: transparent;
   border: none;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 14px;
   cursor: pointer;
   text-align: left;
@@ -136,8 +130,8 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666;
-  background: #2c2c2c;
+  color: var(--text-tertiary);
+  background: var(--bg-hover);
   border-radius: 3px;
   padding: 2px 6px;
   /* Render in the default UI font so the preview font doesn't affect
@@ -146,26 +140,26 @@
 }
 
 .rowActive {
-  background: #1d3a6e;
+  background: var(--accent-dark);
 }
 
 .row:hover {
-  background: #2c2c2c;
+  background: var(--bg-hover);
 }
 
 .rowActive:hover {
-  background: #1d3a6e;
+  background: var(--accent-dark);
 }
 
 .rowEmpty {
   padding: 16px 12px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-tertiary);
   font-style: italic;
   text-align: center;
 }
 
 .rowUnknown {
-  color: #888;
+  color: var(--text-secondary);
   font-style: italic;
 }

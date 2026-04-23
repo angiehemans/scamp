@@ -75,6 +75,20 @@ const ElementRenderer = (props: any) => { ... };
 - Test files: `[filename].test.ts` in `test/` at root
 - CSS Modules for app UI: `ComponentName.module.css` alongside the component
 
+### CSS Modules
+
+- Reference theme variables (`var(--border)`, `var(--accent)`,
+  `var(--text-primary)`, …) rather than hex literals. The full token
+  set is declared in `src/renderer/src/styles/theme.css`.
+- Add a new token to `theme.css` when an existing one doesn't fit —
+  don't reintroduce raw hex values. Tokens are semantic
+  (`--bg-raised`, `--text-secondary`), not numeric scales.
+- One-off colors that genuinely have no reuse (e.g. a specific brand
+  illustration) can stay as literals, but flag in a comment.
+- The user-facing `theme.css` inside a project is a SEPARATE file
+  (design tokens for the user's exported CSS) — don't conflate it
+  with the app's chrome theme.
+
 ### Imports
 
 - Use path aliases — never relative `../../..` chains more than one level deep

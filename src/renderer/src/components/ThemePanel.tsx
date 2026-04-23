@@ -5,6 +5,8 @@ import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { serializeThemeFile } from '@lib/parseTheme';
 import { classifyToken, type TokenCategory } from '@lib/tokenClassify';
 import type { ThemeToken } from '@shared/types';
+import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
+import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { FontPicker } from './controls/FontPicker';
 import { Tooltip } from './controls/Tooltip';
@@ -314,13 +316,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     void writeTokens(next);
   };
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  useDialogBackdrop({ onClose });
 
   const renderColorRow = (index: number, token: ThemeToken): JSX.Element => (
     <div key={index} className={styles.tokenRow}>
@@ -496,20 +492,20 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
             {pendingDelete.usageCount} element
             {pendingDelete.usageCount > 1 ? 's' : ''}. Delete anyway?
             <div className={styles.warningActions}>
-              <button
-                className={`${styles.warningButton} ${styles.warningCancel}`}
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setPendingDelete(null)}
-                type="button"
               >
                 Cancel
-              </button>
-              <button
-                className={`${styles.warningButton} ${styles.warningConfirm}`}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={() => confirmDelete(pendingDelete.index)}
-                type="button"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         )}

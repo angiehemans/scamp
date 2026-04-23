@@ -1,6 +1,7 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
+import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
 import styles from './BackgroundSection.module.css';
@@ -9,18 +10,18 @@ type Props = {
   elementId: string;
 };
 
-const BG_SIZE_OPTIONS: ReadonlyArray<{ value: string; label: string; tooltip: string }> = [
+const BG_SIZE_OPTIONS = [
   { value: 'cover', label: 'Cover', tooltip: 'Fill the element, cropping the image if needed' },
   { value: 'contain', label: 'Contain', tooltip: 'Fit the whole image inside, leaving empty space if needed' },
   { value: 'auto', label: 'Auto', tooltip: 'Use the image at its original size' },
-];
+] as const;
 
-const BG_REPEAT_OPTIONS: ReadonlyArray<{ value: string; label: string; tooltip: string }> = [
+const BG_REPEAT_OPTIONS = [
   { value: 'no-repeat', label: 'None', tooltip: 'No repeat — show the image once' },
   { value: 'repeat', label: 'All', tooltip: 'Tile the image in both directions' },
   { value: 'repeat-x', label: 'X', tooltip: 'Tile the image horizontally' },
   { value: 'repeat-y', label: 'Y', tooltip: 'Tile the image vertically' },
-];
+] as const;
 
 const BG_POSITION_OPTIONS = [
   'top left', 'top center', 'top right',
@@ -108,19 +109,11 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
       {bgImage && (
         <>
           <Row label="Size">
-            <div className={styles.segmented}>
-              {BG_SIZE_OPTIONS.map((opt) => (
-                <Tooltip key={opt.value} label={opt.tooltip}>
-                  <button
-                    className={`${styles.segmentedBtn} ${bgSize === opt.value ? styles.segmentedActive : ''}`}
-                    onClick={() => updateBgProp('background-size', opt.value)}
-                    type="button"
-                  >
-                    {opt.label}
-                  </button>
-                </Tooltip>
-              ))}
-            </div>
+            <SegmentedControl
+              value={bgSize}
+              options={BG_SIZE_OPTIONS}
+              onChange={(value) => updateBgProp('background-size', value)}
+            />
           </Row>
           <Row label="Position">
             <div className={styles.positionGrid}>
@@ -136,19 +129,11 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
             </div>
           </Row>
           <Row label="Repeat">
-            <div className={styles.segmented}>
-              {BG_REPEAT_OPTIONS.map((opt) => (
-                <Tooltip key={opt.value} label={opt.tooltip}>
-                  <button
-                    className={`${styles.segmentedBtn} ${bgRepeat === opt.value ? styles.segmentedActive : ''}`}
-                    onClick={() => updateBgProp('background-repeat', opt.value)}
-                    type="button"
-                  >
-                    {opt.label}
-                  </button>
-                </Tooltip>
-              ))}
-            </div>
+            <SegmentedControl
+              value={bgRepeat}
+              options={BG_REPEAT_OPTIONS}
+              onChange={(value) => updateBgProp('background-repeat', value)}
+            />
           </Row>
           <Row label="">
             <button

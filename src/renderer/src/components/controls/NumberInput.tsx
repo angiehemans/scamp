@@ -1,6 +1,5 @@
-import { KeyboardEvent, ReactNode, useEffect, useState } from 'react';
-import { Tooltip } from './Tooltip';
-import styles from './Controls.module.css';
+import type { ReactNode } from 'react';
+import { PrefixSuffixInput } from './PrefixSuffixInput';
 
 type Props = {
   value: number | undefined;
@@ -21,11 +20,16 @@ type Props = {
   title?: string;
 };
 
+const clamp = (n: number, min?: number, max?: number): number => {
+  let out = n;
+  if (typeof min === 'number' && out < min) out = min;
+  if (typeof max === 'number' && out > max) out = max;
+  return out;
+};
+
 /**
- * A small px / number input. Tracks a local draft so the user can type
- * intermediate values (`-`, partial numbers, etc.) without each keystroke
- * being committed. The committed value is clamped and re-formatted on blur;
- * invalid input reverts to the previous value.
+ * Numeric input. Thin wrapper over PrefixSuffixInput that handles
+ * parsing, clamping, and arrow-key stepping.
  */
 export const NumberInput = ({
   value,
@@ -38,107 +42,39 @@ export const NumberInput = ({
   suffix,
   title,
 }: Props): JSX.Element => {
-  const [draft, setDraft] = useState<string>(value === undefined ? '' : String(value));
+  const stringValue = value === undefined ? '' : String(value);
 
-  useEffect(() => {
-    setDraft(value === undefined ? '' : String(value));
-  }, [value]);
-
-  const commit = (): void => {
-    const trimmed = draft.trim();
-    if (trimmed.length === 0) {
-      if (allowEmpty) {
-        if (value !== undefined) onChange(undefined);
-        return;
-      }
-      // No value allowed — revert to previous.
-      setDraft(value === undefined ? '' : String(value));
+  const handleCommit = (draft: string): void => {
+    if (draft.length === 0) {
+      if (allowEmpty && value !== undefined) onChange(undefined);
       return;
     }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-      setDraft(value === undefined ? '' : String(value));
-      return;
-    }
-    let next = parsed;
-    if (typeof min === 'number' && next < min) next = min;
-    if (typeof max === 'number' && next > max) next = max;
+    const parsed = Number(draft);
+    if (!Number.isFinite(parsed)) return;
+    const next = clamp(parsed, min, max);
     if (next !== value) onChange(next);
-    setDraft(String(next));
   };
 
-  /**
-   * Step the value by `delta` (positive or negative) and push it
-   * straight through `onChange` so the canvas reflects the change
-   * immediately. When the current draft isn't a valid number, fall
-   * back to `value`, then to `min` (or 0), so the first arrow-key
-   * press on an unset field still produces a sensible result.
-   */
-  const step = (delta: number): void => {
+  const handleArrow = (draft: string, direction: 1 | -1, shift: boolean): void => {
+    const step = (shift ? 10 : 1) * direction;
     const fallback =
-      value !== undefined
-        ? value
-        : typeof min === 'number'
-          ? min
-          : 0;
+      value !== undefined ? value : typeof min === 'number' ? min : 0;
     const parsed = Number(draft.trim());
     const current = Number.isFinite(parsed) ? parsed : fallback;
-    let next = current + delta;
-    if (typeof min === 'number' && next < min) next = min;
-    if (typeof max === 'number' && next > max) next = max;
-    if (next === value && String(next) === draft) return;
-    setDraft(String(next));
-    onChange(next);
+    const next = clamp(current + step, min, max);
+    if (next !== value) onChange(next);
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter') {
-      e.currentTarget.blur();
-      return;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      step(e.shiftKey ? 10 : 1);
-      return;
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      step(e.shiftKey ? -10 : -1);
-      return;
-    }
-  };
-
-  if (prefix || suffix) {
-    const body = (
-      <div className={styles.colorInputRow}>
-        {prefix && <span className={styles.inputPrefix}>{prefix}</span>}
-        <input
-          type="text"
-          inputMode="numeric"
-          className={styles.colorText}
-          value={draft}
-          placeholder={placeholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-        />
-        {suffix && <span className={styles.inputSuffix}>{suffix}</span>}
-      </div>
-    );
-    return title ? <Tooltip label={title}>{body}</Tooltip> : body;
-  }
-
-  const input = (
-    <input
-      type="text"
-      inputMode="numeric"
-      className={`${styles.input} ${styles.numberInput}`}
-      value={draft}
+  return (
+    <PrefixSuffixInput
+      value={stringValue}
+      onCommit={handleCommit}
+      onArrow={handleArrow}
+      prefix={prefix}
+      suffix={suffix}
       placeholder={placeholder}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={handleKeyDown}
+      inputMode="numeric"
+      title={title}
     />
   );
-  return title ? <Tooltip label={title}>{input}</Tooltip> : input;
 };
