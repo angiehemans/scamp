@@ -1,5 +1,5 @@
 import { DEFAULT_RECT_STYLES } from './defaults';
-import type { BorderStyle } from './element';
+import type { BorderStyle, TransitionDef } from './element';
 
 /**
  * Parse a `123px` (or bare number) into an integer. Returns 0 for empty
@@ -180,4 +180,179 @@ export const parseBorderRadiusShorthand = (
   }
   const [a, b, c, d] = v as [number, number, number, number];
   return [a, b, c, d];
+};
+
+// ---- Transitions ---------------------------------------------------
+
+const NAMED_EASINGS: ReadonlySet<string> = new Set([
+  'ease',
+  'linear',
+  'ease-in',
+  'ease-out',
+  'ease-in-out',
+  'step-start',
+  'step-end',
+]);
+
+const TIME_RE = /^(-?\d+(?:\.\d+)?)(ms|s)$/i;
+
+const parseTimeMs = (token: string): number | null => {
+  const m = token.match(TIME_RE);
+  if (!m || m[1] === undefined || m[2] === undefined) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return null;
+  return m[2].toLowerCase() === 's' ? Math.round(n * 1000) : Math.round(n);
+};
+
+/**
+ * Split a CSS value-list on top-level commas, respecting parens. Used
+ * to break a `transition` shorthand like
+ *   `opacity 200ms ease, transform 300ms cubic-bezier(0.4, 0, 0.2, 1)`
+ * into per-transition segments without splitting inside cubic-bezier.
+ */
+export const splitCssList = (raw: string): string[] => {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (ch === ',' && depth === 0) {
+      out.push(raw.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  const tail = raw.slice(start).trim();
+  if (tail.length > 0) out.push(tail);
+  return out;
+};
+
+/**
+ * Tokenize a single transition segment into space-separated tokens
+ * with parens (cubic-bezier, steps) kept intact.
+ */
+const tokenizeTransitionSegment = (raw: string): string[] => {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    const ch = raw[i];
+    if (ch === '(') depth += 1;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && /\s/.test(ch as string)) {
+      const tok = raw.slice(start, i).trim();
+      if (tok.length > 0) out.push(tok);
+      start = i + 1;
+    }
+  }
+  const tail = raw.slice(start).trim();
+  if (tail.length > 0) out.push(tail);
+  return out;
+};
+
+const isEasingToken = (token: string): boolean => {
+  if (NAMED_EASINGS.has(token.toLowerCase())) return true;
+  if (/^cubic-bezier\(/i.test(token)) return true;
+  if (/^steps\(/i.test(token)) return true;
+  return false;
+};
+
+/**
+ * Parse a single transition segment (`opacity 200ms ease 100ms`) into
+ * a TransitionDef. Per the CSS spec, the first `<time>` token is the
+ * duration and the second is the delay; any keyword in the easing set
+ * (or `cubic-bezier(...)` / `steps(...)`) is the easing; the leftover
+ * non-time / non-easing token is the property name.
+ */
+export const parseTransitionSegment = (segment: string): TransitionDef | null => {
+  const tokens = tokenizeTransitionSegment(segment);
+  if (tokens.length === 0) return null;
+
+  let durationMs: number | null = null;
+  let delayMs: number | null = null;
+  let easing: string | null = null;
+  let property: string | null = null;
+
+  for (const token of tokens) {
+    const time = parseTimeMs(token);
+    if (time !== null) {
+      if (durationMs === null) durationMs = time;
+      else if (delayMs === null) delayMs = time;
+      // Extra time tokens are spec violations — ignore.
+      continue;
+    }
+    if (easing === null && isEasingToken(token)) {
+      easing =
+        /^cubic-bezier\(/i.test(token) || /^steps\(/i.test(token)
+          ? token
+          : token.toLowerCase();
+      continue;
+    }
+    if (property === null) {
+      property = token;
+      continue;
+    }
+  }
+
+  return {
+    property: property ?? 'all',
+    durationMs: durationMs ?? 0,
+    easing: easing ?? 'ease',
+    delayMs: delayMs ?? 0,
+  };
+};
+
+/**
+ * Parse a `transition` shorthand value into an ordered list of
+ * `TransitionDef`s. Input may be a single transition or a
+ * comma-separated list. Empty input (or `none`) returns an empty
+ * list. Malformed segments are skipped rather than failing the whole
+ * parse so an agent edit that includes one bad segment doesn't drop
+ * the others.
+ */
+export const parseTransitionShorthand = (
+  raw: string
+): ReadonlyArray<TransitionDef> => {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0 || trimmed === 'none') return [];
+  const segments = splitCssList(trimmed);
+  const result: TransitionDef[] = [];
+  for (const segment of segments) {
+    const parsed = parseTransitionSegment(segment);
+    if (parsed) result.push(parsed);
+  }
+  return result;
+};
+
+/**
+ * Format a duration / delay number into the most readable CSS
+ * representation. Whole-second values come back as `1s`; everything
+ * else stays in `ms`.
+ */
+export const formatTransitionTime = (ms: number): string => {
+  if (ms === 0) return '0ms';
+  if (ms % 1000 === 0) return `${ms / 1000}s`;
+  return `${ms}ms`;
+};
+
+/**
+ * Inverse of `parseTransitionShorthand`. Empty list → empty string;
+ * the caller decides whether to emit nothing or `transition: none`.
+ */
+export const formatTransitionShorthand = (
+  transitions: ReadonlyArray<TransitionDef>
+): string => {
+  if (transitions.length === 0) return '';
+  return transitions
+    .map((t) => {
+      const parts: string[] = [
+        t.property,
+        formatTransitionTime(t.durationMs),
+        t.easing,
+      ];
+      if (t.delayMs !== 0) parts.push(formatTransitionTime(t.delayMs));
+      return parts.join(' ');
+    })
+    .join(', ');
 };

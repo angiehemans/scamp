@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { IconColorSwatch } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
@@ -120,8 +128,31 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   const [activeTab, setActiveTab] = useState<TabId>('colors');
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
-  /** Which token's badge-picker menu is currently open (by index). */
-  const [badgeMenuFor, setBadgeMenuFor] = useState<number | null>(null);
+  /**
+   * Which token's badge-picker menu is currently open. Carries the
+   * trigger button's viewport rect so we can portal the menu out of
+   * the (now-scrollable) token list — otherwise the dropdown would
+   * be clipped at the list's overflow boundary.
+   */
+  const [badgeMenuFor, setBadgeMenuFor] = useState<{
+    index: number;
+    anchor: { left: number; top: number; right: number; bottom: number };
+  } | null>(null);
+  const closeBadgeMenu = useCallback(() => setBadgeMenuFor(null), []);
+
+  /**
+   * Ref + signal pair for "scroll the token list to the bottom on the
+   * next render". `handleAddToken` bumps `scrollToEndAfterAdd` and
+   * the effect runs after React commits the new row so we read the
+   * post-add `scrollHeight`.
+   */
+  const tokenListRef = useRef<HTMLDivElement>(null);
+  const [scrollToEndAfterAdd, setScrollToEndAfterAdd] = useState(0);
+  useEffect(() => {
+    if (scrollToEndAfterAdd === 0) return;
+    const list = tokenListRef.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  }, [scrollToEndAfterAdd]);
 
   // Sync from store when tokens change externally (e.g. file edit).
   useEffect(() => {
@@ -215,6 +246,10 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     const next = [...localTokens, newToken];
     setLocalTokens(next);
     void writeTokens(next);
+    // Make the new row visible — without this, adding a token to a
+    // long list looks like a no-op because the new row sits below the
+    // scroll viewport.
+    setScrollToEndAfterAdd((n) => n + 1);
   };
 
   const handleNameChange = (index: number, newName: string): void => {
@@ -354,7 +389,18 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     category: TokenCategory
   ): JSX.Element => {
     const isFontFamily = category === 'fontFamily';
-    const badgeOpen = badgeMenuFor === index;
+    const badgeOpen = badgeMenuFor?.index === index;
+    const handleBadgeClick = (e: MouseEvent<HTMLButtonElement>): void => {
+      if (badgeOpen) {
+        setBadgeMenuFor(null);
+        return;
+      }
+      const r = e.currentTarget.getBoundingClientRect();
+      setBadgeMenuFor({
+        index,
+        anchor: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      });
+    };
     return (
       <div key={index} className={styles.tokenRow}>
 
@@ -395,36 +441,13 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
             <button
               type="button"
               className={`${styles.tokenBadge} ${styles.tokenBadgeButton}`}
-              onClick={() => setBadgeMenuFor(badgeOpen ? null : index)}
+              onClick={handleBadgeClick}
               aria-haspopup="menu"
               aria-expanded={badgeOpen}
             >
              {categoryBadge(category)} <span>▾</span>
             </button>
           </Tooltip>
-          {badgeOpen && (
-            <>
-              <div
-                className={styles.badgeMenuBackdrop}
-                onMouseDown={() => setBadgeMenuFor(null)}
-              />
-              <div className={styles.badgeMenu} role="menu">
-                {TYPOGRAPHY_CATEGORY_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="menuitem"
-                    className={`${styles.badgeMenuItem} ${
-                      category === opt.value ? styles.badgeMenuItemActive : ''
-                    }`}
-                    onClick={() => handleChangeCategory(index, opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
         </div>
         <Tooltip label="Delete token">
           <button
@@ -510,7 +533,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
           </div>
         )}
 
-        <div className={styles.tokenList}>
+        <div ref={tokenListRef} className={styles.tokenList}>
           {visibleIndices.length === 0 && (
             <div className={styles.empty}>
               {activeTab === 'colors'
@@ -537,6 +560,43 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
           + Add {activeTab === 'colors' ? 'Color' : activeTab === 'typography' ? 'Typography' : 'Token'}
         </button>
       </div>
+      {/* Badge category-picker menu, portaled to escape the scrollable
+          token list. Position is the trigger button's viewport rect
+          captured at click time (see handleBadgeClick). */}
+      {badgeMenuFor !== null &&
+        createPortal(
+          <>
+            <div className={styles.badgeMenuBackdrop} onMouseDown={closeBadgeMenu} />
+            <div
+              className={styles.badgeMenu}
+              role="menu"
+              style={{
+                top: badgeMenuFor.anchor.bottom + 4,
+                left: badgeMenuFor.anchor.right - 100,
+              }}
+            >
+              {TYPOGRAPHY_CATEGORY_OPTIONS.map((opt) => {
+                const targetCategory = classifyToken(
+                  localTokens[badgeMenuFor.index]?.value ?? ''
+                );
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="menuitem"
+                    className={`${styles.badgeMenuItem} ${
+                      targetCategory === opt.value ? styles.badgeMenuItemActive : ''
+                    }`}
+                    onClick={() => handleChangeCategory(badgeMenuFor.index, opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 };

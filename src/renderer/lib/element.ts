@@ -6,7 +6,14 @@
 
 export type WidthMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
-export type DisplayMode = 'none' | 'flex';
+/**
+ * `display` values the panel models directly. `'none'` here is the
+ * "block" mode (no flex / no grid layout) — visibility:none is a
+ * separate concept in `visibilityMode`. Naming keeps the legacy
+ * meaning of `'none'` as "neither flex nor grid" so existing files
+ * round-trip.
+ */
+export type DisplayMode = 'none' | 'flex' | 'grid';
 export type FlexDirection = 'row' | 'column';
 export type AlignItems = 'flex-start' | 'center' | 'flex-end' | 'stretch';
 export type JustifyContent =
@@ -15,11 +22,54 @@ export type JustifyContent =
   | 'flex-end'
   | 'space-between'
   | 'space-around';
+/**
+ * Used for grid-only alignment controls (`justify-items`,
+ * `align-self`, `justify-self`). Modern CSS accepts the same short
+ * keywords on grid containers AND the longer `flex-start`/`flex-end`
+ * on grid containers, so the existing flex-flavoured `alignItems`
+ * field keeps working untouched on grid elements.
+ */
+export type GridSelfAlign = 'start' | 'center' | 'end' | 'stretch';
 export type BorderStyle = 'none' | 'solid' | 'dashed' | 'dotted';
 export type FontWeight = 400 | 500 | 600 | 700;
 export type TextAlign = 'left' | 'center' | 'right';
 
 export type ElementType = 'rectangle' | 'text' | 'image' | 'input';
+
+/**
+ * The named easing keywords the WYSIWYG dropdown offers. The parser
+ * also accepts arbitrary `cubic-bezier(...)` expressions and stores
+ * them verbatim in this same field — the panel renders those as the
+ * `Custom…` row.
+ */
+export type TransitionEasing =
+  | 'ease'
+  | 'linear'
+  | 'ease-in'
+  | 'ease-out'
+  | 'ease-in-out'
+  | string;
+
+/**
+ * One row of the Transitions section. The CSS shorthand
+ * `transition: opacity 200ms ease, transform 300ms ease-in-out 100ms`
+ * round-trips as a list of these.
+ *
+ * Duration and delay are stored in canonical milliseconds. The UI
+ * tracks the user's preferred unit (ms vs s) in component-local
+ * state so they can toggle without a stored field.
+ *
+ * `property` is a free-form string at the data layer so that
+ * agent-written transitions on properties outside the dropdown set
+ * (e.g. `box-shadow`) round-trip cleanly. The UI surface restricts
+ * the dropdown options.
+ */
+export type TransitionDef = {
+  property: string;
+  durationMs: number;
+  easing: TransitionEasing;
+  delayMs: number;
+};
 
 /**
  * One entry in a `<select>` element's option list. Options are not
@@ -99,12 +149,35 @@ export type ScampElement = {
   x: number;
   y: number;
 
-  // Flex (as container)
+  // Layout (as container)
   display: DisplayMode;
   flexDirection: FlexDirection;
   gap: number;
   alignItems: AlignItems;
   justifyContent: JustifyContent;
+
+  /**
+   * Grid-only container fields. Free-text template strings (so
+   * `repeat(3, 1fr)`, `auto-fill`, `minmax(...)`, etc. round-trip
+   * unmolested) and per-axis gaps in pixels. `justifyItems` is grid-
+   * only — flex uses `justifyContent` for the same axis.
+   */
+  gridTemplateColumns: string;
+  gridTemplateRows: string;
+  columnGap: number;
+  rowGap: number;
+  justifyItems: GridSelfAlign;
+
+  /**
+   * Grid-item fields — applied when this element's PARENT is a grid
+   * container. Free-text `gridColumn` / `gridRow` so `span 2`,
+   * `1 / 3`, named-line refs etc. round-trip.
+   */
+  gridColumn: string;
+  gridRow: string;
+  alignSelf: GridSelfAlign;
+  justifySelf: GridSelfAlign;
+
   padding: [number, number, number, number];
   margin: [number, number, number, number];
 
@@ -146,6 +219,14 @@ export type ScampElement = {
   // Image only
   src?: string;
   alt?: string;
+
+  /**
+   * Ordered list of CSS transitions. Empty by default. Emitted as a
+   * single `transition: a, b, c` shorthand when non-empty; the
+   * parser handles the shorthand AND the longhand form in case an
+   * agent writes them split.
+   */
+  transitions: ReadonlyArray<TransitionDef>;
 
   // Passthrough — properties the canvas can't visually represent
   customProperties: Record<string, string>;
@@ -392,6 +473,15 @@ export const groupSiblings = (
     gap: 8,
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
+    gridTemplateColumns: '',
+    gridTemplateRows: '',
+    columnGap: 0,
+    rowGap: 0,
+    justifyItems: 'stretch',
+    gridColumn: '',
+    gridRow: '',
+    alignSelf: 'stretch',
+    justifySelf: 'stretch',
     padding: [0, 0, 0, 0],
     margin: [0, 0, 0, 0],
     backgroundColor: 'transparent',
@@ -401,6 +491,7 @@ export const groupSiblings = (
     borderColor: '#000000',
     opacity: 1,
     visibilityMode: 'visible',
+    transitions: [],
     customProperties: {},
   };
 

@@ -1,0 +1,19 @@
+/* Container that floats above the grid container's bounding box. */
+.overlay {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/*
+ * Each track-line. Column lines are 0px wide; row lines are 0px tall.
+ * Borders are dashed so they read as guides rather than solid frames.
+ * Slightly transparent accent so they don't overpower the design
+ * underneath.
+ */
+.line {
+  position: absolute;
+  border-left: 1px dashed var(--accent);
+  border-top: 1px dashed var(--accent);
+  opacity: 0.55;
+}

@@ -2,6 +2,38 @@
 
 A local-first design tool that lets you visually compose layouts and the output is real code — each page saves as a `.tsx` file plus a `.module.css` file that update in real time as you design. External edits (by hand or by an AI agent) reload the canvas instantly, making it a true bidirectional design-to-code workflow.
 
+🌐 **Website:** [www.scampdesign.app](https://www.scampdesign.app)
+
+## Demo
+
+[![Watch the Scamp demo on YouTube](https://img.youtube.com/vi/SOIzj25OM0Q/hqdefault.jpg)](https://youtu.be/SOIzj25OM0Q)
+
+### Screenshots
+
+The canvas with a simple page laid out:
+
+![Scamp canvas](images/scamp.png)
+
+Drawing rectangles and editing properties:
+
+![Drawing a rectangle](images/scamp-rectangle.png)
+
+The CSS-mode editor on the properties panel:
+
+![CSS mode](images/scamp-css.png)
+
+The live code preview panel showing the generated TSX + CSS module:
+
+![Generated code](images/scamp-code.png)
+
+The theme-tokens panel for project-wide design tokens:
+
+![Theme tokens](images/scamp-theme.png)
+
+The integrated terminal panel:
+
+![Terminal](images/scamp-terminal.png)
+
 ## Stack
 
 - **Electron** + **electron-vite** — desktop shell with native file system access
@@ -145,4 +177,4 @@ The config lives in `electron-builder.yml` at the repo root.
 
 ## License
 
-MIT
+Business Source License 1.1 (BSL). See `LICENSE` for the full terms.

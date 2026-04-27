@@ -82,3 +82,43 @@
   box-shadow: 0 0 0 2px var(--accent-muted);
   cursor: context-menu;
 }
+
+/* Generic "+ Add row" button used by repeating-row sections like
+   Transitions. Stretches to the row's full width so it aligns with
+   the input grid above it. */
+.rowAddButton {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.rowAddButton:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* Trailing remove button on a repeating row. */
+.rowRemoveButton {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.rowRemoveButton:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}

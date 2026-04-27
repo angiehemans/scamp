@@ -91,15 +91,18 @@ type Props = {
 
 const elementToStyle = (
   el: ScampElement,
-  parentDisplay: 'flex' | 'none' | undefined,
+  parentDisplay: 'flex' | 'grid' | 'none' | undefined,
   parentDirection: 'row' | 'column' | undefined,
   tokens: ReadonlyArray<ThemeToken>,
   projectDir: string | null
 ): CSSProperties => {
   const isRoot = el.id === ROOT_ELEMENT_ID;
-  // Flex children flow with the layout engine — drop position/left/top so
-  // the browser places them. Matches what we emit in generateCode.
+  // Flex / grid children flow with the layout engine — drop
+  // position/left/top so the browser places them. Matches what we
+  // emit in generateCode.
   const inFlexParent = parentDisplay === 'flex';
+  const inGridParent = parentDisplay === 'grid';
+  const inLayoutParent = inFlexParent || inGridParent;
   const isRow = parentDirection !== 'column'; // default flex direction is row
   // 'auto' produces `undefined` so the rendered element inherits the
   // browser default — exactly what an absent CSS declaration would do.
@@ -162,9 +165,9 @@ const elementToStyle = (
     // the text would anchor to the nearest positioned ancestor instead —
     // typically root — and escape the visual box of its parent even
     // though the tree structure puts it inside.
-    position: isRoot ? 'relative' : inFlexParent ? 'relative' : 'absolute',
-    left: isRoot || inFlexParent ? undefined : el.x,
-    top: isRoot || inFlexParent ? undefined : el.y,
+    position: isRoot ? 'relative' : inLayoutParent ? 'relative' : 'absolute',
+    left: isRoot || inLayoutParent ? undefined : el.x,
+    top: isRoot || inLayoutParent ? undefined : el.y,
     width: effectiveWidth,
     height: effectiveHeight,
     // Canvas-only floor on the root's rendered height. Without this,
@@ -196,6 +199,25 @@ const elementToStyle = (
     base.gap = el.gap;
     base.alignItems = el.alignItems;
     base.justifyContent = el.justifyContent;
+  } else if (el.display === 'grid') {
+    base.display = 'grid';
+    if (el.gridTemplateColumns.length > 0) {
+      base.gridTemplateColumns = el.gridTemplateColumns;
+    }
+    if (el.gridTemplateRows.length > 0) {
+      base.gridTemplateRows = el.gridTemplateRows;
+    }
+    if (el.columnGap > 0) base.columnGap = el.columnGap;
+    if (el.rowGap > 0) base.rowGap = el.rowGap;
+    base.alignItems = el.alignItems;
+    base.justifyItems = el.justifyItems;
+  }
+  // Grid-item placement on the parent grid.
+  if (inGridParent) {
+    if (el.gridColumn.length > 0) base.gridColumn = el.gridColumn;
+    if (el.gridRow.length > 0) base.gridRow = el.gridRow;
+    if (el.alignSelf !== 'stretch') base.alignSelf = el.alignSelf;
+    if (el.justifySelf !== 'stretch') base.justifySelf = el.justifySelf;
   }
   const [pt, pr, pb, pl] = el.padding;
   if (pt || pr || pb || pl) {

@@ -4,6 +4,7 @@ import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { clampToParent, MIN_SIZE } from '@lib/bounds';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
+import { GridOverlay } from './GridOverlay';
 import styles from './CanvasInteractionLayer.module.css';
 
 type Props = {
@@ -764,6 +765,21 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
           showHandles={selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl)}
         />
       )}
+      {isSingleSelection &&
+        selectedElementId &&
+        selectedEl &&
+        selectedEl.display === 'grid' && (() => {
+          const frame = frameRef.current;
+          if (!frame) return null;
+          const r = frame.getBoundingClientRect();
+          return (
+            <GridOverlay
+              elementId={selectedElementId}
+              frameRect={{ left: r.left, top: r.top }}
+              scale={scale}
+            />
+          );
+        })()}
     </div>
   );
 };

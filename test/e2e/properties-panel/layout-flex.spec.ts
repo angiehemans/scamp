@@ -22,13 +22,16 @@ test.describe('properties panel: layout / flex', () => {
     await waitForSaved(window);
 
     const layout = panelSection(window, 'Layout');
-    await layout.getByRole('radio', { name: 'Flex' }).click();
+    // The display toggle is icon-only — query by the per-option
+    // aria-label SegmentedControl now sets.
+    await layout.getByRole('radio', { name: 'Flex row' }).click();
     await waitForSaved(window);
     let css = (await readPageFiles(project.dir, project.pageName)).css;
     expect(css).toMatch(new RegExp(`\\.${className}[^}]*display:\\s*flex`, 's'));
 
-    // Direction → column (default is row, so this emits flex-direction).
-    await layout.getByRole('radio', { name: /Col$/ }).click();
+    // Direction is now part of the same toggle — switching to "Flex
+    // column" emits `flex-direction: column`.
+    await layout.getByRole('radio', { name: 'Flex column' }).click();
     await waitForSaved(window);
     css = (await readPageFiles(project.dir, project.pageName)).css;
     expect(css).toMatch(

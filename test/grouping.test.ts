@@ -34,6 +34,15 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   gap: 0,
   alignItems: 'flex-start',
   justifyContent: 'flex-start',
+  gridTemplateColumns: '',
+  gridTemplateRows: '',
+  columnGap: 0,
+  rowGap: 0,
+  justifyItems: 'stretch',
+  gridColumn: '',
+  gridRow: '',
+  alignSelf: 'stretch',
+  justifySelf: 'stretch',
   padding: [0, 0, 0, 0],
   margin: [0, 0, 0, 0],
   backgroundColor: '#ffffff',
@@ -43,6 +52,7 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible',
+  transitions: [],
   customProperties: {},
 });
 

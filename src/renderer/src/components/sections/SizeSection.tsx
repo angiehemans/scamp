@@ -3,7 +3,12 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { NumberInput } from '../controls/NumberInput';
 import { EnumSelect } from '../controls/EnumSelect';
-import type { WidthMode, HeightMode } from '@lib/element';
+import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
+import type {
+  GridSelfAlign,
+  HeightMode,
+  WidthMode,
+} from '@lib/element';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -22,6 +27,13 @@ const HEIGHT_MODE_OPTIONS: ReadonlyArray<{ value: HeightMode; label: string }> =
   { value: 'stretch', label: 'Stretch' },
   { value: 'fit-content', label: 'Hug' },
   { value: 'auto', label: 'Auto' },
+];
+
+const GRID_SELF_OPTIONS: ReadonlyArray<{ value: GridSelfAlign; label: string }> = [
+  { value: 'start', label: 'Start' },
+  { value: 'center', label: 'Center' },
+  { value: 'end', label: 'End' },
+  { value: 'stretch', label: 'Stretch' },
 ];
 
 /**
@@ -69,6 +81,14 @@ const useMeasuredSize = (
 export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
+  // Whether THIS element's parent is a grid container — drives the
+  // grid-item controls below.
+  const parentIsGrid = useCanvasStore((s) => {
+    if (!elementId) return false;
+    const el = s.elements[elementId];
+    if (!el?.parentId) return false;
+    return s.elements[el.parentId]?.display === 'grid';
+  });
   if (!element) return null;
 
   const measured = useMeasuredSize(elementId, element.widthMode, element.heightMode);
@@ -79,7 +99,16 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
     <Section
       title="Size"
       elementId={elementId}
-      fields={['widthMode', 'widthValue', 'heightMode', 'heightValue']}
+      fields={[
+        'widthMode',
+        'widthValue',
+        'heightMode',
+        'heightValue',
+        'gridColumn',
+        'gridRow',
+        'alignSelf',
+        'justifySelf',
+      ]}
     >
       <Row label="">
         <NumberInput
@@ -117,6 +146,46 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
           title="Height mode"
         />
       </Row>
+      {parentIsGrid && (
+        <>
+          <Row label="">
+            <PrefixSuffixInput
+              prefix="Col"
+              title="grid-column"
+              value={element.gridColumn}
+              placeholder="span 2"
+              onCommit={(value) =>
+                patchElement(elementId, { gridColumn: value.trim() })
+              }
+            />
+          </Row>
+          <Row label="">
+            <PrefixSuffixInput
+              prefix="Row"
+              title="grid-row"
+              value={element.gridRow}
+              placeholder="1 / 3"
+              onCommit={(value) =>
+                patchElement(elementId, { gridRow: value.trim() })
+              }
+            />
+          </Row>
+          <Row label="">
+            <EnumSelect<GridSelfAlign>
+              value={element.alignSelf}
+              options={GRID_SELF_OPTIONS}
+              onChange={(value) => patchElement(elementId, { alignSelf: value })}
+              title="Align self"
+            />
+            <EnumSelect<GridSelfAlign>
+              value={element.justifySelf}
+              options={GRID_SELF_OPTIONS}
+              onChange={(value) => patchElement(elementId, { justifySelf: value })}
+              title="Justify self"
+            />
+          </Row>
+        </>
+      )}
     </Section>
   );
 };

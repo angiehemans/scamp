@@ -3,6 +3,7 @@ import {
   parseBorderShorthand,
   parsePaddingShorthand,
   parsePx,
+  parseTransitionShorthand,
 } from './parsers';
 import type { ScampElement } from './element';
 
@@ -30,9 +31,10 @@ export const cssToScampProperty: Record<string, Mapper> = {
   'border-radius': (v) => ({ borderRadius: parseBorderRadiusShorthand(v) }),
   display: (v) => {
     if (v === 'flex') return { display: 'flex' };
+    if (v === 'grid') return { display: 'grid' };
     if (v === 'none') return { visibilityMode: 'none' };
     // Other display values (block, inline-block, …) map back to the
-    // non-flex sentinel in our model.
+    // non-flex / non-grid sentinel in our model.
     return { display: 'none' };
   },
   visibility: (v) => {
@@ -128,6 +130,42 @@ export const cssToScampProperty: Record<string, Mapper> = {
   'text-align': (v) => {
     if (v === 'left' || v === 'center' || v === 'right') {
       return { textAlign: v };
+    }
+    return {};
+  },
+  transition: (v) => {
+    const transitions = parseTransitionShorthand(v);
+    return { transitions };
+  },
+
+  // ---- Grid ----
+  'grid-template-columns': (v) => {
+    const trimmed = v.trim();
+    return { gridTemplateColumns: trimmed === 'none' ? '' : trimmed };
+  },
+  'grid-template-rows': (v) => {
+    const trimmed = v.trim();
+    return { gridTemplateRows: trimmed === 'none' ? '' : trimmed };
+  },
+  'column-gap': (v) => ({ columnGap: parsePx(v) }),
+  'row-gap': (v) => ({ rowGap: parsePx(v) }),
+  'justify-items': (v) => {
+    if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
+      return { justifyItems: v };
+    }
+    return {};
+  },
+  'grid-column': (v) => ({ gridColumn: v.trim() }),
+  'grid-row': (v) => ({ gridRow: v.trim() }),
+  'align-self': (v) => {
+    if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
+      return { alignSelf: v };
+    }
+    return {};
+  },
+  'justify-self': (v) => {
+    if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
+      return { justifySelf: v };
     }
     return {};
   },

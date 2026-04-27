@@ -8,6 +8,11 @@ type Option<V extends string> = {
   /** Optional per-option tooltip. When set, the button is wrapped in
    * Tooltip so each segment can describe its effect individually. */
   tooltip?: string;
+  /** Optional aria-label override — required when `label` is a
+   * non-text ReactNode (icon-only buttons) so the button has an
+   * accessible name. Falls back to `tooltip` when omitted, or the
+   * string value of `label` if it happens to be a plain string. */
+  ariaLabel?: string;
 };
 
 type Props<V extends string> = {
@@ -30,12 +35,17 @@ export const SegmentedControl = <V extends string>({
     <div className={styles.segmented} role="radiogroup">
       {options.map((opt) => {
         const active = opt.value === value;
+        const accessibleName =
+          opt.ariaLabel ??
+          opt.tooltip ??
+          (typeof opt.label === 'string' ? opt.label : undefined);
         const button = (
           <button
             type="button"
             key={opt.value}
             role="radio"
             aria-checked={active}
+            aria-label={accessibleName}
             className={`${styles.segmentedButton} ${active ? styles.segmentedButtonActive : ''}`}
             onClick={() => onChange(opt.value)}
           >

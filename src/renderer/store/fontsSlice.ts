@@ -52,6 +52,13 @@ type FontsState = {
   /** Raw Google Fonts `@import` URLs the project tracks. */
   projectFontUrls: ReadonlyArray<string>;
   loadSystemFonts: () => Promise<void>;
+  /**
+   * Re-run the local-font enumeration regardless of whether the
+   * initial load already happened. The font picker calls this each
+   * time it opens so a font installed AFTER app start still shows
+   * up without restarting Scamp.
+   */
+  refreshSystemFonts: () => Promise<void>;
   setProjectFonts: (input: {
     families: ReadonlyArray<string>;
     urls: ReadonlyArray<string>;
@@ -71,37 +78,55 @@ export const useFontsStore = create<FontsState>((set, get) => ({
   },
   loadSystemFonts: async () => {
     // Guard against double-load — `App.tsx` fires this on mount; a
-    // future callsite might too. Once loaded, bail.
+    // future callsite might too. Once loaded, bail. Use
+    // `refreshSystemFonts` instead when you want a re-query.
     if (get().systemFontsLoaded) return;
+    await runSystemFontEnumeration(set);
+  },
+  refreshSystemFonts: async () => {
+    await runSystemFontEnumeration(set);
+  },
+}));
 
-    const finish = (families: ReadonlyArray<string>): void => {
-      set({ systemFonts: families, systemFontsLoaded: true });
-    };
+/**
+ * Single source of truth for the queryLocalFonts → setState pipeline.
+ * Shared between the initial load and the on-demand refresh path so
+ * the fallback / failure handling stays consistent.
+ */
+const runSystemFontEnumeration = async (
+  set: (
+    partial:
+      | Partial<FontsState>
+      | ((state: FontsState) => Partial<FontsState>)
+  ) => void
+): Promise<void> => {
+  const finish = (families: ReadonlyArray<string>): void => {
+    set({ systemFonts: families, systemFontsLoaded: true });
+  };
 
-    if (typeof window.queryLocalFonts !== 'function') {
+  if (typeof window.queryLocalFonts !== 'function') {
+    finish(FALLBACK_SYSTEM_FONTS);
+    return;
+  }
+
+  try {
+    const fonts = await window.queryLocalFonts();
+    const families = Array.from(
+      new Set(fonts.map((f) => f.family).filter((f) => f.length > 0))
+    ).sort((a, b) => a.localeCompare(b));
+    if (families.length === 0) {
       finish(FALLBACK_SYSTEM_FONTS);
       return;
     }
-
-    try {
-      const fonts = await window.queryLocalFonts();
-      const families = Array.from(
-        new Set(fonts.map((f) => f.family).filter((f) => f.length > 0))
-      ).sort((a, b) => a.localeCompare(b));
-      if (families.length === 0) {
-        finish(FALLBACK_SYSTEM_FONTS);
-        return;
-      }
-      finish(families);
-    } catch (e) {
-      // Permission denied, origin check failed, or the platform doesn't
-      // expose the API. Fall back so the user can still pick a font.
-      // eslint-disable-next-line no-console
-      console.warn('[fonts] queryLocalFonts failed, using fallback list', e);
-      finish(FALLBACK_SYSTEM_FONTS);
-    }
-  },
-}));
+    finish(families);
+  } catch (e) {
+    // Permission denied, origin check failed, or the platform doesn't
+    // expose the API. Fall back so the user can still pick a font.
+    // eslint-disable-next-line no-console
+    console.warn('[fonts] queryLocalFonts failed, using fallback list', e);
+    finish(FALLBACK_SYSTEM_FONTS);
+  }
+};
 
 /**
  * Merge project fonts + system fonts into one picker list. Project

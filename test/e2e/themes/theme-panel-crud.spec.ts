@@ -97,4 +97,71 @@ test.describe('themes: panel CRUD', () => {
       .poll(async () => readTheme(project.dir), { timeout: 5_000 })
       .not.toContain('--color-muted');
   });
+
+  test('dialog stays the same size when switching tabs', async ({ window }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await window.getByRole('button', { name: /^Theme/ }).click();
+    const panel = window.getByTestId('theme-panel');
+    await expect(panel).toBeVisible();
+
+    // Colors tab — seeded with 6 tokens.
+    const colorsHeight = (await panel.boundingBox())?.height;
+    if (colorsHeight === undefined) throw new Error('dialog has no box');
+
+    // Typography tab — empty by default in a fresh project.
+    await panel.getByRole('button', { name: /^Typography/ }).click();
+    const typographyHeight = (await panel.boundingBox())?.height;
+    if (typographyHeight === undefined) throw new Error('dialog has no box');
+
+    // Heights must match — fixed-height dialog ignores token count.
+    expect(typographyHeight).toBe(colorsHeight);
+  });
+
+  test('the token list scrolls instead of spilling out when there are many tokens', async ({
+    window,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await window.getByRole('button', { name: /^Theme/ }).click();
+    const panel = window.getByTestId('theme-panel');
+    await expect(panel).toBeVisible();
+
+    const addColor = panel.getByRole('button', { name: /^\+ Add Color/ });
+    for (let i = 0; i < 20; i += 1) {
+      await addColor.click();
+    }
+
+    // Read viewport height from the DOM — the outer `window` is
+    // Playwright's Page (renamed in the fixture), so reading
+    // `window.innerHeight` would refer to it instead of the browser.
+    const viewportHeight = await window.evaluate(
+      () => document.documentElement.clientHeight
+    );
+    const dialogBox = await panel.boundingBox();
+    if (!dialogBox) throw new Error('dialog has no bounding box');
+    expect(dialogBox.height).toBeLessThanOrEqual(viewportHeight);
+    expect(dialogBox.y).toBeGreaterThanOrEqual(0);
+    expect(dialogBox.y + dialogBox.height).toBeLessThanOrEqual(viewportHeight);
+  });
+
+  test('adding a token scrolls the list to the new row', async ({ window }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await window.getByRole('button', { name: /^Theme/ }).click();
+    const panel = window.getByTestId('theme-panel');
+    await expect(panel).toBeVisible();
+
+    // Add enough tokens to overflow the visible list.
+    const addColor = panel.getByRole('button', { name: /^\+ Add Color/ });
+    for (let i = 0; i < 15; i += 1) {
+      await addColor.click();
+    }
+
+    // The most-recently added token is the last row whose name is
+    // `--color-N` for the largest N. After the click, that row must
+    // be visible — not hidden below the scroll viewport.
+    const lastRow = panel
+      .locator('input[type="text"]')
+      .filter({ hasText: '' })
+      .last();
+    await expect(lastRow).toBeInViewport();
+  });
 });

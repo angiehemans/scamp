@@ -10,6 +10,7 @@ import { ElementSection } from './sections/ElementSection';
 import { TypographySection } from './sections/TypographySection';
 import { ImageSection } from './sections/ImageSection';
 import { VisibilitySection } from './sections/VisibilitySection';
+import { TransitionsSection } from './sections/TransitionsSection';
 import styles from './PropertiesPanel.module.css';
 
 /**
@@ -58,6 +59,7 @@ export const UiPanel = (): JSX.Element => {
       {isImage && <ImageSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />
+      <TransitionsSection elementId={elementId} />
     </div>
   );
 };

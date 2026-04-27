@@ -5,6 +5,7 @@ import {
   type BreakpointOverride,
   type ScampElement,
 } from './element';
+import { formatTransitionShorthand } from './parsers';
 import {
   DESKTOP_BREAKPOINT_ID,
   type Breakpoint,
@@ -265,10 +266,13 @@ export const elementDeclarationLines = (
 ): string[] => {
   const lines: string[] = [];
   const isRoot = el.id === ROOT_ELEMENT_ID;
-  // When the parent is a flex container, this element is a flex item and
-  // should NOT have absolute positioning. Position/left/top become
-  // meaningless because flex layout owns its placement.
+  // When the parent is a flex OR grid container, this element is laid
+  // out by that engine and should NOT have absolute positioning —
+  // position/left/top become meaningless because the parent owns
+  // placement.
   const inFlexParent = parent?.display === 'flex';
+  const inGridParent = parent?.display === 'grid';
+  const inLayoutParent = inFlexParent || inGridParent;
   // Different default set for root vs any other rect — a root defaults
   // to a white page background and web-idiomatic sizing (100% / auto)
   // so the exported CSS works outside Scamp. Everything else flows
@@ -294,26 +298,72 @@ export const elementDeclarationLines = (
     lines.push(`height: ${el.heightValue}px;`);
   }
 
-  // Visibility "none" emits `display: none` and suppresses flex
-  // declarations it would override. Flex declarations still come out
-  // when visibility is visible/hidden so the latent state round-trips.
+  // Visibility "none" emits `display: none` and suppresses
+  // layout-mode declarations it would override. Layout declarations
+  // still come out when visibility is visible/hidden so the latent
+  // state round-trips.
   if (el.visibilityMode === 'none') {
     lines.push('display: none;');
   } else {
     if (el.display !== BASE.display) {
       lines.push(`display: ${el.display};`);
     }
-    if (el.flexDirection !== BASE.flexDirection) {
-      lines.push(`flex-direction: ${el.flexDirection};`);
+    if (el.display === 'grid') {
+      // Grid container fields. Empty template strings + zero gaps
+      // are skipped so the generated CSS only carries declarations
+      // the user actually set.
+      if (el.gridTemplateColumns.trim().length > 0) {
+        lines.push(`grid-template-columns: ${el.gridTemplateColumns};`);
+      }
+      if (el.gridTemplateRows.trim().length > 0) {
+        lines.push(`grid-template-rows: ${el.gridTemplateRows};`);
+      }
+      if (el.columnGap !== BASE.columnGap) {
+        lines.push(`column-gap: ${el.columnGap}px;`);
+      }
+      if (el.rowGap !== BASE.rowGap) {
+        lines.push(`row-gap: ${el.rowGap}px;`);
+      }
+      if (el.alignItems !== BASE.alignItems) {
+        lines.push(`align-items: ${el.alignItems};`);
+      }
+      if (el.justifyItems !== BASE.justifyItems) {
+        lines.push(`justify-items: ${el.justifyItems};`);
+      }
+    } else {
+      // Flex (and the legacy "none" non-flex mode) emit the existing
+      // flex container fields. Grid-only fields stay latent on the
+      // element.
+      if (el.flexDirection !== BASE.flexDirection) {
+        lines.push(`flex-direction: ${el.flexDirection};`);
+      }
+      if (el.gap !== BASE.gap) {
+        lines.push(`gap: ${el.gap}px;`);
+      }
+      if (el.alignItems !== BASE.alignItems) {
+        lines.push(`align-items: ${el.alignItems};`);
+      }
+      if (el.justifyContent !== BASE.justifyContent) {
+        lines.push(`justify-content: ${el.justifyContent};`);
+      }
     }
-    if (el.gap !== BASE.gap) {
-      lines.push(`gap: ${el.gap}px;`);
+  }
+
+  // Grid-item declarations — apply when this element's PARENT is a
+  // grid container. Free-text fields are emitted when non-empty;
+  // align/justify-self only when not the default `stretch`.
+  if (parent && parent.display === 'grid') {
+    if (el.gridColumn.trim().length > 0) {
+      lines.push(`grid-column: ${el.gridColumn};`);
     }
-    if (el.alignItems !== BASE.alignItems) {
-      lines.push(`align-items: ${el.alignItems};`);
+    if (el.gridRow.trim().length > 0) {
+      lines.push(`grid-row: ${el.gridRow};`);
     }
-    if (el.justifyContent !== BASE.justifyContent) {
-      lines.push(`justify-content: ${el.justifyContent};`);
+    if (el.alignSelf !== BASE.alignSelf) {
+      lines.push(`align-self: ${el.alignSelf};`);
+    }
+    if (el.justifySelf !== BASE.justifySelf) {
+      lines.push(`justify-self: ${el.justifySelf};`);
     }
   }
 
@@ -374,13 +424,18 @@ export const elementDeclarationLines = (
     lines.push(`opacity: ${el.opacity};`);
   }
 
+  // Transitions — single shorthand per element. Empty list omits.
+  if (el.transitions.length > 0) {
+    lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
+  }
+
   // Position. Root is always `position: relative` (no coordinates —
   // it's the outermost element and has no parent to anchor against).
   // Non-root uses absolute positioning within the parent EXCEPT when
   // the parent is a flex container; flex layout owns placement there.
   if (isRoot) {
     lines.push(`position: relative;`);
-  } else if (!inFlexParent) {
+  } else if (!inLayoutParent) {
     lines.push(`position: absolute;`);
     lines.push(`left: ${el.x}px;`);
     lines.push(`top: ${el.y}px;`);
@@ -452,6 +507,44 @@ export const breakpointOverrideLines = (
     lines.push(`justify-content: ${override.justifyContent};`);
   }
 
+  // Grid container fields — emit only when overridden at this
+  // breakpoint. Empty template strings emit `none` to clear an
+  // inherited grid template; the user can opt out of the grid by
+  // overriding `display` instead.
+  if (has('gridTemplateColumns') && override.gridTemplateColumns !== undefined) {
+    const v = override.gridTemplateColumns;
+    lines.push(`grid-template-columns: ${v.length > 0 ? v : 'none'};`);
+  }
+  if (has('gridTemplateRows') && override.gridTemplateRows !== undefined) {
+    const v = override.gridTemplateRows;
+    lines.push(`grid-template-rows: ${v.length > 0 ? v : 'none'};`);
+  }
+  if (has('columnGap') && override.columnGap !== undefined) {
+    lines.push(`column-gap: ${override.columnGap}px;`);
+  }
+  if (has('rowGap') && override.rowGap !== undefined) {
+    lines.push(`row-gap: ${override.rowGap}px;`);
+  }
+  if (has('justifyItems') && override.justifyItems) {
+    lines.push(`justify-items: ${override.justifyItems};`);
+  }
+
+  // Grid item fields.
+  if (has('gridColumn') && override.gridColumn !== undefined) {
+    const v = override.gridColumn;
+    if (v.length > 0) lines.push(`grid-column: ${v};`);
+  }
+  if (has('gridRow') && override.gridRow !== undefined) {
+    const v = override.gridRow;
+    if (v.length > 0) lines.push(`grid-row: ${v};`);
+  }
+  if (has('alignSelf') && override.alignSelf) {
+    lines.push(`align-self: ${override.alignSelf};`);
+  }
+  if (has('justifySelf') && override.justifySelf) {
+    lines.push(`justify-self: ${override.justifySelf};`);
+  }
+
   if (has('padding') && override.padding) {
     const [t, r, b, l] = override.padding;
     lines.push(`padding: ${t}px ${r}px ${b}px ${l}px;`);
@@ -486,6 +579,19 @@ export const breakpointOverrideLines = (
     lines.push('visibility: hidden;');
   } else if (has('visibilityMode') && override.visibilityMode === 'visible') {
     lines.push('visibility: visible;');
+  }
+
+  // Transitions — empty list at a breakpoint emits `transition: none`
+  // so the cascade explicitly clears the inherited list rather than
+  // silently leaving it in place.
+  if (has('transitions') && override.transitions !== undefined) {
+    if (override.transitions.length === 0) {
+      lines.push('transition: none;');
+    } else {
+      lines.push(
+        `transition: ${formatTransitionShorthand(override.transitions)};`
+      );
+    }
   }
 
   // Text properties — only meaningful on text elements but cheap to

@@ -10,7 +10,10 @@
 
 .dialog {
   width: 480px;
-  max-height: 80vh;
+  /* Fixed dialog height so switching tabs (or adding/deleting
+     tokens) doesn't reflow the dialog's outer chrome. The token
+     list inside fills the remaining space and scrolls when long. */
+  height: 80vh;
   background: var(--bg-header);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -90,8 +93,19 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: visible;
-  max-height: 50vh;
+  overflow-y: auto;
+  /* Fill the remaining space inside the fixed-height dialog so the
+     dialog's outer chrome (header, tabs, +Add button) stays put
+     regardless of how many tokens the active tab carries.
+     `min-height: 0` is required for the flex child to shrink past
+     its intrinsic content size and scroll. */
+  flex: 1;
+  min-height: 0;
+  /* Reserve space for the scrollbar so rows don't reflow when one
+     appears, and pull a hair of inner padding so the focus ring on
+     the rightmost button isn't clipped by the overflow. */
+  padding-right: 4px;
+  margin-right: -4px;
 }
 
 .typographyIcon {
@@ -159,14 +173,15 @@
 .badgeMenuBackdrop {
   position: fixed;
   inset: 0;
-  z-index: 19;
+  z-index: 199;
 }
 
 .badgeMenu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 20;
+  /* Portaled to <body>, so position is set via inline `top`/`left`
+     from the trigger's viewport rect at click time (see ThemePanel.tsx
+     handleBadgeClick). z-index sits above .badgeMenuBackdrop. */
+  position: fixed;
+  z-index: 200;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);

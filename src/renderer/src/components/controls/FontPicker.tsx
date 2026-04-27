@@ -9,7 +9,7 @@ import {
 import { IconColorSwatch } from '@tabler/icons-react';
 import { filterFonts } from '@lib/fontFilter';
 import { formatFontValue, quoteFamilyName } from '@lib/fontFallback';
-import type { AvailableFont } from '@store/fontsSlice';
+import { useFontsStore, type AvailableFont } from '@store/fontsSlice';
 import type { ThemeToken } from '@shared/types';
 import { usePopover } from '../../hooks/usePopover';
 import { Tooltip } from './Tooltip';
@@ -62,6 +62,15 @@ type Option = {
   badge?: string;
   /** True when this row is a theme token — renders the swatch icon. */
   isToken?: boolean;
+  /**
+   * True when this row is a "use what the user typed" escape hatch —
+   * shown when the search query has no matches in the enumerated
+   * fonts. Lets the user commit a font name Chromium's
+   * `queryLocalFonts()` doesn't return (which happens for fonts with
+   * unusual name-table metadata) and that the browser will still
+   * render via fontconfig at draw time.
+   */
+  custom?: boolean;
 };
 
 /**
@@ -187,6 +196,19 @@ export const FontPicker = ({
         badge: source === 'project' ? 'Project' : undefined,
       });
     }
+    // Escape hatch: if the user typed something and nothing matches,
+    // offer it as a literal font-family value. The browser still
+    // resolves the family via fontconfig at render time even when
+    // queryLocalFonts() doesn't enumerate it.
+    if (q.length > 0 && result.length === 0) {
+      const typed = query.trim();
+      result.push({
+        value: formatFontValue(typed),
+        label: typed,
+        previewFamily: typed,
+        custom: true,
+      });
+    }
     return result;
   }, [fonts, fontTokens, query, value]);
 
@@ -202,11 +224,14 @@ export const FontPicker = ({
 
   // Focus the search input on open. Seed the active row on the
   // currently selected font so Enter without typing confirms the
-  // existing selection.
+  // existing selection. Also re-enumerate system fonts so a font
+  // installed AFTER app start surfaces in the picker without a
+  // restart — `refreshSystemFonts` is cheap on a warm session.
   useEffect(() => {
     if (!popover.open) return;
     setQuery('');
     setScrollTop(0);
+    void useFontsStore.getState().refreshSystemFonts();
     const raf = requestAnimationFrame(() => {
       searchRef.current?.focus();
       const currentIdx = options.findIndex((o) => o.value === value);
@@ -388,12 +413,17 @@ export const FontPicker = ({
                         </span>
                       )}
                       <span className={styles.rowLabel}>
-                        {option.unknown
-                          ? `Custom: ${option.label}`
-                          : option.label}
+                        {option.custom
+                          ? `Use "${option.label}"`
+                          : option.unknown
+                            ? `Custom: ${option.label}`
+                            : option.label}
                       </span>
                       {option.badge && (
                         <span className={styles.rowBadge}>{option.badge}</span>
+                      )}
+                      {option.custom && (
+                        <span className={styles.rowBadge}>Custom</span>
                       )}
                     </button>
                   );

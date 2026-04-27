@@ -12,6 +12,15 @@ export const DEFAULT_RECT_STYLES = {
   gap: 0,
   alignItems: 'flex-start' as const,
   justifyContent: 'flex-start' as const,
+  gridTemplateColumns: '',
+  gridTemplateRows: '',
+  columnGap: 0,
+  rowGap: 0,
+  justifyItems: 'stretch' as const,
+  gridColumn: '',
+  gridRow: '',
+  alignSelf: 'stretch' as const,
+  justifySelf: 'stretch' as const,
   padding: [0, 0, 0, 0] as [number, number, number, number],
   margin: [0, 0, 0, 0] as [number, number, number, number],
   widthMode: 'fixed' as const,
@@ -25,6 +34,12 @@ export const DEFAULT_RECT_STYLES = {
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible' as const,
+  transitions: [] as ReadonlyArray<{
+    property: string;
+    durationMs: number;
+    easing: string;
+    delayMs: number;
+  }>,
 };
 
 export type DefaultRectStyles = typeof DEFAULT_RECT_STYLES;
@@ -52,6 +67,15 @@ export const DEFAULT_ROOT_STYLES = {
   gap: 0,
   alignItems: 'flex-start' as const,
   justifyContent: 'flex-start' as const,
+  gridTemplateColumns: '',
+  gridTemplateRows: '',
+  columnGap: 0,
+  rowGap: 0,
+  justifyItems: 'stretch' as const,
+  gridColumn: '',
+  gridRow: '',
+  alignSelf: 'stretch' as const,
+  justifySelf: 'stretch' as const,
   padding: [0, 0, 0, 0] as [number, number, number, number],
   margin: [0, 0, 0, 0] as [number, number, number, number],
   widthMode: 'stretch' as const,
@@ -65,6 +89,12 @@ export const DEFAULT_ROOT_STYLES = {
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible' as const,
+  transitions: [] as ReadonlyArray<{
+    property: string;
+    durationMs: number;
+    easing: string;
+    delayMs: number;
+  }>,
 };
 
 export type DefaultRootStyles = typeof DEFAULT_ROOT_STYLES;
