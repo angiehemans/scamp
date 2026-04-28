@@ -1,6 +1,6 @@
 {
   "name": "scamp",
-  "version": "0.0.1",
+  "version": "0.2.2",
   "description": "Local-first design tool. Draw, get real TSX + CSS.",
   "main": "./out/main/index.js",
   "author": {
