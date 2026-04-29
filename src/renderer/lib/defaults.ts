@@ -34,12 +34,17 @@ export const DEFAULT_RECT_STYLES = {
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible' as const,
+  position: 'auto' as const,
   transitions: [] as ReadonlyArray<{
     property: string;
     durationMs: number;
     easing: string;
     delayMs: number;
   }>,
+  inlineFragments: [] as ReadonlyArray<
+    | { kind: 'text'; value: string; afterChildIndex: number }
+    | { kind: 'jsx'; source: string; afterChildIndex: number }
+  >,
 };
 
 export type DefaultRectStyles = typeof DEFAULT_RECT_STYLES;
@@ -89,12 +94,17 @@ export const DEFAULT_ROOT_STYLES = {
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible' as const,
+  position: 'auto' as const,
   transitions: [] as ReadonlyArray<{
     property: string;
     durationMs: number;
     easing: string;
     delayMs: number;
   }>,
+  inlineFragments: [] as ReadonlyArray<
+    | { kind: 'text'; value: string; afterChildIndex: number }
+    | { kind: 'jsx'; source: string; afterChildIndex: number }
+  >,
 };
 
 export type DefaultRootStyles = typeof DEFAULT_ROOT_STYLES;

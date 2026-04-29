@@ -165,9 +165,31 @@ const elementToStyle = (
     // the text would anchor to the nearest positioned ancestor instead —
     // typically root — and escape the visual box of its parent even
     // though the tree structure puts it inside.
-    position: isRoot ? 'relative' : inLayoutParent ? 'relative' : 'absolute',
-    left: isRoot || inLayoutParent ? undefined : el.x,
-    top: isRoot || inLayoutParent ? undefined : el.y,
+    // Typed `position` overrides Scamp's tree-shape default. `auto`
+    // (default) keeps the original behaviour — root + flex/grid
+    // children render as `relative` so absolutely-positioned
+    // descendants anchor inside them; everything else is `absolute`.
+    // Any explicit value (`fixed`, `sticky`, etc.) renders as written.
+    position:
+      el.position !== 'auto'
+        ? el.position
+        : isRoot
+          ? 'relative'
+          : inLayoutParent
+            ? 'relative'
+            : 'absolute',
+    left:
+      el.position === 'static' || el.position === 'auto'
+        ? isRoot || inLayoutParent
+          ? undefined
+          : el.x
+        : el.x,
+    top:
+      el.position === 'static' || el.position === 'auto'
+        ? isRoot || inLayoutParent
+          ? undefined
+          : el.y
+        : el.y,
     width: effectiveWidth,
     height: effectiveHeight,
     // Canvas-only floor on the root's rendered height. Without this,

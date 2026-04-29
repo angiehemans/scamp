@@ -111,6 +111,18 @@ type CanvasState = {
   // when this is true so we don't echo a load straight back to disk.
   isLoading: boolean;
 
+  /**
+   * The source of the most recent load. `'initial'` for the project-
+   * open / page-switch path (sync bridge may rewrite the file in
+   * canonical format to migrate legacy data). `'external'` for
+   * chokidar-triggered loads from agent / hand edits — sync bridge
+   * MUST NOT rewrite the file in this case, otherwise the agent's
+   * formatting / declaration order / preserved customProperties
+   * would get clobbered. Cleared back to `null` once the load
+   * settles.
+   */
+  lastLoadKind: 'initial' | 'external' | null;
+
   // UI: which bottom panel is open. M5 will add 'terminal'.
   bottomPanel: BottomPanel;
 
@@ -444,6 +456,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   activePage: null,
   pageSource: null,
   isLoading: false,
+  lastLoadKind: null,
   bottomPanel: 'none',
   panelMode: 'ui',
   userZoom: null,
@@ -862,6 +875,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       pageCustomMediaBlocks: customMediaBlocks ?? [],
       selectedElementIds: [],
       isLoading: true,
+      lastLoadKind: 'initial',
     }),
 
   reloadElements: (elements, source, customMediaBlocks) =>
@@ -873,6 +887,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       // could have been edited externally to remove an element).
       selectedElementIds: state.selectedElementIds.filter((id) => id in elements),
       isLoading: true,
+      lastLoadKind: 'external',
     })),
 
   setPageSource: (source) => set({ pageSource: source }),

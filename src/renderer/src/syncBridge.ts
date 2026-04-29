@@ -348,16 +348,21 @@ export const initSyncBridge = (): (() => void) => {
 
       if (!state.activePage) return;
 
-      // The change came from a load — refresh the write cache. If the
-      // re-generated code differs from what's on disk (e.g. old-format
-      // data-scamp-id, `<div></div>` vs `<div />`), write the canonical
-      // version back to migrate the file to the current format.
+      // The change came from a load — refresh the write cache. For
+      // initial page loads (`'initial'`), if the re-generated code
+      // differs from what's on disk (e.g. old-format data-scamp-id,
+      // `<div></div>` vs `<div />`), write the canonical version back
+      // to migrate the file to the current format.
       //
-      // Migration writes bypass the save-status indicator — the user
-      // didn't ask for a save and shouldn't see "Saving…" / "Save
-      // failed" flash on project open. We still go through the main
-      // process so chokidar suppression works, but we don't await a
-      // confirmation; failures log to the app log only.
+      // For external edits (`'external'`, fired from chokidar when an
+      // agent / hand edit landed on disk), we NEVER auto-write back.
+      // Even when generateCode would produce something slightly
+      // different — declaration ordering, whitespace, comments —
+      // the agent's content is the source of truth on disk. Auto-
+      // writing here would clobber agent-written formatting and
+      // preserved customProperties values, which is the bug Track C
+      // exists to fix. The next user-driven canvas edit will write a
+      // canonical version on its own debounce cycle.
       if (state.isLoading) {
         const code = generateCode({
           elements: state.elements,
@@ -367,7 +372,12 @@ export const initSyncBridge = (): (() => void) => {
           customMediaBlocks: state.pageCustomMediaBlocks,
         });
         const onDisk = state.pageSource;
-        if (onDisk && (code.tsx !== onDisk.tsx || code.css !== onDisk.css)) {
+        const isExternal = state.lastLoadKind === 'external';
+        if (
+          !isExternal &&
+          onDisk &&
+          (code.tsx !== onDisk.tsx || code.css !== onDisk.css)
+        ) {
           state.setPageSource({ tsx: code.tsx, css: code.css });
           const page = state.activePage;
           void window.scamp
@@ -384,11 +394,18 @@ export const initSyncBridge = (): (() => void) => {
                 .log('warn', `Format migration write failed: ${message}`);
             });
         }
-        lastSerializedTsx = code.tsx;
-        lastSerializedCss = code.css;
+        // The serialized cache should reflect what's on disk — for
+        // external edits that's the agent's content (NOT our regen).
+        if (isExternal && onDisk) {
+          lastSerializedTsx = onDisk.tsx;
+          lastSerializedCss = onDisk.css;
+        } else {
+          lastSerializedTsx = code.tsx;
+          lastSerializedCss = code.css;
+        }
         // Defer clearing the flag so any in-flight subscribers also see it.
         queueMicrotask(() => {
-          useCanvasStore.setState({ isLoading: false });
+          useCanvasStore.setState({ isLoading: false, lastLoadKind: null });
         });
         return;
       }

@@ -116,6 +116,17 @@ type RawElement = {
   parentId: string | null;
   childIds: string[];
   text: string | null;
+  /**
+   * Loose text + unclassed JSX subtrees that appear between this
+   * element's child elements (or before/after them). Captured in
+   * source order so the generator can emit them verbatim. Pure-
+   * whitespace text fragments are dropped to avoid double-spacing
+   * generator-emitted indentation.
+   */
+  inlineFragments: Array<
+    | { kind: 'text'; value: string; afterChildIndex: number }
+    | { kind: 'jsx'; source: string; afterChildIndex: number }
+  >;
   /** Human-readable name from `data-scamp-name`, if present. */
   name: string | null;
   /** Image src attribute, if present. */
@@ -209,6 +220,14 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
   type FrameKind = 'pushed' | 'skipped' | 'svg-inner' | 'option';
   const frames: FrameKind[] = [];
 
+  // Depth of nested unclassed (skipped) tags currently open inside
+  // a Scamp parent. When > 0, we treat text + nested tags as part of
+  // the verbatim JSX fragment — only capture once we close the
+  // OUTERMOST skipped tag so e.g. `<strong>a <em>b</em></strong>`
+  // round-trips byte-equivalent.
+  let skippedDepth = 0;
+  let skippedRootStart = 0;
+
   // When capturing an svg's verbatim inner source.
   let svgTarget: RawElement | null = null;
   let svgInnerStart = 0;
@@ -244,6 +263,14 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
 
         const rawId = attribs['data-scamp-id'];
         if (typeof rawId !== 'string' || rawId.length === 0) {
+          // Unclassed JSX inside a Scamp parent — start capturing
+          // verbatim source from the outermost skipped tag's open
+          // bracket so the close handler can slice the full subtree
+          // and push it as an `inlineFragments` entry on the parent.
+          if (skippedDepth === 0 && stack.length > 0) {
+            skippedRootStart = parser.startIndex ?? 0;
+          }
+          skippedDepth += 1;
           frames.push('skipped');
           return;
         }
@@ -305,6 +332,7 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
           parentId,
           childIds: [],
           text: null,
+          inlineFragments: [],
           name: parsedName,
           src: typedImgSrcAlt ? (attribs['src'] ?? null) : null,
           alt: typedImgSrcAlt ? (attribs['alt'] ?? null) : null,
@@ -339,13 +367,27 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
           currentOption.label += text;
           return;
         }
+        // Inside an unclassed JSX subtree — text is part of the
+        // verbatim source captured on close.
+        if (skippedDepth > 0) return;
         const top = stack[stack.length - 1];
-        if (!top || top.type !== 'text') return;
-        // Concatenate raw chunks; htmlparser2 may emit multiple ontext
-        // events around an entity boundary. We trim outer whitespace
-        // once when reading the field, not here, so internal spaces
-        // survive.
-        top.text = (top.text ?? '') + text;
+        if (!top) return;
+        if (top.type === 'text') {
+          // Text element — concatenate raw chunks; htmlparser2 may
+          // emit multiple ontext events around an entity boundary.
+          top.text = (top.text ?? '') + text;
+          return;
+        }
+        // Loose text inside a non-text Scamp parent — preserve as a
+        // fragment so the source order is recoverable. Drop pure-
+        // whitespace chunks (newline + indent between tags) to avoid
+        // double-spacing the generator's own indentation on emit.
+        if (text.trim().length === 0) return;
+        top.inlineFragments.push({
+          kind: 'text',
+          value: text,
+          afterChildIndex: top.childIds.length - 1,
+        });
       },
       onclosetag(name) {
         const frame = frames.pop();
@@ -364,7 +406,23 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
           currentOption = null;
           return;
         }
-        if (frame === 'skipped') return;
+        if (frame === 'skipped') {
+          skippedDepth -= 1;
+          // Just closed the OUTERMOST skipped tag inside a Scamp
+          // parent — slice its verbatim source out of the original
+          // tsx and push as an inline JSX fragment on that parent.
+          if (skippedDepth === 0 && stack.length > 0) {
+            const closeEnd = (parser.endIndex ?? skippedRootStart) + 1;
+            const source = tsx.slice(skippedRootStart, closeEnd);
+            const top = stack[stack.length - 1]!;
+            top.inlineFragments.push({
+              kind: 'jsx',
+              source,
+              afterChildIndex: top.childIds.length - 1,
+            });
+          }
+          return;
+        }
         // 'pushed' — real element. Pop the stack; also clear
         // svg/select capture state if this is the element that opened
         // them.
@@ -518,7 +576,8 @@ const applyDeclarationsAsOverride = (
   const customProperties: Record<string, string> = {};
 
   for (const { prop, value } of decls) {
-    if (prop === 'position') continue;
+    // `position` is now a typed field — fall through to the
+    // cssPropertyMap mapper below.
     if (prop === 'left') {
       override = { ...override, x: parsePx(value) };
       continue;
@@ -550,6 +609,14 @@ const applyDeclarationsAsOverride = (
     if (isMappedProperty(prop)) {
       const mapper = cssToScampProperty[prop]!;
       const delta = mapper(value);
+      // Refusable mappers return `null` to mean "I can't reduce this
+      // value to a typed field — preserve the raw declaration via
+      // customProperties". Anything else (`{}` or a real delta) is
+      // applied to the typed override.
+      if (delta === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       override = { ...override, ...delta };
       continue;
     }
@@ -571,6 +638,7 @@ const makeRoot = (): ScampElement => ({
   x: 0,
   y: 0,
   customProperties: {},
+  inlineFragments: [],
 });
 
 /** The HTML tag we'd default to for an element of this type. Used to
@@ -596,6 +664,7 @@ const makeBaseline = (raw: RawElement): ScampElement => {
     x: 0,
     y: 0,
     customProperties: {},
+    inlineFragments: [...raw.inlineFragments],
     ...(raw.type === 'text' && raw.text !== null ? { text: raw.text.trim() } : {}),
     // Only store an explicit tag when it's NOT the type's default. Keeps
     // the round-trip text-stable: a `<div>` rectangle parses with no
@@ -629,7 +698,10 @@ const applyDeclarations = (
   const customProperties: Record<string, string> = {};
 
   for (const { prop, value } of decls) {
-    if (prop === 'position') continue; // structural, not a canvas field
+    // `position` is a typed field handled by the cssPropertyMap below
+    // — drop straight through. The legacy "skip position entirely"
+    // behavior dropped agent-written `position: fixed` etc., which
+    // is the bug we're fixing.
     if (prop === 'left') {
       element = { ...element, x: parsePx(value) };
       continue;
@@ -661,8 +733,22 @@ const applyDeclarations = (
       continue;
     }
     if (isMappedProperty(prop)) {
+      // `position` has a special "auto" sentinel meaning "let
+      // Scamp's tree-shape rules pick the value". When the file
+      // contains exactly the value Scamp would have auto-emitted, we
+      // skip pinning so the typed field stays `'auto'` and round-
+      // trips text-stable.
+      if (prop === 'position') {
+        const v = value.trim();
+        if (v === 'absolute') continue;
+        if (v === 'relative' && element.id === ROOT_ELEMENT_ID) continue;
+      }
       const mapper = cssToScampProperty[prop]!;
       const delta = mapper(value);
+      if (delta === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       element = { ...element, ...delta };
       continue;
     }

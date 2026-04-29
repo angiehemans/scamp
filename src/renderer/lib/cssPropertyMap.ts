@@ -1,8 +1,8 @@
 import {
-  parseBorderRadiusShorthand,
+  parseBorderRadiusShorthandOrNull,
   parseBorderShorthand,
-  parsePaddingShorthand,
-  parsePx,
+  parsePaddingShorthandOrNull,
+  parsePxOrNull,
   parseTransitionShorthand,
 } from './parsers';
 import type { ScampElement } from './element';
@@ -13,7 +13,28 @@ import type { ScampElement } from './element';
  */
 export type ScampPropertyDelta = Partial<ScampElement>;
 
-type Mapper = (value: string) => ScampPropertyDelta;
+/**
+ * A mapper turns a CSS value string into a delta over the typed
+ * canvas element. Returning `null` means "I can't reduce this value
+ * to a typed field — preserve the raw declaration in
+ * customProperties instead". Returning `{}` is a deliberate "this
+ * value is intentionally a no-op" (rare).
+ *
+ * The lossless contract: the parser must never silently drop
+ * agent-written values. Agent writes `padding: var(--space-3)` →
+ * `parsePaddingShorthandOrNull` returns null → mapper returns null →
+ * the parser pushes `padding: var(--space-3)` into customProperties
+ * → the generator emits it back byte-equivalent.
+ */
+type Mapper = (value: string) => ScampPropertyDelta | null;
+
+const POSITIONS: ReadonlySet<string> = new Set([
+  'static',
+  'relative',
+  'absolute',
+  'fixed',
+  'sticky',
+]);
 
 /**
  * The single source of truth for "what CSS properties does scamp understand".
@@ -28,35 +49,54 @@ type Mapper = (value: string) => ScampPropertyDelta;
 export const cssToScampProperty: Record<string, Mapper> = {
   background: (v) => ({ backgroundColor: v }),
   'background-color': (v) => ({ backgroundColor: v }),
-  'border-radius': (v) => ({ borderRadius: parseBorderRadiusShorthand(v) }),
+  'border-radius': (v) => {
+    const parsed = parseBorderRadiusShorthandOrNull(v);
+    if (parsed === null) return null;
+    return { borderRadius: parsed };
+  },
   display: (v) => {
-    if (v === 'flex') return { display: 'flex' };
-    if (v === 'grid') return { display: 'grid' };
-    if (v === 'none') return { visibilityMode: 'none' };
-    // Other display values (block, inline-block, …) map back to the
-    // non-flex / non-grid sentinel in our model.
-    return { display: 'none' };
+    const trimmed = v.trim();
+    if (trimmed === 'flex') return { display: 'flex' };
+    if (trimmed === 'grid') return { display: 'grid' };
+    if (trimmed === 'none') return { visibilityMode: 'none' };
+    if (trimmed === 'block' || trimmed === 'inline-block') {
+      return { display: 'none' };
+    }
+    // Other display values (`inline`, `contents`, `flow-root`, …) get
+    // preserved verbatim via customProperties.
+    return null;
   },
   visibility: (v) => {
     if (v === 'hidden') return { visibilityMode: 'hidden' };
     if (v === 'visible') return { visibilityMode: 'visible' };
-    return {};
+    return null;
   },
   opacity: (v) => {
     const n = Number(v.trim());
-    if (!Number.isFinite(n)) return {};
+    if (!Number.isFinite(n)) return null;
     return { opacity: Math.min(1, Math.max(0, n)) };
+  },
+  position: (v) => {
+    const trimmed = v.trim();
+    if (POSITIONS.has(trimmed)) {
+      return { position: trimmed as ScampElement['position'] };
+    }
+    return null;
   },
   'flex-direction': (v) => {
     if (v === 'row' || v === 'column') return { flexDirection: v };
-    return {};
+    return null;
   },
-  gap: (v) => ({ gap: parsePx(v) }),
+  gap: (v) => {
+    const px = parsePxOrNull(v);
+    if (px === null) return null;
+    return { gap: px };
+  },
   'align-items': (v) => {
     if (v === 'flex-start' || v === 'center' || v === 'flex-end' || v === 'stretch') {
       return { alignItems: v };
     }
-    return {};
+    return null;
   },
   'justify-content': (v) => {
     if (
@@ -68,19 +108,23 @@ export const cssToScampProperty: Record<string, Mapper> = {
     ) {
       return { justifyContent: v };
     }
-    return {};
+    return null;
   },
   width: (v) => {
     if (v === '100%') return { widthMode: 'stretch' };
     if (v === 'fit-content') return { widthMode: 'fit-content' };
     if (v === 'auto') return { widthMode: 'auto' };
-    return { widthMode: 'fixed', widthValue: parsePx(v) };
+    const px = parsePxOrNull(v);
+    if (px === null) return null;
+    return { widthMode: 'fixed', widthValue: px };
   },
   height: (v) => {
     if (v === '100%') return { heightMode: 'stretch' };
     if (v === 'fit-content') return { heightMode: 'fit-content' };
     if (v === 'auto') return { heightMode: 'auto' };
-    return { heightMode: 'fixed', heightValue: parsePx(v) };
+    const px = parsePxOrNull(v);
+    if (px === null) return null;
+    return { heightMode: 'fixed', heightValue: px };
   },
   border: (v) => {
     const parsed = parseBorderShorthand(v);
@@ -89,34 +133,46 @@ export const cssToScampProperty: Record<string, Mapper> = {
     const w = parsed.borderWidth;
     return { ...parsed, borderWidth: [w, w, w, w] as [number, number, number, number] };
   },
-  'border-width': (v) => ({ borderWidth: parsePaddingShorthand(v) }),
+  'border-width': (v) => {
+    const parsed = parsePaddingShorthandOrNull(v);
+    if (parsed === null) return null;
+    return { borderWidth: parsed };
+  },
   'border-style': (v) => {
     if (v === 'none' || v === 'solid' || v === 'dashed' || v === 'dotted') {
       return { borderStyle: v };
     }
-    return {};
+    return null;
   },
   'border-color': (v) => ({ borderColor: v }),
-  padding: (v) => ({ padding: parsePaddingShorthand(v) }),
-  margin: (v) => ({ margin: parsePaddingShorthand(v) }),
+  padding: (v) => {
+    const parsed = parsePaddingShorthandOrNull(v);
+    if (parsed === null) return null;
+    return { padding: parsed };
+  },
+  margin: (v) => {
+    const parsed = parsePaddingShorthandOrNull(v);
+    if (parsed === null) return null;
+    return { margin: parsed };
+  },
   'line-height': (v) => {
     const trimmed = v.trim();
-    if (trimmed.length === 0) return {};
+    if (trimmed.length === 0) return null;
     return { lineHeight: trimmed };
   },
   'letter-spacing': (v) => {
     const trimmed = v.trim();
-    if (trimmed.length === 0) return {};
+    if (trimmed.length === 0) return null;
     return { letterSpacing: trimmed };
   },
   'font-family': (v) => {
     const trimmed = v.trim();
-    if (trimmed.length === 0) return {};
+    if (trimmed.length === 0) return null;
     return { fontFamily: trimmed };
   },
   'font-size': (v) => {
     const trimmed = v.trim();
-    if (trimmed.length === 0) return {};
+    if (trimmed.length === 0) return null;
     return { fontSize: trimmed };
   },
   'font-weight': (v) => {
@@ -124,14 +180,14 @@ export const cssToScampProperty: Record<string, Mapper> = {
     if (n === 400 || n === 500 || n === 600 || n === 700) {
       return { fontWeight: n };
     }
-    return {};
+    return null;
   },
   color: (v) => ({ color: v }),
   'text-align': (v) => {
     if (v === 'left' || v === 'center' || v === 'right') {
       return { textAlign: v };
     }
-    return {};
+    return null;
   },
   transition: (v) => {
     const transitions = parseTransitionShorthand(v);
@@ -147,13 +203,21 @@ export const cssToScampProperty: Record<string, Mapper> = {
     const trimmed = v.trim();
     return { gridTemplateRows: trimmed === 'none' ? '' : trimmed };
   },
-  'column-gap': (v) => ({ columnGap: parsePx(v) }),
-  'row-gap': (v) => ({ rowGap: parsePx(v) }),
+  'column-gap': (v) => {
+    const px = parsePxOrNull(v);
+    if (px === null) return null;
+    return { columnGap: px };
+  },
+  'row-gap': (v) => {
+    const px = parsePxOrNull(v);
+    if (px === null) return null;
+    return { rowGap: px };
+  },
   'justify-items': (v) => {
     if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
       return { justifyItems: v };
     }
-    return {};
+    return null;
   },
   'grid-column': (v) => ({ gridColumn: v.trim() }),
   'grid-row': (v) => ({ gridRow: v.trim() }),
@@ -161,13 +225,13 @@ export const cssToScampProperty: Record<string, Mapper> = {
     if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
       return { alignSelf: v };
     }
-    return {};
+    return null;
   },
   'justify-self': (v) => {
     if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
       return { justifySelf: v };
     }
-    return {};
+    return null;
   },
 };
 

@@ -356,3 +356,81 @@ export const formatTransitionShorthand = (
     })
     .join(', ');
 };
+
+// ---- Refusable variants ---------------------------------------------
+//
+// The classic `parsePx` / `parsePaddingShorthand` / `parseBorderRadiusShorthand`
+// helpers return 0 / [0,0,0,0] for any input they can't interpret, which
+// is convenient for typed canvas state but lossy when an agent has
+// written something Scamp doesn't model — `padding: var(--space-4)`,
+// `border-radius: 50%`, `padding: 16px var(--inline)`, etc.
+//
+// These refusable variants return `null` instead so the cssPropertyMap
+// can detect "Scamp can't reduce this to typed fields" and fall through
+// to `customProperties` with the raw declaration intact. The original
+// helpers stay put for callers that need a non-null number.
+
+/**
+ * Like `parsePx` but returns `null` for non-px tokens (so callers can
+ * preserve `var()`, `%`, `rem`, etc. by falling through to
+ * customProperties).
+ */
+export const parsePxOrNull = (raw: string): number | null => {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  const match = trimmed.match(/^(-?\d+(?:\.\d+)?)(?:px)?$/);
+  if (!match || match[1] === undefined) return null;
+  return Math.round(Number(match[1]));
+};
+
+/**
+ * Refusable variant of `parsePaddingShorthand`. Returns `null` if any
+ * token is non-px (`var()`, `%`, `rem`, `auto`, …) so the caller can
+ * preserve the declaration verbatim.
+ */
+export const parsePaddingShorthandOrNull = (
+  raw: string
+): [number, number, number, number] | null => {
+  if (typeof raw !== 'string') return null;
+  const tokens = raw.trim().split(/\s+/).filter((t) => t.length > 0);
+  if (tokens.length === 0) return null;
+  const v: number[] = [];
+  for (const tok of tokens) {
+    const n = parsePxOrNull(tok);
+    if (n === null) return null;
+    v.push(n);
+  }
+  if (v.length === 1) {
+    const [a] = v as [number];
+    return [a, a, a, a];
+  }
+  if (v.length === 2) {
+    const [a, b] = v as [number, number];
+    return [a, b, a, b];
+  }
+  if (v.length === 3) {
+    const [a, b, c] = v as [number, number, number];
+    return [a, b, c, b];
+  }
+  if (v.length === 4) {
+    const [a, b, c, d] = v as [number, number, number, number];
+    return [a, b, c, d];
+  }
+  return null;
+};
+
+/**
+ * Refusable variant of `parseBorderRadiusShorthand`. Anything other
+ * than 1–4 px tokens (e.g. `50%`, `var()`) → returns null so the raw
+ * declaration round-trips via customProperties.
+ */
+export const parseBorderRadiusShorthandOrNull = (
+  raw: string
+): [number, number, number, number] | null => {
+  if (typeof raw !== 'string') return null;
+  // Reject elliptical-corner shorthand entirely so the slash form
+  // round-trips verbatim instead of being silently truncated.
+  if (raw.includes('/')) return null;
+  return parsePaddingShorthandOrNull(raw);
+};

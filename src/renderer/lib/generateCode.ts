@@ -213,28 +213,45 @@ const renderJsx = (
 
   const hasText = el.type === 'text' && typeof el.text === 'string' && el.text.length > 0;
   const hasChildren = el.childIds.length > 0;
+  const fragments = el.inlineFragments;
+  const hasFragments = fragments.length > 0;
 
-  if (!hasChildren && !hasText) {
+  if (!hasChildren && !hasText && !hasFragments) {
     return `${indent(level)}${open} />`;
   }
 
-  if (hasText && !hasChildren) {
+  if (hasText && !hasChildren && !hasFragments) {
     return `${indent(level)}${open}>${escapeHtml(el.text ?? '')}</${tag}>`;
   }
 
-  const childLines = el.childIds
-    .map((childId) => {
-      const child = elements[childId];
-      if (!child) return '';
-      return renderJsx(child, elements, level + 1);
-    })
-    .filter((line) => line.length > 0)
-    .join('\n');
+  // Emit fragments before any element child, interleaved between
+  // children, and after the last child — using each fragment's
+  // `afterChildIndex`. Text fragments are escaped; JSX fragments are
+  // emitted byte-for-byte from the captured source.
+  const fragmentsAt = (idx: number): string =>
+    fragments
+      .filter((f) => f.afterChildIndex === idx)
+      .map((f) => {
+        const text = f.kind === 'text' ? escapeHtml(f.value) : f.source;
+        return `${indent(level + 1)}${text}`;
+      })
+      .join('\n');
 
-  const inner = hasText
-    ? `${indent(level + 1)}${escapeHtml(el.text ?? '')}\n${childLines}`
-    : childLines;
+  const segments: string[] = [];
+  if (hasText) segments.push(`${indent(level + 1)}${escapeHtml(el.text ?? '')}`);
+  const before = fragmentsAt(-1);
+  if (before.length > 0) segments.push(before);
+  el.childIds.forEach((childId, i) => {
+    const child = elements[childId];
+    if (child) {
+      const line = renderJsx(child, elements, level + 1);
+      if (line.length > 0) segments.push(line);
+    }
+    const after = fragmentsAt(i);
+    if (after.length > 0) segments.push(after);
+  });
 
+  const inner = segments.join('\n');
   return `${indent(level)}${open}>\n${inner}\n${indent(level)}</${tag}>`;
 };
 
@@ -429,16 +446,35 @@ export const elementDeclarationLines = (
     lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
   }
 
-  // Position. Root is always `position: relative` (no coordinates —
-  // it's the outermost element and has no parent to anchor against).
-  // Non-root uses absolute positioning within the parent EXCEPT when
-  // the parent is a flex container; flex layout owns placement there.
-  if (isRoot) {
-    lines.push(`position: relative;`);
-  } else if (!inLayoutParent) {
-    lines.push(`position: absolute;`);
-    lines.push(`left: ${el.x}px;`);
-    lines.push(`top: ${el.y}px;`);
+  // Position. The element's typed `position` field decides the
+  // strategy:
+  //   - 'auto' (default) → Scamp's tree-shape rule: root is
+  //     `position: relative`; non-root, non-flex/grid children get
+  //     `position: absolute` + `left`/`top`; flex/grid children get
+  //     no declaration (parent owns layout).
+  //   - 'static' → emit `position: static` and skip offsets.
+  //   - 'relative' / 'absolute' / 'fixed' / 'sticky' → emit the
+  //     position keyword plus `left`/`top` from the stored x/y.
+  //
+  // An agent-written `position: fixed; top: 0;` round-trips through
+  // this branch with the typed value preserved; `top`/`right`/
+  // `bottom` other than `el.y` come back via customProperties and
+  // override the typed `top` (CSS cascade — last declaration wins
+  // for the same property name within a rule).
+  if (el.position === 'auto') {
+    if (isRoot) {
+      lines.push(`position: relative;`);
+    } else if (!inLayoutParent) {
+      lines.push(`position: absolute;`);
+      lines.push(`left: ${el.x}px;`);
+      lines.push(`top: ${el.y}px;`);
+    }
+  } else {
+    lines.push(`position: ${el.position};`);
+    if (el.position !== 'static') {
+      lines.push(`left: ${el.x}px;`);
+      lines.push(`top: ${el.y}px;`);
+    }
   }
 
   // customProperties always go last, in insertion order. They round-trip
@@ -618,9 +654,13 @@ export const breakpointOverrideLines = (
     lines.push(`letter-spacing: ${override.letterSpacing};`);
   }
 
-  // Position — x/y emit as left/top. Root at a breakpoint still gets
-  // `position: relative` if that's overridden through customProperties
-  // (rare), but otherwise positioning-scheme stays the same.
+  // Position — emit the typed `position` keyword first when set at
+  // this breakpoint, then x/y as left/top. `position: 'auto'` at a
+  // breakpoint means "fall back to the cascade" — we don't emit
+  // anything, the inherited position keyword applies.
+  if (has('position') && override.position && override.position !== 'auto') {
+    lines.push(`position: ${override.position};`);
+  }
   if (has('x') && override.x !== undefined) {
     lines.push(`left: ${override.x}px;`);
   }

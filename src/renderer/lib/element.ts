@@ -31,10 +31,41 @@ export type JustifyContent =
  */
 export type GridSelfAlign = 'start' | 'center' | 'end' | 'stretch';
 export type BorderStyle = 'none' | 'solid' | 'dashed' | 'dotted';
+/**
+ * CSS `position`. `'auto'` is a Scamp-only sentinel meaning "let
+ * Scamp pick" — the generator emits `position: relative` for the
+ * page root, `position: absolute` for non-flex/non-grid children,
+ * and no declaration at all for flex/grid children. Setting any
+ * other value pins it: that value is emitted exactly as written.
+ */
+export type Position =
+  | 'auto'
+  | 'static'
+  | 'relative'
+  | 'absolute'
+  | 'fixed'
+  | 'sticky';
 export type FontWeight = 400 | 500 | 600 | 700;
 export type TextAlign = 'left' | 'center' | 'right';
 
 export type ElementType = 'rectangle' | 'text' | 'image' | 'input';
+
+/**
+ * One non-Scamp inline fragment between (or around) the element
+ * children of a Scamp parent — either a loose text node or an
+ * unclassed JSX subtree captured verbatim from the source. Preserved
+ * in DOM source order so the generator can interleave them with
+ * element children at emit time.
+ *
+ * `afterChildIndex`:
+ *   -1 → before the parent's first element child
+ *    n → after `parent.childIds[n]`
+ *
+ * Multiple fragments at the same index are emitted in capture order.
+ */
+export type InlineFragment =
+  | { kind: 'text'; value: string; afterChildIndex: number }
+  | { kind: 'jsx'; source: string; afterChildIndex: number };
 
 /**
  * The named easing keywords the WYSIWYG dropdown offers. The parser
@@ -145,9 +176,16 @@ export type ScampElement = {
   heightMode: HeightMode;
   heightValue: number;
 
-  // Position (absolute within parent for POC)
+  // Position
   x: number;
   y: number;
+  /**
+   * `position` mode. Default `'auto'` lets the generator pick based
+   * on tree shape (root → relative, non-flex child → absolute, flex
+   * child → none). Any other value pins the position and gets
+   * emitted as-is. Useful for sticky navbars, fixed overlays, etc.
+   */
+  position: Position;
 
   // Layout (as container)
   display: DisplayMode;
@@ -227,6 +265,19 @@ export type ScampElement = {
    * agent writes them split.
    */
   transitions: ReadonlyArray<TransitionDef>;
+
+  /**
+   * Loose text and unclassed JSX between this element's child
+   * elements, preserved in DOM source order. Empty by default.
+   * Populated by `parseCode` when an agent writes mixed
+   * text-and-element children inside a non-text container; the
+   * generator interleaves these with `childIds` at emit time so
+   * the output round-trips byte-equivalent. The layers panel
+   * surfaces them in a "Raw" group so the user can see the
+   * fragments exist (they're not directly editable from the
+   * canvas).
+   */
+  inlineFragments: ReadonlyArray<InlineFragment>;
 
   // Passthrough — properties the canvas can't visually represent
   customProperties: Record<string, string>;
@@ -491,7 +542,9 @@ export const groupSiblings = (
     borderColor: '#000000',
     opacity: 1,
     visibilityMode: 'visible',
+    position: 'auto',
     transitions: [],
+    inlineFragments: [],
     customProperties: {},
   };
 

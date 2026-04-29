@@ -104,3 +104,17 @@ font-size: 11px;
   color: var(--text-primary);
   outline: none;
 }
+
+/* Raw fragment marker — non-interactive row showing that the element
+   has loose text or unclassed JSX in the source that Scamp doesn't
+   model. Tooltip shows what's in there. */
+.rowRaw .row {
+  color: var(--text-tertiary);
+  font-style: italic;
+  cursor: default;
+}
+
+.rowRaw .row:hover {
+  background: transparent;
+  color: var(--text-secondary);
+}

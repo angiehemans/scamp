@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { cssToScampProperty, isMappedProperty } from '@lib/cssPropertyMap';
+import type { ScampElement } from '@lib/element';
 
-const apply = (prop: string, value: string): Record<string, unknown> => {
+const apply = (
+  prop: string,
+  value: string
+): Partial<ScampElement> | null => {
   const fn = cssToScampProperty[prop];
   if (!fn) throw new Error(`No mapper for ${prop}`);
   return fn(value);
@@ -21,8 +25,17 @@ describe('cssToScampProperty', () => {
     it('parses px', () => {
       expect(apply('border-radius', '8px')).toEqual({ borderRadius: [8, 8, 8, 8] });
     });
-    it('returns 0 for an empty value', () => {
-      expect(apply('border-radius', '')).toEqual({ borderRadius: [0, 0, 0, 0] });
+    it('refuses an empty value (preserved via customProperties)', () => {
+      expect(apply('border-radius', '')).toBeNull();
+    });
+    it('refuses a percent value (preserved via customProperties)', () => {
+      expect(apply('border-radius', '50%')).toBeNull();
+    });
+    it('refuses elliptical-corner shorthand (preserved via customProperties)', () => {
+      expect(apply('border-radius', '10px / 20px')).toBeNull();
+    });
+    it('refuses var()-based values', () => {
+      expect(apply('border-radius', 'var(--radius-md)')).toBeNull();
     });
   });
 
@@ -30,8 +43,19 @@ describe('cssToScampProperty', () => {
     it('maps flex', () => {
       expect(apply('display', 'flex')).toEqual({ display: 'flex' });
     });
-    it('maps anything else to none', () => {
+    it('maps grid', () => {
+      expect(apply('display', 'grid')).toEqual({ display: 'grid' });
+    });
+    it('maps display: none to visibilityMode', () => {
+      expect(apply('display', 'none')).toEqual({ visibilityMode: 'none' });
+    });
+    it('maps `block` and `inline-block` to the non-flex / non-grid sentinel', () => {
       expect(apply('display', 'block')).toEqual({ display: 'none' });
+      expect(apply('display', 'inline-block')).toEqual({ display: 'none' });
+    });
+    it('refuses other display values (preserved via customProperties)', () => {
+      expect(apply('display', 'inline')).toBeNull();
+      expect(apply('display', 'contents')).toBeNull();
     });
   });
 
@@ -42,14 +66,17 @@ describe('cssToScampProperty', () => {
     it('maps column', () => {
       expect(apply('flex-direction', 'column')).toEqual({ flexDirection: 'column' });
     });
-    it('drops unsupported directions', () => {
-      expect(apply('flex-direction', 'row-reverse')).toEqual({});
+    it('refuses unsupported directions (preserved via customProperties)', () => {
+      expect(apply('flex-direction', 'row-reverse')).toBeNull();
     });
   });
 
   describe('gap', () => {
     it('parses px', () => {
       expect(apply('gap', '16px')).toEqual({ gap: 16 });
+    });
+    it('refuses var()-based values', () => {
+      expect(apply('gap', 'var(--space-3)')).toBeNull();
     });
   });
 
@@ -60,8 +87,8 @@ describe('cssToScampProperty', () => {
     it('maps center', () => {
       expect(apply('align-items', 'center')).toEqual({ alignItems: 'center' });
     });
-    it('drops unsupported values', () => {
-      expect(apply('align-items', 'baseline')).toEqual({});
+    it('refuses unsupported values', () => {
+      expect(apply('align-items', 'baseline')).toBeNull();
     });
   });
 
@@ -71,8 +98,8 @@ describe('cssToScampProperty', () => {
         justifyContent: 'space-between',
       });
     });
-    it('drops unsupported values', () => {
-      expect(apply('justify-content', 'space-evenly')).toEqual({});
+    it('refuses unsupported values', () => {
+      expect(apply('justify-content', 'space-evenly')).toBeNull();
     });
   });
 
@@ -85,6 +112,10 @@ describe('cssToScampProperty', () => {
     });
     it('width fit-content switches to fit-content mode', () => {
       expect(apply('width', 'fit-content')).toEqual({ widthMode: 'fit-content' });
+    });
+    it('refuses non-px non-keyword width values', () => {
+      expect(apply('width', '50%')).toBeNull();
+      expect(apply('width', 'min-content')).toBeNull();
     });
     it('height 100% switches to stretch', () => {
       expect(apply('height', '100%')).toEqual({ heightMode: 'stretch' });
@@ -110,8 +141,11 @@ describe('cssToScampProperty', () => {
       expect(apply('border-style', 'dotted')).toEqual({ borderStyle: 'dotted' });
       expect(apply('border-color', 'red')).toEqual({ borderColor: 'red' });
     });
-    it('drops unsupported border-style values', () => {
-      expect(apply('border-style', 'double')).toEqual({});
+    it('refuses unsupported border-style values', () => {
+      expect(apply('border-style', 'double')).toBeNull();
+    });
+    it('refuses var()-based border-width', () => {
+      expect(apply('border-width', 'var(--border-thin)')).toBeNull();
     });
   });
 
@@ -121,6 +155,13 @@ describe('cssToScampProperty', () => {
     });
     it('parses 4-value shorthand', () => {
       expect(apply('padding', '1px 2px 3px 4px')).toEqual({ padding: [1, 2, 3, 4] });
+    });
+    it('refuses var()-based values (preserved via customProperties)', () => {
+      expect(apply('padding', 'var(--space-3)')).toBeNull();
+      expect(apply('padding', 'var(--space-3) var(--space-5)')).toBeNull();
+    });
+    it('refuses mixed px + var() shorthand', () => {
+      expect(apply('padding', '16px var(--inline-pad)')).toBeNull();
     });
   });
 
@@ -137,8 +178,11 @@ describe('cssToScampProperty', () => {
     it('parses 4-value shorthand', () => {
       expect(apply('margin', '1px 2px 3px 4px')).toEqual({ margin: [1, 2, 3, 4] });
     });
-    it('returns zeroed margin for empty input', () => {
-      expect(apply('margin', '')).toEqual({ margin: [0, 0, 0, 0] });
+    it('refuses empty input', () => {
+      expect(apply('margin', '')).toBeNull();
+    });
+    it('refuses var()-based values', () => {
+      expect(apply('margin', 'var(--space-2)')).toBeNull();
     });
   });
 
@@ -157,8 +201,8 @@ describe('cssToScampProperty', () => {
         lineHeight: 'var(--leading-tight)',
       });
     });
-    it('drops empty input', () => {
-      expect(apply('line-height', '')).toEqual({});
+    it('refuses empty input', () => {
+      expect(apply('line-height', '')).toBeNull();
     });
   });
 
@@ -174,8 +218,8 @@ describe('cssToScampProperty', () => {
         letterSpacing: '0.05em',
       });
     });
-    it('drops empty input', () => {
-      expect(apply('letter-spacing', '')).toEqual({});
+    it('refuses empty input', () => {
+      expect(apply('letter-spacing', '')).toBeNull();
     });
   });
 
@@ -194,8 +238,8 @@ describe('cssToScampProperty', () => {
     it('maps a recognised font-weight', () => {
       expect(apply('font-weight', '600')).toEqual({ fontWeight: 600 });
     });
-    it('drops an unrecognised font-weight', () => {
-      expect(apply('font-weight', '350')).toEqual({});
+    it('refuses an unrecognised font-weight', () => {
+      expect(apply('font-weight', '350')).toBeNull();
     });
     it('maps color', () => {
       expect(apply('color', '#222222')).toEqual({ color: '#222222' });
@@ -203,20 +247,8 @@ describe('cssToScampProperty', () => {
     it('maps text-align', () => {
       expect(apply('text-align', 'center')).toEqual({ textAlign: 'center' });
     });
-    it('drops unsupported text-align', () => {
-      expect(apply('text-align', 'justify')).toEqual({});
-    });
-  });
-
-  describe('display', () => {
-    it('maps display: flex to the flex sentinel', () => {
-      expect(apply('display', 'flex')).toEqual({ display: 'flex' });
-    });
-    it('maps display: none to visibilityMode', () => {
-      expect(apply('display', 'none')).toEqual({ visibilityMode: 'none' });
-    });
-    it('maps other display values back to the non-flex sentinel', () => {
-      expect(apply('display', 'block')).toEqual({ display: 'none' });
+    it('refuses unsupported text-align', () => {
+      expect(apply('text-align', 'justify')).toBeNull();
     });
   });
 
@@ -231,8 +263,8 @@ describe('cssToScampProperty', () => {
         visibilityMode: 'visible',
       });
     });
-    it('drops other visibility values', () => {
-      expect(apply('visibility', 'collapse')).toEqual({});
+    it('refuses other visibility values', () => {
+      expect(apply('visibility', 'collapse')).toBeNull();
     });
   });
 
@@ -250,8 +282,22 @@ describe('cssToScampProperty', () => {
     it('clamps below 0', () => {
       expect(apply('opacity', '-0.2')).toEqual({ opacity: 0 });
     });
-    it('drops non-numeric values', () => {
-      expect(apply('opacity', 'auto')).toEqual({});
+    it('refuses non-numeric values', () => {
+      expect(apply('opacity', 'auto')).toBeNull();
+    });
+  });
+
+  describe('position', () => {
+    it('maps each typed keyword', () => {
+      expect(apply('position', 'static')).toEqual({ position: 'static' });
+      expect(apply('position', 'relative')).toEqual({ position: 'relative' });
+      expect(apply('position', 'absolute')).toEqual({ position: 'absolute' });
+      expect(apply('position', 'fixed')).toEqual({ position: 'fixed' });
+      expect(apply('position', 'sticky')).toEqual({ position: 'sticky' });
+    });
+    it('refuses unknown position values', () => {
+      expect(apply('position', 'auto')).toBeNull();
+      expect(apply('position', '-webkit-sticky')).toBeNull();
     });
   });
 });
@@ -259,6 +305,9 @@ describe('cssToScampProperty', () => {
 describe('isMappedProperty', () => {
   it('returns true for a known property', () => {
     expect(isMappedProperty('background')).toBe(true);
+  });
+  it('returns true for the new position mapping', () => {
+    expect(isMappedProperty('position')).toBe(true);
   });
   it('returns false for an unknown property', () => {
     expect(isMappedProperty('box-shadow')).toBe(false);

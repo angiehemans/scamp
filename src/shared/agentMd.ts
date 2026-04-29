@@ -8,35 +8,126 @@ You are editing files in a Scamp project. Scamp is a local design tool
 that bidirectionally syncs canvas state with real \`.tsx\` + CSS module
 files. Anything you write here is parsed and re-rendered on the canvas.
 
+## TL;DR
+
+- Edit CSS first, then TSX. Always. Same file write should look like:
+  CSS save → wait → TSX save.
+- Every Scamp element is a JSX node with both \`data-scamp-id="…"\` AND
+  \`className={styles.…}\` matching the same string.
+- One CSS class = one rule block. No combined selectors, no nested
+  \`@media\`.
+- If a class block already has rules in CSS, Scamp will leave it
+  alone. Scamp only auto-creates EMPTY blocks for classes that
+  appear in the TSX but aren't in the CSS yet.
+- Anything Scamp doesn't model in its UI controls
+  (\`box-shadow\`, \`transform\`, \`@keyframes\`, comments, etc.)
+  round-trips through your file unchanged and renders on the canvas.
+
+## What Scamp does and doesn't touch
+
+| You write | Scamp's response |
+|---|---|
+| A new element in TSX with \`data-scamp-id="hero_x1y2"\` and a className that doesn't exist yet in the CSS | Scaffolds an empty \`.hero_x1y2 {}\` block in the CSS module. |
+| A new element in TSX whose class IS already in the CSS module | Leaves your CSS rule alone. Renders the element with your styles. |
+| Any CSS property — \`position: fixed\`, \`box-shadow\`, \`backdrop-filter\`, \`@keyframes\`, gradients, animations | Parsed if Scamp has a typed control for it; otherwise stored verbatim and emitted byte-equivalent. The canvas renders the real CSS either way. |
+| \`var(--token)\` anywhere — including inside \`padding\`, \`margin\`, \`gap\` shorthands | Preserved verbatim. The canvas resolves the variable through the project's \`theme.css\` and renders the resulting value. |
+| A \`@media (max-width: Npx)\` block whose \`Npx\` matches a project breakpoint | Parsed into the breakpoint cascade and editable from the panel at that breakpoint. |
+| A \`@media\` block with \`min-width\`, non-pixel units, or a width that doesn't match a project breakpoint | Preserved verbatim at the bottom of the file but not interpreted by the canvas. |
+| Comments and blank lines inside CSS class blocks | Preserved on round-trips so long as the class block isn't being rewritten by a canvas edit. |
+| Loose text fragments and unclassed JSX (\`<br>\`, \`<strong>\`, raw text) inside a Scamp element | Preserved in source order in the TSX and rendered. NOT manipulable from the canvas — they appear as a "Raw" group in the layers panel. |
+
 ## Critical rules
-- Never remove \`data-scamp-id\` attributes from any element
+- Never remove \`data-scamp-id\` attributes from any element.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
-  in \`hero_card_a1b2\`) — it's the element's unique identifier
+  in \`hero_card_a1b2\`) — it's the element's unique identifier.
 - Never combine multiple selectors into one rule block
-- Never nest media queries inside class rules; use top-level
-  \`@media (max-width: Npx)\` blocks at the bottom of the file (see
-  "Responsive breakpoints" below)
-- One class = one rule block, always
-- \`data-scamp-id\` must always match the CSS class name exactly
+  (\`.a, .b { … }\` will be misread).
+- Never nest \`@media\` inside a class rule — only the top-level form
+  is parsed (see "Responsive breakpoints").
+- One class = one rule block, always.
+- \`data-scamp-id\` must always match the CSS class name exactly.
 
 ## File editing order — CSS first, then TSX
 
 Scamp watches for file changes. When the TSX file is saved, Scamp
-immediately parses it and auto-scaffolds empty CSS class blocks for
-any new elements it finds. If you write the TSX first and then try
-to edit the CSS, the file will have changed underneath you and your
-edit will fail.
+parses it and auto-scaffolds empty CSS class blocks for any new
+\`data-scamp-id\` it finds whose class is NOT already in the CSS
+module. If you write the TSX first, the auto-scaffold will land
+*before* you write the matching styles.
 
 **Always write or edit the CSS module file before the TSX file.**
 
-1. Add / update styles in \`[page].module.css\`
-2. Then add / update markup in \`[page].tsx\`
+1. Add / update styles in \`[page].module.css\`.
+2. Then add / update markup in \`[page].tsx\`.
 
-This way, when Scamp parses the new TSX, the CSS already contains
-your styles and no scaffolding overwrites them.
+When the TSX lands, every class is already present in the CSS so
+the scaffolder is a no-op and your styles are untouched.
 
-If you are making changes to both files, re-read the CSS file after
-writing the TSX to pick up any changes Scamp may have made.
+If you are making changes to both files, re-read the CSS file
+after writing the TSX in case Scamp added a scaffold for an
+element whose class wasn't in the CSS yet.
+
+## Worked example — a sticky navbar
+
+You want a navbar fixed to the top of the page with a token-driven
+padding and a circular brand badge.
+
+Step 1: write the CSS (\`home.module.css\`):
+
+\`\`\`css
+.root {
+}
+
+.site_nav_n123 {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.brand_b001 {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+\`\`\`
+
+Step 2: write the TSX (\`home.tsx\`):
+
+\`\`\`tsx
+import styles from './home.module.css';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <nav data-scamp-id="site_nav_n123" className={styles.site_nav_n123}>
+        <div data-scamp-id="brand_b001" className={styles.brand_b001} />
+      </nav>
+    </div>
+  );
+}
+\`\`\`
+
+What Scamp does on save:
+- Parses both files.
+- Sees \`.site_nav_n123\` and \`.brand_b001\` already in the CSS — leaves
+  them alone.
+- Renders the navbar with \`position: fixed\`, the token-driven padding,
+  the \`backdrop-filter\`, and the circular brand badge — all preserved
+  byte-equivalent.
+
+If you later change the brand background colour from the canvas
+panel, Scamp surgically rewrites just the \`background\` line inside
+\`.brand_b001\`. Everything else in the file stays put.
 
 ## Project structure
 Each page is two files: \`[page-name].tsx\` and \`[page-name].module.css\`.
@@ -65,13 +156,13 @@ Custom names make the generated code more readable and help the user
 identify elements in the layers panel. Use them when the element has
 a clear semantic role. Rules:
 
-- The prefix is lowercase, words separated by underscores
-- Only alphanumeric characters and underscores (no hyphens, no spaces)
-- The last \`_XXXX\` segment is always the 4-char hex id — never change it
+- The prefix is lowercase, words separated by underscores.
+- Only alphanumeric characters and underscores (no hyphens, no spaces).
+- The last \`_XXXX\` segment is always the 4-char hex id — never change it.
 - If the prefix is \`rect\` or \`text\`, scamp treats it as unnamed and
   infers the element type from the prefix. Any other prefix is a custom
   name, and scamp infers the type from the HTML tag instead.
-- Custom names don't need to be unique — the hex suffix handles that
+- Custom names don't need to be unique — the hex suffix handles that.
 
 When creating new elements, prefer descriptive names:
 
@@ -156,6 +247,25 @@ Example:
 </div>
 \`\`\`
 
+### Loose text and unclassed JSX inside an element
+
+You can interleave plain text and unclassed JSX (\`<br>\`, \`<strong>\`,
+\`<em>\`, raw inline spans) with Scamp elements. They round-trip in
+source order and render correctly. They appear in the layers panel
+as a "Raw" group attached to the parent so the user can see them
+exists, but they're not editable from the canvas — only by editing
+the TSX file directly.
+
+\`\`\`tsx
+<div data-scamp-id="meta_m001" className={styles.meta_m001}>
+  Role: <strong>Founder, Designer, Developer</strong>
+</div>
+\`\`\`
+
+If you want any of those text fragments to be canvas-editable, wrap
+each one in its own classed element with a \`data-scamp-id\` and a
+matching CSS class.
+
 ## CSS conventions
 - One property per line.
 - Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
@@ -173,24 +283,36 @@ Example:
     declaration) leaves the dimension up to normal CSS layout.
   - Pixel values (\`width: 320px\`) are explicit fixed sizes.
 - For free-form (non-flex) container layouts, scamp positions children
-  with \`position: absolute; left: Xpx; top: Ypx;\`. You can write these
-  manually, but inside a flex parent the layout engine takes over and
-  positional declarations are ignored.
+  with \`position: absolute; left: Xpx; top: Ypx;\`. You can override
+  with any other \`position\` value (\`fixed\`, \`sticky\`, \`relative\`,
+  \`static\`) — Scamp respects what you wrote.
+- Inside a flex parent, the flex layout engine takes over and
+  positional declarations on the child are ignored. Same applies to
+  grid children inside a grid container.
 
 ## CSS properties
 Use any CSS property you'd use in a real stylesheet. Scamp renders
 **every** valid CSS property on the canvas — there's no allow-list.
 
-Internally scamp routes a small set of properties (\`background\`,
+Internally Scamp routes a small set of properties (\`background\`,
 \`border\`, \`border-radius\`, \`color\`, \`display\`, \`flex-direction\`,
 \`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
-\`padding\`, \`font-size\`, \`font-weight\`, \`text-align\`) into typed
-fields it can later expose via UI controls. Everything else
-(\`box-shadow\`, \`transform\`, \`letter-spacing\`, \`line-height\`,
-\`font-family\`, \`margin\`, \`opacity\`, animations, gradients, …)
-round-trips through the file untouched AND is applied to the rendered
-element on the canvas. Pseudo-selectors (\`:hover\`) and at-rules other
-than \`@media (max-width: Npx)\` are not parsed into the canvas model.
+\`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
+\`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
+\`font-family\`, \`transition\`, plus the grid container/item set)
+into typed fields it can later expose via UI controls. Everything
+else (\`box-shadow\`, \`transform\`, \`backdrop-filter\`, \`filter\`,
+\`clip-path\`, animations, gradients, \`@keyframes\`, …) round-trips
+through the file untouched AND is applied to the rendered element
+on the canvas.
+
+\`var(--token)\` works anywhere a CSS value works, including inside
+shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
+Scamp resolves the variable at render time through \`theme.css\`.
+
+Pseudo-selectors (\`:hover\`, \`:focus\`, \`:active\`, \`:nth-child\`) and
+at-rules other than \`@media (max-width: Npx)\` are preserved verbatim
+but not parsed into the canvas model.
 
 ## Responsive breakpoints
 
@@ -260,11 +382,15 @@ The project includes a \`theme.css\` file with two sections:
 }
 \`\`\`
 
-Reference tokens in module CSS files using \`var()\`:
+Reference tokens in module CSS files using \`var()\` — anywhere a CSS
+value goes, including inside shorthands:
+
 \`\`\`css
 .button {
   background-color: var(--color-primary);
   color: var(--color-text);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
 }
 \`\`\`
 
@@ -286,6 +412,8 @@ reads and writes this file; don't modify it unless the user asks.
 - Do not delete \`theme.css\` — it holds the project's design tokens
   and font imports.
 - Do not delete \`scamp.config.json\` — it holds per-project settings.
+- Do not combine multiple selectors into one rule block.
+- Do not nest \`@media\` inside a class rule.
 `;
 
 /**

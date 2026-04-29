@@ -244,21 +244,34 @@ const runDrop = (
   reorder(draggedId, target.parentId, insertAt);
 };
 
+type TreeRow =
+  | { kind: 'element'; element: ScampElement; depth: number }
+  | { kind: 'raw'; parentId: string; count: number; depth: number };
+
 export const ElementTree = (): JSX.Element => {
   const rootElementId = useCanvasStore((s) => s.rootElementId);
   const elements = useCanvasStore((s) => s.elements);
   const [dragOver, setDragOver] = useState<DragOverState | null>(null);
 
-  // Walk the tree depth-first, producing a flat array of (element, depth)
-  // entries for rendering. We do this in render rather than in a memo
-  // because the elements map is replaced wholesale on every store update,
-  // so a memo wouldn't help much and would just add complexity.
-  const rows: Array<{ element: ScampElement; depth: number }> = [];
+  // Walk the tree depth-first. Element rows are draggable and
+  // clickable; "raw" rows appear under any element that has
+  // inlineFragments (loose text or unclassed JSX captured by the
+  // parser) so the user can see the fragments exist even though
+  // they're not editable from the canvas.
+  const rows: TreeRow[] = [];
   const visit = (id: string, depth: number): void => {
     const el = elements[id];
     if (!el) return;
-    rows.push({ element: el, depth });
+    rows.push({ kind: 'element', element: el, depth });
     for (const childId of el.childIds) visit(childId, depth + 1);
+    if (el.inlineFragments.length > 0) {
+      rows.push({
+        kind: 'raw',
+        parentId: el.id,
+        count: el.inlineFragments.length,
+        depth: depth + 1,
+      });
+    }
   };
   visit(rootElementId, 0);
 
@@ -272,15 +285,70 @@ export const ElementTree = (): JSX.Element => {
         setDragOver(null);
       }}
     >
-      {rows.map(({ element, depth }) => (
-        <Row
-          key={element.id}
-          element={element}
-          depth={depth}
-          dragOver={dragOver}
-          setDragOver={setDragOver}
-        />
-      ))}
+      {rows.map((row) =>
+        row.kind === 'element' ? (
+          <Row
+            key={row.element.id}
+            element={row.element}
+            depth={row.depth}
+            dragOver={dragOver}
+            setDragOver={setDragOver}
+          />
+        ) : (
+          <RawRow
+            key={`${row.parentId}-raw`}
+            parentId={row.parentId}
+            count={row.count}
+            depth={row.depth}
+          />
+        )
+      )}
     </div>
+  );
+};
+
+type RawRowProps = {
+  parentId: string;
+  count: number;
+  depth: number;
+};
+
+/**
+ * Non-interactive row showing "Raw (N)" under any element that has
+ * loose text or unclassed JSX captured in `inlineFragments`. Edit by
+ * touching the TSX file directly — these fragments aren't surfaced
+ * via the canvas because Scamp doesn't model them as elements.
+ */
+const RawRow = ({ parentId, count, depth }: RawRowProps): JSX.Element => {
+  const elements = useCanvasStore((s) => s.elements);
+  const fragments = elements[parentId]?.inlineFragments ?? [];
+  const tooltip = fragments
+    .map((f) => {
+      if (f.kind === 'text') {
+        const v = f.value.trim();
+        return `text: ${v.length > 40 ? `${v.slice(0, 40)}…` : v}`;
+      }
+      const s = f.source.replace(/\s+/g, ' ').trim();
+      return `jsx: ${s.length > 40 ? `${s.slice(0, 40)}…` : s}`;
+    })
+    .join('\n');
+  return (
+    <Tooltip label={tooltip || 'No raw fragments'}>
+      <div
+        className={`${styles.rowWrap} ${styles.rowRaw}`}
+        data-testid="layers-row-raw"
+        data-parent-id={parentId}
+      >
+        <div
+          className={styles.row}
+          style={{ paddingLeft: 8 + depth * 12, cursor: 'default' }}
+        >
+          <span className={styles.icon} aria-hidden="true">
+            ¶
+          </span>
+          <span className={styles.label}>{`Raw (${count})`}</span>
+        </div>
+      </div>
+    </Tooltip>
   );
 };

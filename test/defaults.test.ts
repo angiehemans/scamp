@@ -31,7 +31,9 @@ describe('DEFAULT_RECT_STYLES', () => {
       borderColor: '#000000',
       opacity: 1,
       visibilityMode: 'visible',
+      position: 'auto',
       transitions: [],
+      inlineFragments: [],
     });
   });
 
