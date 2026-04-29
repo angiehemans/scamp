@@ -24,12 +24,17 @@ test.describe('typography: font picker', () => {
     await typography.getByRole('button', { name: /System font/ }).click();
     await window.getByPlaceholder('Search fonts…').waitFor();
 
-    // The first row is "System font" (empty choice). ArrowDown + Enter
-    // picks the next real row — keeps the spec environment-agnostic
-    // since we don't care which font lands on disk, only that picking
-    // one produces a non-empty font-family declaration.
-    await window.keyboard.press('ArrowDown');
-    await window.keyboard.press('Enter');
+    // Pick the first real font in the list. We can't hardcode a name
+    // because queryLocalFonts() returns different results on Mac vs
+    // Linux. Instead, find the first option inside the font picker's
+    // listbox that isn't the "System font" reset choice and click it.
+    const listbox = window.getByRole('listbox');
+    const firstFont = listbox
+      .getByRole('option')
+      .filter({ hasNotText: /System font/ })
+      .first();
+    await firstFont.waitFor({ timeout: 5_000 });
+    await firstFont.click();
 
     await waitForSaved(window);
     const { css } = await readPageFiles(project.dir, project.pageName);
