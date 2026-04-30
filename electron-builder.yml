@@ -10,22 +10,33 @@ files:
   - "!node_modules/**/{test,__tests__,tests}/**"
   - "!node_modules/**/*.{md,ts,map}"
 
+# Bundle the app icon at runtime so the BrowserWindow can load it after
+# packaging. `build/` is only available at build time — files dropped
+# under `extraResources` land in the packaged app's resources directory
+# (accessible via `process.resourcesPath` from the main process).
+extraResources:
+  - from: src/renderer/src/assets/scamp-icon.png
+    to: scamp-icon.png
+
 # Native modules (node-pty) need to be rebuilt for the target platform.
 npmRebuild: true
 
 mac:
   category: public.app-category.developer-tools
+  icon: src/renderer/src/assets/scamp-icon.png
   target:
     - dmg
     - zip
 
 win:
+  icon: src/renderer/src/assets/scamp-icon.png
   target:
     - nsis
     - portable
 
 linux:
   category: Development
+  icon: src/renderer/src/assets/scamp-icon.png
   target:
     - AppImage
     - deb

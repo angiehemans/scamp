@@ -1,0 +1,59 @@
+.switcher {
+  display: flex;
+  height: var(--control-h);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+  margin: 8px 12px 0 12px;
+}
+
+.button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.buttonActive {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.buttonActive:hover {
+  color: var(--text-primary);
+}
+
+.buttonDisabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.label {
+  /* Reserve room next to the dot so the label stays centred. */
+  line-height: 1;
+}
+
+.dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}

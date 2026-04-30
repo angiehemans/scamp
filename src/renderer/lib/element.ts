@@ -294,6 +294,32 @@ export type ScampElement = {
    * text-stable.
    */
   breakpointOverrides?: Record<string, BreakpointOverride>;
+
+  /**
+   * Per-state style overrides for the recognised CSS pseudo-classes
+   * (`hover`, `active`, `focus`). Each value carries ONLY the fields
+   * the user changed for that state — everything else cascades from
+   * the base ("rest") styles on this element. Default state isn't
+   * stored here: it's the element's top-level fields.
+   *
+   * Empty / fully-cleared override keys are dropped, and the entire
+   * `stateOverrides` map is cleared back to `undefined` when no state
+   * has any overrides, so round-trips stay text-stable.
+   *
+   * Desktop-only in this version — combining with breakpoints lands
+   * later (see `docs/plans/2026-04-30-element-states.md`).
+   */
+  stateOverrides?: Partial<Record<ElementStateName, StateOverride>>;
+
+  /**
+   * Pseudo-class blocks the parser couldn't route to a recognised
+   * state (`:focus-visible`, `:checked`, `:disabled`, `:nth-child(...)`,
+   * compound selectors like `.rect_a1b2:hover .child`, etc.). Stored
+   * verbatim so the generator can re-emit them after the element's
+   * recognised state blocks. Empty / undefined when the source CSS
+   * had nothing exotic for this class.
+   */
+  customSelectorBlocks?: ReadonlyArray<RawSelectorBlock>;
 };
 
 /**
@@ -303,6 +329,11 @@ export type ScampElement = {
  * nest its own overrides. Also excludes TSX-level fields (tag,
  * attributes, selectOptions, svgSource) and the `text` content —
  * breakpoints change CSS only.
+ *
+ * `stateOverrides` and `customSelectorBlocks` are excluded too: a
+ * breakpoint can't itself carry per-state overrides in this version
+ * (the matrix is deferred — see the element-states plan), and the
+ * raw-selector passthrough lives only at the top level.
  */
 export type BreakpointOverride = Partial<
   Omit<
@@ -312,6 +343,8 @@ export type BreakpointOverride = Partial<
     | 'parentId'
     | 'childIds'
     | 'breakpointOverrides'
+    | 'stateOverrides'
+    | 'customSelectorBlocks'
     | 'tag'
     | 'attributes'
     | 'selectOptions'
@@ -320,6 +353,53 @@ export type BreakpointOverride = Partial<
     | 'name'
   >
 >;
+
+/**
+ * The fixed set of CSS pseudo-classes Scamp models as first-class
+ * "states" with typed per-field overrides. Other pseudo-classes
+ * (`:focus-visible`, `:disabled`, `:checked`, `:nth-child(...)`,
+ * compound selectors) are preserved verbatim via
+ * `customSelectorBlocks` rather than parsed into typed overrides.
+ *
+ * Order matters for emit: `:hover` → `:active` → `:focus` matches
+ * the LVHA-ish ordering convention so cascade resolution is
+ * predictable. Keep new entries in the same intended-emit order.
+ */
+export type ElementStateName = 'hover' | 'active' | 'focus';
+
+export const ELEMENT_STATES: ReadonlyArray<ElementStateName> = [
+  'hover',
+  'active',
+  'focus',
+];
+
+/**
+ * Subset of element fields a per-state override can carry. Identical
+ * shape to `BreakpointOverride` so the parser and generator can reuse
+ * the same field-emit logic for both axes.
+ *
+ * The properties panel deliberately doesn't expose `position` / `x`
+ * / `y` / `transitions` controls when a non-default state is active
+ * (hover layout shifts are bad UX; per-state transitions are a
+ * separate feature). That UI rule lives in the section components,
+ * not in this type — preserving anything an agent hand-writes inside
+ * a pseudo-class block is more important than blocking it at the
+ * type boundary.
+ */
+export type StateOverride = BreakpointOverride;
+
+/**
+ * One pseudo-class rule the parser couldn't route into a typed state
+ * override — preserved verbatim so the generator can re-emit it
+ * unchanged. Selector includes the leading `.<className>` so we know
+ * which element this block belongs to; `body` is the declaration list
+ * (just the inner declarations, no braces) formatted as the source had
+ * it.
+ */
+export type RawSelectorBlock = {
+  selector: string;
+  body: string;
+};
 
 /**
  * The id used for the implicit page-root element. Stays constant across

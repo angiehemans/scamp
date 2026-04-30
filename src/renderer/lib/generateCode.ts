@@ -1,9 +1,12 @@
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
 import {
+  ELEMENT_STATES,
   ROOT_ELEMENT_ID,
   slugifyName,
   type BreakpointOverride,
+  type ElementStateName,
   type ScampElement,
+  type StateOverride,
 } from './element';
 import { formatTransitionShorthand } from './parsers';
 import {
@@ -712,6 +715,69 @@ const collectElementsDfs = (
   return result;
 };
 
+/**
+ * Emit a single state's pseudo-class block for an element. Returns
+ * `null` when the override is empty / produces no declarations so the
+ * caller can drop it from the chunk.
+ *
+ * State overrides reuse `breakpointOverrideLines` because the two
+ * shapes are structurally compatible — `StateOverride` is a subset of
+ * `BreakpointOverride`'s fields, and the lines emitter only acts on
+ * keys actually present in the object.
+ */
+const stateBlockFor = (
+  el: ScampElement,
+  state: ElementStateName,
+  override: StateOverride
+): string | null => {
+  if (Object.keys(override).length === 0) return null;
+  const lines = breakpointOverrideLines(override as BreakpointOverride, el);
+  if (lines.length === 0) return null;
+  const body = lines.map((line) => `  ${line}`).join('\n');
+  return `.${classNameFor(el)}:${state} {\n${body}\n}`;
+};
+
+/**
+ * Build the chunk of CSS for a single element: its base class block
+ * followed by any recognised state blocks (`:hover` → `:active` →
+ * `:focus`) and finally any pseudo-class blocks the parser preserved
+ * verbatim. The chunks are concatenated by `generateCss` to give
+ * per-element grouping in the output file.
+ */
+const elementCssChunks = (
+  el: ScampElement,
+  parent: ScampElement | null
+): string[] => {
+  const chunks: string[] = [];
+
+  const baseLines = elementDeclarationLines(el, parent);
+  const baseBody = baseLines.map((line) => `  ${line}`).join('\n');
+  chunks.push(`.${classNameFor(el)} {\n${baseBody}\n}`);
+
+  const overrides = el.stateOverrides;
+  if (overrides) {
+    for (const state of ELEMENT_STATES) {
+      const override = overrides[state];
+      if (!override) continue;
+      const block = stateBlockFor(el, state, override);
+      if (block !== null) chunks.push(block);
+    }
+  }
+
+  // Raw pseudo-class blocks — preserved verbatim from parseCode for
+  // selectors Scamp doesn't model (`:focus-visible`, `:nth-child(...)`,
+  // compound selectors, etc.). Emitted in their original parse order
+  // so round-trips stay text-stable.
+  const raw = el.customSelectorBlocks;
+  if (raw && raw.length > 0) {
+    for (const block of raw) {
+      chunks.push(`${block.selector} {\n${block.body}\n}`);
+    }
+  }
+
+  return chunks;
+};
+
 const generateCss = (
   elements: Record<string, ScampElement>,
   rootId: string,
@@ -720,12 +786,11 @@ const generateCss = (
 ): string => {
   const ordered = collectElementsDfs(elements, rootId);
 
-  // Base class blocks — one per element, in DFS order.
-  const baseBlocks = ordered.map((el) => {
-    const parent = el.parentId ? elements[el.parentId] : null;
-    const lines = elementDeclarationLines(el, parent);
-    const body = lines.map((line) => `  ${line}`).join('\n');
-    return `.${classNameFor(el)} {\n${body}\n}`;
+  // Per-element chunks — each chunk is base + state blocks + raw
+  // pseudo-class blocks, in DFS order.
+  const elementBlocks = ordered.flatMap((el) => {
+    const parent = el.parentId ? elements[el.parentId] ?? null : null;
+    return elementCssChunks(el, parent);
   });
 
   // @media blocks — widest first (excluding desktop, which is the
@@ -753,7 +818,7 @@ const generateCss = (
   // understand. Appended verbatim so they survive the round-trip.
   const customBlocks = customMediaBlocks.filter((b) => b.trim().length > 0);
 
-  const allBlocks = [...baseBlocks, ...mediaBlocks, ...customBlocks];
+  const allBlocks = [...elementBlocks, ...mediaBlocks, ...customBlocks];
   return `${allBlocks.join('\n\n')}\n`;
 };
 

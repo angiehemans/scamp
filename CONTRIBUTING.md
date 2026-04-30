@@ -159,6 +159,19 @@ Both modes read the same store. Switching is instant and lossless.
 
 `ScampElement` (in `src/renderer/lib/element.ts`) is the canonical type for everything on the canvas. It covers rectangles and text elements with typed fields for layout, appearance, and typography. The `customProperties` bag preserves any CSS the model doesn't have a typed field for.
 
+### Style override axes — breakpoints and states
+
+Two axes layer style overrides on top of an element's base ("rest") fields:
+
+- **Breakpoints** (`element.breakpointOverrides[breakpointId]`) — `@media (max-width: Npx)` blocks. Cascade resolved by `resolveElementAtBreakpoint` (`src/renderer/lib/breakpointCascade.ts`).
+- **States** (`element.stateOverrides[stateName]`) — the `:hover`, `:active`, and `:focus` pseudo-classes. Cascade resolved by `resolveElementAtState` (`src/renderer/lib/stateCascade.ts`), which wraps the breakpoint resolver.
+
+Patches from the properties panel route through `applyPatchWithAxisRouting` in the canvas store: identity / content fields always land on top-level; style fields land in the active axis's override bucket. Direct-manipulation gestures (`moveElement`, `resizeElement`) always land on the base regardless of the active axis.
+
+State × non-desktop breakpoint combinations aren't supported in this version — the state switcher disables non-default states at non-desktop breakpoints, and the routing function drops style patches in that combination as a safety net.
+
+Pseudo-classes Scamp doesn't model (`:focus-visible`, `:disabled`, `:nth-child(...)`, compound selectors) round-trip verbatim via `element.customSelectorBlocks`.
+
 ### Project formats — legacy and nextjs
 
 Scamp supports two on-disk project layouts:

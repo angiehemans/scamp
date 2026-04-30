@@ -1,6 +1,7 @@
 import { useCanvasStore } from '@store/canvasSlice';
 import { PanelHeader } from './PanelHeader';
 import { PanelModeToggle } from './PanelModeToggle';
+import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
 import styles from './PropertiesPanel.module.css';
@@ -65,6 +66,7 @@ export const PropertiesPanel = (): JSX.Element => {
     >
       <PanelHeader />
       <PanelModeToggle />
+      {panelMode === 'ui' && <StateSwitcher />}
       {panelMode === 'ui' ? <UiPanel /> : <CssPanel />}
     </aside>
   );

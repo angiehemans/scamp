@@ -12,6 +12,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
+import { resolveElementAtState } from '@lib/stateCascade';
 import { customPropsToStyle } from '@lib/customProps';
 import type { ThemeToken } from '@shared/types';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
@@ -323,17 +324,28 @@ const elementToStyle = (
 export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const rawElement = useCanvasStore((s) => s.elements[elementId]);
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
+  const activeStateName = useCanvasStore((s) => s.activeStateName);
   const breakpoints = useCanvasStore((s) => s.breakpoints);
-  // Resolve breakpoint overrides at render time. When the active
-  // breakpoint is desktop (or the element has no overrides), this is
-  // a no-op identity return, so no extra allocation.
+  const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));
+  // Resolve overrides at render time. Selected elements get the
+  // active state's overrides layered in (the state switcher *is* the
+  // canvas preview); non-selected elements always render their
+  // default state. When nothing applies, this is a no-op identity
+  // return.
+  const previewState =
+    isSelected && activeStateName !== null ? activeStateName : null;
   const element = rawElement
-    ? resolveElementAtBreakpoint(rawElement, activeBreakpointId, breakpoints)
+    ? resolveElementAtState(
+        rawElement,
+        activeBreakpointId,
+        breakpoints,
+        previewState
+      )
     : undefined;
-  // Parent display / flex-direction at the active breakpoint — a
-  // parent's display override (e.g. flex at tablet, block at desktop)
-  // changes how THIS element lays out as a flex item vs absolute, so
-  // we resolve the parent through the cascade too.
+  // Parent resolution doesn't carry a state preview — only the
+  // selected element previews its hover/active/focus styles. The
+  // parent's layout (flex / grid behaviour) is whatever the
+  // breakpoint cascade resolves.
   const parentResolved = useCanvasStore((s) => {
     const el = s.elements[elementId];
     if (!el || !el.parentId) return undefined;
@@ -346,7 +358,6 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const projectPath = useCanvasStore((s) => s.projectPath);
-  const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
   const setElementText = useCanvasStore((s) => s.setElementText);
@@ -392,7 +403,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const isText = element.type === 'text';
   const isImage = element.type === 'image';
   const projectDir = projectPath ? projectPath.replace(/\\/g, '/') : null;
-  const style = elementToStyle(
+  const baseStyle = elementToStyle(
     element,
     parentDisplay,
     parentDirection,
@@ -400,6 +411,14 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     projectDir,
     projectFormat
   );
+  // When the canvas is previewing a non-default state for this
+  // element, suppress transitions so the user sees the resolved end
+  // state instantly rather than an animation halfway through.
+  // Renderer-only — has no effect on the file on disk.
+  const style =
+    previewState !== null
+      ? { ...baseStyle, transition: 'none' }
+      : baseStyle;
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
   const storedTag = tagFor(element);

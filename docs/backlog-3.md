@@ -4,7 +4,7 @@ User stories ordered easiest to hardest.
 
 ---
 
-## 1. Transitions
+## 1. Transitions - DONE
 
 **User story**
 
@@ -46,7 +46,7 @@ smoothly without having to write the CSS manually.
 
 ---
 
-## 2. CSS Grid layout
+## 2. CSS Grid layout - DONE
 
 **User story**
 

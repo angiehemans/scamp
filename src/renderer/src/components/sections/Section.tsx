@@ -1,6 +1,9 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useBreakpointOverrideFields } from '@store/useResolvedElement';
+import {
+  useBreakpointOverrideFields,
+  useStateOverrideFields,
+} from '@store/useResolvedElement';
 import type { BreakpointOverride } from '@lib/element';
 import { Tooltip } from '../controls/Tooltip';
 import styles from './Section.module.css';
@@ -90,27 +93,59 @@ type IndicatorProps = {
 
 /**
  * Small dot next to the section title that appears when any of the
- * section's fields is overridden at the active breakpoint. Wrapped
- * in a Tooltip that lists the overridden property names in CSS form.
- * Right-click resets all overridden fields at the active breakpoint.
+ * section's fields is overridden at the currently-active axis (a
+ * non-desktop breakpoint OR a non-default state). Wrapped in a
+ * Tooltip that lists the overridden property names in CSS form.
+ * Right-click resets all overridden fields at that axis.
+ *
+ * Only one axis surfaces at a time — non-default states are disabled
+ * at non-desktop breakpoints, so when both could apply we never
+ * actually have both active.
  */
 const OverrideIndicator = ({
   elementId,
   fields,
 }: IndicatorProps): JSX.Element | null => {
-  const overriddenFields = useBreakpointOverrideFields(elementId);
+  const overriddenBreakpointFields = useBreakpointOverrideFields(elementId);
+  const overriddenStateFields = useStateOverrideFields(elementId);
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
-  const resetFields = useCanvasStore((s) => s.resetElementFieldsAtBreakpoint);
+  const activeStateName = useCanvasStore((s) => s.activeStateName);
+  const resetBreakpointFields = useCanvasStore(
+    (s) => s.resetElementFieldsAtBreakpoint
+  );
+  const resetStateFields = useCanvasStore(
+    (s) => s.resetElementFieldsAtState
+  );
 
+  // Pick which axis to surface. Prefer state when one is active —
+  // breakpoint indicators are also disabled (state ⇒ desktop) by the
+  // switcher's effect, so this branch ordering matches the routing.
+  const axis: 'state' | 'breakpoint' | null =
+    activeStateName !== null
+      ? 'state'
+      : activeBreakpointId !== 'desktop'
+      ? 'breakpoint'
+      : null;
+  if (axis === null) return null;
+
+  const overriddenFields =
+    axis === 'state' ? overriddenStateFields : overriddenBreakpointFields;
   const overriddenInSection = fields.filter((f) => overriddenFields.has(f));
   if (overriddenInSection.length === 0) return null;
 
   const label = formatOverrideList(overriddenInSection);
 
   const handleContextMenu = (e: MouseEvent<HTMLSpanElement>): void => {
-    if (activeBreakpointId === 'desktop') return;
     e.preventDefault();
-    resetFields(elementId, activeBreakpointId, overriddenInSection);
+    if (axis === 'state' && activeStateName !== null) {
+      resetStateFields(elementId, activeStateName, overriddenInSection);
+    } else if (axis === 'breakpoint') {
+      resetBreakpointFields(
+        elementId,
+        activeBreakpointId,
+        overriddenInSection
+      );
+    }
   };
 
   return (

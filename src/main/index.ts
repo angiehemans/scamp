@@ -35,13 +35,24 @@ process.on('unhandledRejection', (reason) => {
   console.error('[main] unhandled rejection:', reason);
 });
 
+/**
+ * Path to the app icon. In dev `__dirname` points at the repo's
+ * `out/main/` so we walk up to `src/renderer/src/assets/`. In a
+ * packaged build the icon is bundled into the app's resources dir via
+ * `extraResources` in `electron-builder.yml`.
+ */
+const iconPath = (): string =>
+  app.isPackaged
+    ? join(process.resourcesPath, 'scamp-icon.png')
+    : join(__dirname, '../../src/renderer/src/assets/scamp-icon.png');
+
 const createWindow = (): void => {
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     show: false,
     autoHideMenuBar: true,
-    icon: join(__dirname, '../../build/icon.png'),
+    icon: iconPath(),
     backgroundColor: '#1a1a1a',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

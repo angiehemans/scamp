@@ -370,6 +370,49 @@ Rules for agents:
 - **Desktop is the base.** Put desktop styles directly on the class,
   not inside a \`@media\` block.
 
+## Per-element states (\`:hover\`, \`:active\`, \`:focus\`)
+
+Scamp models three CSS pseudo-classes as first-class element states.
+Style overrides for a state are written as a separate rule block
+sharing the element's class name:
+
+\`\`\`css
+.rect_a1b2 {
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.rect_a1b2:hover {
+  background: #f0f0f0;
+}
+
+.rect_a1b2:active {
+  background: #e0e0e0;
+}
+\`\`\`
+
+Rules for agents:
+
+- **Emit state blocks immediately after the element's base block**,
+  before any \`@media\` queries. Order: \`:hover\` → \`:active\` →
+  \`:focus\`.
+- **Only declare properties that differ from the base.** Scamp picks
+  up the change as a state-specific override; redeclaring identical
+  values just makes the file noisier.
+- **Empty state blocks aren't allowed** — if an override has no
+  declarations, omit the block entirely.
+- **A transition declared on the base applies to all state changes
+  automatically** (correct CSS behaviour). Don't add per-state
+  \`transition\` declarations — Scamp doesn't model them.
+
+### Other pseudo-classes are preserved verbatim
+
+\`:focus-visible\`, \`:disabled\`, \`:checked\`, \`:nth-child(...)\`,
+compound selectors like \`.rect_a1b2:hover .child\` — anything that
+isn't one of the three recognised states — round-trip through Scamp
+unchanged but aren't editable from the panel. Agents can write them
+freely; Scamp preserves them text-stable.
+
 ## CSS Variables and Tokens
 
 The project includes a \`theme.css\` file with two sections:
@@ -910,6 +953,49 @@ Rules for agents:
   form above is parsed.
 - **Desktop is the base.** Put desktop styles directly on the class,
   not inside a \`@media\` block.
+
+## Per-element states (\`:hover\`, \`:active\`, \`:focus\`)
+
+Scamp models three CSS pseudo-classes as first-class element states.
+Style overrides for a state are written as a separate rule block
+sharing the element's class name:
+
+\`\`\`css
+.rect_a1b2 {
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.rect_a1b2:hover {
+  background: #f0f0f0;
+}
+
+.rect_a1b2:active {
+  background: #e0e0e0;
+}
+\`\`\`
+
+Rules for agents:
+
+- **Emit state blocks immediately after the element's base block**,
+  before any \`@media\` queries. Order: \`:hover\` → \`:active\` →
+  \`:focus\`.
+- **Only declare properties that differ from the base.** Scamp picks
+  up the change as a state-specific override; redeclaring identical
+  values just makes the file noisier.
+- **Empty state blocks aren't allowed** — if an override has no
+  declarations, omit the block entirely.
+- **A transition declared on the base applies to all state changes
+  automatically** (correct CSS behaviour). Don't add per-state
+  \`transition\` declarations — Scamp doesn't model them.
+
+### Other pseudo-classes are preserved verbatim
+
+\`:focus-visible\`, \`:disabled\`, \`:checked\`, \`:nth-child(...)\`,
+compound selectors like \`.rect_a1b2:hover .child\` — anything that
+isn't one of the three recognised states — round-trip through Scamp
+unchanged but aren't editable from the panel. Agents can write them
+freely; Scamp preserves them text-stable.
 
 ## CSS Variables and Tokens
 

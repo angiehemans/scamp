@@ -8,6 +8,7 @@ import {
   ROOT_ELEMENT_ID,
   ungroupSiblings,
   type BreakpointOverride,
+  type ElementStateName,
   type ScampElement,
 } from '@lib/element';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
@@ -151,6 +152,20 @@ type CanvasState = {
   activeBreakpointId: string;
 
   /**
+   * The pseudo-class state the user is currently editing. `null` is
+   * the default (rest) state — edits land on the element's base
+   * style fields. A non-null value means edits land in
+   * `element.stateOverrides[activeStateName]` and the canvas
+   * preview renders selected elements with that state's overrides
+   * layered on. Transient UI state — not persisted to disk.
+   *
+   * State × non-desktop breakpoint combinations aren't supported
+   * yet — the panel disables non-default states when a non-desktop
+   * breakpoint is active.
+   */
+  activeStateName: ElementStateName | null;
+
+  /**
    * Mirror of `ProjectConfig.breakpoints` — kept in the store so
    * deeply-nested components (ElementRenderer) can read the table
    * without prop-drilling. Synced by `ProjectShell` on project load
@@ -232,6 +247,19 @@ type CanvasState = {
     breakpointId: string,
     fields: ReadonlyArray<keyof BreakpointOverride>
   ) => void;
+  /**
+   * Clear specific fields from an element's `stateOverrides[stateName]`,
+   * effectively reverting them to the base ("rest") state. Symmetric
+   * with `resetElementFieldsAtBreakpoint`. When the override becomes
+   * empty after the clear, the state key is deleted; when no states
+   * remain, the whole `stateOverrides` field is dropped from the
+   * element so round-trips stay text-stable.
+   */
+  resetElementFieldsAtState: (
+    id: string,
+    stateName: ElementStateName,
+    fields: ReadonlyArray<keyof BreakpointOverride>
+  ) => void;
   loadPage: (
     page: ActivePage,
     elements: Record<string, ScampElement>,
@@ -247,6 +275,7 @@ type CanvasState = {
   setBottomPanel: (panel: BottomPanel) => void;
   setPanelMode: (mode: PanelMode) => void;
   setActiveBreakpoint: (id: string) => void;
+  setActiveState: (state: ElementStateName | null) => void;
   setBreakpoints: (breakpoints: Breakpoint[]) => void;
   setProjectFormat: (format: ProjectFormat) => void;
   setProjectPath: (path: string) => void;
@@ -378,10 +407,11 @@ const tagForListChildContext = (
 };
 
 /**
- * Fields that are NEVER written into a breakpoint override — they're
- * identity / tree / TSX-level concepts that can't meaningfully change
- * per-breakpoint. A patch containing any of these applies them to
- * the element's top-level fields regardless of the active breakpoint.
+ * Fields that are NEVER written into a breakpoint or state override —
+ * they're identity / tree / TSX-level concepts that can't
+ * meaningfully change per-axis. A patch containing any of these
+ * applies them to the element's top-level fields regardless of the
+ * active breakpoint or state.
  */
 const BASE_ONLY_PATCH_FIELDS = new Set<keyof ScampElement>([
   'id',
@@ -389,6 +419,8 @@ const BASE_ONLY_PATCH_FIELDS = new Set<keyof ScampElement>([
   'parentId',
   'childIds',
   'breakpointOverrides',
+  'stateOverrides',
+  'customSelectorBlocks',
   'tag',
   'attributes',
   'selectOptions',
@@ -398,22 +430,31 @@ const BASE_ONLY_PATCH_FIELDS = new Set<keyof ScampElement>([
 ]);
 
 /**
- * Apply a patch to an element while respecting the active breakpoint.
- * When active is desktop (or no breakpoint override applies), the
- * patch writes through to top-level fields as before. In non-desktop
- * mode, style fields route into `breakpointOverrides[activeId]` —
- * identity / content fields still go to the top level because they
- * can't be per-breakpoint in our model.
+ * Apply a patch to an element while respecting the active breakpoint
+ * and state. Routing rules:
  *
- * Pure — takes the element + patch, returns the next element.
+ *   - Desktop + default state → patch writes through to top-level.
+ *   - Desktop + non-default state → style fields route to
+ *     `stateOverrides[activeStateName]`.
+ *   - Non-desktop + default state → style fields route to
+ *     `breakpointOverrides[activeBreakpointId]`.
+ *   - Non-desktop + non-default state → state×breakpoint matrix is
+ *     out of scope in this version; the patch is dropped to avoid
+ *     silently writing the wrong place. The properties panel UI
+ *     disables non-default states at non-desktop breakpoints, so
+ *     this shouldn't fire from a normal interaction.
+ *
+ * Identity / content fields always land on top-level regardless of
+ * axis. Pure — takes the element + patch, returns the next element.
  */
-const applyPatchWithBreakpointRouting = (
+const applyPatchWithAxisRouting = (
   el: ScampElement,
   patch: Partial<ScampElement>,
-  activeBreakpointId: string
+  activeBreakpointId: string,
+  activeStateName: ElementStateName | null
 ): ScampElement => {
   // Split the patch into base (always-top-level) and style (goes to
-  // override when non-desktop).
+  // override when an axis is active).
   const basePatch: Partial<ScampElement> = {};
   const stylePatch: BreakpointOverride = {};
   for (const key of Object.keys(patch) as Array<keyof ScampElement>) {
@@ -424,21 +465,51 @@ const applyPatchWithBreakpointRouting = (
     }
   }
 
-  if (activeBreakpointId === 'desktop') {
-    // Desktop: merge everything straight onto the element.
-    return { ...el, ...basePatch, ...stylePatch };
+  const mergedBase =
+    Object.keys(basePatch).length > 0 ? { ...el, ...basePatch } : el;
+  const styleKeys = Object.keys(stylePatch);
+
+  // Desktop + default state — merge style patch onto top-level.
+  if (activeBreakpointId === 'desktop' && activeStateName === null) {
+    if (styleKeys.length === 0) return mergedBase;
+    return { ...mergedBase, ...stylePatch };
   }
 
-  // Non-desktop: base patch still lands on top-level (identity/content
-  // fields aren't breakpoint-specific); style patch lands in the
-  // override bucket for the active breakpoint.
-  const mergedBase = Object.keys(basePatch).length > 0 ? { ...el, ...basePatch } : el;
-  const styleKeys = Object.keys(stylePatch);
   if (styleKeys.length === 0) return mergedBase;
 
+  // Desktop + non-default state — route to stateOverrides.
+  if (activeBreakpointId === 'desktop' && activeStateName !== null) {
+    const existingOverride =
+      mergedBase.stateOverrides?.[activeStateName] ?? {};
+    const mergedCustom =
+      'customProperties' in stylePatch && stylePatch.customProperties
+        ? {
+            ...(existingOverride.customProperties ?? {}),
+            ...stylePatch.customProperties,
+          }
+        : existingOverride.customProperties;
+    const nextOverride: BreakpointOverride = {
+      ...existingOverride,
+      ...stylePatch,
+      ...(mergedCustom !== undefined ? { customProperties: mergedCustom } : {}),
+    };
+    return {
+      ...mergedBase,
+      stateOverrides: {
+        ...mergedBase.stateOverrides,
+        [activeStateName]: nextOverride,
+      },
+    };
+  }
+
+  // Non-desktop + non-default state — out of scope. Drop the style
+  // patch; base fields already landed via mergedBase. (UI guards
+  // against this combination, so this branch should be unreachable in
+  // practice — kept as a safety net.)
+  if (activeStateName !== null) return mergedBase;
+
+  // Non-desktop + default state — route to breakpointOverrides.
   const existingOverride = mergedBase.breakpointOverrides?.[activeBreakpointId] ?? {};
-  // customProperties merge object-wise so a new entry doesn't wipe
-  // earlier ones at the same breakpoint.
   const mergedCustom =
     'customProperties' in stylePatch && stylePatch.customProperties
       ? {
@@ -485,6 +556,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   panelMode: 'ui',
   userZoom: null,
   activeBreakpointId: 'desktop',
+  activeStateName: null,
   breakpoints: [...DEFAULT_BREAKPOINTS],
   projectFormat: 'nextjs',
   projectPath: '',
@@ -819,10 +891,15 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
-      const next = applyPatchWithBreakpointRouting(
+      // Direct manipulation (drag-to-move) always lands on the base —
+      // never on a state override, even if a state is active in the
+      // panel. Moving an element on the canvas is a layout edit, not
+      // a hover-state design decision.
+      const next = applyPatchWithAxisRouting(
         el,
         { x, y },
-        state.activeBreakpointId
+        state.activeBreakpointId,
+        null
       );
       return { elements: { ...state.elements, [id]: next } };
     }),
@@ -834,8 +911,9 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       // Dragging a handle is an explicit "I want this size" gesture, so
       // we always switch to fixed mode — otherwise resizing a stretched
       // or fit-content element would silently store a value that the
-      // generator wouldn't emit.
-      const next = applyPatchWithBreakpointRouting(
+      // generator wouldn't emit. Like moveElement, resize edits land
+      // on the base regardless of the active state.
+      const next = applyPatchWithAxisRouting(
         el,
         {
           x,
@@ -845,7 +923,8 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
           widthMode: 'fixed',
           heightMode: 'fixed',
         },
-        state.activeBreakpointId
+        state.activeBreakpointId,
+        null
       );
       return { elements: { ...state.elements, [id]: next } };
     }),
@@ -854,10 +933,11 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
-      const next = applyPatchWithBreakpointRouting(
+      const next = applyPatchWithAxisRouting(
         el,
         patch,
-        state.activeBreakpointId
+        state.activeBreakpointId,
+        state.activeStateName
       );
       return { elements: { ...state.elements, [id]: next } };
     }),
@@ -893,6 +973,38 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       };
     }),
 
+  resetElementFieldsAtState: (id, stateName, fields) =>
+    set((state) => {
+      const el = state.elements[id];
+      if (!el || !el.stateOverrides) return state;
+      const existing = el.stateOverrides[stateName];
+      if (!existing) return state;
+      const nextOverride: BreakpointOverride = { ...existing };
+      for (const field of fields) {
+        delete nextOverride[field];
+      }
+      const overrides: Partial<Record<ElementStateName, BreakpointOverride>> = {
+        ...el.stateOverrides,
+      };
+      if (Object.keys(nextOverride).length === 0) {
+        // Empty override object — drop the state key so generateCode
+        // won't emit an empty pseudo-class block.
+        delete overrides[stateName];
+      } else {
+        overrides[stateName] = nextOverride;
+      }
+      // If no states have any overrides, delete the whole field so
+      // round-trips stay text-stable.
+      const { stateOverrides: _, ...elWithoutOverrides } = el;
+      const nextElement: ScampElement =
+        Object.keys(overrides).length === 0
+          ? (elWithoutOverrides as ScampElement)
+          : { ...el, stateOverrides: overrides };
+      return {
+        elements: { ...state.elements, [id]: nextElement },
+      };
+    }),
+
   loadPage: (page, elements, source, customMediaBlocks) =>
     set({
       activePage: page,
@@ -923,6 +1035,8 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   setPanelMode: (mode) => set({ panelMode: mode }),
 
   setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
+
+  setActiveState: (activeStateName) => set({ activeStateName }),
 
   setBreakpoints: (breakpoints) => set({ breakpoints }),
 

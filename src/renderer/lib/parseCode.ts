@@ -3,11 +3,15 @@ import postcss from 'postcss';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
 import { cssToScampProperty, isMappedProperty } from './cssPropertyMap';
 import {
+  ELEMENT_STATES,
   ROOT_ELEMENT_ID,
   type BreakpointOverride,
+  type ElementStateName,
   type ElementType,
+  type RawSelectorBlock,
   type ScampElement,
   type SelectOption,
+  type StateOverride,
 } from './element';
 import { parsePx } from './parsers';
 import {
@@ -472,11 +476,65 @@ type ParsedCss = {
    */
   byBreakpoint: Map<string, ClassDeclarations>;
   /**
+   * Per-state declarations for the recognised pseudo-classes
+   * (`:hover`, `:active`, `:focus`). Outer key is state name; inner
+   * key is class name. Compound or unrecognised pseudo-class
+   * selectors are stored in `rawByClass` instead.
+   */
+  byState: Map<ElementStateName, ClassDeclarations>;
+  /**
+   * Pseudo-class blocks the parser couldn't route to a recognised
+   * state (`.foo:focus-visible`, `.foo:nth-child(odd)`,
+   * `.foo:hover .child`, etc.). Keyed by the bare class name so the
+   * blocks travel with the matching element. Order within the array
+   * matches the source order so re-emit stays text-stable.
+   */
+  rawByClass: Map<string, RawSelectorBlock[]>;
+  /**
    * Raw CSS text of @media blocks the parser couldn't route — either
    * the query shape isn't `(max-width: Npx)` or the width doesn't
    * match any known breakpoint. Preserved verbatim for round-trip.
    */
   customMediaBlocks: string[];
+};
+
+/**
+ * Inspect a top-level rule selector and decide what bucket it belongs
+ * in:
+ *   - `base` — plain `.<className>` rule, declarations apply to the
+ *     element's top-level fields.
+ *   - `state` — `.<className>:hover`, `:active`, or `:focus` exactly.
+ *     Routed into the per-state override bucket.
+ *   - `raw` — anything else that starts with `.<className>`
+ *     (compound, descendant, unrecognised pseudo-class) — preserved
+ *     verbatim on the element so the generator can re-emit it.
+ *   - `null` — selector isn't class-prefixed; not Scamp's concern.
+ */
+type SelectorClassification =
+  | { kind: 'base'; className: string }
+  | { kind: 'state'; className: string; state: ElementStateName }
+  | { kind: 'raw'; className: string };
+
+const SUPPORTED_STATES: ReadonlyMap<string, ElementStateName> = new Map(
+  ELEMENT_STATES.map((s) => [`:${s}`, s])
+);
+
+const classifyClassSelector = (
+  selector: string
+): SelectorClassification | null => {
+  if (!selector.startsWith('.')) return null;
+  // Capture the leading class name (CSS identifier, allowing `_`,
+  // `-`, digits after the first char). Anything after is `rest`.
+  const match = selector.match(/^\.([A-Za-z_][\w-]*)([\s\S]*)$/);
+  if (!match) return null;
+  const className = match[1] ?? '';
+  const rest = (match[2] ?? '').trim();
+  if (rest.length === 0) return { kind: 'base', className };
+  const stateMatch = SUPPORTED_STATES.get(rest);
+  if (stateMatch !== undefined) {
+    return { kind: 'state', className, state: stateMatch };
+  }
+  return { kind: 'raw', className };
 };
 
 /** Extract a numeric max-width from a media query condition like
@@ -503,28 +561,61 @@ const parseCssDeclarations = (
 ): ParsedCss => {
   const byClass: ClassDeclarations = new Map();
   const byBreakpoint = new Map<string, ClassDeclarations>();
+  const byState = new Map<ElementStateName, ClassDeclarations>();
+  const rawByClass = new Map<string, RawSelectorBlock[]>();
   const customMediaBlocks: string[] = [];
 
   let root: postcss.Root;
   try {
     root = postcss.parse(css);
   } catch {
-    return { byClass, byBreakpoint, customMediaBlocks };
+    return {
+      byClass,
+      byBreakpoint,
+      byState,
+      rawByClass,
+      customMediaBlocks,
+    };
   }
 
-  // Walk top-level rules first — these are the base class blocks.
-  // Using direct iteration (not walkRules) so we skip rules nested
-  // inside @media; those get handled in the at-rule walk below.
+  // Walk top-level rules first — these are the base class blocks
+  // and per-state pseudo-class blocks. Using direct iteration (not
+  // walkRules) so we skip rules nested inside @media; those get
+  // handled in the at-rule walk below.
   for (const node of root.nodes) {
     if (node.type !== 'rule') continue;
     const selector = node.selector.trim();
-    if (!selector.startsWith('.')) continue;
-    const className = selector.slice(1);
+    const classification = classifyClassSelector(selector);
+    if (classification === null) continue;
+
+    if (classification.kind === 'raw') {
+      // Preserve verbatim. Format the body as a single string —
+      // postcss's `raws` give us original whitespace and comments.
+      const decls = node.nodes
+        .map((child) => child.toString().trim())
+        .filter((s) => s.length > 0)
+        .map((s) => `  ${s}`)
+        .join('\n');
+      const list = rawByClass.get(classification.className) ?? [];
+      list.push({ selector, body: decls });
+      rawByClass.set(classification.className, list);
+      continue;
+    }
+
     const decls: RawDeclaration[] = [];
     node.walkDecls((decl) => {
       decls.push({ prop: decl.prop, value: decl.value });
     });
-    byClass.set(className, decls);
+
+    if (classification.kind === 'base') {
+      byClass.set(classification.className, decls);
+    } else {
+      // state
+      const bucket =
+        byState.get(classification.state) ?? new Map<string, RawDeclaration[]>();
+      bucket.set(classification.className, decls);
+      byState.set(classification.state, bucket);
+    }
   }
 
   // Walk top-level @media at-rules. Route known (max-width: Npx)
@@ -544,22 +635,42 @@ const parseCssDeclarations = (
       customMediaBlocks.push(node.toString());
       continue;
     }
+    // State × breakpoint combinations are out of scope (see element-
+    // states plan). If any rule inside the @media isn't a plain base
+    // class rule (e.g. `.foo:hover` inside @media), preserve the
+    // whole block verbatim instead of risking a partial / wrong
+    // routing — round-trip stays text-stable.
+    let hasNonBaseRule = false;
+    node.walkRules((rule) => {
+      const c = classifyClassSelector(rule.selector.trim());
+      if (c === null) return;
+      if (c.kind !== 'base') hasNonBaseRule = true;
+    });
+    if (hasNonBaseRule) {
+      customMediaBlocks.push(node.toString());
+      continue;
+    }
     // Extract per-class declarations inside this @media.
     const bucket = byBreakpoint.get(bpId) ?? new Map<string, RawDeclaration[]>();
     node.walkRules((rule) => {
-      const selector = rule.selector.trim();
-      if (!selector.startsWith('.')) return;
-      const className = selector.slice(1);
+      const c = classifyClassSelector(rule.selector.trim());
+      if (c === null || c.kind !== 'base') return;
       const decls: RawDeclaration[] = [];
       rule.walkDecls((decl) => {
         decls.push({ prop: decl.prop, value: decl.value });
       });
-      bucket.set(className, decls);
+      bucket.set(c.className, decls);
     });
     byBreakpoint.set(bpId, bucket);
   }
 
-  return { byClass, byBreakpoint, customMediaBlocks };
+  return {
+    byClass,
+    byBreakpoint,
+    byState,
+    rawByClass,
+    customMediaBlocks,
+  };
 };
 
 /**
@@ -821,6 +932,32 @@ export const parseCode = (
     }
     if (Object.keys(overrides).length > 0) {
       finalElement = { ...finalElement, breakpointOverrides: overrides };
+    }
+
+    // Fold in per-state overrides for this element's class. Reuses
+    // `applyDeclarationsAsOverride` because StateOverride and
+    // BreakpointOverride are structurally the same shape — both
+    // emit / consume a Partial<element-style fields>.
+    const stateOverrides: Partial<Record<ElementStateName, StateOverride>> = {};
+    for (const state of ELEMENT_STATES) {
+      const classesForState = parsedCss.byState.get(state);
+      if (!classesForState) continue;
+      const stateDecls = classesForState.get(raw.className);
+      if (!stateDecls || stateDecls.length === 0) continue;
+      const override = applyDeclarationsAsOverride(stateDecls);
+      if (Object.keys(override).length > 0) stateOverrides[state] = override;
+    }
+    if (Object.keys(stateOverrides).length > 0) {
+      finalElement = { ...finalElement, stateOverrides };
+    }
+
+    // Verbatim-preserved pseudo-class blocks for this element.
+    const rawBlocks = parsedCss.rawByClass.get(raw.className);
+    if (rawBlocks && rawBlocks.length > 0) {
+      finalElement = {
+        ...finalElement,
+        customSelectorBlocks: rawBlocks,
+      };
     }
 
     elements[raw.id] = finalElement;
