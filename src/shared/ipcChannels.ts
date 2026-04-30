@@ -8,6 +8,7 @@ export const IPC = {
   ProjectCreate: 'project:create',
   ProjectOpen: 'project:open',
   ProjectRead: 'project:read',
+  ProjectMigrate: 'project:migrate',
 
   // File operations
   FileWrite: 'file:write',

@@ -4,6 +4,7 @@ import { parseThemeFile } from '@lib/parseTheme';
 import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
 import { useFontsStore } from '@store/fontsSlice';
 import { useCanvasStore, type ActivePage } from '@store/canvasSlice';
+import type { ProjectFormat } from '@shared/types';
 import {
   useSaveStatusStore,
   type LastWriteAttempt,
@@ -12,6 +13,17 @@ import { useAppLogStore } from '@store/appLogSlice';
 import type { ScampElement } from '@lib/element';
 
 const WRITE_DEBOUNCE_MS = 200;
+
+/**
+ * The CSS-module file basename `generateCode` should put in the TSX
+ * import line for the given project format. Nextjs projects always
+ * import `./page.module.css` (each page lives in its own folder); the
+ * legacy flat layout imports `./<pageName>.module.css`.
+ */
+const cssModuleImportNameFor = (
+  format: ProjectFormat,
+  pageName: string
+): string => (format === 'nextjs' ? 'page' : pageName);
 
 /**
  * Safety net for the "save is confirmed" transition. The main-process
@@ -285,6 +297,10 @@ export const initSyncBridge = (): (() => void) => {
       pageName: page.name,
       breakpoints: store.breakpoints,
       customMediaBlocks: store.pageCustomMediaBlocks,
+      cssModuleImportName: cssModuleImportNameFor(
+        store.projectFormat,
+        page.name
+      ),
     });
     if (code.tsx === lastSerializedTsx && code.css === lastSerializedCss) {
       // No-op dedupe: the debounce fired but the generated code matches
@@ -370,6 +386,10 @@ export const initSyncBridge = (): (() => void) => {
           pageName: state.activePage.name,
           breakpoints: state.breakpoints,
           customMediaBlocks: state.pageCustomMediaBlocks,
+          cssModuleImportName: cssModuleImportNameFor(
+            state.projectFormat,
+            state.activePage.name
+          ),
         });
         const onDisk = state.pageSource;
         const isExternal = state.lastLoadKind === 'external';
@@ -420,6 +440,10 @@ export const initSyncBridge = (): (() => void) => {
         pageName: state.activePage.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: state.pageCustomMediaBlocks,
+        cssModuleImportName: cssModuleImportNameFor(
+          state.projectFormat,
+          state.activePage.name
+        ),
       });
       state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
 
@@ -465,12 +489,17 @@ export const initSyncBridge = (): (() => void) => {
       // Skip the canvas reload when the parsed tree round-trips to the
       // same code — prevents flicker during agent edits that don't actually
       // change a canvas-mappable property.
+      const importName = cssModuleImportNameFor(
+        state.projectFormat,
+        state.activePage.name
+      );
       const currentCode = generateCode({
         elements: state.elements,
         rootId: state.rootElementId,
         pageName: state.activePage.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: state.pageCustomMediaBlocks,
+        cssModuleImportName: importName,
       });
       const nextCode = generateCode({
         elements: parsed.elements,
@@ -478,6 +507,7 @@ export const initSyncBridge = (): (() => void) => {
         pageName: state.activePage.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: parsed.customMediaBlocks,
+        cssModuleImportName: importName,
       });
       if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
         return;

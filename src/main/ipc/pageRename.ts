@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import type { PageFile, PageRenameArgs } from '@shared/types';
+import type { PageFile, PageRenameArgs, ProjectFormat } from '@shared/types';
 
 const PAGE_NAME_RE = /^[a-zA-Z0-9-]+$/;
 
@@ -50,6 +50,116 @@ export const rewriteComponentName = (
   return tsx.replace(COMPONENT_FN_RE, `$1${newComponentName}$2`);
 };
 
+type RenamePaths = {
+  oldTsxPath: string;
+  oldCssPath: string;
+  newTsxPath: string;
+  newCssPath: string;
+  oldPageDir: string | null;
+  newPageDir: string | null;
+};
+
+const pagePathsFor = (
+  projectPath: string,
+  pageName: string,
+  format: ProjectFormat
+): { tsxPath: string; cssPath: string; pageDir: string | null } => {
+  if (format === 'legacy') {
+    return {
+      tsxPath: join(projectPath, `${pageName}.tsx`),
+      cssPath: join(projectPath, `${pageName}.module.css`),
+      pageDir: null,
+    };
+  }
+  if (pageName === 'home') {
+    const appDir = join(projectPath, 'app');
+    return {
+      tsxPath: join(appDir, 'page.tsx'),
+      cssPath: join(appDir, 'page.module.css'),
+      pageDir: null,
+    };
+  }
+  const pageDir = join(projectPath, 'app', pageName);
+  return {
+    tsxPath: join(pageDir, 'page.tsx'),
+    cssPath: join(pageDir, 'page.module.css'),
+    pageDir,
+  };
+};
+
+const renameLegacyFiles = async (
+  paths: RenamePaths,
+  rewrittenTsx: string,
+  oldCss: string,
+  onSuppress?: (path: string) => void
+): Promise<void> => {
+  onSuppress?.(paths.oldTsxPath);
+  onSuppress?.(paths.oldCssPath);
+  onSuppress?.(paths.newTsxPath);
+  onSuppress?.(paths.newCssPath);
+
+  try {
+    await fs.writeFile(paths.newTsxPath, rewrittenTsx, 'utf-8');
+    await fs.writeFile(paths.newCssPath, oldCss, 'utf-8');
+  } catch (err) {
+    await fs.rm(paths.newTsxPath, { force: true }).catch(() => undefined);
+    await fs.rm(paths.newCssPath, { force: true }).catch(() => undefined);
+    throw err;
+  }
+
+  await fs.rm(paths.oldTsxPath, { force: true });
+  await fs.rm(paths.oldCssPath, { force: true });
+};
+
+const renameNextjsFiles = async (
+  paths: RenamePaths,
+  rewrittenTsx: string,
+  oldCss: string,
+  onSuppress?: (path: string) => void
+): Promise<void> => {
+  // For nextjs the CSS-module file basename is constant
+  // (`page.module.css`), so the rename is really about moving the
+  // containing folder. Only the TSX content actually changes (component
+  // name). Doing it as separate writes (rather than `fs.rename` of the
+  // folder) keeps the watcher's per-file `suppressNextChange` plumbing
+  // working without changes.
+  if (!paths.newPageDir) {
+    throw new Error(
+      'Internal: cannot rename to a page that has no directory in nextjs format.'
+    );
+  }
+  await fs.mkdir(paths.newPageDir, { recursive: false });
+
+  onSuppress?.(paths.oldTsxPath);
+  onSuppress?.(paths.oldCssPath);
+  onSuppress?.(paths.newTsxPath);
+  onSuppress?.(paths.newCssPath);
+
+  try {
+    await fs.writeFile(paths.newTsxPath, rewrittenTsx, 'utf-8');
+    await fs.writeFile(paths.newCssPath, oldCss, 'utf-8');
+  } catch (err) {
+    await fs.rm(paths.newTsxPath, { force: true }).catch(() => undefined);
+    await fs.rm(paths.newCssPath, { force: true }).catch(() => undefined);
+    await fs.rmdir(paths.newPageDir).catch(() => undefined);
+    throw err;
+  }
+
+  await fs.rm(paths.oldTsxPath, { force: true });
+  await fs.rm(paths.oldCssPath, { force: true });
+  if (paths.oldPageDir) {
+    // Best-effort cleanup — leave any agent leftovers in place.
+    try {
+      const remaining = await fs.readdir(paths.oldPageDir);
+      if (remaining.length === 0) {
+        await fs.rmdir(paths.oldPageDir);
+      }
+    } catch {
+      // Folder doesn't exist or unreadable — nothing to clean up.
+    }
+  }
+};
+
 /**
  * Rename a page on disk. Writes the new files first, then deletes the
  * old ones, so a crash mid-rename leaves duplicate files rather than
@@ -61,6 +171,7 @@ export const rewriteComponentName = (
  */
 export const renamePageFiles = async (
   args: PageRenameArgs,
+  format: ProjectFormat,
   onSuppress?: (path: string) => void
 ): Promise<PageFile> => {
   if (!PAGE_NAME_RE.test(args.newPageName)) {
@@ -71,61 +182,89 @@ export const renamePageFiles = async (
   if (args.oldPageName === args.newPageName) {
     throw new Error('New name is the same as the old one.');
   }
+  if (format === 'nextjs') {
+    if (args.oldPageName === 'home') {
+      throw new Error(
+        `The "home" page can't be renamed in a Next.js project — it must stay at app/page.tsx.`
+      );
+    }
+    if (args.newPageName === 'home') {
+      throw new Error(`A page named "home" already exists.`);
+    }
+  }
 
-  const oldTsxPath = join(args.projectPath, `${args.oldPageName}.tsx`);
-  const oldCssPath = join(args.projectPath, `${args.oldPageName}.module.css`);
-  const newTsxPath = join(args.projectPath, `${args.newPageName}.tsx`);
-  const newCssPath = join(args.projectPath, `${args.newPageName}.module.css`);
+  const oldPaths = pagePathsFor(args.projectPath, args.oldPageName, format);
+  const newPaths = pagePathsFor(args.projectPath, args.newPageName, format);
+  const paths: RenamePaths = {
+    oldTsxPath: oldPaths.tsxPath,
+    oldCssPath: oldPaths.cssPath,
+    newTsxPath: newPaths.tsxPath,
+    newCssPath: newPaths.cssPath,
+    oldPageDir: oldPaths.pageDir,
+    newPageDir: newPaths.pageDir,
+  };
 
-  if ((await pathExists(newTsxPath)) || (await pathExists(newCssPath))) {
+  if (
+    (await pathExists(paths.newTsxPath)) ||
+    (await pathExists(paths.newCssPath))
+  ) {
     throw new Error(`A page named "${args.newPageName}" already exists.`);
   }
-  if (!(await pathExists(oldTsxPath)) || !(await pathExists(oldCssPath))) {
+  if (paths.newPageDir && (await pathExists(paths.newPageDir))) {
+    throw new Error(`A page named "${args.newPageName}" already exists.`);
+  }
+  if (
+    !(await pathExists(paths.oldTsxPath)) ||
+    !(await pathExists(paths.oldCssPath))
+  ) {
     throw new Error(`Source page "${args.oldPageName}" is missing.`);
   }
 
   const [oldTsx, oldCss] = await Promise.all([
-    fs.readFile(oldTsxPath, 'utf-8'),
-    fs.readFile(oldCssPath, 'utf-8'),
+    fs.readFile(paths.oldTsxPath, 'utf-8'),
+    fs.readFile(paths.oldCssPath, 'utf-8'),
   ]);
 
-  const withImport = rewriteImportLine(oldTsx, args.oldPageName, args.newPageName);
-  if (withImport === null) {
-    throw new Error(
-      `Couldn't find the CSS-module import in ${args.oldPageName}.tsx — rename aborted.`
-    );
-  }
-  const newComponentName = componentNameFromPage(args.newPageName);
-  const rewritten = rewriteComponentName(withImport, newComponentName);
-  if (rewritten === null) {
-    throw new Error(
-      `Couldn't find the default-export function in ${args.oldPageName}.tsx — rename aborted. Restore the default "export default function <Name>()" signature before retrying.`
-    );
+  // Legacy needs the CSS-module import rewritten to point at the new
+  // basename. Nextjs's import is always `./page.module.css` so it's
+  // already correct — no rewrite needed.
+  let rewritten: string;
+  if (format === 'legacy') {
+    const withImport = rewriteImportLine(oldTsx, args.oldPageName, args.newPageName);
+    if (withImport === null) {
+      throw new Error(
+        `Couldn't find the CSS-module import in ${args.oldPageName}.tsx — rename aborted.`
+      );
+    }
+    const newComponentName = componentNameFromPage(args.newPageName);
+    const withComponent = rewriteComponentName(withImport, newComponentName);
+    if (withComponent === null) {
+      throw new Error(
+        `Couldn't find the default-export function in ${args.oldPageName}.tsx — rename aborted. Restore the default "export default function <Name>()" signature before retrying.`
+      );
+    }
+    rewritten = withComponent;
+  } else {
+    const newComponentName = componentNameFromPage(args.newPageName);
+    const withComponent = rewriteComponentName(oldTsx, newComponentName);
+    if (withComponent === null) {
+      throw new Error(
+        `Couldn't find the default-export function in ${args.oldPageName}/page.tsx — rename aborted. Restore the default "export default function <Name>()" signature before retrying.`
+      );
+    }
+    rewritten = withComponent;
   }
 
-  onSuppress?.(oldTsxPath);
-  onSuppress?.(oldCssPath);
-  onSuppress?.(newTsxPath);
-  onSuppress?.(newCssPath);
-
-  try {
-    await fs.writeFile(newTsxPath, rewritten, 'utf-8');
-    await fs.writeFile(newCssPath, oldCss, 'utf-8');
-  } catch (err) {
-    // Best-effort cleanup so we don't leave half-written new files
-    // alongside the still-intact old ones.
-    await fs.rm(newTsxPath, { force: true }).catch(() => undefined);
-    await fs.rm(newCssPath, { force: true }).catch(() => undefined);
-    throw err;
+  if (format === 'legacy') {
+    await renameLegacyFiles(paths, rewritten, oldCss, onSuppress);
+  } else {
+    await renameNextjsFiles(paths, rewritten, oldCss, onSuppress);
   }
-
-  await fs.rm(oldTsxPath, { force: true });
-  await fs.rm(oldCssPath, { force: true });
 
   return {
     name: args.newPageName,
-    tsxPath: newTsxPath,
-    cssPath: newCssPath,
+    tsxPath: paths.newTsxPath,
+    cssPath: paths.newCssPath,
     tsxContent: rewritten,
     cssContent: oldCss,
   };

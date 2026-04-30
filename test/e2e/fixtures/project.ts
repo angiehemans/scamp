@@ -3,18 +3,23 @@ import * as os from 'os';
 import * as path from 'path';
 
 import {
-  AGENT_MD_CONTENT,
+  AGENT_MD_CONTENT_LEGACY,
   DEFAULT_PAGE_CSS,
   DEFAULT_THEME_CSS,
   defaultPageTsx,
 } from '../../../src/shared/agentMd';
 
 /**
- * A throwaway on-disk project for a single spec. Matches the file
- * layout that the main-process `createProject` IPC produces so the app
- * can open it straight away via the SCAMP_E2E_OPEN_PROJECT env var.
- * `scamp.config.json` is intentionally omitted — `openProject`
- * backfills it on first open.
+ * A throwaway on-disk project for a single spec. Produces the legacy
+ * flat layout (the app supports both `legacy` and `nextjs` formats;
+ * the e2e suite exercises legacy because the existing specs assert on
+ * flat file paths). The app opens it straight away via the
+ * SCAMP_E2E_OPEN_PROJECT env var.
+ *
+ * A `scamp.config.json` is written with `nextjsMigrationDismissed: true`
+ * so the legacy → nextjs migration banner stays out of the way of the
+ * canvas during tests. Other config fields are left out and backfilled
+ * to defaults by `openProject` on first read.
  */
 export type TestProject = {
   /** Absolute path to the project directory. */
@@ -50,7 +55,7 @@ export const createTestProject = async (
   const pageName = 'home';
   const componentName = componentNameFromPage(pageName);
 
-  await fs.writeFile(path.join(dir, 'agent.md'), AGENT_MD_CONTENT, 'utf-8');
+  await fs.writeFile(path.join(dir, 'agent.md'), AGENT_MD_CONTENT_LEGACY, 'utf-8');
   await fs.writeFile(
     path.join(dir, `${pageName}.tsx`),
     defaultPageTsx(componentName, pageName),
@@ -62,6 +67,16 @@ export const createTestProject = async (
     'utf-8'
   );
   await fs.writeFile(path.join(dir, 'theme.css'), DEFAULT_THEME_CSS, 'utf-8');
+
+  // Suppress the legacy → nextjs migration banner so it doesn't sit on
+  // top of the canvas during tests. `parseProjectConfig` fills in the
+  // other fields (artboardBackground, canvasWidth, breakpoints, …)
+  // from defaults on first read.
+  await fs.writeFile(
+    path.join(dir, 'scamp.config.json'),
+    JSON.stringify({ nextjsMigrationDismissed: true }, null, 2) + '\n',
+    'utf-8'
+  );
 
   const read = (file: string) =>
     fs.readFile(path.join(dir, file), 'utf-8');

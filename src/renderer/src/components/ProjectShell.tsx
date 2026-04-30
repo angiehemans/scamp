@@ -25,6 +25,7 @@ import { ThemePanel } from './ThemePanel';
 import { ZoomControls } from './ZoomControls';
 import { CanvasSizeControl } from './CanvasSizeControl';
 import { MigrationBanner } from './MigrationBanner';
+import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
@@ -113,6 +114,19 @@ export const ProjectShell = ({
   useEffect(() => {
     useCanvasStore.getState().setBreakpoints(projectConfig.breakpoints);
   }, [projectConfig.breakpoints]);
+
+  // Mirror the project format so the sync bridge can pick the right
+  // CSS-module import basename when emitting code.
+  useEffect(() => {
+    useCanvasStore.getState().setProjectFormat(project.format);
+  }, [project.format]);
+
+  // Mirror the project root path so deeply-nested components don't
+  // have to walk up from `activePage.tsxPath` (which gets the wrong
+  // answer for nested nextjs page folders).
+  useEffect(() => {
+    useCanvasStore.getState().setProjectPath(project.path);
+  }, [project.path]);
 
   const loadPage = useCanvasStore((s) => s.loadPage);
   const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
@@ -647,6 +661,24 @@ export const ProjectShell = ({
       </header>
       {showMigrationBanner && (
         <MigrationBanner onDismiss={handleDismissMigrationBanner} />
+      )}
+      {project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (
+        <NextjsMigrationBanner
+          project={project}
+          onMigrated={(next) => {
+            // Project flips to nextjs format — refresh upward and pick
+            // the home page so the renderer doesn't try to render a
+            // page whose paths just changed under it.
+            onProjectChange?.(next);
+            setActivePageName(next.pages[0]?.name ?? null);
+          }}
+          onDismiss={() =>
+            handleProjectConfigChange({
+              ...projectConfig,
+              nextjsMigrationDismissed: true,
+            })
+          }
+        />
       )}
       <div className={styles.body}>
         <aside className={styles.sidebar}>

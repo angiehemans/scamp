@@ -26,7 +26,12 @@
     "src/renderer/**/*",
     "src/shared/**/*",
     "test/**/*",
+    "src/main/ipc/imageOps.ts",
+    "src/main/ipc/pageOps.ts",
     "src/main/ipc/pageRename.ts",
+    "src/main/ipc/projectFormat.ts",
+    "src/main/ipc/projectMigrate.ts",
+    "src/main/ipc/projectScaffold.ts",
     "src/main/pendingWrites.ts"
   ]
 }

@@ -11,7 +11,12 @@ import {
   type ScampElement,
 } from '@lib/element';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
-import { DEFAULT_BREAKPOINTS, type Breakpoint, type ThemeToken } from '@shared/types';
+import {
+  DEFAULT_BREAKPOINTS,
+  type Breakpoint,
+  type ProjectFormat,
+  type ThemeToken,
+} from '@shared/types';
 
 export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 
@@ -154,6 +159,23 @@ type CanvasState = {
   breakpoints: Breakpoint[];
 
   /**
+   * Mirror of `ProjectData.format` — read by the sync bridge to
+   * decide which CSS-module import basename `generateCode` should
+   * emit (`page` for nextjs vs `<pageName>` for legacy). Synced by
+   * `ProjectShell` on project load.
+   */
+  projectFormat: ProjectFormat;
+
+  /**
+   * Mirror of `ProjectData.path` — used by deeply-nested components
+   * (image picker, asset URL resolver) that would otherwise have to
+   * derive it by walking up from `activePage.tsxPath`, which only
+   * works for the legacy flat layout. Empty string when no project
+   * is loaded.
+   */
+  projectPath: string;
+
+  /**
    * `@media` blocks the parser couldn't route to a known breakpoint
    * (min-width, prefers-color-scheme, custom max-widths…). Kept in
    * the store so `generateCode` can re-emit them untouched on every
@@ -226,6 +248,8 @@ type CanvasState = {
   setPanelMode: (mode: PanelMode) => void;
   setActiveBreakpoint: (id: string) => void;
   setBreakpoints: (breakpoints: Breakpoint[]) => void;
+  setProjectFormat: (format: ProjectFormat) => void;
+  setProjectPath: (path: string) => void;
   /** Walk one step up the discrete zoom ladder. */
   zoomIn: () => void;
   /** Walk one step down the discrete zoom ladder. */
@@ -462,6 +486,8 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   userZoom: null,
   activeBreakpointId: 'desktop',
   breakpoints: [...DEFAULT_BREAKPOINTS],
+  projectFormat: 'nextjs',
+  projectPath: '',
   pageCustomMediaBlocks: [],
   themeTokens: [],
   clipboard: null,
@@ -899,6 +925,10 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
 
   setBreakpoints: (breakpoints) => set({ breakpoints }),
+
+  setProjectFormat: (projectFormat) => set({ projectFormat }),
+
+  setProjectPath: (projectPath) => set({ projectPath }),
 
   zoomIn: () =>
     set((state) => {

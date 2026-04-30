@@ -2,14 +2,27 @@ import { ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
+import type { ProjectFormat } from '@shared/types';
+import { getProjectFormat } from './projectFormatCache';
+
+/**
+ * Path on disk where a project's `theme.css` lives. Nextjs projects
+ * co-locate it inside `app/` so the root layout can import it and
+ * `next dev` picks up the tokens; legacy keeps it at the project root.
+ */
+const themePathFor = (projectPath: string, format: ProjectFormat): string =>
+  format === 'nextjs'
+    ? join(projectPath, 'app', 'theme.css')
+    : join(projectPath, 'theme.css');
 
 /**
  * Read the project's theme.css. Returns the file content as a string,
  * or an empty string if the file doesn't exist.
  */
 const readTheme = async (projectPath: string): Promise<string> => {
+  const format = await getProjectFormat(projectPath);
   try {
-    return await fs.readFile(join(projectPath, 'theme.css'), 'utf-8');
+    return await fs.readFile(themePathFor(projectPath, format), 'utf-8');
   } catch {
     return '';
   }
@@ -22,7 +35,12 @@ const writeTheme = async (args: {
   projectPath: string;
   content: string;
 }): Promise<void> => {
-  await fs.writeFile(join(args.projectPath, 'theme.css'), args.content, 'utf-8');
+  const format = await getProjectFormat(args.projectPath);
+  await fs.writeFile(
+    themePathFor(args.projectPath, format),
+    args.content,
+    'utf-8'
+  );
 };
 
 export const registerThemeIpc = (): void => {

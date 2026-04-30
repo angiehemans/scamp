@@ -6,19 +6,32 @@ import type {
   ChooseFolderResult,
   CreateProjectArgs,
   OpenProjectArgs,
-  PageFile,
   ProjectData,
+  ProjectFormat,
+  ProjectMigrateArgs,
+  ProjectMigrateResult,
 } from '@shared/types';
-import {
-  AGENT_MD_CONTENT,
-  DEFAULT_PAGE_CSS,
-  DEFAULT_THEME_CSS,
-  defaultPageTsx,
-} from '@shared/agentMd';
+import { DEFAULT_THEME_CSS } from '@shared/agentMd';
 import { validateProjectName } from '@shared/projectName';
-import { addRecentProject } from './recentProjects';
+import {
+  addRecentProject,
+  updateRecentProjectFormat,
+} from './recentProjects';
 import { watchProject } from '../watcher';
 import { ensureProjectConfig } from './projectConfig';
+import { detectProjectFormat } from './projectFormat';
+import { setCachedProjectFormat } from './projectFormatCache';
+import {
+  readProjectLegacy,
+  readProjectNextjs,
+  scaffoldLegacyProject,
+  scaffoldNextjsProject,
+  themePathFor,
+} from './projectScaffold';
+import { migrateLegacyToNextjs } from './projectMigrate';
+
+export { detectProjectFormat };
+export { scaffoldLegacyProject, scaffoldNextjsProject };
 
 const chooseFolder = async (): Promise<ChooseFolderResult> => {
   const result = await dialog.showOpenDialog({
@@ -31,35 +44,17 @@ const chooseFolder = async (): Promise<ChooseFolderResult> => {
   return { canceled: false, path: result.filePaths[0] ?? null };
 };
 
-const componentNameFromPage = (pageName: string): string => {
-  return pageName
-    .split(/[-_]/)
-    .filter((part) => part.length > 0)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join('');
-};
-
 const readProject = async (folderPath: string): Promise<ProjectData> => {
-  const entries = await fs.readdir(folderPath);
-  const tsxFiles = entries.filter((f) => f.endsWith('.tsx'));
-
-  const pages: PageFile[] = [];
-  for (const tsxFile of tsxFiles) {
-    const baseName = tsxFile.replace(/\.tsx$/, '');
-    const cssFile = `${baseName}.module.css`;
-    if (!entries.includes(cssFile)) continue;
-    const tsxPath = join(folderPath, tsxFile);
-    const cssPath = join(folderPath, cssFile);
-    const [tsxContent, cssContent] = await Promise.all([
-      fs.readFile(tsxPath, 'utf-8'),
-      fs.readFile(cssPath, 'utf-8'),
-    ]);
-    pages.push({ name: baseName, tsxPath, cssPath, tsxContent, cssContent });
-  }
-
+  const format = await detectProjectFormat(folderPath);
+  setCachedProjectFormat(folderPath, format);
+  const pages =
+    format === 'nextjs'
+      ? await readProjectNextjs(folderPath)
+      : await readProjectLegacy(folderPath);
   return {
     path: folderPath,
     name: basename(folderPath),
+    format,
     pages,
   };
 };
@@ -98,29 +93,12 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
 
   await fs.mkdir(projectPath, { recursive: false });
 
-  const agentPath = join(projectPath, 'agent.md');
-  await fs.writeFile(agentPath, AGENT_MD_CONTENT, 'utf-8');
-
-  const pageName = 'home';
-  const componentName = componentNameFromPage(pageName);
-  await fs.writeFile(
-    join(projectPath, `${pageName}.tsx`),
-    defaultPageTsx(componentName, pageName),
-    'utf-8'
-  );
-  await fs.writeFile(
-    join(projectPath, `${pageName}.module.css`),
-    DEFAULT_PAGE_CSS,
-    'utf-8'
-  );
-  await fs.writeFile(
-    join(projectPath, 'theme.css'),
-    DEFAULT_THEME_CSS,
-    'utf-8'
-  );
+  const format: ProjectFormat = 'nextjs';
+  await scaffoldNextjsProject(projectPath, name);
   await ensureProjectConfig(projectPath);
+  setCachedProjectFormat(projectPath, format);
 
-  await addRecentProject({ name, path: projectPath });
+  await addRecentProject({ name, path: projectPath, format });
   await watchProject(projectPath);
   return readProject(projectPath);
 };
@@ -128,18 +106,45 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
 const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   const project = await readProject(args.folderPath);
   // Ensure older projects get a theme.css if they don't have one.
-  const themePath = join(args.folderPath, 'theme.css');
+  // For nextjs the file lives at `app/theme.css` (the `app/` folder
+  // exists by virtue of detection having found a `page.tsx` inside it).
+  // For legacy it's at the project root.
+  const themePath = themePathFor(args.folderPath, project.format);
   try {
     await fs.access(themePath);
   } catch {
-    await fs.writeFile(themePath, DEFAULT_THEME_CSS, 'utf-8');
+    await fs
+      .writeFile(themePath, DEFAULT_THEME_CSS, 'utf-8')
+      .catch(() => undefined);
   }
   // Backfill scamp.config.json with defaults for projects created
   // before per-project settings existed.
   await ensureProjectConfig(args.folderPath);
-  await addRecentProject({ name: project.name, path: project.path });
+  await addRecentProject({
+    name: project.name,
+    path: project.path,
+    format: project.format,
+  });
   await watchProject(args.folderPath);
   return project;
+};
+
+const migrateProject = async (
+  args: ProjectMigrateArgs
+): Promise<ProjectMigrateResult> => {
+  // Re-detect to defend against a stale cache (a user may have hand-
+  // converted the project on disk between open and migrate).
+  const format = await detectProjectFormat(args.projectPath);
+  if (format === 'nextjs') {
+    throw new Error('This project is already in Next.js format.');
+  }
+  const result = await migrateLegacyToNextjs(args.projectPath);
+  setCachedProjectFormat(args.projectPath, 'nextjs');
+  await updateRecentProjectFormat(args.projectPath, 'nextjs');
+  // Re-read so the renderer gets the post-migration project data
+  // (new page paths, new format, etc.) without a full close/reopen.
+  const project = await readProject(args.projectPath);
+  return { project, backupPath: result.backupPath };
 };
 
 export const registerProjectIpc = (): void => {
@@ -147,4 +152,5 @@ export const registerProjectIpc = (): void => {
   ipcMain.handle(IPC.ProjectCreate, (_e, args: CreateProjectArgs) => createProject(args));
   ipcMain.handle(IPC.ProjectOpen, (_e, args: OpenProjectArgs) => openProject(args));
   ipcMain.handle(IPC.ProjectRead, (_e, args: OpenProjectArgs) => readProject(args.folderPath));
+  ipcMain.handle(IPC.ProjectMigrate, (_e, args: ProjectMigrateArgs) => migrateProject(args));
 };

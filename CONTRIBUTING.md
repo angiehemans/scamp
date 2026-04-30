@@ -159,6 +159,23 @@ Both modes read the same store. Switching is instant and lossless.
 
 `ScampElement` (in `src/renderer/lib/element.ts`) is the canonical type for everything on the canvas. It covers rectangles and text elements with typed fields for layout, appearance, and typography. The `customProperties` bag preserves any CSS the model doesn't have a typed field for.
 
+### Project formats — legacy and nextjs
+
+Scamp supports two on-disk project layouts:
+
+- **`nextjs`** — the default for new projects. A real Next.js App Router layout: pages live as `app/page.tsx` (root) or `app/<name>/page.tsx`, assets in `public/assets/`, with auto-generated `app/layout.tsx`, `next.config.ts`, and `package.json`.
+- **`legacy`** — the original flat layout: `<page>.tsx` and `<page>.module.css` at the project root, assets in `assets/`. Existing projects keep working; users can opt into the migration via a banner.
+
+The format is detected on every project open and cached in `projectFormatCache` (`src/main/ipc/projectFormatCache.ts`). The renderer mirrors it in the canvas store (`projectFormat`) so deeply-nested components don't have to thread it through props.
+
+When a code path needs to behave differently per format:
+
+- Pure functions (`generateCode`) take the difference as a parameter (e.g. `cssModuleImportName`) — call sites pick the right value based on the project's format.
+- Main-process handlers (page ops, image copy, theme read/write) look up the format from the cache and dispatch internally.
+- Legacy-only entry points (`generateCodeLegacy`, `scaffoldLegacyProject`, `AGENT_MD_CONTENT_LEGACY`) are clearly named so they are easy to delete once the legacy format is retired.
+
+Bug fixes go into the new (nextjs) path; the legacy path is in maintenance mode.
+
 ## Making changes
 
 ### Adding a new CSS property to the model

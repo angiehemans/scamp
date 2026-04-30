@@ -1,46 +1,18 @@
 import { dialog, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
-import { basename, extname, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
-import type { ChooseImageArgs, CopyImageArgs, CopyImageResult, ChooseImageResult } from '@shared/types';
+import type {
+  ChooseImageArgs,
+  CopyImageArgs,
+  CopyImageResult,
+  ChooseImageResult,
+} from '@shared/types';
+import { copyImage } from './imageOps';
+import { getProjectFormat } from './projectFormatCache';
 
 const IMAGE_FILTERS = [
   { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'] },
 ];
-
-/**
- * Copy an image file into the project's `assets/` folder. Creates the
- * folder if it doesn't exist. Deduplicates filenames by appending a
- * numeric suffix when a name collision occurs.
- */
-const copyImage = async (args: CopyImageArgs): Promise<CopyImageResult> => {
-  const assetsDir = join(args.projectPath, 'assets');
-  await fs.mkdir(assetsDir, { recursive: true });
-
-  const ext = extname(args.sourcePath);
-  const base = basename(args.sourcePath, ext);
-  let fileName = `${base}${ext}`;
-  let destPath = join(assetsDir, fileName);
-
-  // Deduplicate: hero.png → hero-1.png → hero-2.png
-  let counter = 1;
-  while (true) {
-    try {
-      await fs.access(destPath);
-      fileName = `${base}-${counter}${ext}`;
-      destPath = join(assetsDir, fileName);
-      counter += 1;
-    } catch {
-      break; // File doesn't exist — safe to use this name.
-    }
-  }
-
-  await fs.copyFile(args.sourcePath, destPath);
-  return {
-    relativePath: `./assets/${fileName}`,
-    fileName,
-  };
-};
 
 /**
  * Open a native file dialog filtered to image formats.
@@ -71,6 +43,12 @@ const chooseImage = async (args?: ChooseImageArgs): Promise<ChooseImageResult> =
 };
 
 export const registerImageIpc = (): void => {
-  ipcMain.handle(IPC.FileCopyImage, async (_e, args: CopyImageArgs) => copyImage(args));
+  ipcMain.handle(
+    IPC.FileCopyImage,
+    async (_e, args: CopyImageArgs): Promise<CopyImageResult> => {
+      const format = await getProjectFormat(args.projectPath);
+      return copyImage(args, format);
+    }
+  );
   ipcMain.handle(IPC.FileChooseImage, async (_e, args?: ChooseImageArgs) => chooseImage(args));
 };

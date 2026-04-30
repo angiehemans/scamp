@@ -1,4 +1,5 @@
 import { useCanvasStore } from '@store/canvasSlice';
+import { assetsDirSegment } from '@renderer/src/lib/path';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
@@ -24,16 +25,18 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useCanvasStore((s) => s.elements[elementId]);
   const patchElement = useCanvasStore((s) => s.patchElement);
   const activePage = useCanvasStore((s) => s.activePage);
+  const projectFormat = useCanvasStore((s) => s.projectFormat);
+  const projectPath = useCanvasStore((s) => s.projectPath);
   if (!element || element.type !== 'image') return null;
 
   const objFit = element.customProperties['object-fit'] ?? 'cover';
   const objPosition = element.customProperties['object-position'] ?? 'center';
 
   const handleReplace = async (): Promise<void> => {
-    if (!activePage) return;
-    const normalized = activePage.tsxPath.replace(/\\/g, '/');
-    const projectPath = normalized.slice(0, normalized.lastIndexOf('/'));
-    const chosen = await window.scamp.chooseImage({ defaultPath: `${projectPath}/assets` });
+    if (!activePage || !projectPath) return;
+    const chosen = await window.scamp.chooseImage({
+      defaultPath: `${projectPath}/${assetsDirSegment(projectFormat)}`,
+    });
     if (chosen.canceled || !chosen.path) return;
     const copied = await window.scamp.copyImage({
       sourcePath: chosen.path,

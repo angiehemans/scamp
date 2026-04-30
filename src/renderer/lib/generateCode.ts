@@ -41,6 +41,15 @@ export type GenerateCodeArgs = {
    * agent-written / hand-written queries round-trip untouched.
    */
   customMediaBlocks?: ReadonlyArray<string>;
+  /**
+   * Basename (no extension) of the CSS module the TSX should import.
+   * The single point of divergence between the legacy flat layout
+   * (where each page imports `./<pageName>.module.css` because all
+   * pages share a folder) and the Next.js App Router layout (where
+   * every page lives in its own folder and imports `./page.module.css`).
+   * Defaults to `pageName` for back-compat with legacy callers.
+   */
+  cssModuleImportName?: string;
 };
 
 export type GeneratedCode = {
@@ -258,11 +267,12 @@ const renderJsx = (
 const generateTsx = (
   elements: Record<string, ScampElement>,
   rootId: string,
-  pageName: string
+  pageName: string,
+  cssModuleImportName: string
 ): string => {
   const root = elements[rootId];
   const componentName = componentNameFromPage(pageName);
-  const importLine = `import styles from './${pageName}.module.css';`;
+  const importLine = `import styles from './${cssModuleImportName}.module.css';`;
   if (!root) {
     return `${importLine}\n\nexport default function ${componentName}() {\n  return null;\n}\n`;
   }
@@ -749,7 +759,12 @@ const generateCss = (
 
 export const generateCode = (args: GenerateCodeArgs): GeneratedCode => {
   return {
-    tsx: generateTsx(args.elements, args.rootId, args.pageName),
+    tsx: generateTsx(
+      args.elements,
+      args.rootId,
+      args.pageName,
+      args.cssModuleImportName ?? args.pageName
+    ),
     css: generateCss(
       args.elements,
       args.rootId,
@@ -758,3 +773,12 @@ export const generateCode = (args: GenerateCodeArgs): GeneratedCode => {
     ),
   };
 };
+
+/**
+ * Legacy flat-layout entry point. Equivalent to calling `generateCode`
+ * with `cssModuleImportName: pageName` — kept as a separate name so the
+ * call site reads as "this code path is for legacy projects" and so the
+ * legacy path is straightforward to delete once the format is retired.
+ */
+export const generateCodeLegacy = (args: GenerateCodeArgs): GeneratedCode =>
+  generateCode({ ...args, cssModuleImportName: args.pageName });

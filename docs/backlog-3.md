@@ -453,3 +453,48 @@ clickable prototype that demonstrates the full flow.
   leaving a broken href
 - External links in preview mode open in the system browser, not in the
   preview window, since the preview is scoped to the project
+
+---
+
+## Retire the legacy project format
+
+**User story**
+
+As a Scamp maintainer, I want to delete the legacy (flat) project format
+once most active projects have migrated to the Next.js App Router layout,
+so the codebase has a single canonical project shape and the
+`*Legacy` namespacing can come out.
+
+**When to do this**
+
+- Telemetry / vibes suggest the majority of active projects are on the
+  nextjs format.
+- The Next.js App Router layout has been stable for at least one release.
+- Preview mode (separate backlog item) is shipping for nextjs projects;
+  legacy users have a clear reason to migrate.
+
+**Scope**
+
+- Delete `AGENT_MD_CONTENT_LEGACY` from `src/shared/agentMd.ts`.
+- Delete `generateCodeLegacy` (and the `cssModuleImportName` parameter
+  it threads through `generateCode`) from `src/renderer/lib/generateCode.ts`.
+- Delete `scaffoldLegacyProject`, `readProjectLegacy`, `themePathFor`'s
+  legacy branch from `src/main/ipc/projectScaffold.ts`.
+- Delete legacy branches from `src/main/ipc/pageOps.ts`,
+  `src/main/ipc/pageRename.ts`, `src/main/ipc/imageOps.ts`,
+  `src/main/ipc/theme.ts`.
+- Delete the migration banner / `project:migrate` IPC and the
+  `projectMigrate.ts` core. (At this point legacy users can no longer
+  open their projects in Scamp; they need to migrate via an older
+  release first.)
+- Drop the `format` field from `ProjectData` and `RecentProject`.
+- Drop the `projectFormatCache` (only one format means no dispatch).
+
+**Risks**
+
+- A small minority of users may still be on legacy when we cut. We
+  should ship at least one release that warns "legacy support will be
+  removed in version X" before pulling the trigger.
+- Some legacy projects may have unrecognised root-level files that the
+  migrator left in place — those still apply after deletion, but the
+  user's project won't open without a manual reorganisation.

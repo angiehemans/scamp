@@ -47,10 +47,14 @@ export const watchProject = async (folderPath: string): Promise<void> => {
   watchedPath = folderPath;
 
   watcher = chokidar.watch(folderPath, {
-    ignored: /(^|[\/\\])\../,
+    // Ignore dotfiles and `node_modules` (Next.js projects acquire one
+    // as soon as the user runs `npm install`; chokidar would thrash
+    // walking it). Depth=3 covers the deepest path Scamp cares about:
+    // `<projectRoot> → app → <page-folder> → page.tsx`.
+    ignored: [/(^|[\/\\])\../, /(^|[\/\\])node_modules([\/\\]|$)/],
     persistent: true,
     ignoreInitial: true,
-    depth: 1,
+    depth: 3,
     awaitWriteFinish: {
       stabilityThreshold: 200,
       pollInterval: 50,

@@ -10,8 +10,6 @@ Press **Ctrl+`** (backtick) to toggle the terminal panel. Press again to hide it
 
 The terminal opens in your project directory by default. Use it to:
 
-- Run build scripts (`npm run build`)
-- Install dependencies (`npm install`)
 - Run AI agents or CLI tools
 - Execute git commands
 

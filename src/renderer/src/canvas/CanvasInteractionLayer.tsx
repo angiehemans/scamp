@@ -2,6 +2,7 @@ import { DragEvent, PointerEvent, RefObject, useEffect, useLayoutEffect, useRef,
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { clampToParent, MIN_SIZE } from '@lib/bounds';
+import { assetsDirSegment } from '@renderer/src/lib/path';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
 import { GridOverlay } from './GridOverlay';
@@ -60,17 +61,6 @@ type DropIndicator = {
   rect: { x: number; y: number; w: number; h: number };
   /** The childIds index the drop will resolve to on release. */
   newIndex: number;
-};
-
-/**
- * Derive the project root from a page's TSX path. Page files live at
- * `<project>/<name>.tsx` (flat structure), so the project root is the
- * containing directory.
- */
-const projectPathFromTsxPath = (tsxPath: string): string => {
-  const normalized = tsxPath.replace(/\\/g, '/');
-  const lastSlash = normalized.lastIndexOf('/');
-  return lastSlash >= 0 ? normalized.slice(0, lastSlash) : normalized;
 };
 
 /** Default size for image elements placed via click (not drag). */
@@ -139,6 +129,8 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const [pendingImage, setPendingImage] = useState<{ src: string; alt: string } | null>(null);
 
   const activeTool = useCanvasStore((s) => s.activeTool);
+  const projectFormat = useCanvasStore((s) => s.projectFormat);
+  const projectPath = useCanvasStore((s) => s.projectPath);
   const elements = useCanvasStore((s) => s.elements);
   // The "primary" selection — used for resize-handle positioning, drag-to-
   // move, and as the focus of the properties panel. Multi-select highlights
@@ -289,8 +281,11 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       setTool('select');
       return;
     }
-    const projectPath = projectPathFromTsxPath(activePage.tsxPath);
-    const assetsPath = `${projectPath}/assets`;
+    if (!projectPath) {
+      setTool('select');
+      return;
+    }
+    const assetsPath = `${projectPath}/${assetsDirSegment(projectFormat)}`;
     let cancelled = false;
     void (async (): Promise<void> => {
       const chosen = await window.scamp.chooseImage({ defaultPath: assetsPath });
@@ -686,7 +681,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     const filePath = (file as File & { path?: string }).path;
     if (!filePath) return;
 
-    const projectPath = projectPathFromTsxPath(activePage.tsxPath);
+    if (!projectPath) return;
     const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
     const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
     const { x, y } = toFrame(e.clientX, e.clientY);

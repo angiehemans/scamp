@@ -1,5 +1,6 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
+import { assetsDirSegment } from '@renderer/src/lib/path';
 import { ColorInput } from '../controls/ColorInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
@@ -36,6 +37,8 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
   const activePage = useCanvasStore((s) => s.activePage);
+  const projectFormat = useCanvasStore((s) => s.projectFormat);
+  const projectPath = useCanvasStore((s) => s.projectPath);
   if (!element) return null;
 
   const bgImage = element.customProperties['background-image'] ?? null;
@@ -44,10 +47,10 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
   const bgRepeat = element.customProperties['background-repeat'] ?? 'no-repeat';
 
   const handleSetBackgroundImage = async (): Promise<void> => {
-    if (!activePage) return;
-    const normalized = activePage.tsxPath.replace(/\\/g, '/');
-    const projectPath = normalized.slice(0, normalized.lastIndexOf('/'));
-    const chosen = await window.scamp.chooseImage({ defaultPath: `${projectPath}/assets` });
+    if (!activePage || !projectPath) return;
+    const chosen = await window.scamp.chooseImage({
+      defaultPath: `${projectPath}/${assetsDirSegment(projectFormat)}`,
+    });
     if (chosen.canceled || !chosen.path) return;
     const copied = await window.scamp.copyImage({
       sourcePath: chosen.path,

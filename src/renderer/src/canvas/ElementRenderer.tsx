@@ -19,6 +19,12 @@ import styles from './ElementRenderer.module.css';
 
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
 const URL_RELATIVE_RE = /url\(\s*["']?(\.\/[^"')]+)["']?\s*\)/g;
+/**
+ * Matches `url("/assets/foo.png")` (and its bare-path form). Used to
+ * rewrite Next.js absolute server-root references on the canvas
+ * preview, where the file actually lives at `<project>/public/assets/`.
+ */
+const URL_NEXTJS_ASSETS_RE = /url\(\s*["']?(\/assets\/[^"')]+)["']?\s*\)/g;
 
 /** HTML void elements — React throws if createElement receives children for these. */
 const VOID_TAGS = new Set([
@@ -94,7 +100,8 @@ const elementToStyle = (
   parentDisplay: 'flex' | 'grid' | 'none' | undefined,
   parentDirection: 'row' | 'column' | undefined,
   tokens: ReadonlyArray<ThemeToken>,
-  projectDir: string | null
+  projectDir: string | null,
+  projectFormat: 'legacy' | 'nextjs'
 ): CSSProperties => {
   const isRoot = el.id === ROOT_ELEMENT_ID;
   // Flex / grid children flow with the layout engine — drop
@@ -295,15 +302,19 @@ const elementToStyle = (
   // on the canvas preview.
   if (projectDir) {
     for (const [key, value] of Object.entries(customStyle)) {
-      if (typeof value === 'string' && value.includes('url(')) {
-        (customStyle as Record<string, string>)[key] = value.replace(
-          URL_RELATIVE_RE,
-          (_match, relPath: string) => {
-            const absPath = `${projectDir}/${relPath.slice(2)}`;
-            return `url("scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}")`;
-          }
-        );
+      if (typeof value !== 'string' || !value.includes('url(')) continue;
+      let next = value.replace(URL_RELATIVE_RE, (_match, relPath: string) => {
+        const absPath = `${projectDir}/${relPath.slice(2)}`;
+        return `url("scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}")`;
+      });
+      if (projectFormat === 'nextjs') {
+        next = next.replace(URL_NEXTJS_ASSETS_RE, (_match, absRef: string) => {
+          // `/assets/foo.png` lives at `<project>/public/assets/foo.png`.
+          const absPath = `${projectDir}/public${absRef}`;
+          return `url("scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}")`;
+        });
       }
+      (customStyle as Record<string, string>)[key] = next;
     }
   }
   return { ...base, ...customStyle };
@@ -333,7 +344,8 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const parentDisplay = parentResolved?.display;
   const parentDirection = parentResolved?.flexDirection;
   const themeTokens = useCanvasStore((s) => s.themeTokens);
-  const activePage = useCanvasStore((s) => s.activePage);
+  const projectFormat = useCanvasStore((s) => s.projectFormat);
+  const projectPath = useCanvasStore((s) => s.projectPath);
   const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(elementId));
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
@@ -379,10 +391,15 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
 
   const isText = element.type === 'text';
   const isImage = element.type === 'image';
-  const projectDir = activePage
-    ? activePage.tsxPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '')
-    : null;
-  const style = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir);
+  const projectDir = projectPath ? projectPath.replace(/\\/g, '/') : null;
+  const style = elementToStyle(
+    element,
+    parentDisplay,
+    parentDirection,
+    themeTokens,
+    projectDir,
+    projectFormat
+  );
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
   const storedTag = tagFor(element);
@@ -458,15 +475,23 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   // (video, iframe, svg) store their src/title/etc. in the attribute
   // bag, which we've already spread above.
   if (isImage && storedTag === 'img') {
-    // The element stores a relative path (e.g. `./assets/hero.png`) that
-    // makes sense from the project root. In the Electron renderer, relative
-    // URLs resolve against the dev-server or the app's HTML file — neither
-    // of which is the project folder. Resolve to an absolute URL using the
-    // custom `scamp-asset://` protocol registered in the main process.
+    // The element stores a path that makes sense at runtime: legacy
+    // projects use `./assets/foo.png` (relative to the page file);
+    // nextjs projects use `/assets/foo.png` (Next.js serves `public/`
+    // at the URL root). In the Electron renderer neither resolves
+    // against the project folder, so map both to the custom
+    // `scamp-asset://` protocol registered in the main process.
     let resolvedSrc = element.src ?? '';
-    if (activePage && resolvedSrc.startsWith('./')) {
-      const projectDir = activePage.tsxPath.replace(/\\/g, '/').replace(/\/[^/]+$/, '');
-      const absPath = `${projectDir}/${resolvedSrc.slice(2)}`;
+    if (projectPath && resolvedSrc.startsWith('./')) {
+      const absPath = `${projectPath.replace(/\\/g, '/')}/${resolvedSrc.slice(2)}`;
+      resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
+    } else if (
+      projectPath &&
+      projectFormat === 'nextjs' &&
+      resolvedSrc.startsWith('/')
+    ) {
+      // Nextjs absolute server-root path → `<project>/public/<path>`.
+      const absPath = `${projectPath.replace(/\\/g, '/')}/public${resolvedSrc}`;
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
     }
     props['src'] = resolvedSrc;

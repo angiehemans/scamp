@@ -79,6 +79,8 @@ export const parseProjectConfig = (raw: string | null): ProjectConfig => {
       : DEFAULT_PROJECT_CONFIG.canvasOverflowHidden;
   const canvasMigrationAcknowledged =
     obj['canvasMigrationAcknowledged'] === true ? true : undefined;
+  const nextjsMigrationDismissed =
+    obj['nextjsMigrationDismissed'] === true ? true : undefined;
   const breakpoints =
     obj['breakpoints'] === undefined
       ? [...DEFAULT_BREAKPOINTS]
@@ -91,6 +93,7 @@ export const parseProjectConfig = (raw: string | null): ProjectConfig => {
     canvasOverflowHidden,
     breakpoints,
     ...(canvasMigrationAcknowledged ? { canvasMigrationAcknowledged: true } : {}),
+    ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
   };
 };
 

@@ -11,15 +11,32 @@ export type PageFile = {
   cssContent: string;
 };
 
+/**
+ * Two on-disk formats are supported:
+ * - `legacy`: flat layout — `<page>.tsx` + `<page>.module.css` at the
+ *   project root, assets in `assets/`, no `app/` folder.
+ * - `nextjs`: Next.js App Router layout — pages live as
+ *   `app/<page>/page.tsx` (root page is `app/page.tsx`), assets in
+ *   `public/assets/`, with auto-generated `app/layout.tsx`,
+ *   `next.config.ts`, and `package.json`.
+ *
+ * Existing projects keep working in legacy format. New projects are
+ * created in nextjs format. Migration from legacy → nextjs is opt-in
+ * via a banner.
+ */
+export type ProjectFormat = 'legacy' | 'nextjs';
+
 export type ProjectData = {
   path: string;
   name: string;
+  format: ProjectFormat;
   pages: PageFile[];
 };
 
 export type RecentProject = {
   name: string;
   path: string;
+  format: ProjectFormat;
   lastOpened: string;
 };
 
@@ -87,6 +104,15 @@ export type ProjectConfig = {
    * migration detector.
    */
   canvasMigrationAcknowledged?: boolean;
+  /**
+   * Per-project dismissal of the legacy → nextjs migration banner.
+   * Independent of `canvasMigrationAcknowledged` (different banner,
+   * different prompt). Once true, the banner stays hidden until the
+   * user re-opens the project after a manual migration; ProjectShell
+   * also implicitly stops showing the banner once the project's
+   * format flips to nextjs.
+   */
+  nextjsMigrationDismissed?: boolean;
   /**
    * Responsive breakpoints for this project, ordered widest first.
    * Style edits in non-desktop mode land inside `@media
@@ -228,6 +254,21 @@ export type PageRenameArgs = {
   projectPath: string;
   oldPageName: string;
   newPageName: string;
+};
+
+export type ProjectMigrateArgs = {
+  projectPath: string;
+};
+
+/**
+ * Result of a successful legacy → nextjs migration. Carries the
+ * post-migration project so the renderer can refresh its view, plus
+ * the path to the kept-on-disk backup (so the UI can surface it as
+ * "your originals are at <path> in case you need them").
+ */
+export type ProjectMigrateResult = {
+  project: ProjectData;
+  backupPath: string;
 };
 
 // Terminal IPC payloads

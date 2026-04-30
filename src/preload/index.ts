@@ -23,6 +23,8 @@ import type {
   ProjectConfigReadArgs,
   ProjectConfigWriteArgs,
   ProjectData,
+  ProjectMigrateArgs,
+  ProjectMigrateResult,
   RecentProject,
   Settings,
   TerminalCreateArgs,
@@ -52,6 +54,9 @@ const api = {
 
   readProject: (args: OpenProjectArgs): Promise<ProjectData> =>
     ipcRenderer.invoke(IPC.ProjectRead, args),
+
+  migrateProject: (args: ProjectMigrateArgs): Promise<ProjectMigrateResult> =>
+    ipcRenderer.invoke(IPC.ProjectMigrate, args),
 
   writeFile: (args: FileWriteArgs): Promise<FileWriteResult> =>
     ipcRenderer.invoke(IPC.FileWrite, args),

@@ -46,11 +46,14 @@ describe('page rename integration', () => {
   });
 
   it('renames both files and rewrites the TSX import + component name', async () => {
-    const result = await renamePageFiles({
-      projectPath: tmpDir,
-      oldPageName: 'home',
-      newPageName: 'landing',
-    });
+    const result = await renamePageFiles(
+      {
+        projectPath: tmpDir,
+        oldPageName: 'home',
+        newPageName: 'landing',
+      },
+      'legacy'
+    );
 
     expect(result.name).toBe('landing');
 
@@ -71,11 +74,14 @@ describe('page rename integration', () => {
   });
 
   it('derives a PascalCase component name from a hyphenated page name', async () => {
-    await renamePageFiles({
-      projectPath: tmpDir,
-      oldPageName: 'home',
-      newPageName: 'checkout-flow',
-    });
+    await renamePageFiles(
+      {
+        projectPath: tmpDir,
+        oldPageName: 'home',
+        newPageName: 'checkout-flow',
+      },
+      'legacy'
+    );
 
     const newTsx = await fs.readFile(
       path.join(tmpDir, 'checkout-flow.tsx'),
@@ -93,6 +99,7 @@ describe('page rename integration', () => {
         oldPageName: 'home',
         newPageName: 'landing',
       },
+      'legacy',
       (p) => suppressed.push(p)
     );
 
@@ -115,11 +122,14 @@ describe('page rename integration', () => {
     );
 
     await expect(
-      renamePageFiles({
-        projectPath: tmpDir,
-        oldPageName: 'home',
-        newPageName: 'about',
-      })
+      renamePageFiles(
+        {
+          projectPath: tmpDir,
+          oldPageName: 'home',
+          newPageName: 'about',
+        },
+        'legacy'
+      )
     ).rejects.toThrow(/already exists/);
 
     // Old files must still be present and unchanged.
@@ -133,32 +143,41 @@ describe('page rename integration', () => {
 
   it('rejects when the old page is missing', async () => {
     await expect(
-      renamePageFiles({
-        projectPath: tmpDir,
-        oldPageName: 'missing',
-        newPageName: 'landing',
-      })
+      renamePageFiles(
+        {
+          projectPath: tmpDir,
+          oldPageName: 'missing',
+          newPageName: 'landing',
+        },
+        'legacy'
+      )
     ).rejects.toThrow(/Source page/);
     expect(await fs.readdir(tmpDir)).not.toContain('landing.tsx');
   });
 
   it('rejects when new === old', async () => {
     await expect(
-      renamePageFiles({
-        projectPath: tmpDir,
-        oldPageName: 'home',
-        newPageName: 'home',
-      })
+      renamePageFiles(
+        {
+          projectPath: tmpDir,
+          oldPageName: 'home',
+          newPageName: 'home',
+        },
+        'legacy'
+      )
     ).rejects.toThrow(/same as the old/);
   });
 
   it('rejects invalid page names', async () => {
     await expect(
-      renamePageFiles({
-        projectPath: tmpDir,
-        oldPageName: 'home',
-        newPageName: 'Not Valid',
-      })
+      renamePageFiles(
+        {
+          projectPath: tmpDir,
+          oldPageName: 'home',
+          newPageName: 'Not Valid',
+        },
+        'legacy'
+      )
     ).rejects.toThrow(/Invalid page name/);
   });
 
@@ -170,11 +189,14 @@ describe('page rename integration', () => {
     );
 
     await expect(
-      renamePageFiles({
-        projectPath: tmpDir,
-        oldPageName: 'home',
-        newPageName: 'landing',
-      })
+      renamePageFiles(
+        {
+          projectPath: tmpDir,
+          oldPageName: 'home',
+          newPageName: 'landing',
+        },
+        'legacy'
+      )
     ).rejects.toThrow(/CSS-module import/);
 
     const entries = await fs.readdir(tmpDir);
@@ -192,11 +214,14 @@ describe('page rename integration', () => {
     );
 
     await expect(
-      renamePageFiles({
-        projectPath: tmpDir,
-        oldPageName: 'home',
-        newPageName: 'landing',
-      })
+      renamePageFiles(
+        {
+          projectPath: tmpDir,
+          oldPageName: 'home',
+          newPageName: 'landing',
+        },
+        'legacy'
+      )
     ).rejects.toThrow(/default-export function/);
 
     const entries = await fs.readdir(tmpDir);
