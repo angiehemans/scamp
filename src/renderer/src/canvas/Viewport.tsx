@@ -136,9 +136,29 @@ export const Viewport = ({
           transformOrigin: 'top left',
         }}
       >
+        <CanvasKeyframes />
         <ElementRenderer elementId={rootElementId} />
         <CanvasInteractionLayer frameRef={frameRef} scale={scale} />
       </div>
     </div>
   );
+};
+
+/**
+ * Mounts a `<style>` element inside the canvas frame containing the
+ * page's `@keyframes` blocks. Without this, the inline `animation`
+ * declarations the renderer applies during preview can't resolve
+ * their keyframe names — Scamp renders into the Electron renderer's
+ * own document, not via the user's CSS module file.
+ *
+ * Re-renders only when `pageKeyframesBlocks` changes; otherwise the
+ * `<style>` tag's textContent stays stable and doesn't churn.
+ */
+const CanvasKeyframes = (): JSX.Element | null => {
+  const keyframes = useCanvasStore((s) => s.pageKeyframesBlocks);
+  if (keyframes.length === 0) return null;
+  const css = keyframes
+    .map((block) => `@keyframes ${block.name} {\n${block.body}\n}`)
+    .join('\n\n');
+  return <style>{css}</style>;
 };

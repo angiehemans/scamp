@@ -297,6 +297,7 @@ export const initSyncBridge = (): (() => void) => {
       pageName: page.name,
       breakpoints: store.breakpoints,
       customMediaBlocks: store.pageCustomMediaBlocks,
+      pageKeyframesBlocks: store.pageKeyframesBlocks,
       cssModuleImportName: cssModuleImportNameFor(
         store.projectFormat,
         page.name
@@ -386,6 +387,7 @@ export const initSyncBridge = (): (() => void) => {
           pageName: state.activePage.name,
           breakpoints: state.breakpoints,
           customMediaBlocks: state.pageCustomMediaBlocks,
+          pageKeyframesBlocks: state.pageKeyframesBlocks,
           cssModuleImportName: cssModuleImportNameFor(
             state.projectFormat,
             state.activePage.name
@@ -440,6 +442,7 @@ export const initSyncBridge = (): (() => void) => {
         pageName: state.activePage.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: state.pageCustomMediaBlocks,
+        pageKeyframesBlocks: state.pageKeyframesBlocks,
         cssModuleImportName: cssModuleImportNameFor(
           state.projectFormat,
           state.activePage.name
@@ -499,6 +502,7 @@ export const initSyncBridge = (): (() => void) => {
         pageName: state.activePage.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: state.pageCustomMediaBlocks,
+        pageKeyframesBlocks: state.pageKeyframesBlocks,
         cssModuleImportName: importName,
       });
       const nextCode = generateCode({
@@ -507,13 +511,19 @@ export const initSyncBridge = (): (() => void) => {
         pageName: state.activePage.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: parsed.customMediaBlocks,
+        pageKeyframesBlocks: parsed.keyframesBlocks,
         cssModuleImportName: importName,
       });
       if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
         return;
       }
 
-      state.reloadElements(parsed.elements, nextSource, parsed.customMediaBlocks);
+      state.reloadElements(
+        parsed.elements,
+        nextSource,
+        parsed.customMediaBlocks,
+        parsed.keyframesBlocks
+      );
       // External edits invalidate the undo history — the old states
       // reference element maps that no longer match the file on disk.
       useCanvasStore.temporal.getState().clear();

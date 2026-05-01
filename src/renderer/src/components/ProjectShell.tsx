@@ -248,7 +248,8 @@ export const ProjectShell = ({
       { name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath },
       parsed.elements,
       { tsx: page.tsxContent, css: page.cssContent },
-      parsed.customMediaBlocks
+      parsed.customMediaBlocks,
+      parsed.keyframesBlocks
     );
     // Fresh page load — clear undo history so the user can't undo past
     // the initial state of this page.

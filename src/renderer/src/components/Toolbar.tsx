@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useCallback, useEffect } from 'react';
 import {
   IconPointer,
   IconSquare,
@@ -6,6 +6,7 @@ import {
   IconPhoto,
   IconForms,
   IconPalette,
+  IconPlayerPlay,
   IconSettings,
 } from '@tabler/icons-react';
 import { useCanvasStore, type Tool } from '@store/canvasSlice';
@@ -37,11 +38,39 @@ type Props = {
 export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
+  const projectPath = useCanvasStore((s) => s.projectPath);
+  const projectFormat = useCanvasStore((s) => s.projectFormat);
+  const activePageName = useCanvasStore((s) => s.activePage?.name ?? null);
+
+  // Preview is gated on the nextjs project format — legacy projects
+  // don't have a `package.json` and can't run `next dev`. The button
+  // stays visible (so users discover the feature) but is disabled
+  // with a tooltip pointing at the migration banner.
+  const canPreview =
+    projectFormat === 'nextjs' &&
+    projectPath.length > 0 &&
+    activePageName !== null;
+
+  const openPreview = useCallback((): void => {
+    if (!canPreview || activePageName === null) return;
+    void window.scamp.openPreview({
+      projectPath,
+      pageName: activePageName,
+    });
+  }, [canPreview, projectPath, activePageName]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent): void => {
       const target = e.target as HTMLElement;
       if (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName)) {
+        return;
+      }
+      // Cmd/Ctrl+P opens the preview window. Handled before the
+      // tool-shortcut block so it isn't blocked by the modifier
+      // guard below.
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        if (canPreview) openPreview();
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -53,7 +82,7 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [setTool]);
+  }, [setTool, canPreview, openPreview]);
 
   return (
     <div className={styles.toolbar} data-testid="element-toolbar" data-active-tool={activeTool}>
@@ -73,6 +102,27 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
         </Tooltip>
       ))}
       <span className={styles.spacer} />
+      <Tooltip
+        label={
+          canPreview
+            ? 'Open this project in a real browser preview window (⌘P)'
+            : projectFormat === 'legacy'
+              ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
+              : 'Open a page to enable preview.'
+        }
+      >
+        <button
+          className={styles.button}
+          onClick={openPreview}
+          type="button"
+          disabled={!canPreview}
+          data-testid="preview-button"
+        >
+          <IconPlayerPlay size={ICON_SIZE} />
+          Preview
+          <span className={styles.shortcut}>⌘P</span>
+        </button>
+      </Tooltip>
       {onOpenTheme && (
         <Tooltip label="Theme tokens">
           <button className={styles.button} onClick={onOpenTheme} type="button">

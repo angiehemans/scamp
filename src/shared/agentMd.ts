@@ -276,12 +276,15 @@ matching CSS class.
 - One property per line.
 - Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
 - The page root is a regular rectangle in Scamp — it defaults to
-  \`width: 100%\`, \`height: auto\`, and \`position: relative\` so the
-  exported component works anywhere. Scamp does NOT write the canvas
-  viewport size (1440, 768, etc.) into \`.root\` — that's a design-tool
-  preference stored separately in \`scamp.config.json\`. Don't
-  re-introduce fixed pixel dimensions on \`.root\` unless the user
-  specifically wants a fixed-width page.
+  \`width: 100%\`, \`min-height: 100vh\`, and \`position: relative\` so the
+  exported component fills any browser viewport and absolute children
+  paint over a visible box. Scamp does NOT write the canvas viewport
+  size (1440, 768, etc.) into \`.root\` — that's a design-tool
+  preference stored separately in \`scamp.config.json\`. The canvas is
+  a browser-window simulator (like Chrome DevTools' responsive mode);
+  the deployed page is meant to work at any width. Don't re-introduce
+  fixed pixel dimensions on \`.root\` unless the user specifically
+  wants a fixed-width page.
 - Width / height values:
   - \`width: 100%\` and \`height: 100%\` mean stretch to fill the parent.
   - \`width: fit-content\` and \`height: fit-content\` mean shrink to content.
@@ -413,6 +416,69 @@ isn't one of the three recognised states — round-trip through Scamp
 unchanged but aren't editable from the panel. Agents can write them
 freely; Scamp preserves them text-stable.
 
+## Animations
+
+Scamp models the \`animation\` shorthand as a typed field on each
+element. The shorthand emits and parses in the canonical order:
+
+\`\`\`css
+.rect_a1b2 {
+  animation: fade-in-up 300ms ease forwards;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+\`\`\`
+
+Rules for agents:
+
+- **\`@keyframes\` blocks live AFTER the per-element class blocks**
+  but BEFORE any \`@media\` queries. Order: base classes → state
+  pseudo-class blocks → custom selector blocks → \`@keyframes\` →
+  \`@media\` → preserved-verbatim media blocks.
+- **Preset names** Scamp's picker recognises: \`fade-in\`,
+  \`fade-in-up\`, \`fade-in-down\`, \`slide-in-left\`,
+  \`slide-in-right\`, \`scale-in\`, \`bounce-in\`, \`fade-out\`,
+  \`fade-out-up\`, \`slide-out-left\`, \`slide-out-right\`,
+  \`scale-out\`, \`pulse\`, \`shake\`, \`bounce\`, \`spin\`, \`ping\`,
+  \`float\`, \`wiggle\`. Agents can use these names directly and
+  Scamp will recognise them in the picker if the keyframes body
+  matches the canonical version.
+- **Custom-named animations** round-trip cleanly — Scamp marks them
+  as "Custom" in the picker but doesn't touch them.
+- **Multi-animation source** (\`animation: a 1s, b 2s\`) round-trips
+  via the \`customProperties\` passthrough; the panel can't model the
+  multi case but the value stays intact.
+- **\`@keyframes\` blocks aren't auto-removed** when no element
+  references them — Scamp leaves them on disk so agents can apply
+  them later without reauthoring.
+
+### Per-state animations
+
+Animations work inside state blocks too:
+
+\`\`\`css
+.button:hover {
+  animation: shake 500ms ease-in-out;
+}
+\`\`\`
+
+CSS triggers the animation on hover-enter and **re-triggers it every
+time the user re-enters hover** (the \`:hover\` declaration drops on
+hover-leave). This is fine for one-shot motion (\`shake\`, \`pulse\`
+once) but unusual for infinite loops — \`spin\` would reset on every
+re-hover. For continuous loops, declare the animation on the base
+state, not on \`:hover\`.
+
+### Per-breakpoint animations
+
+Per-breakpoint animations aren't typed — Scamp's picker only edits
+the base and per-state animations. An agent-written
+\`@media (max-width: 768px) { .foo { animation: spin 1s; } }\` block
+round-trips verbatim but isn't editable from the panel.
+
 ## CSS Variables and Tokens
 
 The project includes a \`theme.css\` file with two sections:
@@ -507,9 +573,50 @@ export default function ${componentName}() {
  * the project's `theme.css` so the design tokens it defines apply when
  * the user runs `next dev` outside Scamp. The user is documented (in
  * `agent.md`) to leave this file alone.
+ *
+ * The `<body>` carries `margin: 0` (so the design isn't pushed off-axis
+ * by the browser's default 8px gutter) and `min-height: 100vh` (so the
+ * body fills the viewport regardless of content). Together with the
+ * root element's `min-height: 100vh`, the page renders the same in
+ * preview / `next dev` / production as it does in the canvas.
  */
 export const defaultLayoutTsx = (projectName: string): string => {
   return `import type { Metadata } from 'next';
+import './theme.css';
+
+export const metadata: Metadata = {
+  title: '${projectName}',
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body style={{ margin: 0, minHeight: '100vh' }}>{children}</body>
+    </html>
+  );
+}
+`;
+};
+
+/**
+ * Earlier `defaultLayoutTsx` outputs that `migrateLayoutTemplate`
+ * should treat as "user hasn't customised this — safe to replace
+ * with the latest template." Only literal byte-for-byte matches
+ * count: any user edit (rename, reformatting, additional imports)
+ * fails the comparison and the legacy template is left alone.
+ *
+ * Append (don't replace) when changing `defaultLayoutTsx`: every
+ * past version of the auto-generated layout needs to remain
+ * matchable so users on old Scamp installs can migrate forward
+ * later.
+ */
+export const LEGACY_LAYOUT_TEMPLATES = (projectName: string): readonly string[] => [
+  // Pre-2026-05-01 — no body reset.
+  `import type { Metadata } from 'next';
 import './theme.css';
 
 export const metadata: Metadata = {
@@ -527,8 +634,8 @@ export default function RootLayout({
     </html>
   );
 }
-`;
-};
+`,
+];
 
 /**
  * Auto-generated `next.config.ts` for a Next.js-format project. Empty
@@ -729,7 +836,10 @@ This is a Next.js App Router project:
 - **Root / Home page**: \`app/page.tsx\` and \`app/page.module.css\`.
 - **Additional pages**: \`app/[page-name]/page.tsx\` and
   \`app/[page-name]/page.module.css\` (one folder per page).
-- **Shared root layout**: \`app/layout.tsx\` — do not modify.
+- **Shared root layout**: \`app/layout.tsx\` — do not modify. The
+  auto-generated layout sets \`<body style={{ margin: 0, minHeight:
+  '100vh' }}>\` so the design isn't pushed off-axis by the browser's
+  default body margin and the body fills the viewport in any browser.
 - **Design tokens**: \`app/theme.css\` — imported from \`app/layout.tsx\`,
   defines the project's CSS custom properties.
 - **Next.js config**: \`next.config.ts\` — do not modify.
@@ -860,12 +970,15 @@ unless the user asks.
 - One property per line.
 - Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
 - The page root is a regular rectangle in Scamp — it defaults to
-  \`width: 100%\`, \`height: auto\`, and \`position: relative\` so the
-  exported component works anywhere. Scamp does NOT write the canvas
-  viewport size (1440, 768, etc.) into \`.root\` — that's a design-tool
-  preference stored separately in \`scamp.config.json\`. Don't
-  re-introduce fixed pixel dimensions on \`.root\` unless the user
-  specifically wants a fixed-width page.
+  \`width: 100%\`, \`min-height: 100vh\`, and \`position: relative\` so the
+  exported component fills any browser viewport and absolute children
+  paint over a visible box. Scamp does NOT write the canvas viewport
+  size (1440, 768, etc.) into \`.root\` — that's a design-tool
+  preference stored separately in \`scamp.config.json\`. The canvas is
+  a browser-window simulator (like Chrome DevTools' responsive mode);
+  the deployed page is meant to work at any width. Don't re-introduce
+  fixed pixel dimensions on \`.root\` unless the user specifically
+  wants a fixed-width page.
 - Width / height values:
   - \`width: 100%\` and \`height: 100%\` mean stretch to fill the parent.
   - \`width: fit-content\` and \`height: fit-content\` mean shrink to content.
@@ -997,6 +1110,69 @@ isn't one of the three recognised states — round-trip through Scamp
 unchanged but aren't editable from the panel. Agents can write them
 freely; Scamp preserves them text-stable.
 
+## Animations
+
+Scamp models the \`animation\` shorthand as a typed field on each
+element. The shorthand emits and parses in the canonical order:
+
+\`\`\`css
+.rect_a1b2 {
+  animation: fade-in-up 300ms ease forwards;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+\`\`\`
+
+Rules for agents:
+
+- **\`@keyframes\` blocks live AFTER the per-element class blocks**
+  but BEFORE any \`@media\` queries. Order: base classes → state
+  pseudo-class blocks → custom selector blocks → \`@keyframes\` →
+  \`@media\` → preserved-verbatim media blocks.
+- **Preset names** Scamp's picker recognises: \`fade-in\`,
+  \`fade-in-up\`, \`fade-in-down\`, \`slide-in-left\`,
+  \`slide-in-right\`, \`scale-in\`, \`bounce-in\`, \`fade-out\`,
+  \`fade-out-up\`, \`slide-out-left\`, \`slide-out-right\`,
+  \`scale-out\`, \`pulse\`, \`shake\`, \`bounce\`, \`spin\`, \`ping\`,
+  \`float\`, \`wiggle\`. Agents can use these names directly and
+  Scamp will recognise them in the picker if the keyframes body
+  matches the canonical version.
+- **Custom-named animations** round-trip cleanly — Scamp marks them
+  as "Custom" in the picker but doesn't touch them.
+- **Multi-animation source** (\`animation: a 1s, b 2s\`) round-trips
+  via the \`customProperties\` passthrough; the panel can't model the
+  multi case but the value stays intact.
+- **\`@keyframes\` blocks aren't auto-removed** when no element
+  references them — Scamp leaves them on disk so agents can apply
+  them later without reauthoring.
+
+### Per-state animations
+
+Animations work inside state blocks too:
+
+\`\`\`css
+.button:hover {
+  animation: shake 500ms ease-in-out;
+}
+\`\`\`
+
+CSS triggers the animation on hover-enter and **re-triggers it every
+time the user re-enters hover** (the \`:hover\` declaration drops on
+hover-leave). This is fine for one-shot motion (\`shake\`, \`pulse\`
+once) but unusual for infinite loops — \`spin\` would reset on every
+re-hover. For continuous loops, declare the animation on the base
+state, not on \`:hover\`.
+
+### Per-breakpoint animations
+
+Per-breakpoint animations aren't typed — Scamp's picker only edits
+the base and per-state animations. An agent-written
+\`@media (max-width: 768px) { .foo { animation: spin 1s; } }\` block
+round-trips verbatim but isn't editable from the panel.
+
 ## CSS Variables and Tokens
 
 The project includes an \`app/theme.css\` file with two sections:
@@ -1037,6 +1213,27 @@ updates.
 \`scamp.config.json\` at the project root holds per-project settings
 like the artboard background colour and breakpoint table. Scamp
 reads and writes this file; don't modify it unless the user asks.
+
+## Preview mode
+
+The user can press ⌘P (or click "Preview" in the toolbar) to open
+the project in a real Next.js dev server in a separate window.
+Scamp runs \`npm install\` automatically on first open, then spawns
+\`next dev\` and renders the live URL inside an embedded webview.
+
+Implications for agents:
+
+- The \`package.json\` and \`next.config.ts\` files are essential
+  for preview to work. Don't delete them; don't change the
+  \`scripts.dev\` entry that Scamp invokes.
+- Animations, transitions, and \`:hover\` / \`:active\` / \`:focus\`
+  states only run in preview mode (the static canvas doesn't fire
+  hover events). When you're testing motion or interactivity, the
+  user is most likely viewing it in preview.
+- The reserved filename \`[page-name].data.json\` (e.g.
+  \`page.data.json\` next to \`app/about/page.tsx\`) is set aside
+  for a future feature that injects mock data as page props during
+  preview. Don't repurpose this name for unrelated files.
 
 ## What NOT to change
 - Do not alter the import line at the top of any \`page.tsx\` file.

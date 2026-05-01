@@ -1,6 +1,19 @@
-import { cloneElement, ReactElement, useRef, useState } from 'react';
+import {
+  cloneElement,
+  ReactElement,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Tooltip.module.css';
+
+/**
+ * Inset from the viewport edge the tooltip should keep — tooltips
+ * sliding right up against the window border look pinched, especially
+ * on the right where the properties panel lives.
+ */
+const VIEWPORT_INSET = 12;
 
 type Props = {
   /** Tooltip body text shown on hover. Supports `\n` line breaks. */
@@ -42,17 +55,43 @@ export const Tooltip = ({
   const [position, setPosition] = useState<Position | null>(null);
   const timerRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
 
   const show = (): void => {
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    // Position above the trigger, horizontally centered.
+    // Default: position above the trigger, horizontally centered.
+    // The layout effect below will clamp this to the viewport once
+    // the tooltip's actual width is known.
     setPosition({
       left: rect.left + rect.width / 2,
       top: rect.top,
     });
   };
+
+  // After the tooltip mounts, measure its rendered width and shift
+  // the anchor leftward when the centered-above position would
+  // spill off the viewport's right edge. Most tooltips in Scamp
+  // live inside the properties panel on the right side of the
+  // window, so without this clamp the right edge regularly clips.
+  useLayoutEffect(() => {
+    if (position === null) return;
+    const tip = tooltipRef.current;
+    if (!tip) return;
+    const tipWidth = tip.offsetWidth;
+    // The tooltip's CSS uses `translate(-50%, ...)`, so `position.left`
+    // is the centerpoint and the tooltip extends ±tipWidth/2 from it.
+    const halfWidth = tipWidth / 2;
+    const minLeft = halfWidth + VIEWPORT_INSET;
+    const maxLeft = window.innerWidth - halfWidth - VIEWPORT_INSET;
+    let nextLeft = position.left;
+    if (nextLeft > maxLeft) nextLeft = maxLeft;
+    if (nextLeft < minLeft) nextLeft = minLeft;
+    if (nextLeft !== position.left) {
+      setPosition({ left: nextLeft, top: position.top });
+    }
+  }, [position]);
 
   const handleEnter = (): void => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -108,6 +147,7 @@ export const Tooltip = ({
       {position !== null &&
         createPortal(
           <div
+            ref={tooltipRef}
             className={styles.tooltip}
             style={{
               left: position.left,

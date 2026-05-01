@@ -8,9 +8,12 @@ import {
   ROOT_ELEMENT_ID,
   ungroupSiblings,
   type BreakpointOverride,
+  type ElementAnimation,
   type ElementStateName,
+  type KeyframesBlock,
   type ScampElement,
 } from '@lib/element';
+import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import {
   DEFAULT_BREAKPOINTS,
@@ -198,6 +201,23 @@ type CanvasState = {
    */
   pageCustomMediaBlocks: ReadonlyArray<string>;
 
+  /**
+   * `@keyframes` blocks for the current page. Multiple elements can
+   * reference the same keyframe name; the list lives at page level
+   * for that reason. `setAnimation` registers a canonical preset
+   * body when an element first applies a preset that isn't already
+   * in the list. Replaced whole-hog on page load / external edit.
+   */
+  pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>;
+
+  /**
+   * One-shot canvas animation preview. When non-null, the matching
+   * element re-renders with `key={key}` so React forces a remount
+   * and the animation plays from the top. Cleared after the play
+   * starts so the same Play button can re-trigger.
+   */
+  previewAnimation: { elementId: string; key: number } | null;
+
   /** Design tokens parsed from the project's theme.css file. */
   themeTokens: ThemeToken[];
 
@@ -264,12 +284,14 @@ type CanvasState = {
     page: ActivePage,
     elements: Record<string, ScampElement>,
     source: PageSource,
-    customMediaBlocks?: ReadonlyArray<string>
+    customMediaBlocks?: ReadonlyArray<string>,
+    keyframesBlocks?: ReadonlyArray<KeyframesBlock>
   ) => void;
   reloadElements: (
     elements: Record<string, ScampElement>,
     source: PageSource,
-    customMediaBlocks?: ReadonlyArray<string>
+    customMediaBlocks?: ReadonlyArray<string>,
+    keyframesBlocks?: ReadonlyArray<KeyframesBlock>
   ) => void;
   setPageSource: (source: PageSource) => void;
   setBottomPanel: (panel: BottomPanel) => void;
@@ -279,6 +301,31 @@ type CanvasState = {
   setBreakpoints: (breakpoints: Breakpoint[]) => void;
   setProjectFormat: (format: ProjectFormat) => void;
   setProjectPath: (path: string) => void;
+  /**
+   * Apply an animation to an element. Routes through
+   * `applyPatchWithAxisRouting` so the animation lands on the
+   * element's base when the default state is active and on the
+   * matching state override otherwise. Also ensures a `KeyframesBlock`
+   * exists in `pageKeyframesBlocks` for the animation's name —
+   * appends the canonical preset body if missing, leaves any
+   * existing block alone (preserves agent edits).
+   */
+  setAnimation: (elementId: string, animation: ElementAnimation) => void;
+  /**
+   * Clear the animation on an element. Same axis-routing rules as
+   * `setAnimation`: removes from `element.animation` when default
+   * state is active, removes from `stateOverrides[state].animation`
+   * otherwise. Does NOT remove the `@keyframes` block from the
+   * page — see plan: keyframes cleanup is an explicit action, not
+   * an automatic side effect.
+   */
+  removeAnimation: (elementId: string) => void;
+  /**
+   * Trigger a one-shot canvas preview of the element's animation.
+   * Renders with a fresh React `key` so the animation plays from
+   * the top regardless of its current run state.
+   */
+  playAnimation: (elementId: string) => void;
   /** Walk one step up the discrete zoom ladder. */
   zoomIn: () => void;
   /** Walk one step down the discrete zoom ladder. */
@@ -561,6 +608,8 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   projectFormat: 'nextjs',
   projectPath: '',
   pageCustomMediaBlocks: [],
+  pageKeyframesBlocks: [],
+  previewAnimation: null,
   themeTokens: [],
   clipboard: null,
 
@@ -1005,22 +1054,106 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       };
     }),
 
-  loadPage: (page, elements, source, customMediaBlocks) =>
+  setAnimation: (id, animation) =>
+    set((state) => {
+      const el = state.elements[id];
+      if (!el) return state;
+      // Route the animation patch through the same axis-routing the
+      // panel sections use — base when default state is active, the
+      // matching state override otherwise.
+      const next = applyPatchWithAxisRouting(
+        el,
+        { animation },
+        state.activeBreakpointId,
+        state.activeStateName
+      );
+      // Ensure a `KeyframesBlock` exists for the chosen name. If the
+      // page already has one with this name (preset or agent-edited),
+      // leave it alone — preserves user intent. If absent, append the
+      // canonical preset body for known presets; for unknown names
+      // we leave it absent (the agent owns those).
+      let keyframes = state.pageKeyframesBlocks;
+      const existing = keyframes.find((b) => b.name === animation.name);
+      if (!existing && isPresetName(animation.name)) {
+        const preset = PRESETS_BY_NAME.get(animation.name);
+        if (preset) {
+          keyframes = [
+            ...keyframes,
+            { name: preset.name, body: preset.body, isPreset: true },
+          ];
+        }
+      }
+      return {
+        elements: { ...state.elements, [id]: next },
+        pageKeyframesBlocks: keyframes,
+      };
+    }),
+
+  removeAnimation: (id) =>
+    set((state) => {
+      const el = state.elements[id];
+      if (!el) return state;
+      // Two cases: clear the base animation, or clear the active
+      // state's animation override.
+      if (state.activeStateName === null) {
+        const { animation: _drop, ...rest } = el;
+        const nextEl: ScampElement =
+          el.animation === undefined ? el : (rest as ScampElement);
+        return { elements: { ...state.elements, [id]: nextEl } };
+      }
+      const overrides = el.stateOverrides;
+      const stateOverride = overrides?.[state.activeStateName];
+      if (!overrides || !stateOverride) return state;
+      const { animation: _drop, ...restOverride } = stateOverride;
+      const nextOverrides: Partial<Record<ElementStateName, BreakpointOverride>> = {
+        ...overrides,
+      };
+      if (Object.keys(restOverride).length === 0) {
+        delete nextOverrides[state.activeStateName];
+      } else {
+        nextOverrides[state.activeStateName] = restOverride;
+      }
+      // Drop the whole stateOverrides field if no states remain so
+      // round-trips stay text-stable.
+      const { stateOverrides: _o, ...elNoStates } = el;
+      const nextEl: ScampElement =
+        Object.keys(nextOverrides).length === 0
+          ? (elNoStates as ScampElement)
+          : { ...el, stateOverrides: nextOverrides };
+      return { elements: { ...state.elements, [id]: nextEl } };
+    }),
+
+  playAnimation: (elementId) =>
+    set((state) => ({
+      previewAnimation: {
+        elementId,
+        // Increment the key so the renderer's React `key` changes
+        // even when the user clicks Play repeatedly on the same
+        // element.
+        key: (state.previewAnimation?.elementId === elementId
+          ? state.previewAnimation.key
+          : 0) + 1,
+      },
+    })),
+
+  loadPage: (page, elements, source, customMediaBlocks, keyframesBlocks) =>
     set({
       activePage: page,
       elements,
       pageSource: source,
       pageCustomMediaBlocks: customMediaBlocks ?? [],
+      pageKeyframesBlocks: keyframesBlocks ?? [],
       selectedElementIds: [],
       isLoading: true,
       lastLoadKind: 'initial',
     }),
 
-  reloadElements: (elements, source, customMediaBlocks) =>
+  reloadElements: (elements, source, customMediaBlocks, keyframesBlocks) =>
     set((state) => ({
       elements,
       pageSource: source,
       pageCustomMediaBlocks: customMediaBlocks ?? state.pageCustomMediaBlocks,
+      pageKeyframesBlocks: keyframesBlocks ?? state.pageKeyframesBlocks,
       // Drop any selection that no longer exists in the new tree (the file
       // could have been edited externally to remove an element).
       selectedElementIds: state.selectedElementIds.filter((id) => id in elements),

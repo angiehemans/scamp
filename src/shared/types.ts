@@ -271,6 +271,73 @@ export type ProjectMigrateResult = {
   backupPath: string;
 };
 
+// Preview-mode IPC payloads
+
+/**
+ * Lifecycle of a per-project dev server.
+ *
+ *   - `idle`: no server registered for this project (defensive
+ *     fallback; openPreview always kicks at least `installing` or
+ *     `starting` immediately).
+ *   - `installing`: `npm install` is running because `node_modules`
+ *     was missing on first open. Logs accumulate so the preview
+ *     window can show a tail.
+ *   - `starting`: deps are present, `next dev` has been spawned, we
+ *     haven't yet seen the "ready" line in stdout.
+ *   - `ready`: dev server is accepting requests on `port`. The
+ *     preview window's webview is safe to navigate.
+ *   - `crashed`: the process exited non-zero before reaching ready,
+ *     OR exited unexpectedly after reaching ready. UI shows the
+ *     log tail + a Restart button.
+ */
+export type DevServerStatus =
+  | { kind: 'idle' }
+  | { kind: 'installing'; logs: ReadonlyArray<string> }
+  | { kind: 'starting'; port: number; logs: ReadonlyArray<string> }
+  | { kind: 'ready'; port: number; logs: ReadonlyArray<string> }
+  | { kind: 'crashed'; logs: ReadonlyArray<string>; exitCode: number };
+
+export type PreviewOpenArgs = {
+  projectPath: string;
+  /** Page name to navigate the preview to on open (e.g. `"home"` →
+   *  `/`, `"about"` → `/about`). */
+  pageName: string;
+};
+
+export type PreviewStopArgs = {
+  projectPath: string;
+};
+
+export type PreviewRestartArgs = {
+  projectPath: string;
+};
+
+export type PreviewGetStatusArgs = {
+  projectPath: string;
+};
+
+/**
+ * Pushed from main to the preview-window renderer whenever the
+ * dev server's status changes. Carries the project path so a single
+ * preview window listening to multiple projects (future) can
+ * disambiguate; today every preview window listens to exactly one
+ * project.
+ */
+export type PreviewStatusChangedPayload = {
+  projectPath: string;
+  status: DevServerStatus;
+};
+
+/**
+ * Pushed from main to the preview-window renderer when the parent
+ * (canvas) wants the preview to navigate to a specific page —
+ * triggered by Cmd+P on a different page than the preview is
+ * currently showing.
+ */
+export type PreviewNavigatePayload = {
+  pageName: string;
+};
+
 // Terminal IPC payloads
 export type TerminalCreateArgs = {
   cwd: string;

@@ -1,0 +1,176 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  /* Reserve space for macOS traffic-light overlay; no-op elsewhere. */
+  padding-left: 80px;
+  background: #111;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 12px;
+  -webkit-app-region: drag;
+}
+
+.toolbar > * {
+  -webkit-app-region: no-drag;
+}
+
+.navGroup {
+  display: flex;
+  gap: 2px;
+}
+
+.navBtn {
+  width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #d1d5db;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.navBtn:hover:not(:disabled) {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
+}
+
+.navBtn:disabled {
+  color: #4b5563;
+  cursor: not-allowed;
+}
+
+.urlGroup {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.urlBar {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #9ca3af;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyBtn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.copyBtn:hover:not(:disabled) {
+  color: #f3f4f6;
+  background: #1f1f1f;
+}
+
+.copyBtn:disabled {
+  color: #4b5563;
+  cursor: not-allowed;
+}
+
+.statusChip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.statusChip_installing,
+.statusChip_starting {
+  border-color: #6ba0ff;
+  color: #6ba0ff;
+}
+
+.statusChip_ready {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.statusChip_crashed {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.viewportGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.viewportBtn {
+  padding: 3px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: #9ca3af;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.viewportBtn:hover {
+  color: #f3f4f6;
+}
+
+.viewportBtnActive {
+  background: #2a2a2a;
+  color: #f3f4f6;
+}
+
+.viewportBtnActive:hover {
+  color: #f3f4f6;
+}
+
+.viewportInput {
+  width: 64px;
+  padding: 3px 6px;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid #2a2a2a;
+  color: #9ca3af;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+}
+
+.viewportInput:focus,
+.viewportInputActive {
+  color: #f3f4f6;
+}

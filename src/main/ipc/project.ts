@@ -24,6 +24,7 @@ import { setCachedProjectFormat } from './projectFormatCache';
 import {
   readProjectLegacy,
   readProjectNextjs,
+  refreshLayoutTemplateIfNeeded,
   scaffoldLegacyProject,
   scaffoldNextjsProject,
   themePathFor,
@@ -120,6 +121,13 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   // Backfill scamp.config.json with defaults for projects created
   // before per-project settings existed.
   await ensureProjectConfig(args.folderPath);
+  // Refresh `app/layout.tsx` to the latest template when the project
+  // still uses a known earlier version. User-customised layouts are
+  // left alone; a warning logs to the main process so users debugging
+  // a blank preview can find the cause.
+  if (project.format === 'nextjs') {
+    await refreshLayoutTemplateIfNeeded(args.folderPath).catch(() => undefined);
+  }
   await addRecentProject({
     name: project.name,
     path: project.path,

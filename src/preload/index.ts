@@ -23,6 +23,7 @@ import type {
   ProjectConfigReadArgs,
   ProjectConfigWriteArgs,
   ProjectData,
+  PreviewOpenArgs,
   ProjectMigrateArgs,
   ProjectMigrateResult,
   RecentProject,
@@ -57,6 +58,22 @@ const api = {
 
   migrateProject: (args: ProjectMigrateArgs): Promise<ProjectMigrateResult> =>
     ipcRenderer.invoke(IPC.ProjectMigrate, args),
+
+  /**
+   * Open (or focus + navigate) the preview window for the project.
+   * Returns the window id so callers can correlate; main spawns the
+   * dev server in parallel as the window opens.
+   */
+  openPreview: (args: PreviewOpenArgs): Promise<{ windowId: number }> =>
+    ipcRenderer.invoke(IPC.PreviewOpen, args),
+
+  /**
+   * Close the preview window AND stop its dev server for a project.
+   * Called when the user closes the project — preview shouldn't
+   * outlive the project that's editing it.
+   */
+  closePreview: (projectPath: string): Promise<void> =>
+    ipcRenderer.invoke(IPC.PreviewClose, { projectPath }),
 
   writeFile: (args: FileWriteArgs): Promise<FileWriteResult> =>
     ipcRenderer.invoke(IPC.FileWrite, args),

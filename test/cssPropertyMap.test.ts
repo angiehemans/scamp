@@ -103,6 +103,28 @@ describe('cssToScampProperty', () => {
     });
   });
 
+  describe('min-height', () => {
+    it('preserves a viewport-unit value as a string', () => {
+      expect(apply('min-height', '100vh')).toEqual({ minHeight: '100vh' });
+    });
+    it('preserves a px value as a string', () => {
+      expect(apply('min-height', '500px')).toEqual({ minHeight: '500px' });
+    });
+    it('preserves a var() reference', () => {
+      expect(apply('min-height', 'var(--page-min-h)')).toEqual({
+        minHeight: 'var(--page-min-h)',
+      });
+    });
+    it('preserves a calc() expression', () => {
+      expect(apply('min-height', 'calc(100vh - 64px)')).toEqual({
+        minHeight: 'calc(100vh - 64px)',
+      });
+    });
+    it('refuses an empty value', () => {
+      expect(apply('min-height', '')).toBeNull();
+    });
+  });
+
   describe('width / height', () => {
     it('width 100% switches to stretch', () => {
       expect(apply('width', '100%')).toEqual({ widthMode: 'stretch' });

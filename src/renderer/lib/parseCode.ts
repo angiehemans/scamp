@@ -8,12 +8,14 @@ import {
   type BreakpointOverride,
   type ElementStateName,
   type ElementType,
+  type KeyframesBlock,
   type RawSelectorBlock,
   type ScampElement,
   type SelectOption,
   type StateOverride,
 } from './element';
-import { parsePx } from './parsers';
+import { parseAnimationShorthand, parsePx } from './parsers';
+import { matchesPreset } from './keyframesMatch';
 import {
   DEFAULT_BREAKPOINTS,
   DESKTOP_BREAKPOINT_ID,
@@ -48,6 +50,14 @@ export type ParsedTree = {
    * can re-emit them untouched.
    */
   customMediaBlocks: string[];
+  /**
+   * `@keyframes` blocks collected from the page, in source order.
+   * Travel together at the page level rather than per-element since
+   * multiple elements can reference the same keyframe name. The
+   * canvas store mirrors this list so `generateCode` can re-emit
+   * them on every save.
+   */
+  keyframesBlocks: KeyframesBlock[];
 };
 
 export type ParseCodeOptions = {
@@ -496,6 +506,12 @@ type ParsedCss = {
    * match any known breakpoint. Preserved verbatim for round-trip.
    */
   customMediaBlocks: string[];
+  /**
+   * `@keyframes` blocks collected from the page, in source order.
+   * Multiple elements can reference the same keyframe name; the
+   * blocks travel together at the page level rather than per-element.
+   */
+  keyframesBlocks: KeyframesBlock[];
 };
 
 /**
@@ -564,6 +580,7 @@ const parseCssDeclarations = (
   const byState = new Map<ElementStateName, ClassDeclarations>();
   const rawByClass = new Map<string, RawSelectorBlock[]>();
   const customMediaBlocks: string[] = [];
+  const keyframesBlocks: KeyframesBlock[] = [];
 
   let root: postcss.Root;
   try {
@@ -575,6 +592,7 @@ const parseCssDeclarations = (
       byState,
       rawByClass,
       customMediaBlocks,
+      keyframesBlocks,
     };
   }
 
@@ -628,7 +646,30 @@ const parseCssDeclarations = (
   }
 
   for (const node of root.nodes) {
-    if (node.type !== 'atrule' || node.name !== 'media') continue;
+    if (node.type !== 'atrule') continue;
+    if (node.name === 'keyframes') {
+      // Capture verbatim body (everything between the outer braces),
+      // mark `isPreset` based on structural equivalence to the
+      // canonical preset body if the name matches.
+      const name = node.params.trim();
+      const body = (node.nodes ?? [])
+        .map((child) => child.toString())
+        .join('\n');
+      keyframesBlocks.push({
+        name,
+        body,
+        isPreset: matchesPreset(name, body),
+      });
+      continue;
+    }
+    if (node.name !== 'media') {
+      // Vendor-prefixed keyframes (`-webkit-keyframes`,
+      // `-moz-keyframes`, etc.) and any other unrecognised at-rule
+      // round-trip verbatim via customMediaBlocks (a slight misnomer
+      // — it's the catch-all bucket for at-rules we don't model).
+      customMediaBlocks.push(node.toString());
+      continue;
+    }
     const maxWidth = parseMaxWidthParam(node.params);
     const bpId = maxWidth !== null ? widthToId.get(maxWidth) : undefined;
     if (!bpId) {
@@ -640,13 +681,23 @@ const parseCssDeclarations = (
     // class rule (e.g. `.foo:hover` inside @media), preserve the
     // whole block verbatim instead of risking a partial / wrong
     // routing — round-trip stays text-stable.
+    //
+    // Same defence for `animation` declarations: per-breakpoint
+    // animations aren't typed, so a `@media { .foo { animation: ... } }`
+    // block routes verbatim to customMediaBlocks rather than risk an
+    // animation field landing in `breakpointOverrides` (the type
+    // doesn't allow it).
     let hasNonBaseRule = false;
+    let hasAnimationDecl = false;
     node.walkRules((rule) => {
       const c = classifyClassSelector(rule.selector.trim());
       if (c === null) return;
       if (c.kind !== 'base') hasNonBaseRule = true;
+      rule.walkDecls((decl) => {
+        if (decl.prop === 'animation') hasAnimationDecl = true;
+      });
     });
-    if (hasNonBaseRule) {
+    if (hasNonBaseRule || hasAnimationDecl) {
       customMediaBlocks.push(node.toString());
       continue;
     }
@@ -670,6 +721,7 @@ const parseCssDeclarations = (
     byState,
     rawByClass,
     customMediaBlocks,
+    keyframesBlocks,
   };
 };
 
@@ -738,6 +790,42 @@ const applyDeclarationsAsOverride = (
     override = { ...override, customProperties };
   }
   return override;
+};
+
+/**
+ * Like `applyDeclarationsAsOverride` but also parses the `animation`
+ * shorthand into the typed `StateOverride.animation` field. Used for
+ * pseudo-class state blocks (`:hover`, `:active`, `:focus`) where
+ * per-state animations are supported.
+ *
+ * Multi-animation source (commas at the top level) round-trips via
+ * `customProperties.animation` exactly like the base path — the
+ * picker doesn't model the multi case but the value is preserved.
+ */
+const applyDeclarationsAsStateOverride = (
+  decls: RawDeclaration[]
+): StateOverride => {
+  const base = applyDeclarationsAsOverride(decls);
+  const animDecl = decls.find((d) => d.prop === 'animation');
+  if (!animDecl) return base;
+  const parsed = parseAnimationShorthand(animDecl.value);
+  if (parsed === null) {
+    // Multi-animation or unparseable — leave it in customProperties
+    // where the breakpoint helper put it. No typed field set.
+    return base;
+  }
+  // Move animation from customProperties (where the breakpoint helper
+  // stored it as an unmapped property) into the typed field, so the
+  // generator emits one declaration not two.
+  const cleanedCustom = { ...(base.customProperties ?? {}) };
+  delete cleanedCustom.animation;
+  const out: StateOverride = { ...base, animation: parsed };
+  if (Object.keys(cleanedCustom).length > 0) {
+    out.customProperties = cleanedCustom;
+  } else {
+    delete out.customProperties;
+  }
+  return out;
 };
 
 const makeRoot = (): ScampElement => ({
@@ -843,6 +931,19 @@ const applyDeclarations = (
       element = { ...element, margin: [m[0], m[1], m[2], parsePx(value)] };
       continue;
     }
+    // Animation is parsed into a typed field on the element. The
+    // shorthand parser returns null on multi-animation source
+    // (commas at the top level) — those round-trip verbatim via
+    // customProperties so the agent's intent is preserved.
+    if (prop === 'animation') {
+      const parsed = parseAnimationShorthand(value);
+      if (parsed === null) {
+        customProperties[prop] = value;
+        continue;
+      }
+      element = { ...element, animation: parsed };
+      continue;
+    }
     if (isMappedProperty(prop)) {
       // `position` has a special "auto" sentinel meaning "let
       // Scamp's tree-shape rules pick the value". When the file
@@ -934,17 +1035,18 @@ export const parseCode = (
       finalElement = { ...finalElement, breakpointOverrides: overrides };
     }
 
-    // Fold in per-state overrides for this element's class. Reuses
-    // `applyDeclarationsAsOverride` because StateOverride and
-    // BreakpointOverride are structurally the same shape — both
-    // emit / consume a Partial<element-style fields>.
+    // Fold in per-state overrides for this element's class. Uses
+    // `applyDeclarationsAsStateOverride` (which wraps the breakpoint
+    // helper) so per-state animations parse into the typed
+    // `animation` field instead of falling through to
+    // customProperties.
     const stateOverrides: Partial<Record<ElementStateName, StateOverride>> = {};
     for (const state of ELEMENT_STATES) {
       const classesForState = parsedCss.byState.get(state);
       if (!classesForState) continue;
       const stateDecls = classesForState.get(raw.className);
       if (!stateDecls || stateDecls.length === 0) continue;
-      const override = applyDeclarationsAsOverride(stateDecls);
+      const override = applyDeclarationsAsStateOverride(stateDecls);
       if (Object.keys(override).length > 0) stateOverrides[state] = override;
     }
     if (Object.keys(stateOverrides).length > 0) {
@@ -971,6 +1073,7 @@ export const parseCode = (
     elements,
     rootId: ROOT_ELEMENT_ID,
     customMediaBlocks: parsedCss.customMediaBlocks,
+    keyframesBlocks: parsedCss.keyframesBlocks,
     ...(migrated ? { migrated: true } : {}),
   };
 };

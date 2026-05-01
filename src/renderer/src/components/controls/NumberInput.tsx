@@ -18,6 +18,8 @@ type Props = {
   suffix?: ReactNode;
   /** Tooltip shown on hover. */
   title?: string;
+  /** When true, the input is rendered greyed-out and rejects edits. */
+  disabled?: boolean;
 };
 
 const clamp = (n: number, min?: number, max?: number): number => {
@@ -41,6 +43,7 @@ export const NumberInput = ({
   prefix,
   suffix,
   title,
+  disabled = false,
 }: Props): JSX.Element => {
   const stringValue = value === undefined ? '' : String(value);
 
@@ -75,6 +78,7 @@ export const NumberInput = ({
       placeholder={placeholder}
       inputMode="numeric"
       title={title}
+      disabled={disabled}
     />
   );
 };

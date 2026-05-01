@@ -126,6 +126,14 @@ export const cssToScampProperty: Record<string, Mapper> = {
     if (px === null) return null;
     return { heightMode: 'fixed', heightValue: px };
   },
+  // Free-form string so `100vh`, `500px`, `var(--page-min-h)`,
+  // `calc(...)`, etc. round-trip without parallel "raw" state. The
+  // generator emits whatever the user / agent wrote.
+  'min-height': (v) => {
+    const trimmed = v.trim();
+    if (trimmed.length === 0) return null;
+    return { minHeight: trimmed };
+  },
   border: (v) => {
     const parsed = parseBorderShorthand(v);
     // Convert the single borderWidth from the shorthand parser into a

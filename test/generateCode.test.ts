@@ -12,6 +12,7 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   widthValue: 1440,
   heightMode: 'auto',
   heightValue: 900,
+  minHeight: '100vh',
   x: 0,
   y: 0,
   display: 'none',
@@ -177,22 +178,58 @@ describe('generateCode — flex parent', () => {
 });
 
 describe('generateCode — CSS', () => {
-  it('emits a near-empty root block (stretch/auto defaults) with position: relative', () => {
+  it('emits a near-empty root block (stretch/auto defaults) with position: relative and min-height: 100vh', () => {
     const { css } = generateCode({
       elements: { [ROOT_ELEMENT_ID]: makeRoot() },
       rootId: ROOT_ELEMENT_ID,
       pageName: 'home',
     });
     expect(css).toContain('.root {');
-    // With stretch width + auto height as the new defaults, no width /
-    // height / min-height declarations land in CSS. The root behaves
-    // like a normal full-width web page.
+    // With stretch width + auto height as the new defaults, no width
+    // or fixed height declarations land in CSS — only `width: 100%`
+    // and the `min-height: 100vh` floor that gives the root visible
+    // height in any browser.
     expect(css).not.toContain('width: 1440px;');
-    expect(css).not.toContain('min-height:');
+    expect(css).toContain('min-height: 100vh;');
     expect(css).not.toContain('\n  height:');
     // `position: relative` IS emitted so absolute-positioned children
     // anchor to the root both on the canvas and in the exported app.
     expect(css).toContain('position: relative;');
+  });
+
+  it('emits a custom min-height value when the user overrides the default', () => {
+    const root: ScampElement = {
+      ...makeRoot(),
+      minHeight: '500px',
+    };
+    const { css } = generateCode({
+      elements: { [ROOT_ELEMENT_ID]: root },
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    const block = extractBlock(css, '.root');
+    expect(block).toContain('min-height: 500px;');
+    expect(block).not.toContain('min-height: 100vh;');
+  });
+
+  it('does not emit min-height on non-root elements with no value set', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2' }),
+    };
+    const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    const block = extractBlock(css, '.rect_a1b2');
+    expect(block).not.toContain('min-height:');
+  });
+
+  it('emits min-height on a non-root element when the user sets one', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', minHeight: '200px' }),
+    };
+    const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    const block = extractBlock(css, '.rect_a1b2');
+    expect(block).toContain('min-height: 200px;');
   });
 
   it('emits an explicit fixed width on the root when the user sets one', () => {

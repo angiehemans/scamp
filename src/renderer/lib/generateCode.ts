@@ -5,10 +5,14 @@ import {
   slugifyName,
   type BreakpointOverride,
   type ElementStateName,
+  type KeyframesBlock,
   type ScampElement,
   type StateOverride,
 } from './element';
-import { formatTransitionShorthand } from './parsers';
+import {
+  formatAnimationShorthand,
+  formatTransitionShorthand,
+} from './parsers';
 import {
   DESKTOP_BREAKPOINT_ID,
   type Breakpoint,
@@ -44,6 +48,13 @@ export type GenerateCodeArgs = {
    * agent-written / hand-written queries round-trip untouched.
    */
   customMediaBlocks?: ReadonlyArray<string>;
+  /**
+   * `@keyframes` blocks for the page. Emitted between the per-element
+   * chunks and the `@media` blocks, in the order given. Multiple
+   * elements can reference the same keyframe name; the block list
+   * deduplicates by name on parse, so we trust the input here.
+   */
+  pageKeyframesBlocks?: ReadonlyArray<KeyframesBlock>;
   /**
    * Basename (no extension) of the CSS module the TSX should import.
    * The single point of divergence between the legacy flat layout
@@ -328,6 +339,14 @@ export const elementDeclarationLines = (
     lines.push(`height: ${el.heightValue}px;`);
   }
 
+  // `min-height` — free-form string. Page-root defaults to `100vh`
+  // (via DEFAULT_ROOT_STYLES) so generated pages have visible height
+  // in any browser; non-root elements default to undefined and emit
+  // nothing unless the user / agent set a value.
+  if (el.minHeight !== undefined) {
+    lines.push(`min-height: ${el.minHeight};`);
+  }
+
   // Visibility "none" emits `display: none` and suppresses
   // layout-mode declarations it would override. Layout declarations
   // still come out when visibility is visible/hidden so the latent
@@ -459,6 +478,13 @@ export const elementDeclarationLines = (
     lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
   }
 
+  // Animation — single shorthand per element. Multi-animation source
+  // round-trips via customProperties.animation rather than this
+  // typed field; the field is undefined when no animation applies.
+  if (el.animation) {
+    lines.push(`animation: ${formatAnimationShorthand(el.animation)};`);
+  }
+
   // Position. The element's typed `position` field decides the
   // strategy:
   //   - 'auto' (default) → Scamp's tree-shape rule: root is
@@ -534,6 +560,18 @@ export const breakpointOverrideLines = (
     else if (mode === 'fit-content') lines.push(`height: fit-content;`);
     else if (mode === 'fixed') lines.push(`height: ${value}px;`);
     else if (mode === 'auto') lines.push(`height: auto;`);
+  }
+
+  // `min-height` override — free-form string. Setting it to undefined
+  // explicitly means "clear the inherited min-height at this
+  // breakpoint" and emits `min-height: 0` to override the base
+  // declaration in the cascade.
+  if (has('minHeight')) {
+    if (override.minHeight !== undefined) {
+      lines.push(`min-height: ${override.minHeight};`);
+    } else {
+      lines.push(`min-height: 0;`);
+    }
   }
 
   // Display / visibility. `visibility: none` means `display: none` in
@@ -640,6 +678,22 @@ export const breakpointOverrideLines = (
       lines.push(
         `transition: ${formatTransitionShorthand(override.transitions)};`
       );
+    }
+  }
+
+  // Animation — only set on `StateOverride` (which extends
+  // `BreakpointOverride` with `animation?`). The branch is
+  // unreachable for an actual breakpoint override per the type
+  // system. Keeping the check `has('animation')` rather than a
+  // narrower cast so the emitter stays simple.
+  if (has('animation')) {
+    const anim = (override as { animation?: import('./element').ElementAnimation })
+      .animation;
+    if (anim) {
+      lines.push(`animation: ${formatAnimationShorthand(anim)};`);
+    } else {
+      // Explicit `animation: none` to clear an inherited animation.
+      lines.push('animation: none;');
     }
   }
 
@@ -782,7 +836,8 @@ const generateCss = (
   elements: Record<string, ScampElement>,
   rootId: string,
   breakpoints: ReadonlyArray<Breakpoint>,
-  customMediaBlocks: ReadonlyArray<string>
+  customMediaBlocks: ReadonlyArray<string>,
+  pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>
 ): string => {
   const ordered = collectElementsDfs(elements, rootId);
 
@@ -792,6 +847,13 @@ const generateCss = (
     const parent = el.parentId ? elements[el.parentId] ?? null : null;
     return elementCssChunks(el, parent);
   });
+
+  // @keyframes blocks — emitted after per-element chunks but before
+  // @media blocks. Order preserved from the source (parser collects
+  // them in source order; the picker appends new ones at the tail).
+  const keyframesBlocks = pageKeyframesBlocks.map(
+    (block) => `@keyframes ${block.name} {\n${block.body}\n}`
+  );
 
   // @media blocks — widest first (excluding desktop, which is the
   // base). Source order with max-width queries means narrower
@@ -818,7 +880,12 @@ const generateCss = (
   // understand. Appended verbatim so they survive the round-trip.
   const customBlocks = customMediaBlocks.filter((b) => b.trim().length > 0);
 
-  const allBlocks = [...elementBlocks, ...mediaBlocks, ...customBlocks];
+  const allBlocks = [
+    ...elementBlocks,
+    ...keyframesBlocks,
+    ...mediaBlocks,
+    ...customBlocks,
+  ];
   return `${allBlocks.join('\n\n')}\n`;
 };
 
@@ -834,7 +901,8 @@ export const generateCode = (args: GenerateCodeArgs): GeneratedCode => {
       args.elements,
       args.rootId,
       args.breakpoints ?? [],
-      args.customMediaBlocks ?? []
+      args.customMediaBlocks ?? [],
+      args.pageKeyframesBlocks ?? []
     ),
   };
 };

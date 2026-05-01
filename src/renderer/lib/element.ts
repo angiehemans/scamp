@@ -113,6 +113,92 @@ export type SelectOption = {
   selected?: boolean;
 };
 
+/**
+ * The names of curated preset animations Scamp ships in its picker.
+ * Stored on the element when the user selects from the picker; on
+ * round-trip, names matching this list AND with a canonical
+ * keyframes body are recognised back to the picker. Anything else
+ * is preserved verbatim as `isPreset: false`.
+ *
+ * Order here matches the picker's grouping (entrances, exits,
+ * attention, subtle) for predictable iteration.
+ */
+export type AnimationPresetName =
+  | 'fade-in'
+  | 'fade-in-up'
+  | 'fade-in-down'
+  | 'slide-in-left'
+  | 'slide-in-right'
+  | 'scale-in'
+  | 'bounce-in'
+  | 'fade-out'
+  | 'fade-out-up'
+  | 'slide-out-left'
+  | 'slide-out-right'
+  | 'scale-out'
+  | 'pulse'
+  | 'shake'
+  | 'bounce'
+  | 'spin'
+  | 'ping'
+  | 'float'
+  | 'wiggle';
+
+export type AnimationDirection =
+  | 'normal'
+  | 'reverse'
+  | 'alternate'
+  | 'alternate-reverse';
+
+export type AnimationFillMode = 'none' | 'forwards' | 'backwards' | 'both';
+export type AnimationPlayState = 'running' | 'paused';
+
+/**
+ * One CSS animation applied to an element. Stored as typed fields so
+ * the panel can render proper controls; serialised back to the
+ * `animation` shorthand on emit.
+ *
+ * `isPreset` records whether the name matched the preset library at
+ * parse time AND whether the keyframes body matched the canonical
+ * preset body — both must be true for the picker to show "Preset:
+ * fade-in-up". A preset name with an agent-edited body shows as
+ * "Custom (was fade-in-up)".
+ *
+ * `easing` is a free-form string at the data layer so that
+ * agent-written easings outside the typed dropdown (`cubic-bezier(...)`,
+ * `steps(...)`, etc.) round-trip cleanly.
+ */
+export type ElementAnimation = {
+  name: string;
+  isPreset: boolean;
+  durationMs: number;
+  easing: string;
+  delayMs: number;
+  iterationCount: number | 'infinite';
+  direction: AnimationDirection;
+  fillMode: AnimationFillMode;
+  playState: AnimationPlayState;
+};
+
+/**
+ * One `@keyframes` rule on a page, preserved at the page level
+ * because keyframes are shared resources — multiple elements can
+ * reference the same `fade-in-up` block. Mirrors the
+ * `customMediaBlocks` shape: `body` is the verbatim declaration
+ * list (the part between the outer braces).
+ */
+export type KeyframesBlock = {
+  /** The keyframe name as written, e.g. `fade-in-up`. */
+  name: string;
+  /** Verbatim declaration block content, including all rule blocks
+   *  and comments, formatted as the source had it. */
+  body: string;
+  /** True when `name` matches a preset AND `body` is structurally
+   *  equivalent to the canonical preset body. False for
+   *  agent-written, edited, or unknown-named blocks. */
+  isPreset: boolean;
+};
+
 export type ScampElement = {
   id: string;
   type: ElementType;
@@ -219,6 +305,17 @@ export type ScampElement = {
   padding: [number, number, number, number];
   margin: [number, number, number, number];
 
+  /**
+   * Optional CSS `min-height` as a free-form string (so `100vh`,
+   * `500px`, `var(--page-min-h)`, `calc(...)` round-trip without a
+   * parallel "raw" field). Undefined when no `min-height` is declared
+   * for the element. The page-root defaults to `'100vh'` via
+   * `DEFAULT_ROOT_STYLES` so generated pages have a visible height in
+   * any browser; non-root elements default to undefined and only emit
+   * a declaration when the user / agent sets one explicitly.
+   */
+  minHeight?: string;
+
   // Appearance
   backgroundColor: string;
   borderRadius: [number, number, number, number];
@@ -265,6 +362,15 @@ export type ScampElement = {
    * agent writes them split.
    */
   transitions: ReadonlyArray<TransitionDef>;
+
+  /**
+   * Single CSS animation applied to this element. Undefined when
+   * the element has no `animation` declaration. Multi-animation
+   * source (`animation: a 1s, b 2s`) is preserved verbatim via
+   * `customProperties.animation` rather than this field — the
+   * panel doesn't model the multi case.
+   */
+  animation?: ElementAnimation;
 
   /**
    * Loose text and unclassed JSX between this element's child
@@ -374,9 +480,12 @@ export const ELEMENT_STATES: ReadonlyArray<ElementStateName> = [
 ];
 
 /**
- * Subset of element fields a per-state override can carry. Identical
- * shape to `BreakpointOverride` so the parser and generator can reuse
- * the same field-emit logic for both axes.
+ * Subset of element fields a per-state override can carry. Strict
+ * superset of `BreakpointOverride` — every breakpoint-overridable
+ * field is also state-overridable, plus `animation` (which states
+ * support but breakpoints don't). The asymmetry is deliberate:
+ * per-state animations are common (`:hover` triggers `shake`);
+ * per-breakpoint animations are rare and add UX complexity.
  *
  * The properties panel deliberately doesn't expose `position` / `x`
  * / `y` / `transitions` controls when a non-default state is active
@@ -385,8 +494,18 @@ export const ELEMENT_STATES: ReadonlyArray<ElementStateName> = [
  * not in this type — preserving anything an agent hand-writes inside
  * a pseudo-class block is more important than blocking it at the
  * type boundary.
+ *
+ * Because `StateOverride` extends `BreakpointOverride`, code that
+ * takes a `BreakpointOverride` (the shared override emitter, the
+ * shared override parser entry point) accepts a state override too —
+ * but only sees the breakpoint-overridable fields. The animation
+ * branch in `breakpointOverrideLines` is therefore unreachable for
+ * an actual breakpoint override per the type system; comment in
+ * place to flag this for future maintainers.
  */
-export type StateOverride = BreakpointOverride;
+export type StateOverride = BreakpointOverride & {
+  animation?: ElementAnimation;
+};
 
 /**
  * One pseudo-class rule the parser couldn't route into a typed state

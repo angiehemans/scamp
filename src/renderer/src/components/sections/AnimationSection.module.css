@@ -1,0 +1,96 @@
+.hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  padding: 6px 8px;
+  margin: 4px 0;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--accent);
+}
+
+/* Iteration field — wraps an input + a caret-suffix dropdown that
+   opens a small popover for switching between Number and Infinite. */
+.iterationWrapper {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.iterationCaret {
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+}
+
+.iterationCaret:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.iterationMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-tooltip);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  z-index: 100;
+}
+
+.iterationMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.iterationMenuItem:hover {
+  background: var(--bg-hover);
+}
+
+.iterationMenuItemActive {
+  color: var(--text-primary);
+}
+
+.iterationMenuCheck {
+  width: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.actions > * {
+  flex: 1;
+}

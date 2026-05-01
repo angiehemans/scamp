@@ -311,19 +311,18 @@ describe('parseCode — root handling', () => {
     });
   });
 
-  it('keeps an old-format root min-height declaration in customProperties (migration is handled by the detector)', () => {
-    // After the canvas-size rework, `min-height` is no longer a
-    // root-specific typed field — the root uses `height: auto` as its
-    // default. An unrecognised declaration lands in customProperties
-    // like any other unmapped CSS; the migration flow is the one
-    // responsible for stripping the old three-tuple on project open.
+  it('parses a custom root min-height into the typed field, not customProperties', () => {
+    // `min-height` is a typed property: free-form string so `100vh`,
+    // `1200px`, `var(--page-min-h)`, `calc(...)` round-trip via
+    // `element.minHeight` rather than landing in customProperties.
     const tsx = `<div data-scamp-id="root" className={styles.root}></div>`;
     const css = `.root {
       min-height: 1200px;
     }`;
     const { elements } = parseCode(tsx, css);
     const root = elements[ROOT_ELEMENT_ID];
-    expect(root?.customProperties).toEqual({ 'min-height': '1200px' });
+    expect(root?.minHeight).toBe('1200px');
+    expect(root?.customProperties).toEqual({});
   });
 });
 

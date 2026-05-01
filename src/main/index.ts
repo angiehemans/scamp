@@ -11,6 +11,13 @@ import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
+import { registerPreviewIpc } from './ipc/preview';
+import {
+  closeAllPreviewWindows,
+  closePreviewWindow,
+  openPreviewWindow,
+} from './previewWindow';
+import { stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher } from './watcher';
 
 const TEST_BOOTSTRAP: TestBootstrap = {
@@ -144,6 +151,10 @@ app.whenReady().then(() => {
   registerTerminalIpc();
   registerThemeIpc();
   registerImageIpc();
+  registerPreviewIpc({
+    open: openPreviewWindow,
+    close: closePreviewWindow,
+  });
   registerTestIpc();
 
   createWindow();
@@ -156,5 +167,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   disposeWatcher();
   disposeAllTerminals();
+  closeAllPreviewWindows();
+  void stopAllDevServers();
   if (process.platform !== 'darwin') app.quit();
 });

@@ -13,6 +13,7 @@ import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
+import { formatAnimationShorthand } from '@lib/parsers';
 import { customPropsToStyle } from '@lib/customProps';
 import type { ThemeToken } from '@shared/types';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
@@ -357,6 +358,15 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const parentDirection = parentResolved?.flexDirection;
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
+  // Canvas animation preview — set when the user clicks Play in the
+  // AnimationSection. The matching element re-renders with a fresh
+  // `key` so React forces a remount and the CSS animation plays
+  // from the top. Non-matching elements never receive an animation
+  // declaration on the canvas, so loops don't run during normal
+  // editing — too distracting.
+  const previewAnimation = useCanvasStore((s) =>
+    s.previewAnimation?.elementId === elementId ? s.previewAnimation : null
+  );
   const projectPath = useCanvasStore((s) => s.projectPath);
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
@@ -415,10 +425,31 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   // element, suppress transitions so the user sees the resolved end
   // state instantly rather than an animation halfway through.
   // Renderer-only — has no effect on the file on disk.
-  const style =
+  let style =
     previewState !== null
       ? { ...baseStyle, transition: 'none' }
       : baseStyle;
+
+  // Animation preview: when the user clicks Play, apply the resolved
+  // animation as an inline declaration. Iteration is clamped to 1 so
+  // even infinite loops play once on the canvas — preview should be a
+  // single demonstration, not a perpetual distraction. `paused`
+  // animations skip the preview entirely (the user explicitly
+  // chose to pause). The React `key` on the element forces a remount
+  // each Play click so the animation re-runs from the top.
+  if (
+    previewAnimation !== null &&
+    element.animation &&
+    element.animation.playState !== 'paused'
+  ) {
+    style = {
+      ...style,
+      animation: formatAnimationShorthand({
+        ...element.animation,
+        iterationCount: 1,
+      }),
+    };
+  }
   // The actual HTML tag — uses the element's stored override if any,
   // otherwise the type's default (`p` for text, `div` for rect).
   const storedTag = tagFor(element);
@@ -449,6 +480,13 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     // renames don't force a refactor of every lookup site.
     'data-scamp-id': classNameFor(element),
     'data-element-id': element.id,
+    // Animation preview: increment the React key on each Play click
+    // so React remounts the element and the CSS animation plays from
+    // the top. Stays undefined when not previewing so we don't churn
+    // the DOM during normal renders.
+    ...(previewAnimation !== null
+      ? { key: `preview-${previewAnimation.key}` }
+      : {}),
     className: `${styles.element} ${isSelected ? styles.selected : ''} ${
       isText && isEditing ? styles.textEditing : ''
     } ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),

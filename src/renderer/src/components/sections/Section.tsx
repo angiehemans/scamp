@@ -219,14 +219,78 @@ const FIELD_LABELS: Record<string, string> = {
 type RowProps = {
   label: string;
   children: ReactNode;
+  /**
+   * Optional hover tooltip for the whole row — used to explain
+   * what a property does when the label alone isn't enough (e.g.
+   * `Direction`, `Fill mode`, `Iteration` for animations). Shown
+   * when the user hovers anywhere in the row, including over the
+   * control, so they don't have to find the small label area.
+   */
+  tooltip?: string;
 };
 
 /** A labeled row inside a Section. Wraps the label and the control(s). */
-export const Row = ({ label, children }: RowProps): JSX.Element => {
-  return (
+export const Row = ({ label, children, tooltip }: RowProps): JSX.Element => {
+  const row = (
     <div className={styles.row}>
       <span className={styles.rowLabel}>{label}</span>
       <div className={styles.rowControl}>{children}</div>
     </div>
+  );
+  // The row's label automatically becomes the tooltip header so
+  // call sites only need to write the description text — no need
+  // to repeat the label name in every tooltip string.
+  return tooltip ? (
+    <Tooltip header={label} label={tooltip}>
+      {row}
+    </Tooltip>
+  ) : (
+    row
+  );
+};
+
+type FieldConfig = {
+  /** Visible label rendered above the control. */
+  label: string;
+  /** Hover tooltip body (label is used as the header). */
+  tooltip?: string;
+  /** The control(s) — usually a single input. */
+  children: ReactNode;
+};
+
+type DualFieldProps = {
+  left: FieldConfig;
+  right: FieldConfig;
+};
+
+/**
+ * Two label-on-top fields side by side. Used by sections that have
+ * naturally-paired controls (Duration + Easing, Delay + Iteration,
+ * Direction + Fill mode). Each field is wrapped in a Tooltip with its
+ * own label as the header so hovering anywhere in that half surfaces
+ * the right description.
+ */
+export const DualField = ({ left, right }: DualFieldProps): JSX.Element => {
+  return (
+    <div className={styles.dualField}>
+      <FieldHalf {...left} />
+      <FieldHalf {...right} />
+    </div>
+  );
+};
+
+const FieldHalf = ({ label, tooltip, children }: FieldConfig): JSX.Element => {
+  const body = (
+    <div className={styles.fieldHalf}>
+      <span className={styles.fieldLabel}>{label}</span>
+      <div className={styles.fieldControl}>{children}</div>
+    </div>
+  );
+  return tooltip ? (
+    <Tooltip header={label} label={tooltip}>
+      {body}
+    </Tooltip>
+  ) : (
+    body
   );
 };

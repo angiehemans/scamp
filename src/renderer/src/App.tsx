@@ -49,11 +49,16 @@ export const App = (): JSX.Element => {
   }
 
   if (view === 'project' && project) {
+    const closingProjectPath = project.path;
     return (
       <ErrorBoundary>
         <ProjectShell
           project={project}
           onClose={() => {
+            // Close the preview window and stop its dev server
+            // before tearing down the project — preview shouldn't
+            // outlive the project that's editing it.
+            void window.scamp.closePreview(closingProjectPath);
             setProject(null);
             setView('start');
           }}

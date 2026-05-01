@@ -87,6 +87,14 @@ export const DEFAULT_ROOT_STYLES = {
   widthValue: 1440,
   heightMode: 'auto' as const,
   heightValue: 900,
+  /**
+   * Page-root gets a `100vh` floor so generated pages have a visible
+   * height in any browser (preview / `next dev` / production). Without
+   * this, the root collapses to 0px because absolute children don't
+   * contribute to its box. Users can override per-element via the
+   * panel or per-breakpoint by setting a different `minHeight`.
+   */
+  minHeight: '100vh' as string,
   backgroundColor: '#ffffff',
   borderRadius: [0, 0, 0, 0] as [number, number, number, number],
   borderWidth: [0, 0, 0, 0] as [number, number, number, number],

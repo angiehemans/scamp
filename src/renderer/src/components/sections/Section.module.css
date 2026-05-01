@@ -103,6 +103,44 @@
   border-color: var(--accent);
 }
 
+/* DualField — two label-on-top controls side by side. Used by
+   sections with naturally-paired controls (e.g. animation Duration +
+   Easing). Each half stretches to half-width with the label stacked
+   above its control. */
+.dualField {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.fieldHalf {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fieldControl {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.fieldControl > * {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Trailing remove button on a repeating row. */
 .rowRemoveButton {
   flex-shrink: 0;

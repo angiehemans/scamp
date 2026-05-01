@@ -8,11 +8,16 @@
   z-index: 10000;
 
   min-height: var(--control-h);
+  /* Floor the bubble width so single-line tips don't render as a
+     pinched strip, and cap it so multi-line descriptions wrap into
+     a comfortable reading column rather than a single long line. */
+  min-width: 220px;
+  max-width: 320px;
   width: fit-content;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 6px 8px;
   background: var(--bg-canvas);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -23,10 +28,11 @@
 }
 
 .tooltipHeader {
-  margin: 0 -6px 4px;
-  padding: 0 6px 4px;
-  /* Matches the tooltip's outer border so the separator feels like
-     part of the same chrome. */
+  /* Negative margin + matching padding so the header's bottom border
+     spans the full inner width of the bubble (matches the outer
+     6px 8px padding). */
+  margin: 0 -8px 4px;
+  padding: 0 8px 4px;
   border-bottom: 1px solid var(--border);
   font-family: var(--font-ui);
   font-size: 14px;

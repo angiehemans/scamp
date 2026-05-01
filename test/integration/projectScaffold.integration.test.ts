@@ -23,6 +23,7 @@ const makeRoot = (): ScampElement => ({
   childIds: [],
   widthMode: 'stretch',
   heightMode: 'auto',
+  minHeight: '100vh',
   x: 0,
   y: 0,
   position: 'auto',

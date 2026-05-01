@@ -1,0 +1,339 @@
+/**
+ * Shared types used by main, preload, and renderer.
+ * All IPC payloads must have explicit types defined here.
+ */
+export type PageFile = {
+    name: string;
+    tsxPath: string;
+    cssPath: string;
+    tsxContent: string;
+    cssContent: string;
+};
+/**
+ * Two on-disk formats are supported:
+ * - `legacy`: flat layout — `<page>.tsx` + `<page>.module.css` at the
+ *   project root, assets in `assets/`, no `app/` folder.
+ * - `nextjs`: Next.js App Router layout — pages live as
+ *   `app/<page>/page.tsx` (root page is `app/page.tsx`), assets in
+ *   `public/assets/`, with auto-generated `app/layout.tsx`,
+ *   `next.config.ts`, and `package.json`.
+ *
+ * Existing projects keep working in legacy format. New projects are
+ * created in nextjs format. Migration from legacy → nextjs is opt-in
+ * via a banner.
+ */
+export type ProjectFormat = 'legacy' | 'nextjs';
+export type ProjectData = {
+    path: string;
+    name: string;
+    format: ProjectFormat;
+    pages: PageFile[];
+};
+export type RecentProject = {
+    name: string;
+    path: string;
+    format: ProjectFormat;
+    lastOpened: string;
+};
+export type ChooseFolderResult = {
+    canceled: boolean;
+    path: string | null;
+};
+export type Settings = {
+    /** The folder under which `New Project` creates project subdirectories. */
+    defaultProjectsFolder: string | null;
+    /**
+     * Background color of the artboard — the area behind the canvas.
+     * @deprecated Moved to per-project config (`scamp.config.json`). Kept
+     * on the type for one release so old installs don't crash on a
+     * missing key; no UI reads from it.
+     */
+    artboardBackground: string;
+};
+/**
+ * Per-project configuration persisted as `scamp.config.json` at the
+ * project root. Holds settings that are scoped to one project rather
+ * than the whole app (artboard colour, future: snap grid, default
+ * element names, etc.). Non-CSS concepts live here; CSS-flavoured
+ * concepts (colour tokens, font imports) live in `theme.css`.
+ */
+/**
+ * One entry in a project's breakpoint table. The `id` is the stable
+ * key used in `ScampElement.breakpointOverrides`; the `width` is the
+ * `max-width` value written into the `@media` query. Desktop is
+ * included as a breakpoint but has no `@media` wrapper — its
+ * "overrides" are the element's top-level fields.
+ */
+export type Breakpoint = {
+    id: string;
+    label: string;
+    width: number;
+};
+/** Stable id of the desktop breakpoint — treated specially throughout. */
+export declare const DESKTOP_BREAKPOINT_ID = "desktop";
+export type ProjectConfig = {
+    /** Background color of the artboard — the area behind the canvas. */
+    artboardBackground: string;
+    /**
+     * Width of the canvas viewport frame in logical pixels. Purely a
+     * design-tool preference — never written to the page CSS. Typical
+     * presets: 390 (Mobile), 768 (Tablet), 1440 (Desktop), 1920 (Wide),
+     * or any custom value.
+     */
+    canvasWidth: number;
+    /**
+     * When true, the viewport frame clips content that extends outside
+     * its width. Useful for previewing how a layout behaves at a
+     * specific width without content spilling. Does NOT affect the
+     * root element's CSS.
+     */
+    canvasOverflowHidden: boolean;
+    /**
+     * One-shot flag — set after the user has dismissed the canvas-size
+     * migration banner. Once true, the banner never shows again for
+     * this project even if subsequent opens somehow re-trigger the
+     * migration detector.
+     */
+    canvasMigrationAcknowledged?: boolean;
+    /**
+     * Per-project dismissal of the legacy → nextjs migration banner.
+     * Independent of `canvasMigrationAcknowledged` (different banner,
+     * different prompt). Once true, the banner stays hidden until the
+     * user re-opens the project after a manual migration; ProjectShell
+     * also implicitly stops showing the banner once the project's
+     * format flips to nextjs.
+     */
+    nextjsMigrationDismissed?: boolean;
+    /**
+     * Responsive breakpoints for this project, ordered widest first.
+     * Style edits in non-desktop mode land inside `@media
+     * (max-width: Npx)` blocks keyed by each breakpoint's width.
+     * Desktop (the widest) is the base — it has no `@media` wrapper.
+     */
+    breakpoints: Breakpoint[];
+};
+export declare const DEFAULT_BREAKPOINTS: Breakpoint[];
+export declare const DEFAULT_PROJECT_CONFIG: ProjectConfig;
+/** Canvas-width bounds used by both the panel control and the parser. */
+export declare const MIN_CANVAS_WIDTH = 100;
+export declare const MAX_CANVAS_WIDTH = 4000;
+export type ProjectConfigReadArgs = {
+    projectPath: string;
+};
+export type ProjectConfigWriteArgs = {
+    projectPath: string;
+    config: ProjectConfig;
+};
+export type ThemeToken = {
+    /** The CSS custom property name, e.g. `--color-primary`. */
+    name: string;
+    /** The resolved value, e.g. `#3b82f6`. */
+    value: string;
+};
+export type CopyImageArgs = {
+    sourcePath: string;
+    projectPath: string;
+};
+export type CopyImageResult = {
+    relativePath: string;
+    fileName: string;
+};
+export type ChooseImageArgs = {
+    /** Optional directory to open the dialog in (e.g. project assets folder). */
+    defaultPath?: string;
+};
+export type ChooseImageResult = {
+    canceled: boolean;
+    path: string | null;
+};
+export type CreateProjectArgs = {
+    /** The directory in which to create the new project subfolder. */
+    parentPath: string;
+    /** The validated project name — used as both the folder name and display name. */
+    name: string;
+};
+export type OpenProjectArgs = {
+    folderPath: string;
+};
+export type FileWriteArgs = {
+    tsxPath: string;
+    cssPath: string;
+    tsxContent: string;
+    cssContent: string;
+};
+export type FilePatchArgs = {
+    cssPath: string;
+    className: string;
+    newDeclarations: string;
+    /**
+     * When present, the patch operates on the class rule INSIDE an
+     * `@media (max-width: Npx)` block rather than on the base class.
+     * The at-rule is created if it doesn't already exist; the class
+     * rule is created inside it if missing. Omit for a base-class
+     * patch (existing behavior).
+     */
+    media?: {
+        maxWidth: number;
+    };
+};
+export type FileChangedPayload = {
+    path: string;
+    tsxContent: string | null;
+    cssContent: string | null;
+};
+/**
+ * Emitted by main once a chokidar stability event confirms a write
+ * initiated by the renderer has settled on disk. Correlated by
+ * `writeId` — the opaque id returned from `file:write` / `file:patch`.
+ *
+ * Per-path (tsx and css acks arrive as separate events) so the renderer
+ * can track which sibling has landed.
+ */
+export type FileWriteAckPayload = {
+    writeId: string;
+    path: string;
+};
+export type FileWriteResult = {
+    writeId: string;
+};
+export type FilePatchResult = {
+    writeId: string;
+};
+export type PageCreateArgs = {
+    projectPath: string;
+    pageName: string;
+};
+export type PageDeleteArgs = {
+    projectPath: string;
+    pageName: string;
+};
+export type PageDuplicateArgs = {
+    projectPath: string;
+    sourcePageName: string;
+    newPageName: string;
+};
+export type PageRenameArgs = {
+    projectPath: string;
+    oldPageName: string;
+    newPageName: string;
+};
+export type ProjectMigrateArgs = {
+    projectPath: string;
+};
+/**
+ * Result of a successful legacy → nextjs migration. Carries the
+ * post-migration project so the renderer can refresh its view, plus
+ * the path to the kept-on-disk backup (so the UI can surface it as
+ * "your originals are at <path> in case you need them").
+ */
+export type ProjectMigrateResult = {
+    project: ProjectData;
+    backupPath: string;
+};
+/**
+ * Lifecycle of a per-project dev server.
+ *
+ *   - `idle`: no server registered for this project (defensive
+ *     fallback; openPreview always kicks at least `installing` or
+ *     `starting` immediately).
+ *   - `installing`: `npm install` is running because `node_modules`
+ *     was missing on first open. Logs accumulate so the preview
+ *     window can show a tail.
+ *   - `starting`: deps are present, `next dev` has been spawned, we
+ *     haven't yet seen the "ready" line in stdout.
+ *   - `ready`: dev server is accepting requests on `port`. The
+ *     preview window's webview is safe to navigate.
+ *   - `crashed`: the process exited non-zero before reaching ready,
+ *     OR exited unexpectedly after reaching ready. UI shows the
+ *     log tail + a Restart button.
+ */
+export type DevServerStatus = {
+    kind: 'idle';
+} | {
+    kind: 'installing';
+    logs: ReadonlyArray<string>;
+} | {
+    kind: 'starting';
+    port: number;
+    logs: ReadonlyArray<string>;
+} | {
+    kind: 'ready';
+    port: number;
+    logs: ReadonlyArray<string>;
+} | {
+    kind: 'crashed';
+    logs: ReadonlyArray<string>;
+    exitCode: number;
+};
+export type PreviewOpenArgs = {
+    projectPath: string;
+    /** Page name to navigate the preview to on open (e.g. `"home"` →
+     *  `/`, `"about"` → `/about`). */
+    pageName: string;
+};
+export type PreviewStopArgs = {
+    projectPath: string;
+};
+export type PreviewRestartArgs = {
+    projectPath: string;
+};
+export type PreviewGetStatusArgs = {
+    projectPath: string;
+};
+/**
+ * Pushed from main to the preview-window renderer whenever the
+ * dev server's status changes. Carries the project path so a single
+ * preview window listening to multiple projects (future) can
+ * disambiguate; today every preview window listens to exactly one
+ * project.
+ */
+export type PreviewStatusChangedPayload = {
+    projectPath: string;
+    status: DevServerStatus;
+};
+/**
+ * Pushed from main to the preview-window renderer when the parent
+ * (canvas) wants the preview to navigate to a specific page —
+ * triggered by Cmd+P on a different page than the preview is
+ * currently showing.
+ */
+export type PreviewNavigatePayload = {
+    pageName: string;
+};
+export type TerminalCreateArgs = {
+    cwd: string;
+    cols: number;
+    rows: number;
+};
+export type TerminalCreateResult = {
+    id: string;
+};
+export type TerminalWriteArgs = {
+    id: string;
+    data: string;
+};
+export type TerminalResizeArgs = {
+    id: string;
+    cols: number;
+    rows: number;
+};
+export type TerminalKillArgs = {
+    id: string;
+};
+export type TerminalDataPayload = {
+    id: string;
+    data: string;
+};
+export type TerminalExitPayload = {
+    id: string;
+    exitCode: number;
+};
+/**
+ * Returned by `test:getBootstrap`. Off in normal usage; only populated
+ * when the app is launched with `SCAMP_E2E=1`. The renderer uses this
+ * to skip the Start Screen and auto-open a test project.
+ */
+export type TestBootstrap = {
+    e2e: boolean;
+    autoOpenProjectPath: string | null;
+};

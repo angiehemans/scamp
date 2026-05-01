@@ -48,6 +48,7 @@ smoothly without having to write the CSS manually.
 
 ## 2. CSS Grid layout - DONE
 
+
 **User story**
 
 As a user building complex layouts, I want to set an element's display to grid
@@ -98,7 +99,7 @@ grid-based layouts without writing CSS manually.
 
 ---
 
-## 3. Per-element states (hover, active, focus)
+## 3. Per-element states (hover, active, focus) - DONE 
 
 **User story**
 
@@ -182,7 +183,7 @@ manually.
 
 ---
 
-## 4. CSS animations (preset keyframes)
+## 4. CSS animations (preset keyframes) DONE
 
 **User story**
 
@@ -498,3 +499,174 @@ so the codebase has a single canonical project shape and the
 - Some legacy projects may have unrecognised root-level files that the
   migrator left in place — those still apply after deletion, but the
   user's project won't open without a manual reorganisation.
+
+---
+
+## Animation follow-ups (post #4)
+
+These ride on top of the CSS animations story (#4) but were
+deliberately deferred to keep that PR focused.
+
+### Clean up unused keyframes
+
+**User story**
+
+As a Scamp user, I want a way to remove `@keyframes` blocks from
+my CSS module that no element references anymore, so the file
+stays clean as I iterate on animations.
+
+**Behaviour**
+
+- A "Clean up unused keyframes" action somewhere in Project Settings
+  (or in the Animation section's overflow menu).
+- Scans the page's elements; finds any keyframes name in
+  `pageKeyframesBlocks` that no element references; removes those
+  blocks from disk on the next save.
+- Confirmation dialog before deleting (lists the names).
+- Skipped for keyframes blocks where `isPreset === false` — those
+  are agent-authored and the user might be referencing them from
+  outside Scamp's model.
+
+### Custom keyframes editor
+
+**User story**
+
+As a power user, I want to author my own `@keyframes` blocks from
+the Scamp UI so I don't have to drop into CSS mode for one-off
+animations.
+
+**Behaviour**
+
+- A keyframes editor accessible from the Animation section's preset
+  dropdown ("Add custom keyframes…").
+- Editor is a free-form CSS block input that validates as
+  `@keyframes` content.
+- Custom keyframes get added to `pageKeyframesBlocks` with
+  `isPreset: false`; the picker lists them under a "Custom" group.
+- Renaming and deleting custom keyframes from the editor.
+
+### Per-breakpoint animations
+
+**User story**
+
+As a designer, I want to apply a different animation at the mobile
+breakpoint than at desktop so I can tone down motion on small
+screens.
+
+**Behaviour**
+
+- Currently blocked: `BreakpointOverride` doesn't include
+  `animation`, and an agent-written
+  `@media { .foo { animation: ... } }` block routes to
+  `customMediaBlocks` verbatim instead of being editable.
+- Adding this means: extend `BreakpointOverride` with `animation`,
+  generalise the at-rule walker to route per-breakpoint animation
+  declarations into the breakpoint override, and surface the
+  picker when both a non-default breakpoint and the AnimationSection
+  are visible.
+- Hover-restart caveat: state × breakpoint matrix combinations
+  remain out of scope.
+
+### `prefers-reduced-motion` wrapping
+
+**User story**
+
+As an accessibility-conscious user, I want my project's animations
+to be respected by users who have `prefers-reduced-motion: reduce`
+set, without me writing the media query by hand.
+
+**Behaviour**
+
+- Project setting (per-project, in `scamp.config.json`): "Wrap
+  animations in `@media (prefers-reduced-motion: no-preference)`".
+- When enabled, the generator wraps `@keyframes` blocks (and
+  optionally per-element `animation` declarations) in the media
+  query so users with reduced-motion preferences see no animation.
+- Parser recognises both wrapped and unwrapped forms; the toggle
+  decides which form the generator emits.
+
+---
+
+## Preview-mode follow-ups (post #5)
+
+These ride on top of the preview mode story (#5) but were
+deliberately deferred to keep that PR focused.
+
+### Mock data via `[page-name].data.json`
+
+**User story**
+
+As a designer, I want to drop a `home.data.json` next to my page
+file and have its contents available as props in preview mode, so
+I can design with realistic content without writing any data
+fetching code.
+
+**Behaviour**
+
+- Scamp recognises `app/<page>/page.data.json` (and `app/page.data.json`)
+  as a sibling of the page's `page.tsx`.
+- During preview, the dev server's wrapper layer (a small Scamp-
+  injected component, or a generated `app/<page>/layout.tsx`)
+  reads the JSON and passes it as props to the page component.
+- For Next.js this requires a careful approach because pages are
+  server components by default — either force the page to be a
+  client component, or generate a server-component wrapper that
+  reads the JSON at request time.
+- The canvas continues to show placeholder text for unresolved
+  React expressions (e.g. `{user.name}` renders literally as
+  `{user.name}`); the preview shows the resolved value.
+
+**Notes**
+
+- The filename `[page-name].data.json` is already reserved in
+  `agent.md` so agents won't repurpose it before this lands.
+
+### Auto-follow page switches in the open preview
+
+**User story**
+
+As a user with a preview window open alongside the canvas, I want
+the preview to automatically navigate to whatever page I switch to
+on the canvas, without me having to press ⌘P each time.
+
+**Behaviour**
+
+- Today: opening Preview on a different page focuses the existing
+  window and navigates it. But if the user just clicks a different
+  page in the sidebar, the preview window keeps showing the
+  previous one.
+- Track which projects have an open preview window in main; expose
+  via IPC. The renderer subscribes to the active page change AND
+  the preview-open state, calling navigate when both apply.
+
+### Production-build preview
+
+**User story**
+
+As a developer, I want to preview my project as it would actually
+ship — `next build && next start` — to catch optimisation issues
+that only show up in production.
+
+**Behaviour**
+
+- A "Preview (production)" toggle in the preview toolbar (or a
+  separate menu item).
+- Runs `next build` first (with build-progress UI), then
+  `next start`.
+- Subsequent file edits don't auto-rebuild — production preview
+  is a snapshot, not a HMR session.
+
+### "Stop server" admin escape hatch
+
+**User story**
+
+As a power user, I want to explicitly stop the dev server from the
+preview window so I can free the port without closing the project.
+
+**Behaviour**
+
+- Overflow menu in the preview toolbar with "Stop server" + "View
+  logs" items.
+- Stopping the server takes the preview window into the `crashed`
+  state with the Restart button (since stopped is conceptually
+  the same as crashed for the UI).

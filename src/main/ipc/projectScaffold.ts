@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import type { PageFile, ProjectFormat } from '@shared/types';
 import {
   AGENT_MD_CONTENT,
@@ -11,6 +11,7 @@ import {
   defaultPackageJson,
   defaultPageTsx,
 } from '@shared/agentMd';
+import { decideLayoutMigration } from '@shared/layoutMigration';
 
 const componentNameFromPage = (pageName: string): string =>
   pageName
@@ -170,6 +171,41 @@ export const scaffoldNextjsProject = async (
   );
 
   await fs.mkdir(join(projectPath, 'public', 'assets'), { recursive: true });
+};
+
+/**
+ * Refresh `app/layout.tsx` if it byte-matches a known legacy template.
+ * Called on project open so old projects pick up the body reset
+ * (`margin: 0; min-height: 100vh`) without a manual edit. User-
+ * customised layouts are left alone — `decideLayoutMigration` returns
+ * `'warn'` and we surface a one-line hint via the main-process console
+ * so users hitting "preview is blank" can find the cause.
+ *
+ * Idempotent: subsequent calls with the latest template are a no-op
+ * (no log spam on repeat opens).
+ */
+export const refreshLayoutTemplateIfNeeded = async (
+  projectPath: string
+): Promise<void> => {
+  const layoutPath = join(projectPath, 'app', 'layout.tsx');
+  let current: string;
+  try {
+    current = await fs.readFile(layoutPath, 'utf-8');
+  } catch {
+    // No layout.tsx — caller is opening a non-nextjs project or a
+    // project with a missing scaffold. Nothing to migrate.
+    return;
+  }
+  const projectName = basename(projectPath);
+  const action = decideLayoutMigration(current, projectName);
+  if (action.kind === 'noop') return;
+  if (action.kind === 'replace') {
+    await fs.writeFile(layoutPath, action.next, 'utf-8');
+    return;
+  }
+  // 'warn' — log a one-line hint. Doesn't surface a UI banner; the
+  // hint is for users debugging a blank-preview issue.
+  console.warn(`[layout-migration] ${layoutPath}: ${action.reason}`);
 };
 
 /**

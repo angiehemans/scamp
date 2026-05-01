@@ -44,6 +44,15 @@ export const IPC = {
   ThemeChanged: 'theme:changed',
   ThemeWrite: 'theme:write',
 
+  // Preview mode
+  PreviewOpen: 'preview:open',
+  PreviewStop: 'preview:stop',
+  PreviewClose: 'preview:close',
+  PreviewGetStatus: 'preview:getStatus',
+  PreviewStatusChanged: 'preview:statusChanged',
+  PreviewNavigate: 'preview:navigate',
+  PreviewRestart: 'preview:restart',
+
   // Terminal (renderer ↔ main)
   TerminalCreate: 'terminal:create',
   TerminalWrite: 'terminal:write',
