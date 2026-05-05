@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useCallback, useEffect, useRef, useState, } from 'react';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
@@ -93,6 +94,24 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     useEffect(() => {
         useCanvasStore.getState().setProjectPath(project.path);
     }, [project.path]);
+    // Mirror the project's page list so the Link section's destination
+    // dropdown and the canvas link indicator's broken-link check have
+    // a fast lookup without prop drilling.
+    useEffect(() => {
+        useCanvasStore.getState().setPageNames(project.pages.map((p) => p.name));
+    }, [project.pages]);
+    // Consume page-navigation requests from the canvas link indicator.
+    // The store holds a one-shot pending navigation; we route it through
+    // the same setActivePageName flow the sidebar uses, then clear.
+    const pendingPageNavigation = useCanvasStore((s) => s.pendingPageNavigation);
+    useEffect(() => {
+        if (pendingPageNavigation === null)
+            return;
+        if (project.pages.some((p) => p.name === pendingPageNavigation)) {
+            setActivePageName(pendingPageNavigation);
+        }
+        useCanvasStore.getState().requestPageNavigation(null);
+    }, [pendingPageNavigation, project.pages]);
     const loadPage = useCanvasStore((s) => s.loadPage);
     const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
     const bottomPanel = useCanvasStore((s) => s.bottomPanel);
@@ -250,6 +269,23 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     const toggleTerminalPanel = () => {
         setBottomPanel(bottomPanel === 'terminal' ? 'none' : 'terminal');
     };
+    // Preview is gated on the nextjs project format — legacy projects
+    // don't have a `package.json` and can't run `next dev`. The button
+    // stays visible (so users discover the feature) but is disabled
+    // with a tooltip pointing at the migration banner.
+    const projectFormatForPreview = useCanvasStore((s) => s.projectFormat);
+    const projectPathForPreview = useCanvasStore((s) => s.projectPath);
+    const canPreview = projectFormatForPreview === 'nextjs' &&
+        projectPathForPreview.length > 0 &&
+        activePageName !== null;
+    const openPreview = useCallback(() => {
+        if (!canPreview || activePageName === null)
+            return;
+        void window.scamp.openPreview({
+            projectPath: projectPathForPreview,
+            pageName: activePageName,
+        });
+    }, [canPreview, projectPathForPreview, activePageName]);
     // Global keyboard shortcuts. We deliberately read store state inside the
     // handler (rather than via React state captured in deps) so the listener
     // can stay attached for the lifetime of the component.
@@ -267,6 +303,15 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             if ((e.metaKey || e.ctrlKey) && e.key === '`') {
                 e.preventDefault();
                 toggleTerminalPanel();
+                return;
+            }
+            // Cmd/Ctrl+P — open the preview window.
+            if ((e.metaKey || e.ctrlKey) && (e.key === 'p' || e.key === 'P')) {
+                if (isEditableTarget(e.target))
+                    return;
+                e.preventDefault();
+                if (canPreview)
+                    openPreview();
                 return;
             }
             // Cmd/Ctrl+= or Cmd/Ctrl++ — zoom canvas in. We accept both because
@@ -582,7 +627,11 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         },
     ];
     const isEditingPage = pageEdit !== null;
-    return (_jsxs("div", { className: styles.shell, children: [_jsxs("header", { className: styles.toolbar, children: [_jsx("button", { className: styles.backButton, onClick: onClose, type: "button", children: "\u2190 Projects" }), _jsx("span", { className: styles.spacer }), _jsx(ZoomControls, {}), _jsx(Tooltip, { label: "Toggle code panel", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'code' ? styles.toggleActive : ''}`, onClick: toggleCodePanel, type: "button", children: ["Code ", bottomPanel === 'code' ? '▾' : '▸'] }) }), _jsx(Tooltip, { label: "Toggle terminal (Ctrl+`)", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'terminal' ? styles.toggleActive : ''}`, onClick: toggleTerminalPanel, type: "button", children: ["Terminal ", bottomPanel === 'terminal' ? '▾' : '▸'] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+    return (_jsxs("div", { className: styles.shell, children: [_jsxs("header", { className: styles.toolbar, children: [_jsx("button", { className: styles.backButton, onClick: onClose, type: "button", children: "\u2190 Projects" }), _jsx("span", { className: styles.spacer }), _jsx(ZoomControls, {}), _jsx(Tooltip, { label: "Toggle code panel", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'code' ? styles.toggleActive : ''}`, onClick: toggleCodePanel, type: "button", children: ["Code ", bottomPanel === 'code' ? '▾' : '▸'] }) }), _jsx(Tooltip, { label: "Toggle terminal (Ctrl+`)", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'terminal' ? styles.toggleActive : ''}`, onClick: toggleTerminalPanel, type: "button", children: ["Terminal ", bottomPanel === 'terminal' ? '▾' : '▸'] }) }), _jsx(Tooltip, { label: canPreview
+                            ? 'Open this project in a real browser preview window (⌘P)'
+                            : projectFormatForPreview === 'legacy'
+                                ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
+                                : 'Open a page to enable preview.', children: _jsxs("button", { className: styles.toggleButton, onClick: openPreview, type: "button", disabled: !canPreview, "data-testid": "preview-button", children: [_jsx(IconPlayerPlay, { size: 14, className: styles.toggleButtonIcon }), "Preview"] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.

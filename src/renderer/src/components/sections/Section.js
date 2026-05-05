@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useBreakpointOverrideFields, useStateOverrideFields, } from '@store/useResolvedElement';
 import { Tooltip } from '../controls/Tooltip';
@@ -20,7 +21,7 @@ export const Section = ({ title, children, collapsible = false, defaultOpen = tr
         return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), indicator] }), children] }));
     }
     const handleToggle = () => setOpen((v) => !v);
-    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("div", { className: styles.titleRow, children: [_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.caret, "aria-hidden": "true", children: open ? '▾' : '▸' }), _jsx("span", { className: styles.heading, children: title })] }), indicator] }), open && children] }));
+    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.heading, children: title }), indicator, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] }), open && children] }));
 };
 /**
  * Small dot next to the section title that appears when any of the

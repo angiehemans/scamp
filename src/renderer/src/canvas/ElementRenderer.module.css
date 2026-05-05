@@ -26,15 +26,21 @@
 /* Selection highlight lives on the element itself rather than as a separate
  * overlay div, so it works for any layout (flex children included) and
  * always sits at the element's true rendered position. `outline-offset:
- * -2px` draws the outline 2px inside the element bounds. */
-.selected {
+ * -2px` draws the outline 2px inside the element bounds.
+ *
+ * Chained as `.element.selected` (specificity 0,2,0) so it wins over the
+ * `.element:is(button, a, …) { all: unset }` rule above (specificity
+ * 0,1,1) — without this, selecting an `<a>`, `<button>`, or any other
+ * form/interactive tag would silently strip the outline along with the
+ * browser-default chrome. */
+.element.selected {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-/* Text-edit mode lives on the element itself now (the dynamic tag IS
- * the contentEditable target), so the dashed indicator goes there. */
-.textEditing {
+/* Text-edit mode — same specificity bump so `all: unset` on tagged
+ * elements doesn't strip the dashed indicator. */
+.element.textEditing {
   outline: 1px dashed var(--accent) !important;
   outline-offset: 2px !important;
   cursor: text;

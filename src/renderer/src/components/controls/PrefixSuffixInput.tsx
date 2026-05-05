@@ -40,6 +40,16 @@ type Props = {
   spellCheck?: boolean;
   autoCapitalize?: 'off' | 'on' | 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: 'off' | 'on';
+  /**
+   * When true, the displayed value is read from layout (e.g. an
+   * element's measured `offsetWidth` while in `fit-content` mode)
+   * rather than directly authored. Renders the value in a dimmed +
+   * italic style so the user can tell at a glance "this number is a
+   * read-out, not a stored value." Editing still works as a shortcut
+   * — typing commits a new value to the parent's `onCommit`, which
+   * may switch the field to a fixed mode.
+   */
+  computed?: boolean;
 };
 
 /**
@@ -68,6 +78,7 @@ export const PrefixSuffixInput = ({
   spellCheck = false,
   autoCapitalize,
   autoCorrect,
+  computed = false,
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState(value);
 
@@ -105,7 +116,9 @@ export const PrefixSuffixInput = ({
         ref={inputRef}
         type="text"
         inputMode={inputMode}
-        className={`${styles.colorText} ${inputClassName ?? ''}`}
+        className={`${styles.colorText} ${
+          computed ? styles.computedValue : ''
+        } ${inputClassName ?? ''}`}
         value={draft}
         placeholder={placeholder}
         disabled={disabled}

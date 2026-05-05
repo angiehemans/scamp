@@ -3,6 +3,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { DEFAULT_TAG, TAG_ATTRIBUTES, TAG_OPTIONS, } from '@lib/elementTags';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
+import { LinkField } from './LinkField';
 import { Section, Row } from './Section';
 import styles from './ElementSection.module.css';
 /**
@@ -17,8 +18,17 @@ export const ElementSection = ({ elementId }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);
     if (!element)
         return null;
-    const tagOptions = TAG_OPTIONS[element.type];
+    const baseTagOptions = TAG_OPTIONS[element.type];
     const currentTag = element.tag ?? DEFAULT_TAG[element.type];
+    // Defensive fallback: if the current tag isn't in the predefined
+    // options for this element type (e.g. an agent wrote a tag we don't
+    // model, or an LinkField conversion landed on a tag this type's
+    // dropdown doesn't list), prepend it so the dropdown can render it
+    // as the selected value instead of silently falling back to the
+    // first option.
+    const tagOptions = baseTagOptions.some((opt) => opt.value === currentTag)
+        ? baseTagOptions
+        : [{ value: currentTag, label: currentTag }, ...baseTagOptions];
     const handleTagChange = (nextTag) => {
         // Storing `undefined` when the user picks the type's default tag
         // keeps the round-trip text-stable — matches parseCode's rule.
@@ -26,7 +36,7 @@ export const ElementSection = ({ elementId }) => {
             tag: nextTag === DEFAULT_TAG[element.type] ? undefined : nextTag,
         });
     };
-    return (_jsxs(Section, { title: "Element", collapsible: true, defaultOpen: true, children: [_jsx(Row, { label: "Tag", children: _jsx(EnumSelect, { value: currentTag, options: tagOptions, onChange: handleTagChange, title: "HTML tag" }) }), currentTag === 'select' ? (_jsx(SelectOptionsEditor, { elementId: elementId, element: element })) : currentTag === 'svg' ? (_jsx(SvgSourceEditor, { elementId: elementId, element: element })) : (_jsx(AttributeFields, { elementId: elementId, attributes: element.attributes ?? {}, specs: TAG_ATTRIBUTES[currentTag] ?? [] }))] }));
+    return (_jsxs(Section, { title: "Element", collapsible: true, defaultOpen: true, children: [_jsx(Row, { label: "Tag", children: _jsx(EnumSelect, { value: currentTag, options: tagOptions, onChange: handleTagChange, title: "HTML tag" }) }), _jsx(LinkField, { elementId: elementId }), currentTag === 'select' ? (_jsx(SelectOptionsEditor, { elementId: elementId, element: element })) : currentTag === 'svg' ? (_jsx(SvgSourceEditor, { elementId: elementId, element: element })) : (_jsx(AttributeFields, { elementId: elementId, attributes: element.attributes ?? {}, specs: TAG_ATTRIBUTES[currentTag] ?? [] }))] }));
 };
 const AttributeFields = ({ elementId, attributes, specs, }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);

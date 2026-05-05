@@ -140,17 +140,34 @@ font-size: 14px;
   background: var(--bg-raised);
   border: none;
   color: var(--text-primary);
-font-size: 13px;
+  font-size: 13px;
   font-weight: 500;
   padding: 6px 12px;
   border-radius: var(--radius-md);
   cursor: pointer;
   margin-right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .toggleButton:hover {
   background: var(--bg-hover);
   color: var(--text-inverse);
+}
+
+.toggleButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleButton:disabled:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
+.toggleButtonIcon {
+  flex: 0 0 auto;
 }
 
 .toggleActive {

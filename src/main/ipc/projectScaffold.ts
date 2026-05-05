@@ -12,6 +12,7 @@ import {
   defaultPageTsx,
 } from '@shared/agentMd';
 import { decideLayoutMigration } from '@shared/layoutMigration';
+import { backfillThemeDefaults } from '@shared/themeBackfill';
 
 const componentNameFromPage = (pageName: string): string =>
   pageName
@@ -206,6 +207,37 @@ export const refreshLayoutTemplateIfNeeded = async (
   // 'warn' — log a one-line hint. Doesn't surface a UI banner; the
   // hint is for users debugging a blank-preview issue.
   console.warn(`[layout-migration] ${layoutPath}: ${action.reason}`);
+};
+
+/**
+ * Additively add Scamp's project-default theme rules to the project's
+ * `theme.css` if missing — the `--font-sans` token, the universal
+ * `box-sizing: border-box` reset, and the body-level font-family
+ * rule. Used to carry projects scaffolded before these defaults
+ * landed in `DEFAULT_THEME_CSS` forward without trampling user edits.
+ *
+ * Idempotent: running this on a project that already has all three
+ * rules is a no-op. Strictly additive — never replaces or removes
+ * existing declarations.
+ */
+export const ensureThemeDefaultsIfNeeded = async (
+  projectPath: string,
+  format: ProjectFormat
+): Promise<void> => {
+  const themePath = themePathFor(projectPath, format);
+  let current: string;
+  try {
+    current = await fs.readFile(themePath, 'utf-8');
+  } catch {
+    // No theme.css — caller's project setup is incomplete; the
+    // upstream `openProject` flow seeds a default theme.css when
+    // missing, so this only fires in edge cases we don't need to
+    // handle here.
+    return;
+  }
+  const result = backfillThemeDefaults(current);
+  if (!result.changed) return;
+  await fs.writeFile(themePath, result.content, 'utf-8');
 };
 
 /**

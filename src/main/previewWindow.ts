@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, shell } from 'electron';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type {
@@ -114,6 +114,24 @@ export const openPreviewWindow = async (
 
   previewWindows.set(projectPath, win);
   const teardown = wireStatus(win, projectPath);
+  // Intercept popups originating in the embedded `<webview>` (the
+  // hosted dev server) and route them to the system browser. Without
+  // this, an `<a target="_blank">` or `window.open` from the user's
+  // page would spawn a new Electron BrowserWindow inside the
+  // preview, which isn't what the user wants — the preview is
+  // scoped to the project.
+  //
+  // Same-origin popups (the project's own pages opening themselves
+  // in a new tab — rare) are also denied to keep behaviour simple;
+  // users navigate via the toolbar's URL handling.
+  win.webContents.on('did-attach-webview', (_e, webContents) => {
+    webContents.setWindowOpenHandler((details) => {
+      if (details.url.startsWith('http://') || details.url.startsWith('https://')) {
+        void shell.openExternal(details.url);
+      }
+      return { action: 'deny' };
+    });
+  });
   win.on('closed', () => {
     teardown();
     previewWindows.delete(projectPath);

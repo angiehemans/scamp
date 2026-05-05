@@ -10,7 +10,7 @@ import styles from './Controls.module.css';
  * commit reads as "draft moves to new value" and an invalid one reads
  * as "draft reverts".
  */
-export const PrefixSuffixInput = ({ value, onCommit, onDraftChange, prefix, suffix, flushPrefix = false, placeholder, inputMode = 'text', title, disabled = false, onArrow, stopKeyPropagation = false, inputRef, inputClassName, spellCheck = false, autoCapitalize, autoCorrect, }) => {
+export const PrefixSuffixInput = ({ value, onCommit, onDraftChange, prefix, suffix, flushPrefix = false, placeholder, inputMode = 'text', title, disabled = false, onArrow, stopKeyPropagation = false, inputRef, inputClassName, spellCheck = false, autoCapitalize, autoCorrect, computed = false, }) => {
     const [draft, setDraft] = useState(value);
     useEffect(() => {
         setDraft(value);
@@ -33,7 +33,7 @@ export const PrefixSuffixInput = ({ value, onCommit, onDraftChange, prefix, suff
         : styles.colorInputRow;
     const prefixAttr = typeof prefix === 'string' ? prefix : undefined;
     const row = (_jsxs("div", { className: rowClass, "data-prefix": prefixAttr, children: [prefix !== undefined &&
-                (typeof prefix === 'string' ? (_jsx("span", { className: styles.inputPrefix, children: prefix })) : (prefix)), _jsx("input", { ref: inputRef, type: "text", inputMode: inputMode, className: `${styles.colorText} ${inputClassName ?? ''}`, value: draft, placeholder: placeholder, disabled: disabled, spellCheck: spellCheck, autoCapitalize: autoCapitalize, autoCorrect: autoCorrect, onChange: (e) => {
+                (typeof prefix === 'string' ? (_jsx("span", { className: styles.inputPrefix, children: prefix })) : (prefix)), _jsx("input", { ref: inputRef, type: "text", inputMode: inputMode, className: `${styles.colorText} ${computed ? styles.computedValue : ''} ${inputClassName ?? ''}`, value: draft, placeholder: placeholder, disabled: disabled, spellCheck: spellCheck, autoCapitalize: autoCapitalize, autoCorrect: autoCorrect, onChange: (e) => {
                     setDraft(e.target.value);
                     onDraftChange?.(e.target.value);
                 }, onBlur: () => {

@@ -133,6 +133,26 @@ type CanvasState = {
      */
     projectPath: string;
     /**
+     * Mirror of every page name in the project (e.g. `['home', 'about',
+     * 'dashboard']`). Surfaced for the Link section's destination
+     * dropdown and the canvas link indicator's broken-link check —
+     * deeply-nested components shouldn't have to thread `ProjectData`
+     * through props. Synced by `ProjectShell` whenever the project
+     * data changes (open, page add/delete/rename).
+     */
+    pageNames: ReadonlyArray<string>;
+    /**
+     * One-shot navigation request set by the canvas link indicator
+     * when the user clicks an internal link. ProjectShell observes this,
+     * switches the active page via its own state, and clears the field
+     * back to null. Null when no request is pending.
+     *
+     * Lives in the store rather than as a callback so deeply-nested
+     * canvas components (LinkIndicators) don't need a prop-drilled
+     * navigate handler.
+     */
+    pendingPageNavigation: string | null;
+    /**
      * `@media` blocks the parser couldn't route to a known breakpoint
      * (min-width, prefers-color-scheme, custom max-widths…). Kept in
      * the store so `generateCode` can re-emit them untouched on every
@@ -184,6 +204,21 @@ type CanvasState = {
     groupElements: (ids: string[]) => string | null;
     /** Promote the children of `id` to its grandparent and remove `id`. */
     ungroupElement: (id: string) => void;
+    /**
+     * Wrap a single element in a new `<a>` parent carrying the given href
+     * (and optional `target` / `rel` for new-tab links). Used by the
+     * Link section's "Wrap in <a>" affordance for elements where
+     * tag-swapping isn't appropriate (`<img>`, semantic block tags).
+     *
+     * Selects the wrapper after the operation so the panel reflects the
+     * just-created link without the user having to click into it. Returns
+     * the wrapper's id or null when the wrap isn't valid (root, missing
+     * element).
+     */
+    wrapInLinkParent: (elementId: string, href: string, options?: {
+        target?: string;
+        rel?: string;
+    }) => string | null;
     /** Move an element to a new parent / index. Cycle-protected. */
     reorderElement: (elementId: string, newParentId: string, newIndex: number) => void;
     setEditingElement: (id: string | null) => void;
@@ -219,6 +254,9 @@ type CanvasState = {
     setBreakpoints: (breakpoints: Breakpoint[]) => void;
     setProjectFormat: (format: ProjectFormat) => void;
     setProjectPath: (path: string) => void;
+    setPageNames: (pageNames: ReadonlyArray<string>) => void;
+    /** Set / clear the pending page-navigation request. */
+    requestPageNavigation: (pageName: string | null) => void;
     /**
      * Apply an animation to an element. Routes through
      * `applyPatchWithAxisRouting` so the animation lands on the

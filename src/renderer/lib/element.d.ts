@@ -475,6 +475,34 @@ export declare const groupSiblings: (elements: Record<string, ScampElement>, ids
     groupId: string;
 } | null;
 /**
+ * Wrap a single element in a freshly-created Scamp parent. Used by
+ * the Link section's "Wrap in `<a>`" affordance to preserve the
+ * original element (e.g. an `<img>` or a semantic block tag) while
+ * making it clickable.
+ *
+ * The wrapper inherits the wrapped element's position, width, and
+ * height defaults (so the wrapper visually occupies the same slot
+ * the child used to). The child's `x`/`y` reset to 0 because it
+ * now lives at the origin of its new parent. Any styling the user
+ * wants on the wrapper is up to them — the template only sets the
+ * fields the caller passes in.
+ *
+ * Pure. Returns null when the operation isn't valid:
+ *   - wrapping the root
+ *   - target element doesn't exist or has no parent
+ *
+ * `wrapperId` is supplied by the caller so the canvas store can
+ * pre-allocate it without scanning the existing id space.
+ *
+ * `template` carries the fields the caller wants on the wrapper —
+ * typically `tag`, `attributes`, `customProperties`. Anything not
+ * supplied falls back to the same defaults as a new rectangle.
+ */
+export declare const wrapElement: (elements: Record<string, ScampElement>, elementId: string, wrapperId: string, template: Pick<Partial<ScampElement>, "tag" | "attributes" | "customProperties" | "display" | "flexDirection">) => {
+    elements: Record<string, ScampElement>;
+    wrapperId: string;
+} | null;
+/**
  * Inverse of `groupSiblings`: remove an element from the tree and promote
  * its children to take its place in its grandparent. Pure. Returns null
  * if `id` is the root, has no parent, or has no children to promote.

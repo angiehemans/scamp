@@ -768,6 +768,112 @@ export const groupSiblings = (
 };
 
 /**
+ * Wrap a single element in a freshly-created Scamp parent. Used by
+ * the Link section's "Wrap in `<a>`" affordance to preserve the
+ * original element (e.g. an `<img>` or a semantic block tag) while
+ * making it clickable.
+ *
+ * The wrapper inherits the wrapped element's position, width, and
+ * height defaults (so the wrapper visually occupies the same slot
+ * the child used to). The child's `x`/`y` reset to 0 because it
+ * now lives at the origin of its new parent. Any styling the user
+ * wants on the wrapper is up to them — the template only sets the
+ * fields the caller passes in.
+ *
+ * Pure. Returns null when the operation isn't valid:
+ *   - wrapping the root
+ *   - target element doesn't exist or has no parent
+ *
+ * `wrapperId` is supplied by the caller so the canvas store can
+ * pre-allocate it without scanning the existing id space.
+ *
+ * `template` carries the fields the caller wants on the wrapper —
+ * typically `tag`, `attributes`, `customProperties`. Anything not
+ * supplied falls back to the same defaults as a new rectangle.
+ */
+export const wrapElement = (
+  elements: Record<string, ScampElement>,
+  elementId: string,
+  wrapperId: string,
+  template: Pick<
+    Partial<ScampElement>,
+    'tag' | 'attributes' | 'customProperties' | 'display' | 'flexDirection'
+  >
+): { elements: Record<string, ScampElement>; wrapperId: string } | null => {
+  if (elementId === ROOT_ELEMENT_ID) return null;
+  const target = elements[elementId];
+  if (!target || !target.parentId) return null;
+
+  const parent = elements[target.parentId];
+  if (!parent) return null;
+
+  const parentIsLayout =
+    parent.display === 'flex' || parent.display === 'grid';
+
+  // Wrapper takes over the child's slot. Hugs content so it doesn't
+  // visually balloon past the wrapped element. Position carries over
+  // from the child (so the wrapper sits where the child sat); flex/
+  // grid parents own positioning so x/y is 0 there.
+  const wrapper: ScampElement = {
+    id: wrapperId,
+    type: 'rectangle',
+    parentId: parent.id,
+    childIds: [elementId],
+    widthMode: 'fit-content',
+    widthValue: target.widthValue,
+    heightMode: 'fit-content',
+    heightValue: target.heightValue,
+    x: parentIsLayout ? 0 : target.x,
+    y: parentIsLayout ? 0 : target.y,
+    display: template.display ?? 'none',
+    flexDirection: template.flexDirection ?? 'row',
+    gap: 0,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    gridTemplateColumns: '',
+    gridTemplateRows: '',
+    columnGap: 0,
+    rowGap: 0,
+    justifyItems: 'stretch',
+    gridColumn: '',
+    gridRow: '',
+    alignSelf: 'stretch',
+    justifySelf: 'stretch',
+    padding: [0, 0, 0, 0],
+    margin: [0, 0, 0, 0],
+    backgroundColor: 'transparent',
+    borderRadius: [0, 0, 0, 0],
+    borderWidth: [0, 0, 0, 0],
+    borderStyle: 'none',
+    borderColor: '#000000',
+    opacity: 1,
+    visibilityMode: 'visible',
+    position: 'auto',
+    transitions: [],
+    inlineFragments: [],
+    customProperties: { ...(template.customProperties ?? {}) },
+    ...(template.tag !== undefined ? { tag: template.tag } : {}),
+    ...(template.attributes !== undefined
+      ? { attributes: { ...template.attributes } }
+      : {}),
+  };
+
+  // Splice wrapper into the parent's childIds at the target's old
+  // position; reparent the target onto the wrapper with x/y reset.
+  const targetIdx = parent.childIds.indexOf(elementId);
+  if (targetIdx < 0) return null;
+  const newParentChildIds = [...parent.childIds];
+  newParentChildIds.splice(targetIdx, 1, wrapperId);
+
+  const next: Record<string, ScampElement> = { ...elements };
+  next[parent.id] = { ...parent, childIds: newParentChildIds };
+  next[elementId] = { ...target, parentId: wrapperId, x: 0, y: 0 };
+  next[wrapperId] = wrapper;
+
+  return { elements: next, wrapperId };
+};
+
+/**
  * Inverse of `groupSiblings`: remove an element from the tree and promote
  * its children to take its place in its grandparent. Pure. Returns null
  * if `id` is the root, has no parent, or has no children to promote.

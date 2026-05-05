@@ -107,6 +107,21 @@ describe('parseThemeFile', () => {
             fontImportUrls: [],
         });
     });
+    it('extracts --font-sans from the default scaffolded theme.css', async () => {
+        const { DEFAULT_THEME_CSS, DEFAULT_BODY_FONT_FAMILY } = await import('../src/shared/agentMd');
+        const result = parseThemeFile(DEFAULT_THEME_CSS);
+        const fontSans = result.tokens.find((t) => t.name === '--font-sans');
+        expect(fontSans).toBeDefined();
+        expect(fontSans?.value).toBe(DEFAULT_BODY_FONT_FAMILY);
+    });
+    it('skips non-:root rules (e.g. body { font-family: var(--font-sans) })', () => {
+        // Only `:root` declarations get pulled into tokens. Body / element
+        // rules round-trip on disk but aren't surfaced in the panel.
+        const css = `:root { --font-sans: system-ui; }
+body { font-family: var(--font-sans); }`;
+        const result = parseThemeFile(css);
+        expect(result.tokens).toEqual([{ name: '--font-sans', value: 'system-ui' }]);
+    });
     it('tolerates comments between imports and :root', () => {
         const css = `/* managed imports */
     @import url("https://fonts.googleapis.com/css2?family=Inter");

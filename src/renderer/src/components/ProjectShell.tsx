@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { IconPlayerPlay } from '@tabler/icons-react';
 import type { ProjectData, PageFile, ProjectConfig } from '@shared/types';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
@@ -127,6 +128,27 @@ export const ProjectShell = ({
   useEffect(() => {
     useCanvasStore.getState().setProjectPath(project.path);
   }, [project.path]);
+
+  // Mirror the project's page list so the Link section's destination
+  // dropdown and the canvas link indicator's broken-link check have
+  // a fast lookup without prop drilling.
+  useEffect(() => {
+    useCanvasStore.getState().setPageNames(project.pages.map((p) => p.name));
+  }, [project.pages]);
+
+  // Consume page-navigation requests from the canvas link indicator.
+  // The store holds a one-shot pending navigation; we route it through
+  // the same setActivePageName flow the sidebar uses, then clear.
+  const pendingPageNavigation = useCanvasStore(
+    (s) => s.pendingPageNavigation
+  );
+  useEffect(() => {
+    if (pendingPageNavigation === null) return;
+    if (project.pages.some((p) => p.name === pendingPageNavigation)) {
+      setActivePageName(pendingPageNavigation);
+    }
+    useCanvasStore.getState().requestPageNavigation(null);
+  }, [pendingPageNavigation, project.pages]);
 
   const loadPage = useCanvasStore((s) => s.loadPage);
   const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
@@ -294,6 +316,25 @@ export const ProjectShell = ({
     setBottomPanel(bottomPanel === 'terminal' ? 'none' : 'terminal');
   };
 
+  // Preview is gated on the nextjs project format — legacy projects
+  // don't have a `package.json` and can't run `next dev`. The button
+  // stays visible (so users discover the feature) but is disabled
+  // with a tooltip pointing at the migration banner.
+  const projectFormatForPreview = useCanvasStore((s) => s.projectFormat);
+  const projectPathForPreview = useCanvasStore((s) => s.projectPath);
+  const canPreview =
+    projectFormatForPreview === 'nextjs' &&
+    projectPathForPreview.length > 0 &&
+    activePageName !== null;
+
+  const openPreview = useCallback((): void => {
+    if (!canPreview || activePageName === null) return;
+    void window.scamp.openPreview({
+      projectPath: projectPathForPreview,
+      pageName: activePageName,
+    });
+  }, [canPreview, projectPathForPreview, activePageName]);
+
   // Global keyboard shortcuts. We deliberately read store state inside the
   // handler (rather than via React state captured in deps) so the listener
   // can stay attached for the lifetime of the component.
@@ -310,6 +351,14 @@ export const ProjectShell = ({
       if ((e.metaKey || e.ctrlKey) && e.key === '`') {
         e.preventDefault();
         toggleTerminalPanel();
+        return;
+      }
+
+      // Cmd/Ctrl+P — open the preview window.
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'p' || e.key === 'P')) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        if (canPreview) openPreview();
         return;
       }
 
@@ -655,6 +704,26 @@ export const ProjectShell = ({
             type="button"
           >
             Terminal {bottomPanel === 'terminal' ? '▾' : '▸'}
+          </button>
+        </Tooltip>
+        <Tooltip
+          label={
+            canPreview
+              ? 'Open this project in a real browser preview window (⌘P)'
+              : projectFormatForPreview === 'legacy'
+                ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
+                : 'Open a page to enable preview.'
+          }
+        >
+          <button
+            className={styles.toggleButton}
+            onClick={openPreview}
+            type="button"
+            disabled={!canPreview}
+            data-testid="preview-button"
+          >
+            <IconPlayerPlay size={14} className={styles.toggleButtonIcon} />
+            Preview
           </button>
         </Tooltip>
         <SaveStatusIndicator />

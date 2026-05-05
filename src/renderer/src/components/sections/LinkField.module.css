@@ -1,0 +1,132 @@
+.boolRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+/**
+ * The destination dropdown's leading chain icon, painted INSIDE the
+ * select's box so the field reads as a single link-shaped control.
+ * The wrapper is positioned-relative; the icon is absolutely placed
+ * over the select's left edge and the select gets left padding to
+ * keep its text from overlapping. `pointer-events: none` lets clicks
+ * through to the native select beneath.
+ */
+.iconSelect {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+/* Bare-element selector so we match `<select>` regardless of the
+ * hashed CSS-module class name EnumSelect applies. The select is a
+ * direct child of `.iconSelect` per DestinationDropdown's JSX. */
+.iconSelect > select {
+  width: 100%;
+  padding-left: 26px;
+}
+
+.icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.urlField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.urlError {
+  font-size: 11px;
+  color: var(--accent-warn, #d97757);
+}
+
+.brokenWarning {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--accent-warn, #d97757);
+  line-height: 1.4;
+}
+
+.brokenWarning code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/**
+ * The flex-positioned variant of the chain icon — used inside the
+ * wrapped-hint pill where the icon sits as a normal flex child
+ * rather than overlaying a select.
+ */
+.iconInline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+/**
+ * "Wrapped in a link" affordance shown when the selected element is
+ * the wrapped child of a Scamp `<a>` parent. Click jumps to the
+ * wrapper element where the link lives.
+ */
+.wrappedHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.wrappedHint:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.wrappedHintText {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wrappedHintText code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}

@@ -22,6 +22,7 @@ import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
 import {
+  ensureThemeDefaultsIfNeeded,
   readProjectLegacy,
   readProjectNextjs,
   refreshLayoutTemplateIfNeeded,
@@ -128,6 +129,14 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   if (project.format === 'nextjs') {
     await refreshLayoutTemplateIfNeeded(args.folderPath).catch(() => undefined);
   }
+  // Backfill Scamp's project-default theme rules (--font-sans token,
+  // box-sizing reset, body font-family) into theme.css if any are
+  // missing. Strictly additive — projects that already declare these
+  // are a no-op. Carries projects scaffolded before these defaults
+  // landed forward without an explicit user action.
+  await ensureThemeDefaultsIfNeeded(args.folderPath, project.format).catch(
+    () => undefined
+  );
   await addRecentProject({
     name: project.name,
     path: project.path,

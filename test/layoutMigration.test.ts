@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { decideLayoutMigration } from '../src/shared/layoutMigration';
 import {
+  DEFAULT_BODY_FONT_FAMILY,
+  DEFAULT_THEME_CSS,
   defaultLayoutTsx,
   LEGACY_LAYOUT_TEMPLATES,
 } from '../src/shared/agentMd';
@@ -61,5 +63,27 @@ describe('defaultLayoutTsx — body reset', () => {
   it('embeds the project name in the metadata title', () => {
     const out = defaultLayoutTsx('Acme Pages');
     expect(out).toContain("title: 'Acme Pages',");
+  });
+});
+
+describe('DEFAULT_THEME_CSS — font default', () => {
+  it('declares a --font-sans token with the system font stack', () => {
+    expect(DEFAULT_THEME_CSS).toContain(`--font-sans: ${DEFAULT_BODY_FONT_FAMILY}`);
+  });
+
+  it('applies the default font to body via the token', () => {
+    expect(DEFAULT_THEME_CSS).toContain('body {');
+    expect(DEFAULT_THEME_CSS).toContain('font-family: var(--font-sans)');
+  });
+
+  it('keeps the original color palette tokens intact', () => {
+    expect(DEFAULT_THEME_CSS).toContain('--color-primary:');
+    expect(DEFAULT_THEME_CSS).toContain('--color-text:');
+  });
+
+  it('includes a universal box-sizing: border-box reset', () => {
+    expect(DEFAULT_THEME_CSS).toContain('*::before');
+    expect(DEFAULT_THEME_CSS).toContain('*::after');
+    expect(DEFAULT_THEME_CSS).toContain('box-sizing: border-box');
   });
 });

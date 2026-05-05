@@ -7,6 +7,7 @@ import { assetsDirSegment } from '@renderer/src/lib/path';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
 import { GridOverlay } from './GridOverlay';
+import { LinkIndicators } from './LinkIndicators';
 import styles from './CanvasInteractionLayer.module.css';
 /** Default size for image elements placed via click (not drag). */
 const DEFAULT_IMAGE_SIZE = 200;
@@ -648,7 +649,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
             // owned by flex layout, not by the user dragging corners). The
             // overlay is only rendered for a single selection — multi-select
             // highlights live on the elements themselves.
-            _jsx(SelectionOverlay, { x: selectedRect.x, y: selectedRect.y, width: selectedRect.w, height: selectedRect.h, showHandles: selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl) })), isSingleSelection &&
+            _jsx(SelectionOverlay, { x: selectedRect.x, y: selectedRect.y, width: selectedRect.w, height: selectedRect.h, showHandles: selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl) })), _jsx(LinkIndicators, { frameRef: frameRef }), isSingleSelection &&
                 selectedElementId &&
                 selectedEl &&
                 selectedEl.display === 'grid' && (() => {

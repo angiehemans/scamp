@@ -48,6 +48,11 @@ export const TAG_OPTIONS = {
         { value: 'figcaption', label: 'figcaption' },
         { value: 'legend', label: 'legend' },
         { value: 'li', label: 'li' },
+        // `<a>` is a valid text-element tag too — the LinkField's Convert
+        // path swaps a text element's tag to `<a>` directly, so the
+        // dropdown needs to be able to render `'a'` as the selected
+        // option when that's happened.
+        { value: 'a', label: 'a' },
     ],
     image: [
         { value: 'img', label: 'img' },
@@ -68,12 +73,6 @@ export const DEFAULT_TAG = {
     image: 'img',
     input: 'input',
 };
-const TARGET_OPTIONS = [
-    { value: '_self', label: '_self' },
-    { value: '_blank', label: '_blank' },
-    { value: '_parent', label: '_parent' },
-    { value: '_top', label: '_top' },
-];
 const METHOD_OPTIONS = [
     { value: 'get', label: 'GET' },
     { value: 'post', label: 'POST' },
@@ -102,10 +101,11 @@ const INPUT_TYPE_OPTIONS = [
  * because they have dedicated editors rendered separately.
  */
 export const TAG_ATTRIBUTES = {
-    a: [
-        { name: 'href', label: 'Href', kind: 'text', placeholder: '/path' },
-        { name: 'target', label: 'Target', kind: 'select', options: TARGET_OPTIONS },
-    ],
+    // `<a>` href/target/rel are managed by the LinkField in the Element
+    // section — that flow handles internal page references, external URL
+    // validation, and the "Open in new tab" toggle (which writes both
+    // `target` and `rel`). No tag-specific attribute fields here.
+    a: [],
     button: [
         { name: 'type', label: 'Type', kind: 'select', options: BUTTON_TYPE_OPTIONS },
     ],

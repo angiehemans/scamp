@@ -46,6 +46,13 @@ files. Anything you write here is parsed and re-rendered on the canvas.
 - Never remove \`data-scamp-id\` attributes from any element.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
   in \`hero_card_a1b2\`) — it's the element's unique identifier.
+- **Every \`data-scamp-id\` MUST be unique within the page.** When you
+  duplicate or copy an element, generate a fresh random 4-char hex
+  for the new one — never reuse an existing id. Each id ⇒ exactly
+  one JSX element ⇒ exactly one CSS class block. Duplicate ids
+  produce an invalid file: Scamp's parser keeps only the last
+  occurrence of each id and silently drops the earlier ones, so the
+  canvas and the file will visibly disagree.
 - Never combine multiple selectors into one rule block
   (\`.a, .b { … }\` will be misread).
 - Never nest \`@media\` inside a class rule — only the top-level form
@@ -298,6 +305,25 @@ matching CSS class.
 - Inside a flex parent, the flex layout engine takes over and
   positional declarations on the child are ignored. Same applies to
   grid children inside a grid container.
+- **New text elements take their default font from the theme.** When
+  you create a text element, set \`font-family: var(--font-sans);\` on
+  its class so it inherits the project's default font. If the
+  project doesn't declare \`--font-sans\` (an older project, or the
+  user deleted it), fall back to the literal system stack:
+  \`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"\`.
+  The user can override per-element from the panel — your job is to
+  pick the project's default at creation time, not to dictate.
+- **New text elements default to \`width: fit-content\` and
+  \`height: fit-content\`** so the box hugs the text. This way the
+  user can change the font size and the box reflows automatically —
+  no clipped descenders, no trapped whitespace. If the user later
+  switches to a fixed width / height from the panel, that's their
+  call; don't pre-emptively pin dimensions on text.
+- **\`box-sizing: border-box\` is on by default** via a universal
+  reset in \`theme.css\` (\`*, *::before, *::after\`). \`width: 100%\`
+  plus \`padding\` works the way you'd expect — the padding sits
+  inside the element's declared width, not outside it. Don't
+  redeclare \`box-sizing\` per element; rely on the reset.
 
 ## CSS properties
 Use any CSS property you'd use in a real stylesheet. Scamp renders
@@ -481,11 +507,27 @@ round-trips verbatim but isn't editable from the panel.
 
 ## CSS Variables and Tokens
 
-The project includes a \`theme.css\` file with two sections:
+The project includes a \`theme.css\` file with five sections:
 
 1. **Font imports** — optional \`@import url(...)\` lines at the top
    referencing Google Fonts. Scamp's Fonts panel manages these.
-2. **Design tokens** — CSS custom properties inside \`:root\`.
+2. **Design tokens** — CSS custom properties inside \`:root\`. Includes
+   a \`--font-sans\` stack used as the page-wide default font.
+3. **Box-sizing reset** — a universal \`*, *::before, *::after { box-sizing: border-box; }\`
+   rule so \`width: 100%\` plus padding renders the way modern CSS
+   frameworks expect (padding sits inside the declared width).
+4. **Body defaults** — a single \`body\` rule that applies
+   \`--font-sans\` so an unstyled element renders in the project's
+   default font everywhere (preview, \`next dev\`, production).
+5. **Browser-default reset** — a marked-with-comment block that
+   zeros margins on block-level semantic tags (\`p\`, \`h1\`–\`h6\`,
+   \`ul\`, \`ol\`, etc.), forces \`display: block\` on replaced media
+   (\`img\`, \`video\`, \`iframe\`, \`svg\`), and \`all: unset\`s
+   interactive / form tags (\`button\`, \`a\`, \`select\`, \`input\`,
+   \`textarea\`, \`fieldset\`, \`legend\`). Mirrors what the canvas
+   renderer applies inline so canvas and preview show identical
+   unstyled output. The block is preceded by the sentinel comment
+   \`/* scamp: browser reset — keep canvas and preview in sync */\`.
 
 \`\`\`css
 /* scamp: font imports — managed by Project Settings → Fonts */
@@ -494,7 +536,33 @@ The project includes a \`theme.css\` file with two sections:
 :root {
   --color-primary: #3b82f6;
   --color-text: #111111;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* scamp: browser reset — keep canvas and preview in sync */
+p, h1, h2, h3, h4, h5, h6, ul, ol, dl, dd,
+blockquote, figure, pre, hr, fieldset {
+  margin: 0;
+}
+img, video, iframe, svg { display: block; }
+button, a, select, input, textarea, fieldset, legend {
+  all: unset;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  display: block;
+}
+input, textarea, select { cursor: text; user-select: text; }
 \`\`\`
 
 Reference tokens in module CSS files using \`var()\` — anywhere a CSS
@@ -508,6 +576,19 @@ value goes, including inside shorthands:
   border-radius: var(--radius-md);
 }
 \`\`\`
+
+Changing \`--font-sans\` updates the page-wide default font. Per-element
+overrides (a \`font-family\` declaration on a class) win over this
+default. Do not delete the \`body\` rule — it's how unstyled text
+elements pick up the project's default font.
+
+The browser-default reset is what makes Scamp's "what you see on the
+canvas is what you get in the deployed page" promise hold. Browsers
+add 1em of margin to \`<p>\`, default chrome to \`<button>\`, etc.;
+the canvas zeros all of that via inline style; this block does the
+same in CSS so both surfaces match. Editing or extending the rules
+is fine, but **do not delete the sentinel comment** — Scamp uses it
+to detect the block on project open and avoid reinserting a duplicate.
 
 Do not modify \`theme.css\` unless the user asks for design system updates.
 
@@ -531,8 +612,120 @@ reads and writes this file; don't modify it unless the user asks.
 - Do not nest \`@media\` inside a class rule.
 `;
 /**
- * Default theme.css content for a freshly created project.
- * Provides a small starter palette of color tokens.
+ * The default cross-platform "system font" stack. Same shape used by
+ * GitHub, Bootstrap, and the Tailwind/Next.js community: each browser
+ * resolves to its native UI font (San Francisco on macOS / iOS, Segoe
+ * UI on Windows, Roboto on Android, system-ui on modern Linux). Last
+ * three entries cover emoji glyphs so emoji render correctly inline
+ * regardless of the body font.
+ *
+ * Used as the value of `--font-sans` in the project's auto-generated
+ * `theme.css`, and as the canvas frame's fallback when the project
+ * hasn't set the token. Without this, the preview window defaults to
+ * the browser's serif (Liberation Serif on Linux) while the canvas
+ * inherits Scamp's chrome font — a confusing visual mismatch.
+ */
+export const DEFAULT_BODY_FONT_FAMILY = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"';
+/**
+ * Sentinel comment that marks Scamp's auto-generated browser reset
+ * block in `theme.css`. The backfill helper uses literal-string
+ * search for this comment to decide whether the reset is present —
+ * if absent, it appends the block; if present, no-op. Users can
+ * freely edit / extend / delete the reset rules; we only key on the
+ * sentinel, not the rules themselves.
+ */
+export const BROWSER_RESET_SENTINEL = '/* scamp: browser reset — keep canvas and preview in sync */';
+/**
+ * Browser-default reset that mirrors what `ElementRenderer` applies
+ * inline on the canvas. Without this, the deployed page (preview /
+ * `next dev` / production) inherits browser-default margins,
+ * heading sizes, list indentation, link underlines, and form-control
+ * chrome — none of which the canvas shows. The two surfaces then
+ * visibly disagree.
+ *
+ * Three independent groups:
+ *
+ *   1. Zero default margins on every block-level semantic tag the
+ *      canvas already zeros via inline style (`margin: 0` in
+ *      `elementToStyle`).
+ *   2. Force `display: block` on replaced media elements so the
+ *      baseline gap inline-block elements get goes away — matches
+ *      the canvas's `display: block` for `image`-type elements.
+ *   3. `all: unset` on interactive / form tags so user-authored
+ *      styles are the only thing that paints on these elements —
+ *      mirrors the canvas's `.element:is(button, a, …) { all: unset; … }`
+ *      rule. Caret + text selection are restored on inputs because
+ *      `all: unset` strips them.
+ *
+ * Users who want browser-default behaviour back on a specific tag
+ * can delete or override the relevant rules. The block is loud and
+ * commented so its purpose is obvious.
+ */
+export const BROWSER_RESET_BLOCK = `${BROWSER_RESET_SENTINEL}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+ul,
+ol,
+dl,
+dd,
+blockquote,
+figure,
+pre,
+hr,
+fieldset {
+  margin: 0;
+}
+
+img,
+video,
+iframe,
+svg {
+  display: block;
+}
+
+button,
+a,
+select,
+input,
+textarea,
+fieldset,
+legend {
+  all: unset;
+  box-sizing: border-box;
+  font: inherit;
+  color: inherit;
+  display: block;
+}
+
+input,
+textarea,
+select {
+  cursor: text;
+  user-select: text;
+}`;
+/**
+ * Default theme.css content for a freshly created project. Provides:
+ *
+ *   - A starter palette of color tokens
+ *   - A default `--font-sans` font stack
+ *   - A `body` rule that applies the font as the page-wide default
+ *   - A universal `box-sizing: border-box` reset so `width: 100%`
+ *     plus padding doesn't overflow the parent (matches every
+ *     modern CSS framework's default and matches the canvas's
+ *     element renderer, which already applies border-box inline)
+ *   - A targeted browser-default reset (margins on block tags,
+ *     `display: block` on replaced media, `all: unset` on
+ *     interactive / form tags) so canvas and preview render the
+ *     same unstyled element identically
+ *
+ * Users can change the default font for the whole project by editing
+ * the `--font-sans` value here. Per-element overrides (via the
+ * Typography section) win over this body-level default.
  */
 export const DEFAULT_THEME_CSS = `:root {
   --color-primary: #3b82f6;
@@ -541,7 +734,21 @@ export const DEFAULT_THEME_CSS = `:root {
   --color-surface: #f5f5f5;
   --color-text: #111111;
   --color-muted: #888888;
+
+  --font-sans: ${DEFAULT_BODY_FONT_FAMILY};
 }
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+${BROWSER_RESET_BLOCK}
 `;
 /**
  * Default page TSX content for a freshly created page. The
@@ -567,11 +774,11 @@ export default function ${componentName}() {
  * the user runs `next dev` outside Scamp. The user is documented (in
  * `agent.md`) to leave this file alone.
  *
- * The `<body>` carries `margin: 0` (so the design isn't pushed off-axis
- * by the browser's default 8px gutter) and `min-height: 100vh` (so the
- * body fills the viewport regardless of content). Together with the
- * root element's `min-height: 100vh`, the page renders the same in
- * preview / `next dev` / production as it does in the canvas.
+ * The `<body>` carries `margin: 0` and `minHeight: '100vh'` — body
+ * chrome that needs to live somewhere visible to Next.js but isn't a
+ * design choice. The default font-family lives in `theme.css` (a
+ * `body { font-family: var(--font-sans); }` rule) so it shows up
+ * alongside the other design tokens the user can edit.
  */
 export const defaultLayoutTsx = (projectName) => {
     return `import type { Metadata } from 'next';
@@ -728,6 +935,13 @@ Scamp without any reorganisation.
 - Never remove \`data-scamp-id\` attributes from any element.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
   in \`hero_card_a1b2\`) — it's the element's unique identifier.
+- **Every \`data-scamp-id\` MUST be unique within the page.** When you
+  duplicate or copy an element, generate a fresh random 4-char hex
+  for the new one — never reuse an existing id. Each id ⇒ exactly
+  one JSX element ⇒ exactly one CSS class block. Duplicate ids
+  produce an invalid file: Scamp's parser keeps only the last
+  occurrence of each id and silently drops the earlier ones, so the
+  canvas and the file will visibly disagree.
 - Never combine multiple selectors into one rule block
   (\`.a, .b { … }\` will be misread).
 - Never nest \`@media\` inside a class rule — only the top-level form
@@ -932,6 +1146,32 @@ round-trips, so feel free to add the attributes a real HTML tag needs:
   source through the Element section in the properties panel, or in
   the TSX file directly — either way round-trips cleanly.
 
+### Linking between pages
+
+Use absolute paths matching the page slug for internal links — Next.js
+App Router routes are absolute, not relative:
+
+- Home page → \`href="/"\`
+- A page at \`app/about/page.tsx\` → \`href="/about"\`
+- A page at \`app/checkout-flow/page.tsx\` → \`href="/checkout-flow"\`
+
+Plain \`<a href="/<slug>">\` triggers a normal browser navigation. Both
+in \`next dev\` and a production build, this works without any
+special component (no \`next/link\` import required). Subpaths,
+fragments, and query strings (\`/about/team#contact\`,
+\`/about?tab=members\`) round-trip cleanly.
+
+For external links use a full URL (\`href="https://example.com"\`) and
+add \`target="_blank"\` plus \`rel="noopener noreferrer"\` when the
+link should open in a new tab. Inside Scamp's preview window,
+external links are routed to the user's system browser
+automatically — the preview is scoped to the project.
+
+When a user renames a page, Scamp rewrites every matching
+\`href="/<old-slug>"\` (including subpath / query / fragment forms)
+across every page in the project. So the canonical href shape is
+the load-bearing convention here — keep it consistent.
+
 ## Images and static assets
 
 Static assets (images, SVGs, fonts) live in \`public/assets/\`. Next.js
@@ -980,6 +1220,25 @@ unless the user asks.
 - Inside a flex parent, the flex layout engine takes over and
   positional declarations on the child are ignored. Same applies to
   grid children inside a grid container.
+- **New text elements take their default font from the theme.** When
+  you create a text element, set \`font-family: var(--font-sans);\` on
+  its class so it inherits the project's default font. If the
+  project doesn't declare \`--font-sans\` (an older project, or the
+  user deleted it), fall back to the literal system stack:
+  \`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"\`.
+  The user can override per-element from the panel — your job is to
+  pick the project's default at creation time, not to dictate.
+- **New text elements default to \`width: fit-content\` and
+  \`height: fit-content\`** so the box hugs the text. This way the
+  user can change the font size and the box reflows automatically —
+  no clipped descenders, no trapped whitespace. If the user later
+  switches to a fixed width / height from the panel, that's their
+  call; don't pre-emptively pin dimensions on text.
+- **\`box-sizing: border-box\` is on by default** via a universal
+  reset in \`theme.css\` (\`*, *::before, *::after\`). \`width: 100%\`
+  plus \`padding\` works the way you'd expect — the padding sits
+  inside the element's declared width, not outside it. Don't
+  redeclare \`box-sizing\` per element; rely on the reset.
 
 ## CSS properties
 Use any CSS property you'd use in a real stylesheet. Scamp renders

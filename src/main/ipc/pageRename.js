@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { readProjectNextjs } from './projectScaffold';
 const PAGE_NAME_RE = /^[a-zA-Z0-9-]+$/;
 const componentNameFromPage = (pageName) => {
     return pageName
@@ -34,6 +35,54 @@ export const rewriteComponentName = (tsx, newComponentName) => {
     if (!COMPONENT_FN_RE.test(tsx))
         return null;
     return tsx.replace(COMPONENT_FN_RE, `$1${newComponentName}$2`);
+};
+/**
+ * Rewrite every `href="/<oldSlug>..."` reference in a TSX source to
+ * use `<newSlug>` instead. Anchored to the attribute syntax to avoid
+ * mangling string literals that happen to contain a path-shaped
+ * substring. Preserves anything after the slug (subpath, query,
+ * fragment) so `href="/about/team#contact"` becomes
+ * `href="/landing/team#contact"`.
+ *
+ * Returns the rewritten string. When no references match, the
+ * original string is returned unchanged (callers can compare by
+ * reference / value to skip unnecessary writes).
+ */
+export const rewriteHrefSlug = (tsx, oldSlug, newSlug) => {
+    if (oldSlug === newSlug)
+        return tsx;
+    // Escape regex metacharacters in the slug. Page names are validated
+    // to `[a-zA-Z0-9-]+` so the only meta is `-` which is harmless
+    // outside character classes — escaping defensively keeps the helper
+    // safe if validation ever loosens.
+    const escapedOld = oldSlug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Match `href="/<slug>` only when `<slug>` is immediately followed
+    // by one of `"`, `'`, `/`, `?`, `#` (i.e. the slug is a complete
+    // path segment, not a prefix of a longer slug like `about-us`).
+    // The lookahead doesn't consume — only the leading `href="/<slug>`
+    // is replaced, so anything after the slug (subpath, query,
+    // fragment, closing quote) stays in place.
+    const re = new RegExp(`(href\\s*=\\s*["']\\/)${escapedOld}(?=["'\\/?#])`, 'g');
+    return tsx.replace(re, `$1${newSlug}`);
+};
+/**
+ * Walk every page in a nextjs project and rewrite href references to
+ * a renamed page. Skips the page being renamed itself (its content
+ * has already been written by the rename flow). Suppresses the
+ * resulting writes through the watcher so the renderer doesn't
+ * double-parse.
+ */
+const refactorHrefReferences = async (projectPath, oldSlug, newSlug, excludeTsxPath, onSuppress) => {
+    const pages = await readProjectNextjs(projectPath);
+    for (const page of pages) {
+        if (page.tsxPath === excludeTsxPath)
+            continue;
+        const next = rewriteHrefSlug(page.tsxContent, oldSlug, newSlug);
+        if (next === page.tsxContent)
+            continue;
+        onSuppress?.(page.tsxPath);
+        await fs.writeFile(page.tsxPath, next, 'utf-8');
+    }
 };
 const pagePathsFor = (projectPath, pageName, format) => {
     if (format === 'legacy') {
@@ -193,6 +242,10 @@ export const renamePageFiles = async (args, format, onSuppress) => {
     }
     else {
         await renameNextjsFiles(paths, rewritten, oldCss, onSuppress);
+        // Refactor every other page's href references that used to point
+        // at this page. Same suppression path so the watcher doesn't fire
+        // a re-parse for these writes.
+        await refactorHrefReferences(args.projectPath, args.oldPageName, args.newPageName, paths.newTsxPath, onSuppress);
     }
     return {
         name: args.newPageName,

@@ -12,7 +12,7 @@ const clamp = (n, min, max) => {
  * Numeric input. Thin wrapper over PrefixSuffixInput that handles
  * parsing, clamping, and arrow-key stepping.
  */
-export const NumberInput = ({ value, onChange, min, max, placeholder, allowEmpty = false, prefix, suffix, title, disabled = false, }) => {
+export const NumberInput = ({ value, onChange, min, max, placeholder, allowEmpty = false, prefix, suffix, title, disabled = false, computed = false, }) => {
     const stringValue = value === undefined ? '' : String(value);
     const handleCommit = (draft) => {
         if (draft.length === 0) {
@@ -36,5 +36,5 @@ export const NumberInput = ({ value, onChange, min, max, placeholder, allowEmpty
         if (next !== value)
             onChange(next);
     };
-    return (_jsx(PrefixSuffixInput, { value: stringValue, onCommit: handleCommit, onArrow: handleArrow, prefix: prefix, suffix: suffix, placeholder: placeholder, inputMode: "numeric", title: title, disabled: disabled }));
+    return (_jsx(PrefixSuffixInput, { value: stringValue, onCommit: handleCommit, onArrow: handleArrow, prefix: prefix, suffix: suffix, placeholder: placeholder, inputMode: "numeric", title: title, disabled: disabled, computed: computed }));
 };

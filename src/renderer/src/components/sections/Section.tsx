@@ -1,4 +1,5 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import {
   useBreakpointOverrideFields,
@@ -67,20 +68,21 @@ export const Section = ({
   const handleToggle = (): void => setOpen((v) => !v);
   return (
     <section className={styles.section} data-panel-section={title}>
-      <div className={styles.titleRow}>
-        <button
-          className={styles.toggle}
-          type="button"
-          onClick={handleToggle}
-          aria-expanded={open}
-        >
-          <span className={styles.caret} aria-hidden="true">
-            {open ? '▾' : '▸'}
-          </span>
-          <span className={styles.heading}>{title}</span>
-        </button>
+      <button
+        className={styles.toggle}
+        type="button"
+        onClick={handleToggle}
+        aria-expanded={open}
+      >
+        <span className={styles.heading}>{title}</span>
         {indicator}
-      </div>
+        <IconChevronDown
+          size={14}
+          stroke={2}
+          className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
+          aria-hidden="true"
+        />
+      </button>
       {open && children}
     </section>
   );

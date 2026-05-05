@@ -46,10 +46,10 @@ export const UiPanel = (): JSX.Element => {
 
   return (
     <div className={styles.uiPanelBody}>
-      {/* Element section handles tag + tag-specific attributes. Not
-          rendered for root because the root's tag is always `<div>`
-          (the wrapping page component) and the section has nothing
-          meaningful to show there. */}
+      {/* Element section handles tag, link controls, and tag-specific
+          attributes. Not rendered for root because the root's tag is
+          always `<div>` (the wrapping page component) and the section
+          has nothing meaningful to show there. */}
       {!isRoot && <ElementSection elementId={elementId} />}
       {showPosition && <PositionSection elementId={elementId} />}
       <SizeSection elementId={elementId} />

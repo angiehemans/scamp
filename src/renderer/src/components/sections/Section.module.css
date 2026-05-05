@@ -20,10 +20,14 @@
   margin: 0;
 }
 
+/* Full-width clickable header for collapsible sections. Title + any
+ * override indicator sit on the left; the chevron flushes right via
+ * `margin-left: auto` so the button reads as a section header bar. */
 .toggle {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
   background: none;
   border: 0;
   padding: 0;
@@ -39,10 +43,21 @@
 }
 
 .caret {
-  width: 10px;
-  font-size: 10px;
+  margin-left: auto;
   color: var(--text-tertiary);
-  line-height: 1;
+  flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+
+.toggle:hover .caret {
+  color: var(--text-secondary);
+}
+
+/* Collapsed: chevron points right (rotated 90deg counter-clockwise
+ * from its natural down direction). Open keeps the natural
+ * down-pointing orientation so it reads as "click to collapse". */
+.caretCollapsed {
+  transform: rotate(-90deg);
 }
 
 .row {

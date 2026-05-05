@@ -7,6 +7,7 @@ import {
   reorderElementPure,
   ROOT_ELEMENT_ID,
   ungroupSiblings,
+  wrapElement,
   type BreakpointOverride,
   type ElementAnimation,
   type ElementStateName,
@@ -15,6 +16,7 @@ import {
 } from '@lib/element';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
+import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import {
   DEFAULT_BREAKPOINTS,
   type Breakpoint,
@@ -194,6 +196,28 @@ type CanvasState = {
   projectPath: string;
 
   /**
+   * Mirror of every page name in the project (e.g. `['home', 'about',
+   * 'dashboard']`). Surfaced for the Link section's destination
+   * dropdown and the canvas link indicator's broken-link check —
+   * deeply-nested components shouldn't have to thread `ProjectData`
+   * through props. Synced by `ProjectShell` whenever the project
+   * data changes (open, page add/delete/rename).
+   */
+  pageNames: ReadonlyArray<string>;
+
+  /**
+   * One-shot navigation request set by the canvas link indicator
+   * when the user clicks an internal link. ProjectShell observes this,
+   * switches the active page via its own state, and clears the field
+   * back to null. Null when no request is pending.
+   *
+   * Lives in the store rather than as a callback so deeply-nested
+   * canvas components (LinkIndicators) don't need a prop-drilled
+   * navigate handler.
+   */
+  pendingPageNavigation: string | null;
+
+  /**
    * `@media` blocks the parser couldn't route to a known breakpoint
    * (min-width, prefers-color-scheme, custom max-widths…). Kept in
    * the store so `generateCode` can re-emit them untouched on every
@@ -247,6 +271,22 @@ type CanvasState = {
   groupElements: (ids: string[]) => string | null;
   /** Promote the children of `id` to its grandparent and remove `id`. */
   ungroupElement: (id: string) => void;
+  /**
+   * Wrap a single element in a new `<a>` parent carrying the given href
+   * (and optional `target` / `rel` for new-tab links). Used by the
+   * Link section's "Wrap in <a>" affordance for elements where
+   * tag-swapping isn't appropriate (`<img>`, semantic block tags).
+   *
+   * Selects the wrapper after the operation so the panel reflects the
+   * just-created link without the user having to click into it. Returns
+   * the wrapper's id or null when the wrap isn't valid (root, missing
+   * element).
+   */
+  wrapInLinkParent: (
+    elementId: string,
+    href: string,
+    options?: { target?: string; rel?: string }
+  ) => string | null;
   /** Move an element to a new parent / index. Cycle-protected. */
   reorderElement: (elementId: string, newParentId: string, newIndex: number) => void;
   setEditingElement: (id: string | null) => void;
@@ -301,6 +341,9 @@ type CanvasState = {
   setBreakpoints: (breakpoints: Breakpoint[]) => void;
   setProjectFormat: (format: ProjectFormat) => void;
   setProjectPath: (path: string) => void;
+  setPageNames: (pageNames: ReadonlyArray<string>) => void;
+  /** Set / clear the pending page-navigation request. */
+  requestPageNavigation: (pageName: string | null) => void;
   /**
    * Apply an animation to an element. Routes through
    * `applyPatchWithAxisRouting` so the animation lands on the
@@ -380,7 +423,11 @@ const makeRectangle = (input: NewRectInput, id: string): ScampElement => ({
 const TEXT_DEFAULT_WIDTH = 120;
 const TEXT_DEFAULT_HEIGHT = 24;
 
-const makeText = (input: NewTextInput, id: string): ScampElement => ({
+const makeText = (
+  input: NewTextInput,
+  id: string,
+  fontFamily: string
+): ScampElement => ({
   ...DEFAULT_RECT_STYLES,
   id,
   type: 'text',
@@ -388,15 +435,40 @@ const makeText = (input: NewTextInput, id: string): ScampElement => ({
   childIds: [],
   x: input.x,
   y: input.y,
+  // Text elements default to "hug" sizing on both axes so the box
+  // grows / shrinks with the text content. Changing the font size
+  // from the panel reflows the box automatically — no clipped
+  // descenders or trapped whitespace. The numeric fallbacks stay
+  // around so switching to a fixed mode from the panel has a
+  // sensible starting value rather than 0.
+  widthMode: 'fit-content',
   widthValue: TEXT_DEFAULT_WIDTH,
+  heightMode: 'fit-content',
   heightValue: TEXT_DEFAULT_HEIGHT,
   customProperties: {},
   text: input.text ?? 'Text',
+  fontFamily,
   fontSize: '14px',
   fontWeight: 400,
   color: '#222222',
   textAlign: 'left',
 });
+
+/**
+ * Pick the default `font-family` for a freshly-created text element.
+ * Prefers the project's `--font-sans` token (so new text inherits the
+ * project's chosen default font), falling back to the literal system
+ * font stack when the token isn't declared. Setting an explicit value
+ * — rather than relying on body-level inheritance — makes the
+ * Typography section reflect "Sans" as the current font, gives the
+ * user a clear surface to override per-element, and keeps the
+ * generated CSS self-documenting.
+ */
+const defaultTextFontFamily = (themeTokens: ReadonlyArray<ThemeToken>): string => {
+  const fontSans = themeTokens.find((t) => t.name === '--font-sans');
+  if (fontSans) return 'var(--font-sans)';
+  return DEFAULT_BODY_FONT_FAMILY;
+};
 
 const makeImage = (input: NewImageInput, id: string): ScampElement => ({
   ...DEFAULT_RECT_STYLES,
@@ -607,6 +679,8 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   breakpoints: [...DEFAULT_BREAKPOINTS],
   projectFormat: 'nextjs',
   projectPath: '',
+  pageNames: [],
+  pendingPageNavigation: null,
   pageCustomMediaBlocks: [],
   pageKeyframesBlocks: [],
   previewAnimation: null,
@@ -655,7 +729,8 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       const parent = state.elements[input.parentId];
       if (!parent) return state;
       const contextTag = tagForListChildContext(parent);
-      const newText = makeText(input, id);
+      const fontFamily = defaultTextFontFamily(state.themeTokens);
+      const newText = makeText(input, id, fontFamily);
       const withTag = contextTag ? { ...newText, tag: contextTag } : newText;
       return {
         elements: {
@@ -918,6 +993,33 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       };
     }),
 
+  wrapInLinkParent: (elementId, href, options) => {
+    let wrapperId: string | null = null;
+    set((state) => {
+      const id = freshId(new Set(Object.keys(state.elements)));
+      // Build the attribute bag for the wrapper. `target='_blank'`
+      // requires `rel='noopener noreferrer'` to prevent
+      // window.opener exploits — caller can override via `options.rel`.
+      const attributes: Record<string, string> = { href };
+      if (options?.target) attributes.target = options.target;
+      if (options?.rel) attributes.rel = options.rel;
+      const result = wrapElement(state.elements, elementId, id, {
+        tag: 'a',
+        attributes,
+        // `<a>` is inline by default — emit `display: block` so a
+        // wrapped block-level child still renders correctly.
+        customProperties: { display: 'block' },
+      });
+      if (!result) return state;
+      wrapperId = result.wrapperId;
+      return {
+        elements: result.elements,
+        selectedElementIds: [result.wrapperId],
+      };
+    });
+    return wrapperId;
+  },
+
   reorderElement: (elementId, newParentId, newIndex) =>
     set((state) => {
       const next = reorderElementPure(state.elements, elementId, newParentId, newIndex);
@@ -1174,6 +1276,9 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   setBreakpoints: (breakpoints) => set({ breakpoints }),
 
   setProjectFormat: (projectFormat) => set({ projectFormat }),
+  setPageNames: (pageNames) => set({ pageNames }),
+  requestPageNavigation: (pendingPageNavigation) =>
+    set({ pendingPageNavigation }),
 
   setProjectPath: (projectPath) => set({ projectPath }),
 

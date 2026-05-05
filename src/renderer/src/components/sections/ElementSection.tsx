@@ -8,6 +8,7 @@ import {
 import type { ScampElement, SelectOption } from '@lib/element';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
+import { LinkField } from './LinkField';
 import { Section, Row } from './Section';
 import styles from './ElementSection.module.css';
 
@@ -27,8 +28,17 @@ export const ElementSection = ({ elementId }: Props): JSX.Element | null => {
   const patchElement = useCanvasStore((s) => s.patchElement);
   if (!element) return null;
 
-  const tagOptions = TAG_OPTIONS[element.type];
+  const baseTagOptions = TAG_OPTIONS[element.type];
   const currentTag = element.tag ?? DEFAULT_TAG[element.type];
+  // Defensive fallback: if the current tag isn't in the predefined
+  // options for this element type (e.g. an agent wrote a tag we don't
+  // model, or an LinkField conversion landed on a tag this type's
+  // dropdown doesn't list), prepend it so the dropdown can render it
+  // as the selected value instead of silently falling back to the
+  // first option.
+  const tagOptions = baseTagOptions.some((opt) => opt.value === currentTag)
+    ? baseTagOptions
+    : [{ value: currentTag, label: currentTag }, ...baseTagOptions];
 
   const handleTagChange = (nextTag: string): void => {
     // Storing `undefined` when the user picks the type's default tag
@@ -48,6 +58,11 @@ export const ElementSection = ({ elementId }: Props): JSX.Element | null => {
           title="HTML tag"
         />
       </Row>
+      {/* Link controls live alongside Tag so the link affordance is
+          discoverable regardless of the current tag. The leading
+          chain icon on the destination dropdown is the field's
+          visual identity. */}
+      <LinkField elementId={elementId} />
       {currentTag === 'select' ? (
         <SelectOptionsEditor elementId={elementId} element={element} />
       ) : currentTag === 'svg' ? (

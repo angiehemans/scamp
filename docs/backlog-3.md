@@ -292,7 +292,7 @@ writing `@keyframes` by hand.
 
 ---
 
-## 5. Preview mode
+## 5. Preview mode - Done
 
 **User story**
 

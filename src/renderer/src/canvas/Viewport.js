@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useLayoutEffect, useRef, useState, } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import { ElementRenderer } from './ElementRenderer';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import styles from './Viewport.module.css';
@@ -28,6 +29,37 @@ export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef
     const rootElementId = useCanvasStore((s) => s.rootElementId);
     const activeTool = useCanvasStore((s) => s.activeTool);
     const userZoom = useCanvasStore((s) => s.userZoom);
+    const themeTokens = useCanvasStore((s) => s.themeTokens);
+    // Resolve the body-level default font from the project's theme.css
+    // tokens. Mirrors what the preview / `next dev` would inherit from
+    // the `body { font-family: var(--font-sans) }` rule in theme.css —
+    // so the canvas and the deployed page render the same default font.
+    // Falls back to the constant when the project hasn't defined a
+    // `--font-sans` token (e.g. older projects pre-dating this default).
+    const themeFontFamily = themeTokens.find((t) => t.name === '--font-sans')?.value ??
+        DEFAULT_BODY_FONT_FAMILY;
+    // Inject every project theme token as a CSS custom property on the
+    // canvas frame so `var(--…)` references inside both typed style and
+    // unmapped customProperties resolve natively (same scope rules as
+    // the preview, where `theme.css` lives in the page's `<head>`).
+    // Without this, only the typed-property path gets `resolveTokenColor`
+    // / `resolveTokenValue` substitution; raw shorthand declarations
+    // routed through `customProperties` (e.g. `border-bottom: 1px solid
+    // var(--color-border)`) silently fall back to currentColor or
+    // browser defaults because the Scamp app's `:root` doesn't carry
+    // the project tokens.
+    const themeCssVars = useMemo(() => {
+        const vars = {};
+        for (const token of themeTokens) {
+            // Skip Scamp chrome variables — only project-declared tokens
+            // (the parser only surfaces declarations from theme.css's
+            // `:root` so this filter is mostly defensive).
+            if (!token.name.startsWith('--'))
+                continue;
+            vars[token.name] = token.value;
+        }
+        return vars;
+    }, [themeTokens]);
     const frameW = canvasWidth;
     // Auto-fit scale derived from the scroll container's client width.
     const [fitScale, setFitScale] = useState(1);
@@ -77,11 +109,24 @@ export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef
                 : activeTool === 'text'
                     ? 'text'
                     : 'default', style: {
+                // Project theme tokens live on the frame as real CSS custom
+                // properties, so `var(--…)` references inside any descendant
+                // (typed inline styles, customProperties, hand-written CSS
+                // in CodeMirror) resolve natively. MUST spread first so the
+                // explicit style properties below win on key collisions.
+                ...themeCssVars,
                 width: `${frameW}px`,
                 minHeight: `${EMPTY_FRAME_MIN_HEIGHT}px`,
                 overflow: canvasOverflowHidden ? 'hidden' : undefined,
                 transform: `scale(${scale})`,
                 transformOrigin: 'top left',
+                // Mirror the project's `body { font-family: var(--font-sans) }`
+                // rule from theme.css so an unstyled element on the canvas
+                // renders in the same font as in preview / `next dev` /
+                // production. Without this, the canvas inherits Scamp's
+                // chrome font (Ubuntu Mono on Linux, San Francisco on
+                // macOS, etc.) and visually disagrees with the preview.
+                fontFamily: themeFontFamily,
             }, children: [_jsx(CanvasKeyframes, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale })] }) }));
 };
 /**

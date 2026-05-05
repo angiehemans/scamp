@@ -38,41 +38,88 @@ const GRID_SELF_OPTIONS: ReadonlyArray<{ value: GridSelfAlign; label: string }> 
 
 /**
  * Measure the actual rendered size of an element on the canvas.
- * Returns undefined if the element isn't mounted.
+ * Returns undefined if the element isn't mounted or both axes are
+ * `fixed` (no computed read-out needed).
+ *
+ * Uses a `ResizeObserver` rather than polling so the panel reflects
+ * layout changes immediately — the user changes a font-size and the
+ * computed height in the panel updates in the same frame. The
+ * observer is also re-attached when the target element is replaced
+ * (e.g. canvas re-renders mounting a fresh DOM node) via a short
+ * mutation-tolerant lookup loop on each render.
+ *
+ * IMPORTANT: scopes the lookup to the canvas frame. The layers panel
+ * also tags its rows with `data-element-id`, and a `document.query
+ * Selector` would happily return the layers row (which appears
+ * earlier in DOM order). The frame is identified by
+ * `data-testid="canvas-frame"` (set by `Viewport.tsx`).
  */
 const useMeasuredSize = (
   elementId: string,
   widthMode: WidthMode,
   heightMode: HeightMode
 ): { width: number | undefined; height: number | undefined } => {
-  const [size, setSize] = useState<{ width: number | undefined; height: number | undefined }>({
-    width: undefined,
-    height: undefined,
-  });
+  const [size, setSize] = useState<{
+    width: number | undefined;
+    height: number | undefined;
+  }>({ width: undefined, height: undefined });
 
   useEffect(() => {
-    // Only measure when a non-fixed mode needs a computed value.
+    // Both axes fixed → no computed read needed; clear and bail.
     if (widthMode === 'fixed' && heightMode === 'fixed') {
       setSize({ width: undefined, height: undefined });
       return;
     }
 
-    const measure = (): void => {
-      const node = document.querySelector(`[data-element-id="${elementId}"]`);
-      if (!(node instanceof HTMLElement)) {
-        setSize({ width: undefined, height: undefined });
-        return;
-      }
+    const apply = (node: HTMLElement): void => {
       setSize({
         width: widthMode !== 'fixed' ? Math.round(node.offsetWidth) : undefined,
-        height: heightMode !== 'fixed' ? Math.round(node.offsetHeight) : undefined,
+        height:
+          heightMode !== 'fixed' ? Math.round(node.offsetHeight) : undefined,
       });
     };
 
-    measure();
-    // Re-measure periodically while mounted since layout can change.
-    const interval = setInterval(measure, 500);
-    return () => clearInterval(interval);
+    /** Find the rendered element inside the canvas frame — NOT inside
+     *  the layers panel, which mirrors the same `data-element-id`. */
+    const findCanvasNode = (): HTMLElement | null => {
+      const frame = document.querySelector('[data-testid="canvas-frame"]');
+      if (!(frame instanceof HTMLElement)) return null;
+      const node = frame.querySelector(`[data-element-id="${elementId}"]`);
+      return node instanceof HTMLElement ? node : null;
+    };
+
+    let observer: ResizeObserver | null = null;
+    let mutationObserver: MutationObserver | null = null;
+
+    const attach = (): boolean => {
+      const node = findCanvasNode();
+      if (!node) return false;
+      apply(node);
+      observer = new ResizeObserver(() => apply(node));
+      observer.observe(node);
+      return true;
+    };
+
+    if (!attach()) {
+      // Frame or element not yet in the DOM — watch the body for
+      // additions and attach as soon as it appears. Disconnect once
+      // observed.
+      mutationObserver = new MutationObserver(() => {
+        if (attach()) {
+          mutationObserver?.disconnect();
+          mutationObserver = null;
+        }
+      });
+      mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+    }
+
+    return () => {
+      observer?.disconnect();
+      mutationObserver?.disconnect();
+    };
   }, [elementId, widthMode, heightMode]);
 
   return size;
@@ -113,13 +160,18 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
       <Row label="">
         <NumberInput
           prefix="W"
-          title="Width"
+          title={
+            isWidthFixed
+              ? 'Width'
+              : `Computed width (border-box, including padding). Type a number to switch to Fixed.`
+          }
           value={isWidthFixed ? element.widthValue : measured.width}
           onChange={(value) =>
             patchElement(elementId, { widthMode: 'fixed', widthValue: value ?? 0 })
           }
           min={0}
           placeholder={isWidthFixed ? undefined : element.widthMode}
+          computed={!isWidthFixed}
         />
         <EnumSelect<WidthMode>
           value={element.widthMode}
@@ -131,13 +183,18 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
       <Row label="">
         <NumberInput
           prefix="H"
-          title="Height"
+          title={
+            isHeightFixed
+              ? 'Height'
+              : `Computed height (border-box, including padding). Type a number to switch to Fixed.`
+          }
           value={isHeightFixed ? element.heightValue : measured.height}
           onChange={(value) =>
             patchElement(elementId, { heightMode: 'fixed', heightValue: value ?? 0 })
           }
           min={0}
           placeholder={isHeightFixed ? undefined : element.heightMode}
+          computed={!isHeightFixed}
         />
         <EnumSelect<HeightMode>
           value={element.heightMode}

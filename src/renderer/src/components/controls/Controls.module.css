@@ -130,6 +130,24 @@
   outline: none;
 }
 
+/**
+ * Visual state for inputs whose displayed value is read from layout
+ * (e.g. measured `offsetWidth` while in `fit-content` mode), not
+ * directly authored. Italic + dimmed text reads as "this is a
+ * read-out, not the source-of-truth value." Focus restores normal
+ * styling because the user is now actively editing — at that point
+ * any value they commit becomes the new fixed-mode source.
+ */
+.colorText.computedValue {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.colorText.computedValue:focus {
+  color: var(--text-primary);
+  font-style: normal;
+}
+
 .colorPickerWrap {
   position: relative;
 }

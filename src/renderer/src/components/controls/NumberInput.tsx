@@ -20,6 +20,15 @@ type Props = {
   title?: string;
   /** When true, the input is rendered greyed-out and rejects edits. */
   disabled?: boolean;
+  /**
+   * When true, the displayed value is a layout-derived read-out (e.g.
+   * an element's `offsetWidth` while in `fit-content` mode). Renders
+   * the value italic + dimmed so it reads as "this is computed, not
+   * stored." Editing still works — typing commits a new value via
+   * `onChange`, which the parent typically uses to switch the field
+   * to a fixed mode.
+   */
+  computed?: boolean;
 };
 
 const clamp = (n: number, min?: number, max?: number): number => {
@@ -44,6 +53,7 @@ export const NumberInput = ({
   suffix,
   title,
   disabled = false,
+  computed = false,
 }: Props): JSX.Element => {
   const stringValue = value === undefined ? '' : String(value);
 
@@ -79,6 +89,7 @@ export const NumberInput = ({
       inputMode="numeric"
       title={title}
       disabled={disabled}
+      computed={computed}
     />
   );
 };

@@ -18,10 +18,19 @@ type Props = {
     title?: string;
     /** When true, the input is rendered greyed-out and rejects edits. */
     disabled?: boolean;
+    /**
+     * When true, the displayed value is a layout-derived read-out (e.g.
+     * an element's `offsetWidth` while in `fit-content` mode). Renders
+     * the value italic + dimmed so it reads as "this is computed, not
+     * stored." Editing still works — typing commits a new value via
+     * `onChange`, which the parent typically uses to switch the field
+     * to a fixed mode.
+     */
+    computed?: boolean;
 };
 /**
  * Numeric input. Thin wrapper over PrefixSuffixInput that handles
  * parsing, clamping, and arrow-key stepping.
  */
-export declare const NumberInput: ({ value, onChange, min, max, placeholder, allowEmpty, prefix, suffix, title, disabled, }: Props) => JSX.Element;
+export declare const NumberInput: ({ value, onChange, min, max, placeholder, allowEmpty, prefix, suffix, title, disabled, computed, }: Props) => JSX.Element;
 export {};

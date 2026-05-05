@@ -92,6 +92,48 @@ describe('scaffoldNextjsProject', () => {
     expect(layout).toContain(`import './theme.css';`);
   });
 
+  it('writes the default --font-sans token into theme.css', async () => {
+    await scaffoldNextjsProject(projectDir, 'my-project');
+    const theme = await fs.readFile(
+      path.join(projectDir, 'app', 'theme.css'),
+      'utf-8'
+    );
+    expect(theme).toContain('--font-sans:');
+    expect(theme).toContain('system-ui');
+    expect(theme).toContain('"Segoe UI"');
+    expect(theme).toContain('body {');
+    expect(theme).toContain('font-family: var(--font-sans)');
+  });
+
+  it('writes the universal box-sizing: border-box reset into theme.css', async () => {
+    await scaffoldNextjsProject(projectDir, 'my-project');
+    const theme = await fs.readFile(
+      path.join(projectDir, 'app', 'theme.css'),
+      'utf-8'
+    );
+    expect(theme).toContain('*');
+    expect(theme).toContain('*::before');
+    expect(theme).toContain('*::after');
+    expect(theme).toContain('box-sizing: border-box');
+  });
+
+  it('writes the browser-default reset block into theme.css', async () => {
+    await scaffoldNextjsProject(projectDir, 'my-project');
+    const theme = await fs.readFile(
+      path.join(projectDir, 'app', 'theme.css'),
+      'utf-8'
+    );
+    expect(theme).toContain('scamp: browser reset');
+    // Block-level margin reset (matches the canvas's inline `margin: 0`).
+    expect(theme).toMatch(/p,\s*\n\s*h1,/);
+    expect(theme).toMatch(/margin:\s*0;/);
+    // Replaced media `display: block` (matches canvas image rendering).
+    expect(theme).toMatch(/img,\s*\n\s*video,/);
+    // Interactive / form chrome reset (matches canvas `all: unset`).
+    expect(theme).toMatch(/button,/);
+    expect(theme).toContain('all: unset');
+  });
+
   it('writes a package.json with pinned next/react dependencies', async () => {
     await scaffoldNextjsProject(projectDir, 'my-project');
     const raw = await fs.readFile(

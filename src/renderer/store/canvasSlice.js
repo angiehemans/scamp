@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, ROOT_ELEMENT_ID, ungroupSiblings, } from '@lib/element';
+import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
+import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import { DEFAULT_BREAKPOINTS, } from '@shared/types';
 /**
  * Discrete zoom levels for the canvas. Pressing Cmd/Ctrl+= and Cmd/Ctrl+-
@@ -47,7 +48,7 @@ const makeRectangle = (input, id) => ({
 });
 const TEXT_DEFAULT_WIDTH = 120;
 const TEXT_DEFAULT_HEIGHT = 24;
-const makeText = (input, id) => ({
+const makeText = (input, id, fontFamily) => ({
     ...DEFAULT_RECT_STYLES,
     id,
     type: 'text',
@@ -55,15 +56,40 @@ const makeText = (input, id) => ({
     childIds: [],
     x: input.x,
     y: input.y,
+    // Text elements default to "hug" sizing on both axes so the box
+    // grows / shrinks with the text content. Changing the font size
+    // from the panel reflows the box automatically — no clipped
+    // descenders or trapped whitespace. The numeric fallbacks stay
+    // around so switching to a fixed mode from the panel has a
+    // sensible starting value rather than 0.
+    widthMode: 'fit-content',
     widthValue: TEXT_DEFAULT_WIDTH,
+    heightMode: 'fit-content',
     heightValue: TEXT_DEFAULT_HEIGHT,
     customProperties: {},
     text: input.text ?? 'Text',
+    fontFamily,
     fontSize: '14px',
     fontWeight: 400,
     color: '#222222',
     textAlign: 'left',
 });
+/**
+ * Pick the default `font-family` for a freshly-created text element.
+ * Prefers the project's `--font-sans` token (so new text inherits the
+ * project's chosen default font), falling back to the literal system
+ * font stack when the token isn't declared. Setting an explicit value
+ * — rather than relying on body-level inheritance — makes the
+ * Typography section reflect "Sans" as the current font, gives the
+ * user a clear surface to override per-element, and keeps the
+ * generated CSS self-documenting.
+ */
+const defaultTextFontFamily = (themeTokens) => {
+    const fontSans = themeTokens.find((t) => t.name === '--font-sans');
+    if (fontSans)
+        return 'var(--font-sans)';
+    return DEFAULT_BODY_FONT_FAMILY;
+};
 const makeImage = (input, id) => ({
     ...DEFAULT_RECT_STYLES,
     id,
@@ -257,6 +283,8 @@ export const useCanvasStore = create()(temporal((set) => ({
     breakpoints: [...DEFAULT_BREAKPOINTS],
     projectFormat: 'nextjs',
     projectPath: '',
+    pageNames: [],
+    pendingPageNavigation: null,
     pageCustomMediaBlocks: [],
     pageKeyframesBlocks: [],
     previewAnimation: null,
@@ -300,7 +328,8 @@ export const useCanvasStore = create()(temporal((set) => ({
             if (!parent)
                 return state;
             const contextTag = tagForListChildContext(parent);
-            const newText = makeText(input, id);
+            const fontFamily = defaultTextFontFamily(state.themeTokens);
+            const newText = makeText(input, id, fontFamily);
             const withTag = contextTag ? { ...newText, tag: contextTag } : newText;
             return {
                 elements: {
@@ -543,6 +572,35 @@ export const useCanvasStore = create()(temporal((set) => ({
             selectedElementIds: result.promotedIds,
         };
     }),
+    wrapInLinkParent: (elementId, href, options) => {
+        let wrapperId = null;
+        set((state) => {
+            const id = freshId(new Set(Object.keys(state.elements)));
+            // Build the attribute bag for the wrapper. `target='_blank'`
+            // requires `rel='noopener noreferrer'` to prevent
+            // window.opener exploits — caller can override via `options.rel`.
+            const attributes = { href };
+            if (options?.target)
+                attributes.target = options.target;
+            if (options?.rel)
+                attributes.rel = options.rel;
+            const result = wrapElement(state.elements, elementId, id, {
+                tag: 'a',
+                attributes,
+                // `<a>` is inline by default — emit `display: block` so a
+                // wrapped block-level child still renders correctly.
+                customProperties: { display: 'block' },
+            });
+            if (!result)
+                return state;
+            wrapperId = result.wrapperId;
+            return {
+                elements: result.elements,
+                selectedElementIds: [result.wrapperId],
+            };
+        });
+        return wrapperId;
+    },
     reorderElement: (elementId, newParentId, newIndex) => set((state) => {
         const next = reorderElementPure(state.elements, elementId, newParentId, newIndex);
         if (!next)
@@ -760,6 +818,8 @@ export const useCanvasStore = create()(temporal((set) => ({
     setActiveState: (activeStateName) => set({ activeStateName }),
     setBreakpoints: (breakpoints) => set({ breakpoints }),
     setProjectFormat: (projectFormat) => set({ projectFormat }),
+    setPageNames: (pageNames) => set({ pageNames }),
+    requestPageNavigation: (pendingPageNavigation) => set({ pendingPageNavigation }),
     setProjectPath: (projectPath) => set({ projectPath }),
     zoomIn: () => set((state) => {
         // Coming from fit-mode, treat the current effective zoom as 1.0

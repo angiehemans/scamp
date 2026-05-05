@@ -8,6 +8,19 @@ import type { PageFile, PageRenameArgs, ProjectFormat } from '@shared/types';
 export declare const rewriteImportLine: (tsx: string, oldPageName: string, newPageName: string) => string | null;
 export declare const rewriteComponentName: (tsx: string, newComponentName: string) => string | null;
 /**
+ * Rewrite every `href="/<oldSlug>..."` reference in a TSX source to
+ * use `<newSlug>` instead. Anchored to the attribute syntax to avoid
+ * mangling string literals that happen to contain a path-shaped
+ * substring. Preserves anything after the slug (subpath, query,
+ * fragment) so `href="/about/team#contact"` becomes
+ * `href="/landing/team#contact"`.
+ *
+ * Returns the rewritten string. When no references match, the
+ * original string is returned unchanged (callers can compare by
+ * reference / value to skip unnecessary writes).
+ */
+export declare const rewriteHrefSlug: (tsx: string, oldSlug: string, newSlug: string) => string;
+/**
  * Rename a page on disk. Writes the new files first, then deletes the
  * old ones, so a crash mid-rename leaves duplicate files rather than
  * no files — the user can reconcile on next project open.

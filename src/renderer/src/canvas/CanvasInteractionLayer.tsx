@@ -6,6 +6,7 @@ import { assetsDirSegment } from '@renderer/src/lib/path';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
 import { GridOverlay } from './GridOverlay';
+import { LinkIndicators } from './LinkIndicators';
 import styles from './CanvasInteractionLayer.module.css';
 
 type Props = {
@@ -760,6 +761,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
           showHandles={selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl)}
         />
       )}
+      <LinkIndicators frameRef={frameRef} />
       {isSingleSelection &&
         selectedElementId &&
         selectedEl &&

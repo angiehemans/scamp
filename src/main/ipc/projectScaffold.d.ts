@@ -38,6 +38,18 @@ export declare const scaffoldNextjsProject: (projectPath: string, projectName: s
  */
 export declare const refreshLayoutTemplateIfNeeded: (projectPath: string) => Promise<void>;
 /**
+ * Additively add Scamp's project-default theme rules to the project's
+ * `theme.css` if missing — the `--font-sans` token, the universal
+ * `box-sizing: border-box` reset, and the body-level font-family
+ * rule. Used to carry projects scaffolded before these defaults
+ * landed in `DEFAULT_THEME_CSS` forward without trampling user edits.
+ *
+ * Idempotent: running this on a project that already has all three
+ * rules is a no-op. Strictly additive — never replaces or removes
+ * existing declarations.
+ */
+export declare const ensureThemeDefaultsIfNeeded: (projectPath: string, format: ProjectFormat) => Promise<void>;
+/**
  * Legacy flat-layout scaffold. Kept around for the migrator's
  * fixture-creation tests and for parity in the shared scaffold module.
  */

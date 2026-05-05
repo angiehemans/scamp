@@ -31,6 +31,16 @@ type Props = {
     spellCheck?: boolean;
     autoCapitalize?: 'off' | 'on' | 'none' | 'sentences' | 'words' | 'characters';
     autoCorrect?: 'off' | 'on';
+    /**
+     * When true, the displayed value is read from layout (e.g. an
+     * element's measured `offsetWidth` while in `fit-content` mode)
+     * rather than directly authored. Renders the value in a dimmed +
+     * italic style so the user can tell at a glance "this number is a
+     * read-out, not a stored value." Editing still works as a shortcut
+     * — typing commits a new value to the parent's `onCommit`, which
+     * may switch the field to a fixed mode.
+     */
+    computed?: boolean;
 };
 /**
  * Shared prefix + input + suffix row. Owns local draft state so the
@@ -40,5 +50,5 @@ type Props = {
  * commit reads as "draft moves to new value" and an invalid one reads
  * as "draft reverts".
  */
-export declare const PrefixSuffixInput: ({ value, onCommit, onDraftChange, prefix, suffix, flushPrefix, placeholder, inputMode, title, disabled, onArrow, stopKeyPropagation, inputRef, inputClassName, spellCheck, autoCapitalize, autoCorrect, }: Props) => JSX.Element;
+export declare const PrefixSuffixInput: ({ value, onCommit, onDraftChange, prefix, suffix, flushPrefix, placeholder, inputMode, title, disabled, onArrow, stopKeyPropagation, inputRef, inputClassName, spellCheck, autoCapitalize, autoCorrect, computed, }: Props) => JSX.Element;
 export {};
