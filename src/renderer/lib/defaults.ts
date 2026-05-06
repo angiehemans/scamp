@@ -1,3 +1,5 @@
+import type { BoxShadowDef } from './element';
+
 /**
  * Default style values applied to every newly-created rectangle.
  *
@@ -35,6 +37,7 @@ export const DEFAULT_RECT_STYLES = {
   opacity: 1,
   visibilityMode: 'visible' as const,
   position: 'auto' as const,
+  boxShadows: [] as ReadonlyArray<BoxShadowDef>,
   transitions: [] as ReadonlyArray<{
     property: string;
     durationMs: number;
@@ -103,6 +106,7 @@ export const DEFAULT_ROOT_STYLES = {
   opacity: 1,
   visibilityMode: 'visible' as const,
   position: 'auto' as const,
+  boxShadows: [] as ReadonlyArray<BoxShadowDef>,
   transitions: [] as ReadonlyArray<{
     property: string;
     durationMs: number;

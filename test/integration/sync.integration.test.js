@@ -42,6 +42,7 @@ const makeRoot = (childIds = []) => ({
     opacity: 1,
     visibilityMode: 'visible',
     position: 'auto',
+    boxShadows: [],
     transitions: [],
     inlineFragments: [],
     customProperties: {},
@@ -94,9 +95,17 @@ describe('sync round-trip integration', () => {
                 borderStyle: 'solid',
                 borderColor: '#cccccc',
                 childIds: ['c3d4'],
-                customProperties: {
-                    'box-shadow': '0 2px 8px rgba(0,0,0,0.1)',
-                },
+                boxShadows: [
+                    {
+                        offsetX: 0,
+                        offsetY: 2,
+                        blur: 8,
+                        spread: 0,
+                        color: 'rgba(0, 0, 0, 0.1)',
+                        inset: false,
+                    },
+                ],
+                customProperties: {},
             }),
             c3d4: makeRect({
                 id: 'c3d4',

@@ -41,6 +41,7 @@ Complete reference of keyboard shortcuts in Scamp.
 | Shortcut | Action |
 |---|---|
 | **Ctrl+`** | Toggle built-in terminal |
+| **Cmd+P** | Open [Preview Mode](preview.md) |
 
 ## Panel Actions
 

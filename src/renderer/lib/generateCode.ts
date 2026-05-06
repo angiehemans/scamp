@@ -11,6 +11,7 @@ import {
 } from './element';
 import {
   formatAnimationShorthand,
+  formatBoxShadowShorthand,
   formatTransitionShorthand,
 } from './parsers';
 import {
@@ -473,6 +474,11 @@ export const elementDeclarationLines = (
     lines.push(`opacity: ${el.opacity};`);
   }
 
+  // Box shadows — single shorthand per element. Empty list omits.
+  if (el.boxShadows.length > 0) {
+    lines.push(`box-shadow: ${formatBoxShadowShorthand(el.boxShadows)};`);
+  }
+
   // Transitions — single shorthand per element. Empty list omits.
   if (el.transitions.length > 0) {
     lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
@@ -666,6 +672,19 @@ export const breakpointOverrideLines = (
     lines.push('visibility: hidden;');
   } else if (has('visibilityMode') && override.visibilityMode === 'visible') {
     lines.push('visibility: visible;');
+  }
+
+  // Box shadows — empty list at a breakpoint or state scope emits
+  // `box-shadow: none` so the cascade explicitly clears the inherited
+  // shadow rather than silently leaving it in place.
+  if (has('boxShadows') && override.boxShadows !== undefined) {
+    if (override.boxShadows.length === 0) {
+      lines.push('box-shadow: none;');
+    } else {
+      lines.push(
+        `box-shadow: ${formatBoxShadowShorthand(override.boxShadows)};`
+      );
+    }
   }
 
   // Transitions — empty list at a breakpoint emits `transition: none`

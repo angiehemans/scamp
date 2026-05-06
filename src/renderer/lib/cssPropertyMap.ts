@@ -1,6 +1,7 @@
 import {
   parseBorderRadiusShorthandOrNull,
   parseBorderShorthand,
+  parseBoxShadowShorthand,
   parsePaddingShorthandOrNull,
   parsePxOrNull,
   parseTransitionShorthand,
@@ -200,6 +201,11 @@ export const cssToScampProperty: Record<string, Mapper> = {
   transition: (v) => {
     const transitions = parseTransitionShorthand(v);
     return { transitions };
+  },
+  'box-shadow': (v) => {
+    const parsed = parseBoxShadowShorthand(v);
+    if (parsed === null) return null;
+    return { boxShadows: parsed };
   },
 
   // ---- Grid ----

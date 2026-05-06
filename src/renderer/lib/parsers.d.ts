@@ -1,4 +1,4 @@
-import type { BorderStyle, ElementAnimation, TransitionDef } from './element';
+import type { BorderStyle, BoxShadowDef, ElementAnimation, TransitionDef } from './element';
 /**
  * Parse a `123px` (or bare number) into an integer. Returns 0 for empty
  * or unparseable input — keeps callers from having to special-case missing
@@ -47,6 +47,13 @@ export declare const parseBorderRadiusShorthand: (raw: string) => [number, numbe
  * into per-transition segments without splitting inside cubic-bezier.
  */
 export declare const splitCssList: (raw: string) => string[];
+/**
+ * Split a single CSS shorthand segment into space-separated tokens
+ * with parens kept intact. A `cubic-bezier(0.4, 0, 0.2, 1)` or an
+ * `rgba(0, 0, 0, 0.15)` is one token even though it contains spaces
+ * and commas. Used by the transition and box-shadow parsers.
+ */
+export declare const tokenizeShorthandSegment: (raw: string) => string[];
 /**
  * Parse a single transition segment (`opacity 200ms ease 100ms`) into
  * a TransitionDef. Per the CSS spec, the first `<time>` token is the
@@ -116,3 +123,77 @@ export declare const parseAnimationShorthand: (raw: string) => ElementAnimation 
  * relative to delay too — emit easing whenever delay is non-default.
  */
 export declare const formatAnimationShorthand: (animation: ElementAnimation) => string;
+/**
+ * Parse a single box-shadow segment into a `BoxShadowDef`.
+ *
+ * Per the CSS spec, a segment is:
+ *   `[ inset? && <length>{2,4} && <color>? ]`
+ *
+ * - 2 lengths: offsetX, offsetY (blur and spread default to 0)
+ * - 3 lengths: offsetX, offsetY, blur (spread defaults to 0)
+ * - 4 lengths: offsetX, offsetY, blur, spread
+ * - `inset` may appear anywhere in the segment
+ * - color is optional (defaults to `currentColor`); may appear before
+ *   or after the lengths
+ *
+ * Returns `null` for inputs we can't reduce: missing offsets, a length
+ * expressed as `calc(...)` or a token, more than one non-length /
+ * non-`inset` token, etc. Callers (the cssPropertyMap mapper) treat
+ * null as "preserve verbatim in customProperties".
+ */
+export declare const parseBoxShadowSegment: (segment: string) => BoxShadowDef | null;
+/**
+ * Parse a `box-shadow` shorthand value (single or comma-separated
+ * list) into an ordered list of `BoxShadowDef`s. `none`, an empty
+ * string, or whitespace returns []. If ANY segment fails to parse,
+ * the whole value returns `null` so the caller can fall back to
+ * customProperties — partial parses would silently drop user shadows.
+ */
+export declare const parseBoxShadowShorthand: (raw: string) => ReadonlyArray<BoxShadowDef> | null;
+/**
+ * Inverse of `parseBoxShadowShorthand`. Empty list → empty string; the
+ * caller decides whether to emit nothing or `box-shadow: none`.
+ *
+ * Output format per shadow:
+ *   [`inset `]<x>px <y>px <blur>px[ <spread>px][ <color>]
+ *
+ * Spread is omitted when 0 (matches the "minimal CSS" convention).
+ * Color is omitted when it's the spec default `currentColor` so an
+ * explicit-defaulted shadow round-trips text-stable.
+ */
+export declare const formatBoxShadowShorthand: (shadows: ReadonlyArray<BoxShadowDef>) => string;
+/**
+ * Split a CSS color into a base hex (without alpha) and an alpha 0..1.
+ *
+ * - `#rrggbb` / `#rgb`         → base = `#rrggbb`, alpha = 1, decomposable
+ * - `rgb(r, g, b)` / `rgba(r, g, b, a)` → base = `#rrggbb`, alpha = a ?? 1
+ * - anything else (`var()`, `currentColor`, named, …) → base = original
+ *   value, alpha = 1, `decomposable: false` — the caller should disable
+ *   the opacity slider so the user doesn't lose the token / keyword.
+ *
+ * Always returns alpha clamped to [0, 1].
+ */
+export type SplitShadowColor = {
+    base: string;
+    alpha: number;
+    decomposable: boolean;
+    /**
+     * True when the source value carried an explicit alpha component
+     * (an rgba(...) syntax). Lets callers tell "user hasn't set an
+     * opacity yet" apart from "user set opacity to 100".
+     */
+    hasExplicitAlpha: boolean;
+};
+export declare const splitShadowColor: (value: string) => SplitShadowColor;
+/**
+ * Inverse of `splitShadowColor`. Given a base color and an alpha 0..1,
+ * produce the canonical CSS string the panel writes back to
+ * `BoxShadowDef.color`.
+ *
+ * For decomposable bases (hex / rgb), always emits `rgba(...)` — the
+ * Shadows section deliberately normalises here so the file never holds
+ * a hex+separate-opacity in two places. Non-decomposable bases (`var()`,
+ * `currentColor`, named) are passed through unchanged: an alpha
+ * component can't be safely tacked on without losing the reference.
+ */
+export declare const combineShadowColor: (base: string, alpha: number) => string;

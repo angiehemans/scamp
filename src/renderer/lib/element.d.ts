@@ -136,6 +136,31 @@ export type ElementAnimation = {
     playState: AnimationPlayState;
 };
 /**
+ * One box-shadow applied to an element. Stored as typed fields so
+ * the panel can render proper controls; serialised back into the
+ * `box-shadow` shorthand on emit. Multiple shadows on one element
+ * become a comma-separated list, in the order stored here.
+ *
+ * `inset` flips the shadow from outside the box (default) to inside.
+ * The CSS spec allows the `inset` keyword either before or after the
+ * lengths and color; the generator always emits it leading
+ * (`inset 0 4px 8px ...`) for consistency.
+ *
+ * `color` is a free-form string at the data layer so token refs
+ * (`var(--shadow-color)`), `currentColor`, named colors, and
+ * `rgba(...)` round-trip cleanly. The panel surfaces a ColorInput
+ * for the common case and falls back to the raw text for anything
+ * exotic.
+ */
+export type BoxShadowDef = {
+    offsetX: number;
+    offsetY: number;
+    blur: number;
+    spread: number;
+    color: string;
+    inset: boolean;
+};
+/**
  * One `@keyframes` rule on a page, preserved at the page level
  * because keyframes are shared resources — multiple elements can
  * reference the same `fade-in-up` block. Mirrors the
@@ -286,6 +311,16 @@ export type ScampElement = {
     letterSpacing?: string;
     src?: string;
     alt?: string;
+    /**
+     * Ordered list of box shadows applied to the element. Empty by
+     * default. Emitted as a single `box-shadow: a, b, c` declaration
+     * when non-empty. Order matters — the first entry is rendered on
+     * top of the rest. Agent-written `box-shadow` values that the
+     * parser can't reduce (e.g. `var(--shadow-lg)` on the whole
+     * declaration, `inherit`, `calc(...)` lengths) are preserved
+     * verbatim in `customProperties` and leave this list empty.
+     */
+    boxShadows: ReadonlyArray<BoxShadowDef>;
     /**
      * Ordered list of CSS transitions. Empty by default. Emitted as a
      * single `transition: a, b, c` shorthand when non-empty; the

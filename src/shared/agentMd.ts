@@ -26,7 +26,7 @@ files. Anything you write here is parsed and re-rendered on the canvas.
   alone. Scamp only auto-creates EMPTY blocks for classes that
   appear in the TSX but aren't in the CSS yet.
 - Anything Scamp doesn't model in its UI controls
-  (\`box-shadow\`, \`transform\`, \`@keyframes\`, comments, etc.)
+  (\`transform\`, \`backdrop-filter\`, \`@keyframes\`, comments, etc.)
   round-trips through your file unchanged and renders on the canvas.
 
 ## What Scamp does and doesn't touch
@@ -334,12 +334,12 @@ Internally Scamp routes a small set of properties (\`background\`,
 \`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
 \`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
 \`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
-\`font-family\`, \`transition\`, plus the grid container/item set)
-into typed fields it can later expose via UI controls. Everything
-else (\`box-shadow\`, \`transform\`, \`backdrop-filter\`, \`filter\`,
-\`clip-path\`, animations, gradients, \`@keyframes\`, …) round-trips
-through the file untouched AND is applied to the rendered element
-on the canvas.
+\`font-family\`, \`transition\`, \`box-shadow\`, plus the grid
+container/item set) into typed fields it can later expose via UI
+controls. Everything else (\`transform\`, \`backdrop-filter\`,
+\`filter\`, \`clip-path\`, animations, gradients, \`@keyframes\`, …)
+round-trips through the file untouched AND is applied to the rendered
+element on the canvas.
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
@@ -932,7 +932,7 @@ Scamp without any reorganisation.
   alone. Scamp only auto-creates EMPTY blocks for classes that
   appear in the TSX but aren't in the CSS yet.
 - Anything Scamp doesn't model in its UI controls
-  (\`box-shadow\`, \`transform\`, \`@keyframes\`, comments, etc.)
+  (\`transform\`, \`backdrop-filter\`, \`@keyframes\`, comments, etc.)
   round-trips through your file unchanged and renders on the canvas.
 
 ## What Scamp does and doesn't touch
@@ -1266,12 +1266,12 @@ Internally Scamp routes a small set of properties (\`background\`,
 \`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
 \`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
 \`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
-\`font-family\`, \`transition\`, plus the grid container/item set)
-into typed fields it can later expose via UI controls. Everything
-else (\`box-shadow\`, \`transform\`, \`backdrop-filter\`, \`filter\`,
-\`clip-path\`, animations, gradients, \`@keyframes\`, …) round-trips
-through the file untouched AND is applied to the rendered element
-on the canvas.
+\`font-family\`, \`transition\`, \`box-shadow\`, plus the grid
+container/item set) into typed fields it can later expose via UI
+controls. Everything else (\`transform\`, \`backdrop-filter\`,
+\`filter\`, \`clip-path\`, animations, gradients, \`@keyframes\`, …)
+round-trips through the file untouched AND is applied to the rendered
+element on the canvas.
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.

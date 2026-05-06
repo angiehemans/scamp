@@ -14,6 +14,13 @@ type Props = {
   tokens?: ReadonlyArray<ThemeToken>;
   /** Called when the user clicks "Add Token" from the empty tokens tab. */
   onOpenTheme?: () => void;
+  /**
+   * When true, hides the SketchPicker's alpha slider so the popover
+   * picks an opaque color only. The text input still accepts any
+   * CSS color string. Used by sections (e.g. Shadows) that surface
+   * opacity as a separate control to keep the two axes from racing.
+   */
+  disableAlpha?: boolean;
 };
 
 // ---- Color format helpers ------------------------------------------------
@@ -95,6 +102,7 @@ export const ColorInput = ({
   presetColors,
   tokens,
   onOpenTheme,
+  disableAlpha = false,
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState(value);
   const [tab, setTab] = useState<PopoverTab>('color');
@@ -209,6 +217,7 @@ export const ColorInput = ({
                 presetColors={[...(presetColors ?? PRESET_COLORS)]}
                 styles={DARK_SKETCH_STYLES}
                 width="209px"
+                disableAlpha={disableAlpha}
               />
             ) : (
               <div className={styles.tokenList}>

@@ -156,6 +156,58 @@ describe('cssToScampProperty', () => {
             expect(apply('border-width', 'var(--border-thin)')).toBeNull();
         });
     });
+    describe('box-shadow', () => {
+        it('parses a single shadow into the typed list', () => {
+            expect(apply('box-shadow', '0 4px 8px 0 rgba(0, 0, 0, 0.15)')).toEqual({
+                boxShadows: [
+                    {
+                        offsetX: 0,
+                        offsetY: 4,
+                        blur: 8,
+                        spread: 0,
+                        color: 'rgba(0, 0, 0, 0.15)',
+                        inset: false,
+                    },
+                ],
+            });
+        });
+        it('parses a multi-shadow comma-separated list in order', () => {
+            expect(apply('box-shadow', '0 4px 8px 0 rgba(0, 0, 0, 0.15), inset 0 0 0 1px #ffffff')).toEqual({
+                boxShadows: [
+                    {
+                        offsetX: 0,
+                        offsetY: 4,
+                        blur: 8,
+                        spread: 0,
+                        color: 'rgba(0, 0, 0, 0.15)',
+                        inset: false,
+                    },
+                    {
+                        offsetX: 0,
+                        offsetY: 0,
+                        blur: 0,
+                        spread: 1,
+                        color: '#ffffff',
+                        inset: true,
+                    },
+                ],
+            });
+        });
+        it('clears the field for none', () => {
+            expect(apply('box-shadow', 'none')).toEqual({ boxShadows: [] });
+        });
+        it('refuses var()-based shadow values (preserved via customProperties)', () => {
+            expect(apply('box-shadow', 'var(--shadow-md)')).toBeNull();
+        });
+        it('refuses inherit / initial / unset', () => {
+            expect(apply('box-shadow', 'inherit')).toBeNull();
+            expect(apply('box-shadow', 'initial')).toBeNull();
+            expect(apply('box-shadow', 'unset')).toBeNull();
+        });
+        it('refuses partial-failure lists rather than dropping good shadows', () => {
+            expect(apply('box-shadow', '0 4px 8px #000, var(--shadow-md)')).toBeNull();
+        });
+    });
     describe('padding', () => {
         it('parses 1-value shorthand', () => {
             expect(apply('padding', '8px')).toEqual({ padding: [8, 8, 8, 8] });
@@ -308,7 +360,10 @@ describe('isMappedProperty', () => {
     it('returns true for the new position mapping', () => {
         expect(isMappedProperty('position')).toBe(true);
     });
+    it('returns true for box-shadow (now a typed field)', () => {
+        expect(isMappedProperty('box-shadow')).toBe(true);
+    });
     it('returns false for an unknown property', () => {
-        expect(isMappedProperty('box-shadow')).toBe(false);
+        expect(isMappedProperty('mask-image')).toBe(false);
     });
 });

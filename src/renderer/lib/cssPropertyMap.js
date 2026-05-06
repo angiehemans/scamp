@@ -1,4 +1,4 @@
-import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parsePaddingShorthandOrNull, parsePxOrNull, parseTransitionShorthand, } from './parsers';
+import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parsePaddingShorthandOrNull, parsePxOrNull, parseTransitionShorthand, } from './parsers';
 const POSITIONS = new Set([
     'static',
     'relative',
@@ -193,6 +193,12 @@ export const cssToScampProperty = {
     transition: (v) => {
         const transitions = parseTransitionShorthand(v);
         return { transitions };
+    },
+    'box-shadow': (v) => {
+        const parsed = parseBoxShadowShorthand(v);
+        if (parsed === null)
+            return null;
+        return { boxShadows: parsed };
     },
     // ---- Grid ----
     'grid-template-columns': (v) => {

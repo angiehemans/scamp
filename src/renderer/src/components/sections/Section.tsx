@@ -215,6 +215,7 @@ const FIELD_LABELS: Record<string, string> = {
   textAlign: 'text-align',
   lineHeight: 'line-height',
   letterSpacing: 'letter-spacing',
+  boxShadows: 'box-shadow',
   customProperties: 'custom CSS',
 };
 

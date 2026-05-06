@@ -44,6 +44,7 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   opacity: 1,
   visibilityMode: 'visible',
   position: 'auto',
+  boxShadows: [],
   transitions: [],
   inlineFragments: [],
   customProperties: {},
@@ -170,7 +171,7 @@ describe('external edit integration', () => {
       width: 200px;
       height: 200px;
       background: #222;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      transform: rotate(3deg);
       position: absolute;
       left: 0;
       top: 0;
@@ -183,7 +184,7 @@ describe('external edit integration', () => {
       await fs.readFile(cssPath, 'utf-8')
     );
     expect(parsed.elements['a1b2']?.customProperties).toEqual({
-      'box-shadow': '0 4px 12px rgba(0, 0, 0, 0.4)',
+      transform: 'rotate(3deg)',
     });
     // The mapped properties still applied
     expect(parsed.elements['a1b2']?.backgroundColor).toBe('#222');

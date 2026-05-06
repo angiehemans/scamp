@@ -35,6 +35,7 @@ export const DEFAULT_RECT_STYLES = {
     opacity: 1,
     visibilityMode: 'visible',
     position: 'auto',
+    boxShadows: [],
     transitions: [],
     inlineFragments: [],
 };
@@ -92,6 +93,7 @@ export const DEFAULT_ROOT_STYLES = {
     opacity: 1,
     visibilityMode: 'visible',
     position: 'auto',
+    boxShadows: [],
     transitions: [],
     inlineFragments: [],
 };

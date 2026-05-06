@@ -62,6 +62,21 @@ describe('agent-friendly: var()-based shorthands round-trip verbatim', () => {
     const out = roundTripCss('  gap: var(--space-3);');
     expect(out).toContain('gap: var(--space-3);');
   });
+
+  it('box-shadow: var(--shadow-md)', () => {
+    const out = roundTripCss('  box-shadow: var(--shadow-md);');
+    expect(out).toContain('box-shadow: var(--shadow-md);');
+  });
+
+  it('box-shadow: inherit', () => {
+    const out = roundTripCss('  box-shadow: inherit;');
+    expect(out).toContain('box-shadow: inherit;');
+  });
+
+  it('box-shadow with calc() length round-trips verbatim', () => {
+    const out = roundTripCss('  box-shadow: 0 calc(4px + 1vw) 8px #000;');
+    expect(out).toContain('box-shadow: 0 calc(4px + 1vw) 8px #000;');
+  });
 });
 
 describe('agent-friendly: percent / non-px values round-trip verbatim', () => {

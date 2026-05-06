@@ -41,6 +41,7 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   opacity: 1,
   visibilityMode: 'visible',
   position: 'auto',
+  boxShadows: [],
   transitions: [],
   inlineFragments: [],
   customProperties: {},

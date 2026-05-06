@@ -46,6 +46,7 @@ const makeRoot = (childIds = []) => ({
     opacity: 1,
     visibilityMode: 'visible',
     position: 'auto',
+    boxShadows: [],
     transitions: [],
     inlineFragments: [],
     customProperties: {},

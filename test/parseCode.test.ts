@@ -108,12 +108,29 @@ describe('parseCode — CSS overlay', () => {
 
   it('captures unmapped properties in customProperties', () => {
     const tsx = `<div data-scamp-id="root" className={styles.root}><div data-scamp-id="a1b2" className={styles.rect_a1b2} /></div>`;
-    const css = `.rect_a1b2 { box-shadow: 0 2px 8px rgba(0,0,0,0.1); transform: rotate(2deg); }`;
+    const css = `.rect_a1b2 { transform: rotate(2deg); will-change: opacity; }`;
     const { elements } = parseCode(tsx, css);
     expect(elements['a1b2']?.customProperties).toEqual({
-      'box-shadow': '0 2px 8px rgba(0,0,0,0.1)',
       transform: 'rotate(2deg)',
+      'will-change': 'opacity',
     });
+  });
+
+  it('routes a parseable box-shadow into the typed boxShadows field', () => {
+    const tsx = `<div data-scamp-id="root" className={styles.root}><div data-scamp-id="a1b2" className={styles.rect_a1b2} /></div>`;
+    const css = `.rect_a1b2 { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }`;
+    const { elements } = parseCode(tsx, css);
+    expect(elements['a1b2']?.boxShadows).toEqual([
+      {
+        offsetX: 0,
+        offsetY: 2,
+        blur: 8,
+        spread: 0,
+        color: 'rgba(0, 0, 0, 0.1)',
+        inset: false,
+      },
+    ]);
+    expect(elements['a1b2']?.customProperties).toEqual({});
   });
 
   it('parses border longhand individually', () => {
@@ -303,11 +320,11 @@ describe('parseCode — root handling', () => {
       width: 1440px;
       height: 900px;
       position: relative;
-      box-shadow: inset 0 0 0 1px #333;
+      transform: scale(1.05);
     }`;
     const { elements } = parseCode(tsx, css);
     expect(elements[ROOT_ELEMENT_ID]?.customProperties).toEqual({
-      'box-shadow': 'inset 0 0 0 1px #333',
+      transform: 'scale(1.05)',
     });
   });
 

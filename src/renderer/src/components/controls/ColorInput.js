@@ -65,7 +65,7 @@ const PRESET_COLORS = [
 ];
 const POPOVER_WIDTH = 231;
 const POPOVER_HEIGHT = 400;
-export const ColorInput = ({ value, onChange, presetColors, tokens, onOpenTheme, }) => {
+export const ColorInput = ({ value, onChange, presetColors, tokens, onOpenTheme, disableAlpha = false, }) => {
     const [draft, setDraft] = useState(value);
     const [tab, setTab] = useState('color');
     const popover = usePopover({
@@ -114,7 +114,7 @@ export const ColorInput = ({ value, onChange, presetColors, tokens, onOpenTheme,
                         left: popover.position.left,
                         top: popover.position.top,
                         bottom: popover.position.bottom,
-                    }, children: [_jsxs("div", { className: styles.pickerTabs, children: [_jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`, onClick: () => setTab('color'), children: "Color" }), _jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`, onClick: () => setTab('tokens'), children: "Tokens" })] }), tab === 'color' ? (_jsx(SketchPicker, { color: pickerColor, onChangeComplete: handlePickerChange, presetColors: [...(presetColors ?? PRESET_COLORS)], styles: DARK_SKETCH_STYLES, width: "209px" })) : (_jsx("div", { className: styles.tokenList, children: colorTokens && colorTokens.length > 0 ? (colorTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
+                    }, children: [_jsxs("div", { className: styles.pickerTabs, children: [_jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`, onClick: () => setTab('color'), children: "Color" }), _jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`, onClick: () => setTab('tokens'), children: "Tokens" })] }), tab === 'color' ? (_jsx(SketchPicker, { color: pickerColor, onChangeComplete: handlePickerChange, presetColors: [...(presetColors ?? PRESET_COLORS)], styles: DARK_SKETCH_STYLES, width: "209px", disableAlpha: disableAlpha })) : (_jsx("div", { className: styles.tokenList, children: colorTokens && colorTokens.length > 0 ? (colorTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
                                     onChange(`var(${t.name})`);
                                     popover.setOpen(false);
                                 }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: t.value } }), _jsx("span", { className: styles.tokenListName, children: t.name }), _jsx("span", { className: styles.tokenListValue, children: t.value })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {

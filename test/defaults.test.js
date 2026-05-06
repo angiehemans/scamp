@@ -31,6 +31,7 @@ describe('DEFAULT_RECT_STYLES', () => {
             opacity: 1,
             visibilityMode: 'visible',
             position: 'auto',
+            boxShadows: [],
             transitions: [],
             inlineFragments: [],
         });

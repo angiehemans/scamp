@@ -37,6 +37,7 @@ const makeRoot = () => ({
     opacity: 1,
     visibilityMode: 'visible',
     position: 'auto',
+    boxShadows: [],
     transitions: [],
     inlineFragments: [],
     customProperties: {},

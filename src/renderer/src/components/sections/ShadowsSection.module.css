@@ -1,0 +1,39 @@
+.shadowRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.shadowRow:first-of-type {
+  border-top: 0;
+}
+
+.rowHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rowTitle {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.insetIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--text-secondary);
+  border-radius: 2px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-secondary);
+}

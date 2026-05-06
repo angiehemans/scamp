@@ -23,6 +23,7 @@ const makeRoot = () => ({
     customProperties: {},
     inlineFragments: [],
     transitions: [],
+    boxShadows: [],
 });
 describe('scaffoldNextjsProject', () => {
     let projectDir;

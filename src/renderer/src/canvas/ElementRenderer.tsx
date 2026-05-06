@@ -13,7 +13,7 @@ import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
-import { formatAnimationShorthand } from '@lib/parsers';
+import { formatAnimationShorthand, formatBoxShadowShorthand } from '@lib/parsers';
 import { customPropsToStyle } from '@lib/customProps';
 import type { ThemeToken } from '@shared/types';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
@@ -289,6 +289,12 @@ const elementToStyle = (
   const effectiveOpacity = (el.opacity ?? 1) * hiddenMultiplier;
   if (effectiveOpacity !== 1) {
     base.opacity = effectiveOpacity;
+  }
+  // Box shadows are stored as a typed list; format the shorthand the
+  // same way the generator does so the canvas matches the file output.
+  // Empty list → no declaration (browser default).
+  if (el.boxShadows.length > 0) {
+    base.boxShadow = formatBoxShadowShorthand(el.boxShadows);
   }
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually

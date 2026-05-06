@@ -13,6 +13,12 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Color Picker](color-picker.md) — Colors, alpha, hex input, and theme tokens
 - [Element Naming](element-naming.md) — Rename elements and how names map to CSS classes
 - [Grouping](grouping.md) — Group and ungroup elements into flex containers
+- [Grid Layout](grid-layout.md) — CSS Grid containers, columns, rows, and grid-item placement
+- [Element States](element-states.md) — Hover, active, and focus styles via the State Switcher
+- [Transitions](transitions.md) — Smooth state changes via the Transitions section
+- [Animations](animations.md) — Preset keyframe animations with full timing controls
+- [Linking Between Pages](linking.md) — Internal and external links via the Element section
+- [Preview Mode](preview.md) — Open the project in a real Next.js dev server window
 - [Layers Panel](layers-panel.md) — The element tree, selection, reordering, and nesting
 - [Code Output](code-output.md) — What Scamp generates, save status, and the live code preview
 - [Bidirectional Sync](bidirectional-sync.md) — External editing and working with AI agents

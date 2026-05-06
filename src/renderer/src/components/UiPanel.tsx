@@ -10,6 +10,7 @@ import { ElementSection } from './sections/ElementSection';
 import { TypographySection } from './sections/TypographySection';
 import { ImageSection } from './sections/ImageSection';
 import { VisibilitySection } from './sections/VisibilitySection';
+import { ShadowsSection } from './sections/ShadowsSection';
 import { TransitionsSection } from './sections/TransitionsSection';
 import { AnimationSection } from './sections/AnimationSection';
 import styles from './PropertiesPanel.module.css';
@@ -57,6 +58,7 @@ export const UiPanel = (): JSX.Element => {
       <SpacingSection elementId={elementId} hideMargin={isRoot} />
       {!isImage && <BackgroundSection elementId={elementId} />}
       {!isImage && <BorderSection elementId={elementId} />}
+      {!isImage && <ShadowsSection elementId={elementId} />}
       {isImage && <ImageSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />

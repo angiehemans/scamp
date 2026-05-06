@@ -5,6 +5,7 @@ import type {
   AnimationFillMode,
   AnimationPlayState,
   BorderStyle,
+  BoxShadowDef,
   ElementAnimation,
   TransitionDef,
 } from './element';
@@ -237,10 +238,12 @@ export const splitCssList = (raw: string): string[] => {
 };
 
 /**
- * Tokenize a single transition segment into space-separated tokens
- * with parens (cubic-bezier, steps) kept intact.
+ * Split a single CSS shorthand segment into space-separated tokens
+ * with parens kept intact. A `cubic-bezier(0.4, 0, 0.2, 1)` or an
+ * `rgba(0, 0, 0, 0.15)` is one token even though it contains spaces
+ * and commas. Used by the transition and box-shadow parsers.
  */
-const tokenizeTransitionSegment = (raw: string): string[] => {
+export const tokenizeShorthandSegment = (raw: string): string[] => {
   const out: string[] = [];
   let depth = 0;
   let start = 0;
@@ -274,7 +277,7 @@ const isEasingToken = (token: string): boolean => {
  * non-time / non-easing token is the property name.
  */
 export const parseTransitionSegment = (segment: string): TransitionDef | null => {
-  const tokens = tokenizeTransitionSegment(segment);
+  const tokens = tokenizeShorthandSegment(segment);
   if (tokens.length === 0) return null;
 
   let durationMs: number | null = null;
@@ -667,4 +670,295 @@ export const formatAnimationShorthand = (
   if (animation.fillMode !== 'none') parts.push(animation.fillMode);
   if (animation.playState !== 'running') parts.push(animation.playState);
   return parts.join(' ');
+};
+
+// ---- Box shadow ------------------------------------------------------
+
+const PX_LENGTH_RE = /^-?\d+(?:\.\d+)?(?:px)?$/;
+
+const isInsetKeyword = (token: string): boolean =>
+  token.toLowerCase() === 'inset';
+
+/**
+ * Parse a single box-shadow segment into a `BoxShadowDef`.
+ *
+ * Per the CSS spec, a segment is:
+ *   `[ inset? && <length>{2,4} && <color>? ]`
+ *
+ * - 2 lengths: offsetX, offsetY (blur and spread default to 0)
+ * - 3 lengths: offsetX, offsetY, blur (spread defaults to 0)
+ * - 4 lengths: offsetX, offsetY, blur, spread
+ * - `inset` may appear anywhere in the segment
+ * - color is optional (defaults to `currentColor`); may appear before
+ *   or after the lengths
+ *
+ * Returns `null` for inputs we can't reduce: missing offsets, a length
+ * expressed as `calc(...)` or a token, more than one non-length /
+ * non-`inset` token, etc. Callers (the cssPropertyMap mapper) treat
+ * null as "preserve verbatim in customProperties".
+ */
+export const parseBoxShadowSegment = (segment: string): BoxShadowDef | null => {
+  const tokens = tokenizeShorthandSegment(segment);
+  if (tokens.length === 0) return null;
+
+  let inset = false;
+  const remaining: string[] = [];
+  for (const token of tokens) {
+    if (isInsetKeyword(token)) {
+      // Two `inset` tokens in one segment is malformed — bail.
+      if (inset) return null;
+      inset = true;
+      continue;
+    }
+    remaining.push(token);
+  }
+
+  if (remaining.length === 0) return null;
+
+  // Per spec the color may sit at the start OR the end of the segment,
+  // but never in the middle of the lengths. Detect which end (if any)
+  // holds the color, then require the remaining slice to be all px
+  // lengths. A `calc(...)` length, `var(--space-4)`, or a percent
+  // therefore refuses cleanly: it's neither at an end nor a px length,
+  // so the parse fails and the value falls back to customProperties.
+  const firstIsLength = PX_LENGTH_RE.test(remaining[0]!);
+  const lastIsLength = PX_LENGTH_RE.test(remaining[remaining.length - 1]!);
+
+  let color: string | null = null;
+  let lengthSlice: string[];
+  if (firstIsLength && lastIsLength) {
+    lengthSlice = remaining;
+  } else if (!firstIsLength && lastIsLength) {
+    color = remaining[0]!;
+    lengthSlice = remaining.slice(1);
+  } else if (firstIsLength && !lastIsLength) {
+    color = remaining[remaining.length - 1]!;
+    lengthSlice = remaining.slice(0, remaining.length - 1);
+  } else {
+    // Both ends are non-length: either zero lengths, two colors, or a
+    // refusable expression like `var(--shadow-md)` / `inherit`.
+    return null;
+  }
+
+  const lengths: number[] = [];
+  for (const token of lengthSlice) {
+    if (!PX_LENGTH_RE.test(token)) return null;
+    const n = parsePxOrNull(token);
+    if (n === null) return null;
+    lengths.push(n);
+  }
+
+  if (lengths.length < 2 || lengths.length > 4) return null;
+
+  const offsetX = lengths[0]!;
+  const offsetY = lengths[1]!;
+  const blur = lengths[2] ?? 0;
+  const spread = lengths[3] ?? 0;
+
+  return {
+    offsetX,
+    offsetY,
+    blur,
+    spread,
+    color: color ?? 'currentColor',
+    inset,
+  };
+};
+
+/**
+ * Parse a `box-shadow` shorthand value (single or comma-separated
+ * list) into an ordered list of `BoxShadowDef`s. `none`, an empty
+ * string, or whitespace returns []. If ANY segment fails to parse,
+ * the whole value returns `null` so the caller can fall back to
+ * customProperties — partial parses would silently drop user shadows.
+ */
+export const parseBoxShadowShorthand = (
+  raw: string
+): ReadonlyArray<BoxShadowDef> | null => {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0 || trimmed.toLowerCase() === 'none') return [];
+  const segments = splitCssList(trimmed);
+  const result: BoxShadowDef[] = [];
+  for (const segment of segments) {
+    const parsed = parseBoxShadowSegment(segment);
+    if (parsed === null) return null;
+    result.push(parsed);
+  }
+  return result;
+};
+
+/**
+ * Inverse of `parseBoxShadowShorthand`. Empty list → empty string; the
+ * caller decides whether to emit nothing or `box-shadow: none`.
+ *
+ * Output format per shadow:
+ *   [`inset `]<x>px <y>px <blur>px[ <spread>px][ <color>]
+ *
+ * Spread is omitted when 0 (matches the "minimal CSS" convention).
+ * Color is omitted when it's the spec default `currentColor` so an
+ * explicit-defaulted shadow round-trips text-stable.
+ */
+export const formatBoxShadowShorthand = (
+  shadows: ReadonlyArray<BoxShadowDef>
+): string => {
+  if (shadows.length === 0) return '';
+  return shadows
+    .map((s) => {
+      const parts: string[] = [];
+      if (s.inset) parts.push('inset');
+      parts.push(`${s.offsetX}px`);
+      parts.push(`${s.offsetY}px`);
+      parts.push(`${s.blur}px`);
+      if (s.spread !== 0) parts.push(`${s.spread}px`);
+      if (s.color !== 'currentColor') parts.push(s.color);
+      return parts.join(' ');
+    })
+    .join(', ');
+};
+
+// ---- Shadow color decomposition --------------------------------------
+//
+// The Shadow section surfaces the color and the alpha as two separate
+// controls (a ColorInput for the base hex, and a NumberInput for the
+// opacity %). The data layer keeps storing the combined CSS string in
+// `BoxShadowDef.color` — these helpers split / re-combine for the UI.
+//
+// `var()`, named colors, `currentColor`, and other non-decomposable
+// values are returned as-is with `decomposable: false` so the section
+// can disable the opacity field rather than silently flattening a
+// token reference.
+
+const HEX6_COLOR_RE = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/;
+const HEX3_COLOR_RE = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/;
+const RGBA_COLOR_RE =
+  /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*(-?[\d.]+)\s*)?\)$/;
+
+/**
+ * Split a CSS color into a base hex (without alpha) and an alpha 0..1.
+ *
+ * - `#rrggbb` / `#rgb`         → base = `#rrggbb`, alpha = 1, decomposable
+ * - `rgb(r, g, b)` / `rgba(r, g, b, a)` → base = `#rrggbb`, alpha = a ?? 1
+ * - anything else (`var()`, `currentColor`, named, …) → base = original
+ *   value, alpha = 1, `decomposable: false` — the caller should disable
+ *   the opacity slider so the user doesn't lose the token / keyword.
+ *
+ * Always returns alpha clamped to [0, 1].
+ */
+export type SplitShadowColor = {
+  base: string;
+  alpha: number;
+  decomposable: boolean;
+  /**
+   * True when the source value carried an explicit alpha component
+   * (an rgba(...) syntax). Lets callers tell "user hasn't set an
+   * opacity yet" apart from "user set opacity to 100".
+   */
+  hasExplicitAlpha: boolean;
+};
+
+const formatHex2 = (n: number): string => {
+  const clamped = Math.max(0, Math.min(255, Math.round(n)));
+  return clamped.toString(16).padStart(2, '0');
+};
+
+const rgbToHex = (r: number, g: number, b: number): string =>
+  `#${formatHex2(r)}${formatHex2(g)}${formatHex2(b)}`;
+
+export const splitShadowColor = (value: string): SplitShadowColor => {
+  const trimmed = (value ?? '').trim();
+  if (trimmed.length === 0) {
+    return { base: '#000000', alpha: 1, decomposable: true, hasExplicitAlpha: false };
+  }
+  const hex6 = trimmed.match(HEX6_COLOR_RE);
+  if (hex6) {
+    return {
+      base: `#${hex6[1]!.toLowerCase()}${hex6[2]!.toLowerCase()}${hex6[3]!.toLowerCase()}`,
+      alpha: 1,
+      decomposable: true,
+      hasExplicitAlpha: false,
+    };
+  }
+  const hex3 = trimmed.match(HEX3_COLOR_RE);
+  if (hex3) {
+    const r = hex3[1]!;
+    const g = hex3[2]!;
+    const b = hex3[3]!;
+    return {
+      base: `#${r}${r}${g}${g}${b}${b}`.toLowerCase(),
+      alpha: 1,
+      decomposable: true,
+      hasExplicitAlpha: false,
+    };
+  }
+  const rgba = trimmed.match(RGBA_COLOR_RE);
+  if (rgba) {
+    const r = Number(rgba[1]);
+    const g = Number(rgba[2]);
+    const b = Number(rgba[3]);
+    const aRaw = rgba[4];
+    const alpha = aRaw === undefined ? 1 : Math.max(0, Math.min(1, Number(aRaw)));
+    return {
+      base: rgbToHex(r, g, b),
+      alpha,
+      decomposable: true,
+      hasExplicitAlpha: aRaw !== undefined,
+    };
+  }
+  // var(), currentColor, named colors, modern color() / oklch() … —
+  // can't decompose without resolving the value. Surface as-is.
+  return { base: trimmed, alpha: 1, decomposable: false, hasExplicitAlpha: false };
+};
+
+/**
+ * Inverse of `splitShadowColor`. Given a base color and an alpha 0..1,
+ * produce the canonical CSS string the panel writes back to
+ * `BoxShadowDef.color`.
+ *
+ * For decomposable bases (hex / rgb), always emits `rgba(...)` — the
+ * Shadows section deliberately normalises here so the file never holds
+ * a hex+separate-opacity in two places. Non-decomposable bases (`var()`,
+ * `currentColor`, named) are passed through unchanged: an alpha
+ * component can't be safely tacked on without losing the reference.
+ */
+export const combineShadowColor = (base: string, alpha: number): string => {
+  const trimmedBase = (base ?? '').trim();
+  if (trimmedBase.length === 0) return '';
+  const a = Math.max(0, Math.min(1, alpha));
+
+  const hex6 = trimmedBase.match(HEX6_COLOR_RE);
+  if (hex6) {
+    const r = parseInt(hex6[1]!, 16);
+    const g = parseInt(hex6[2]!, 16);
+    const b = parseInt(hex6[3]!, 16);
+    return `rgba(${r}, ${g}, ${b}, ${formatAlpha(a)})`;
+  }
+  const hex3 = trimmedBase.match(HEX3_COLOR_RE);
+  if (hex3) {
+    const r = parseInt(hex3[1]! + hex3[1]!, 16);
+    const g = parseInt(hex3[2]! + hex3[2]!, 16);
+    const b = parseInt(hex3[3]! + hex3[3]!, 16);
+    return `rgba(${r}, ${g}, ${b}, ${formatAlpha(a)})`;
+  }
+  const rgba = trimmedBase.match(RGBA_COLOR_RE);
+  if (rgba) {
+    const r = Number(rgba[1]);
+    const g = Number(rgba[2]);
+    const b = Number(rgba[3]);
+    return `rgba(${r}, ${g}, ${b}, ${formatAlpha(a)})`;
+  }
+  // var() / named / unknown — return verbatim. The opacity slider
+  // should be disabled in this case anyway.
+  return trimmedBase;
+};
+
+/**
+ * Trim trailing zeros on the alpha component while keeping at most
+ * three decimal places. Keeps the file output readable: `0.15` rather
+ * than `0.15000000000000002`.
+ */
+const formatAlpha = (a: number): string => {
+  if (a === 0) return '0';
+  if (a === 1) return '1';
+  return Number(a.toFixed(3)).toString();
 };
