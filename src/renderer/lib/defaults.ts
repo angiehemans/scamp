@@ -36,6 +36,8 @@ export const DEFAULT_RECT_STYLES = {
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible' as const,
+  mixBlendMode: 'normal' as const,
+  backgroundBlendMode: 'normal' as const,
   position: 'auto' as const,
   boxShadows: [] as ReadonlyArray<BoxShadowDef>,
   transitions: [] as ReadonlyArray<{
@@ -105,6 +107,8 @@ export const DEFAULT_ROOT_STYLES = {
   borderColor: '#000000',
   opacity: 1,
   visibilityMode: 'visible' as const,
+  mixBlendMode: 'normal' as const,
+  backgroundBlendMode: 'normal' as const,
   position: 'auto' as const,
   boxShadows: [] as ReadonlyArray<BoxShadowDef>,
   transitions: [] as ReadonlyArray<{

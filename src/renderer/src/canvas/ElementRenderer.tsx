@@ -296,6 +296,14 @@ const elementToStyle = (
   if (el.boxShadows.length > 0) {
     base.boxShadow = formatBoxShadowShorthand(el.boxShadows);
   }
+  // Blend modes — only apply when non-default so we don't fight with
+  // browser inheritance for elements that haven't been touched.
+  if (el.mixBlendMode !== 'normal') {
+    base.mixBlendMode = el.mixBlendMode;
+  }
+  if (el.backgroundBlendMode !== 'normal') {
+    base.backgroundBlendMode = el.backgroundBlendMode;
+  }
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually
   // renders on the canvas. Anything in customProperties is, by

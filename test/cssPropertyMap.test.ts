@@ -231,6 +231,51 @@ describe('cssToScampProperty', () => {
     });
   });
 
+  describe('mix-blend-mode', () => {
+    it('routes a known keyword into the typed field', () => {
+      expect(apply('mix-blend-mode', 'multiply')).toEqual({
+        mixBlendMode: 'multiply',
+      });
+    });
+    it('parses keywords case-insensitively', () => {
+      expect(apply('mix-blend-mode', 'Color-Burn')).toEqual({
+        mixBlendMode: 'color-burn',
+      });
+    });
+    it('routes the default keyword into the typed field', () => {
+      expect(apply('mix-blend-mode', 'normal')).toEqual({
+        mixBlendMode: 'normal',
+      });
+    });
+    it('refuses an unknown keyword (preserved via customProperties)', () => {
+      expect(apply('mix-blend-mode', 'plus-darker')).toBeNull();
+    });
+    it('refuses inherit / initial / unset', () => {
+      expect(apply('mix-blend-mode', 'inherit')).toBeNull();
+      expect(apply('mix-blend-mode', 'initial')).toBeNull();
+      expect(apply('mix-blend-mode', 'unset')).toBeNull();
+    });
+  });
+
+  describe('background-blend-mode', () => {
+    it('routes a known keyword into the typed field', () => {
+      expect(apply('background-blend-mode', 'screen')).toEqual({
+        backgroundBlendMode: 'screen',
+      });
+    });
+    it('parses keywords case-insensitively', () => {
+      expect(apply('background-blend-mode', 'HARD-LIGHT')).toEqual({
+        backgroundBlendMode: 'hard-light',
+      });
+    });
+    it('refuses multi-layer lists (single keyword only)', () => {
+      expect(apply('background-blend-mode', 'multiply, screen')).toBeNull();
+    });
+    it('refuses an unknown keyword', () => {
+      expect(apply('background-blend-mode', 'plus-lighter')).toBeNull();
+    });
+  });
+
   describe('padding', () => {
     it('parses 1-value shorthand', () => {
       expect(apply('padding', '8px')).toEqual({ padding: [8, 8, 8, 8] });

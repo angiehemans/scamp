@@ -1,4 +1,5 @@
 import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parsePaddingShorthandOrNull, parsePxOrNull, parseTransitionShorthand, } from './parsers';
+import { isBlendMode } from './blendModes';
 const POSITIONS = new Set([
     'static',
     'relative',
@@ -199,6 +200,18 @@ export const cssToScampProperty = {
         if (parsed === null)
             return null;
         return { boxShadows: parsed };
+    },
+    'mix-blend-mode': (v) => {
+        const trimmed = v.trim().toLowerCase();
+        if (!isBlendMode(trimmed))
+            return null;
+        return { mixBlendMode: trimmed };
+    },
+    'background-blend-mode': (v) => {
+        const trimmed = v.trim().toLowerCase();
+        if (!isBlendMode(trimmed))
+            return null;
+        return { backgroundBlendMode: trimmed };
     },
     // ---- Grid ----
     'grid-template-columns': (v) => {

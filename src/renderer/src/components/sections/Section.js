@@ -119,6 +119,8 @@ const FIELD_LABELS = {
     lineHeight: 'line-height',
     letterSpacing: 'letter-spacing',
     boxShadows: 'box-shadow',
+    mixBlendMode: 'mix-blend-mode',
+    backgroundBlendMode: 'background-blend-mode',
     customProperties: 'custom CSS',
 };
 /** A labeled row inside a Section. Wraps the label and the control(s). */

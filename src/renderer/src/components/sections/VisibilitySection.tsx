@@ -1,6 +1,8 @@
 import { IconPercentage } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
+import type { BlendMode } from '@lib/element';
+import { BlendModeSelect } from '../controls/BlendModeSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Section, Row } from './Section';
@@ -37,7 +39,7 @@ export const VisibilitySection = ({ elementId }: Props): JSX.Element | null => {
     <Section
       title="Visibility"
       elementId={elementId}
-      fields={['opacity', 'visibilityMode']}
+      fields={['opacity', 'visibilityMode', 'mixBlendMode']}
     >
       <Row label="Opacity">
         <NumberInput
@@ -55,6 +57,15 @@ export const VisibilitySection = ({ elementId }: Props): JSX.Element | null => {
           options={VISIBILITY_OPTIONS}
           onChange={(value) => patchElement(elementId, { visibilityMode: value })}
           title="Visibility"
+        />
+      </Row>
+      <Row label="Blend">
+        <BlendModeSelect
+          value={element.mixBlendMode}
+          onChange={(value: BlendMode) =>
+            patchElement(elementId, { mixBlendMode: value })
+          }
+          title="Mix blend mode — how this element blends with content behind it"
         />
       </Row>
     </Section>

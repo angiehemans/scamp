@@ -43,6 +43,8 @@ const makeRoot = (childIds = []) => ({
     opacity: 1,
     visibilityMode: 'visible',
     position: 'auto',
+    mixBlendMode: 'normal',
+    backgroundBlendMode: 'normal',
     boxShadows: [],
     transitions: [],
     inlineFragments: [],

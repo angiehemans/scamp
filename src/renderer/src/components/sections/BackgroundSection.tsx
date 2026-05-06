@@ -1,6 +1,8 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { assetsDirSegment } from '@renderer/src/lib/path';
+import type { BlendMode } from '@lib/element';
+import { BlendModeSelect } from '../controls/BlendModeSelect';
 import { ColorInput } from '../controls/ColorInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
@@ -85,11 +87,16 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
     });
   };
 
+  // Only surface the background-blend dropdown when a blend can
+  // actually be observed: an image AND a non-default color.
+  const showBackgroundBlend =
+    bgImage !== null && element.backgroundColor !== 'transparent';
+
   return (
     <Section
       title="Background"
       elementId={elementId}
-      fields={['backgroundColor']}
+      fields={['backgroundColor', 'backgroundBlendMode']}
     >
       <Row label="">
         <ColorInput
@@ -138,6 +145,17 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
               onChange={(value) => updateBgProp('background-repeat', value)}
             />
           </Row>
+          {showBackgroundBlend && (
+            <Row label="Blend">
+              <BlendModeSelect
+                value={element.backgroundBlendMode}
+                onChange={(value: BlendMode) =>
+                  patchElement(elementId, { backgroundBlendMode: value })
+                }
+                title="How the background image blends with the background color"
+              />
+            </Row>
+          )}
           <Row label="">
             <button
               className={styles.removeButton}

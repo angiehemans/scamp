@@ -68,6 +68,14 @@ describe('agent-friendly: var()-based shorthands round-trip verbatim', () => {
         const out = roundTripCss('  box-shadow: 0 calc(4px + 1vw) 8px #000;');
         expect(out).toContain('box-shadow: 0 calc(4px + 1vw) 8px #000;');
     });
+    it('mix-blend-mode: plus-darker (unsupported keyword)', () => {
+        const out = roundTripCss('  mix-blend-mode: plus-darker;');
+        expect(out).toContain('mix-blend-mode: plus-darker;');
+    });
+    it('background-blend-mode: multiply, screen (multi-layer)', () => {
+        const out = roundTripCss('  background-blend-mode: multiply, screen;');
+        expect(out).toContain('background-blend-mode: multiply, screen;');
+    });
 });
 describe('agent-friendly: percent / non-px values round-trip verbatim', () => {
     it('border-radius: 50%', () => {

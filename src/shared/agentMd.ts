@@ -334,12 +334,20 @@ Internally Scamp routes a small set of properties (\`background\`,
 \`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
 \`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
 \`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
-\`font-family\`, \`transition\`, \`box-shadow\`, plus the grid
-container/item set) into typed fields it can later expose via UI
-controls. Everything else (\`transform\`, \`backdrop-filter\`,
-\`filter\`, \`clip-path\`, animations, gradients, \`@keyframes\`, …)
-round-trips through the file untouched AND is applied to the rendered
-element on the canvas.
+\`font-family\`, \`transition\`, \`box-shadow\`, \`mix-blend-mode\`,
+\`background-blend-mode\`, plus the grid container/item set) into
+typed fields it can later expose via UI controls. Everything else
+(\`transform\`, \`backdrop-filter\`, \`filter\`, \`clip-path\`,
+\`isolation\`, animations, gradients, \`@keyframes\`, …) round-trips
+through the file untouched AND is applied to the rendered element on
+the canvas.
+
+\`mix-blend-mode\` blends through to the page root by default.
+Add \`isolation: isolate\` to a parent element to cap the blend at
+that container — useful when you want a multiply-blended card
+that doesn't bleed onto the page background. Scamp doesn't model
+\`isolation\` as a typed field; it round-trips verbatim via
+\`customProperties\` and renders natively on the canvas.
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
@@ -1266,12 +1274,20 @@ Internally Scamp routes a small set of properties (\`background\`,
 \`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
 \`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
 \`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
-\`font-family\`, \`transition\`, \`box-shadow\`, plus the grid
-container/item set) into typed fields it can later expose via UI
-controls. Everything else (\`transform\`, \`backdrop-filter\`,
-\`filter\`, \`clip-path\`, animations, gradients, \`@keyframes\`, …)
-round-trips through the file untouched AND is applied to the rendered
-element on the canvas.
+\`font-family\`, \`transition\`, \`box-shadow\`, \`mix-blend-mode\`,
+\`background-blend-mode\`, plus the grid container/item set) into
+typed fields it can later expose via UI controls. Everything else
+(\`transform\`, \`backdrop-filter\`, \`filter\`, \`clip-path\`,
+\`isolation\`, animations, gradients, \`@keyframes\`, …) round-trips
+through the file untouched AND is applied to the rendered element on
+the canvas.
+
+\`mix-blend-mode\` blends through to the page root by default.
+Add \`isolation: isolate\` to a parent element to cap the blend at
+that container — useful when you want a multiply-blended card
+that doesn't bleed onto the page background. Scamp doesn't model
+\`isolation\` as a typed field; it round-trips verbatim via
+\`customProperties\` and renders natively on the canvas.
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.

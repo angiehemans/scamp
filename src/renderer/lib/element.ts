@@ -181,6 +181,35 @@ export type ElementAnimation = {
 };
 
 /**
+ * The full set of CSS blend-mode keywords Scamp models as a typed
+ * field. Matches the WYSIWYG dropdown groups (Darken / Lighten /
+ * Contrast / Inversion / Component) plus the default `normal`.
+ * Anything outside this list — `plus-darker`, `plus-lighter`,
+ * vendor-prefixed, future spec additions — is preserved verbatim
+ * via `customProperties`.
+ *
+ * Used for both `mix-blend-mode` and `background-blend-mode`. The
+ * keyword set is identical for the two properties.
+ */
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'darken'
+  | 'color-burn'
+  | 'screen'
+  | 'lighten'
+  | 'color-dodge'
+  | 'overlay'
+  | 'soft-light'
+  | 'hard-light'
+  | 'difference'
+  | 'exclusion'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity';
+
+/**
  * One box-shadow applied to an element. Stored as typed fields so
  * the panel can render proper controls; serialised back into the
  * `box-shadow` shorthand on emit. Multiple shadows on one element
@@ -358,6 +387,23 @@ export type ScampElement = {
    *   - 'none'    → `display: none;` (suppresses flex emits)
    */
   visibilityMode: 'visible' | 'hidden' | 'none';
+
+  /**
+   * CSS `mix-blend-mode`. Default `'normal'` emits no declaration.
+   * Any other value emits `mix-blend-mode: <value>` so the cascade
+   * makes the element blend with content behind it. Round-trips
+   * through `parseCode` via `cssToScampProperty`.
+   */
+  mixBlendMode: BlendMode;
+
+  /**
+   * CSS `background-blend-mode`. Default `'normal'` emits no
+   * declaration. Only meaningful when both a background color and
+   * a background image are set on the element — the panel hides
+   * the control otherwise, but the data model permits it freely so
+   * agent edits round-trip.
+   */
+  backgroundBlendMode: BlendMode;
 
   // Text only
   text?: string;
@@ -778,6 +824,8 @@ export const groupSiblings = (
     borderColor: '#000000',
     opacity: 1,
     visibilityMode: 'visible',
+    mixBlendMode: 'normal',
+    backgroundBlendMode: 'normal',
     position: 'auto',
     boxShadows: [],
     transitions: [],
@@ -886,6 +934,8 @@ export const wrapElement = (
     borderColor: '#000000',
     opacity: 1,
     visibilityMode: 'visible',
+    mixBlendMode: 'normal',
+    backgroundBlendMode: 'normal',
     position: 'auto',
     boxShadows: [],
     transitions: [],

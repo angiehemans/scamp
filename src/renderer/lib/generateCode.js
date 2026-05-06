@@ -380,6 +380,16 @@ export const elementDeclarationLines = (el, parent) => {
     if (el.boxShadows.length > 0) {
         lines.push(`box-shadow: ${formatBoxShadowShorthand(el.boxShadows)};`);
     }
+    // Blend modes — `normal` is the default and emits no declaration.
+    // The data layer permits any non-default keyword regardless of
+    // whether a background image is set; the panel hides the
+    // background-blend control when there's nothing to blend.
+    if (el.mixBlendMode !== BASE.mixBlendMode) {
+        lines.push(`mix-blend-mode: ${el.mixBlendMode};`);
+    }
+    if (el.backgroundBlendMode !== BASE.backgroundBlendMode) {
+        lines.push(`background-blend-mode: ${el.backgroundBlendMode};`);
+    }
     // Transitions — single shorthand per element. Empty list omits.
     if (el.transitions.length > 0) {
         lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
@@ -582,6 +592,18 @@ export const breakpointOverrideLines = (override, element) => {
         else {
             lines.push(`box-shadow: ${formatBoxShadowShorthand(override.boxShadows)};`);
         }
+    }
+    // Blend modes — present-in-override means the user chose a value at
+    // this scope. Writing `normal` explicitly clears an inherited
+    // non-normal base (the convention transitions / box-shadow use with
+    // `none`). Cascading-by-omission is what the user gets by not
+    // touching the dropdown at all.
+    if (has('mixBlendMode') && override.mixBlendMode !== undefined) {
+        lines.push(`mix-blend-mode: ${override.mixBlendMode};`);
+    }
+    if (has('backgroundBlendMode') &&
+        override.backgroundBlendMode !== undefined) {
+        lines.push(`background-blend-mode: ${override.backgroundBlendMode};`);
     }
     // Transitions — empty list at a breakpoint emits `transition: none`
     // so the cascade explicitly clears the inherited list rather than

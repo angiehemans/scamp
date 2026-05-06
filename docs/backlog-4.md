@@ -4,7 +4,7 @@ User stories ordered easiest to hardest.
 
 ---
 
-## 1. Box shadow
+## 1. Box shadow DONE
 
 **User story**
 

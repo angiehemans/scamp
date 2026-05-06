@@ -6,6 +6,7 @@ import {
   parsePxOrNull,
   parseTransitionShorthand,
 } from './parsers';
+import { isBlendMode } from './blendModes';
 import type { ScampElement } from './element';
 
 /**
@@ -206,6 +207,16 @@ export const cssToScampProperty: Record<string, Mapper> = {
     const parsed = parseBoxShadowShorthand(v);
     if (parsed === null) return null;
     return { boxShadows: parsed };
+  },
+  'mix-blend-mode': (v) => {
+    const trimmed = v.trim().toLowerCase();
+    if (!isBlendMode(trimmed)) return null;
+    return { mixBlendMode: trimmed };
+  },
+  'background-blend-mode': (v) => {
+    const trimmed = v.trim().toLowerCase();
+    if (!isBlendMode(trimmed)) return null;
+    return { backgroundBlendMode: trimmed };
   },
 
   // ---- Grid ----
