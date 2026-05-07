@@ -35,6 +35,22 @@ export type ParsedTree = {
      * them on every save.
      */
     keyframesBlocks: KeyframesBlock[];
+    /**
+     * Per-element list of CSS property names that appeared more than
+     * once in the element's base class block. Empty array (or absent
+     * key) when no duplicates were seen. The cascade picks last-wins so
+     * Scamp's typed state reflects the final declaration; this map lets
+     * the UI surface a warning indicator on the affected section so
+     * users know the file is in a non-canonical state. Editing any
+     * field on the element via the panel triggers the generator to
+     * rewrite the class block from typed state, which removes the
+     * duplicates.
+     *
+     * Per-state and per-breakpoint duplicates aren't tracked here yet —
+     * they're rarer and the same cleanup path applies (any panel edit
+     * collapses them). Future-extensible.
+     */
+    cssDuplicates: Record<string, ReadonlyArray<string>>;
 };
 export type ParseCodeOptions = {
     /**
@@ -46,4 +62,19 @@ export type ParseCodeOptions = {
      */
     breakpoints?: ReadonlyArray<Breakpoint>;
 };
+/**
+ * Return the set of CSS property names that appear more than once in
+ * a declaration list. Used to surface a warning indicator in the
+ * panel when an agent or hand edit left two `height: …` (or any
+ * other property) declarations in the same block.
+ *
+ * Order is preserved by first appearance so callers that render the
+ * list to the user get a stable order.
+ */
+export declare const findDuplicateDeclProps: (decls: ReadonlyArray<RawDeclaration>) => string[];
+type RawDeclaration = {
+    prop: string;
+    value: string;
+};
 export declare const parseCode: (tsx: string, css: string, options?: ParseCodeOptions) => ParsedTree;
+export {};

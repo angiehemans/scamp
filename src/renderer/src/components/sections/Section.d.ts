@@ -19,6 +19,14 @@ type Props = {
      * properties; right-click to reset them all.
      */
     fields?: ReadonlyArray<keyof BreakpointOverride>;
+    /**
+     * The CSS property names this section emits / controls. Used to
+     * surface a separate warning indicator when the parser saw the
+     * same declaration twice in the element's class block. The names
+     * are CSS-form (`'border-color'`, `'height'`, …) since the parser
+     * tracks duplicates in CSS-property terms.
+     */
+    cssProperties?: ReadonlyArray<string>;
 };
 /**
  * Card-like wrapper for one panel section. Renders a small heading
@@ -29,7 +37,7 @@ type Props = {
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, }: Props) => JSX.Element;
+export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, }: Props) => JSX.Element;
 type RowProps = {
     label: string;
     children: ReactNode;

@@ -2,9 +2,9 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
-import { NumberInput } from '../controls/NumberInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
+import { formatSizeValue, parseSizeValue } from '@lib/parsers';
 import { Section, Row } from './Section';
 const WIDTH_MODE_OPTIONS = [
     { value: 'fixed', label: 'Fixed' },
@@ -98,6 +98,52 @@ const useMeasuredSize = (elementId, widthMode, heightMode) => {
     }, [elementId, widthMode, heightMode]);
     return size;
 };
+/**
+ * Compute the `patchElement` patch for the W input. Runs the typed
+ * input through `parseSizeValue` so the user can write any CSS
+ * length:
+ *   - `100`, `100px` → fixed-px
+ *   - `100%` → stretch
+ *   - `auto`, `fit-content` → matching keyword mode
+ *   - `100vh`, `2em`, `calc(...)`, `var(--w)` → fixed with the
+ *     verbatim string preserved in `widthCustom`
+ *
+ * For non-fixed modes, leave `widthValue` alone (preserves the
+ * user's last fixed-px value so toggling back via the dropdown
+ * brings it back). Always clear `widthCustom` for non-fixed modes
+ * and for plain px input so stale verbatim strings don't linger.
+ */
+const sizePatchForWidth = (element, raw) => {
+    const parsed = parseSizeValue(raw);
+    if (parsed.mode === 'fixed') {
+        return {
+            widthMode: 'fixed',
+            widthValue: parsed.value,
+            widthCustom: parsed.custom,
+        };
+    }
+    return {
+        widthMode: parsed.mode,
+        widthValue: element.widthValue,
+        widthCustom: undefined,
+    };
+};
+/** Same shape as `sizePatchForWidth`, but for the H input. */
+const sizePatchForHeight = (element, raw) => {
+    const parsed = parseSizeValue(raw);
+    if (parsed.mode === 'fixed') {
+        return {
+            heightMode: 'fixed',
+            heightValue: parsed.value,
+            heightCustom: parsed.custom,
+        };
+    }
+    return {
+        heightMode: parsed.mode,
+        heightValue: element.heightValue,
+        heightCustom: undefined,
+    };
+};
 export const SizeSection = ({ elementId }) => {
     const element = useResolvedElement(elementId);
     const patchElement = useCanvasStore((s) => s.patchElement);
@@ -119,15 +165,37 @@ export const SizeSection = ({ elementId }) => {
     return (_jsxs(Section, { title: "Size", elementId: elementId, fields: [
             'widthMode',
             'widthValue',
+            'widthCustom',
             'heightMode',
             'heightValue',
+            'heightCustom',
             'gridColumn',
             'gridRow',
             'alignSelf',
             'justifySelf',
-        ], children: [_jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "W", title: isWidthFixed
-                            ? 'Width'
-                            : `Computed width (border-box, including padding). Type a number to switch to Fixed.`, value: isWidthFixed ? element.widthValue : measured.width, onChange: (value) => patchElement(elementId, { widthMode: 'fixed', widthValue: value ?? 0 }), min: 0, placeholder: isWidthFixed ? undefined : element.widthMode, computed: !isWidthFixed }), _jsx(EnumSelect, { value: element.widthMode, options: WIDTH_MODE_OPTIONS, onChange: (mode) => patchElement(elementId, { widthMode: mode }), title: "Width mode" })] }), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "H", title: isHeightFixed
-                            ? 'Height'
-                            : `Computed height (border-box, including padding). Type a number to switch to Fixed.`, value: isHeightFixed ? element.heightValue : measured.height, onChange: (value) => patchElement(elementId, { heightMode: 'fixed', heightValue: value ?? 0 }), min: 0, placeholder: isHeightFixed ? undefined : element.heightMode, computed: !isHeightFixed }), _jsx(EnumSelect, { value: element.heightMode, options: HEIGHT_MODE_OPTIONS, onChange: (mode) => patchElement(elementId, { heightMode: mode }), title: "Height mode" })] }), parentIsGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Col", title: "grid-column", value: element.gridColumn, placeholder: "span 2", onCommit: (value) => patchElement(elementId, { gridColumn: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Row", title: "grid-row", value: element.gridRow, placeholder: "1 / 3", onCommit: (value) => patchElement(elementId, { gridRow: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self" }), _jsx(EnumSelect, { value: element.justifySelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifySelf: value }), title: "Justify self" })] })] }))] }));
+        ], cssProperties: [
+            'width',
+            'height',
+            'min-height',
+            'grid-column',
+            'grid-row',
+            'align-self',
+            'justify-self',
+        ], children: [_jsxs(Row, { label: "", children: [_jsx(PrefixSuffixInput, { prefix: "W", title: isWidthFixed
+                            ? 'Width — type any CSS length (100, 100px, 100vh, 100%, calc(...), auto, fit-content)'
+                            : 'Computed width (border-box, including padding). Type any CSS length to override.', value: isWidthFixed
+                            ? formatSizeValue(element.widthMode, element.widthValue, element.widthCustom)
+                            : measured.width !== undefined
+                                ? `${measured.width}px`
+                                : '', placeholder: isWidthFixed ? undefined : element.widthMode, onCommit: (raw) => patchElement(elementId, sizePatchForWidth(element, raw)), computed: !isWidthFixed }), _jsx(EnumSelect, { value: element.widthMode, options: WIDTH_MODE_OPTIONS, onChange: (mode) => patchElement(elementId, mode === 'fixed'
+                            ? { widthMode: 'fixed', widthCustom: undefined }
+                            : { widthMode: mode, widthCustom: undefined }), title: "Width mode" })] }), _jsxs(Row, { label: "", children: [_jsx(PrefixSuffixInput, { prefix: "H", title: isHeightFixed
+                            ? 'Height — type any CSS length (100, 100px, 100vh, 100%, calc(...), auto, fit-content)'
+                            : 'Computed height (border-box, including padding). Type any CSS length to override.', value: isHeightFixed
+                            ? formatSizeValue(element.heightMode, element.heightValue, element.heightCustom)
+                            : measured.height !== undefined
+                                ? `${measured.height}px`
+                                : '', placeholder: isHeightFixed ? undefined : element.heightMode, onCommit: (raw) => patchElement(elementId, sizePatchForHeight(element, raw)), computed: !isHeightFixed }), _jsx(EnumSelect, { value: element.heightMode, options: HEIGHT_MODE_OPTIONS, onChange: (mode) => patchElement(elementId, mode === 'fixed'
+                            ? { heightMode: 'fixed', heightCustom: undefined }
+                            : { heightMode: mode, heightCustom: undefined }), title: "Height mode" })] }), parentIsGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Col", title: "grid-column", value: element.gridColumn, placeholder: "span 2", onCommit: (value) => patchElement(elementId, { gridColumn: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Row", title: "grid-row", value: element.gridRow, placeholder: "1 / 3", onCommit: (value) => patchElement(elementId, { gridRow: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self" }), _jsx(EnumSelect, { value: element.justifySelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifySelf: value }), title: "Justify self" })] })] }))] }));
 };

@@ -522,7 +522,8 @@ export const initSyncBridge = (): (() => void) => {
         parsed.elements,
         nextSource,
         parsed.customMediaBlocks,
-        parsed.keyframesBlocks
+        parsed.keyframesBlocks,
+        parsed.cssDuplicates
       );
       // External edits invalidate the undo history — the old states
       // reference element maps that no longer match the file on disk.

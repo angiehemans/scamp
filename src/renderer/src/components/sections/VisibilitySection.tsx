@@ -40,6 +40,7 @@ export const VisibilitySection = ({ elementId }: Props): JSX.Element | null => {
       title="Visibility"
       elementId={elementId}
       fields={['opacity', 'visibilityMode', 'mixBlendMode']}
+      cssProperties={['opacity', 'visibility', 'mix-blend-mode']}
     >
       <Row label="Opacity">
         <NumberInput

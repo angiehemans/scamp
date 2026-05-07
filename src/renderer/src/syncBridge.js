@@ -427,7 +427,7 @@ export const initSyncBridge = () => {
             if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
                 return;
             }
-            state.reloadElements(parsed.elements, nextSource, parsed.customMediaBlocks, parsed.keyframesBlocks);
+            state.reloadElements(parsed.elements, nextSource, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
             // External edits invalidate the undo history — the old states
             // reference element maps that no longer match the file on disk.
             useCanvasStore.temporal.getState().clear();

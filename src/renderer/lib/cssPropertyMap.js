@@ -1,4 +1,4 @@
-import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parsePaddingShorthandOrNull, parsePxOrNull, parseTransitionShorthand, } from './parsers';
+import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parsePaddingShorthandOrNull, parsePxOrNull, parseSizeValue, parseTransitionShorthand, } from './parsers';
 import { isBlendMode } from './blendModes';
 const POSITIONS = new Set([
     'static',
@@ -88,29 +88,39 @@ export const cssToScampProperty = {
         }
         return null;
     },
+    // Width / height accept any CSS length: plain numbers / `px` →
+    // fixed-px, `100%` → stretch, `auto` → auto, `fit-content` → hug,
+    // anything else (`100vh`, `2em`, `calc(...)`, `var(--w)`) → fixed
+    // with the verbatim string preserved in `widthCustom` /
+    // `heightCustom`. See `parseSizeValue` for the full table.
+    //
+    // Always returns a delta — the lossless contract is upheld by the
+    // verbatim-string fallback rather than by routing through
+    // `customProperties`.
     width: (v) => {
-        if (v === '100%')
-            return { widthMode: 'stretch' };
-        if (v === 'fit-content')
-            return { widthMode: 'fit-content' };
-        if (v === 'auto')
-            return { widthMode: 'auto' };
-        const px = parsePxOrNull(v);
-        if (px === null)
-            return null;
-        return { widthMode: 'fixed', widthValue: px };
+        const parsed = parseSizeValue(v);
+        if (parsed.mode === 'fixed') {
+            return {
+                widthMode: 'fixed',
+                widthValue: parsed.value,
+                widthCustom: parsed.custom,
+            };
+        }
+        // Non-fixed mode: leave widthValue alone but clear any stale
+        // widthCustom so the generator doesn't keep emitting an old vh
+        // value after the user / agent switched to `100%`.
+        return { widthMode: parsed.mode, widthCustom: undefined };
     },
     height: (v) => {
-        if (v === '100%')
-            return { heightMode: 'stretch' };
-        if (v === 'fit-content')
-            return { heightMode: 'fit-content' };
-        if (v === 'auto')
-            return { heightMode: 'auto' };
-        const px = parsePxOrNull(v);
-        if (px === null)
-            return null;
-        return { heightMode: 'fixed', heightValue: px };
+        const parsed = parseSizeValue(v);
+        if (parsed.mode === 'fixed') {
+            return {
+                heightMode: 'fixed',
+                heightValue: parsed.value,
+                heightCustom: parsed.custom,
+            };
+        }
+        return { heightMode: parsed.mode, heightCustom: undefined };
     },
     // Free-form string so `100vh`, `500px`, `var(--page-min-h)`,
     // `calc(...)`, etc. round-trip without parallel "raw" state. The

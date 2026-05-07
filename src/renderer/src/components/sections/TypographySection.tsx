@@ -74,6 +74,15 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
         'lineHeight',
         'letterSpacing',
       ]}
+      cssProperties={[
+        'font-family',
+        'font-size',
+        'font-weight',
+        'color',
+        'text-align',
+        'line-height',
+        'letter-spacing',
+      ]}
     >
       <Row label="">
         <FontPicker

@@ -97,6 +97,15 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
       title="Background"
       elementId={elementId}
       fields={['backgroundColor', 'backgroundBlendMode']}
+      cssProperties={[
+        'background',
+        'background-color',
+        'background-image',
+        'background-size',
+        'background-position',
+        'background-repeat',
+        'background-blend-mode',
+      ]}
     >
       <Row label="">
         <ColorInput

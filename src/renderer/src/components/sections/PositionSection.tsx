@@ -13,7 +13,12 @@ export const PositionSection = ({ elementId }: Props): JSX.Element | null => {
   if (!element) return null;
 
   return (
-    <Section title="Position" elementId={elementId} fields={['x', 'y']}>
+    <Section
+      title="Position"
+      elementId={elementId}
+      fields={['x', 'y']}
+      cssProperties={['position', 'left', 'top']}
+    >
       <Row label="">
         <NumberInput
           prefix="X"

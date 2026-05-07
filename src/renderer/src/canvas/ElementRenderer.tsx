@@ -115,6 +115,9 @@ const elementToStyle = (
   const isRow = parentDirection !== 'column'; // default flex direction is row
   // 'auto' produces `undefined` so the rendered element inherits the
   // browser default — exactly what an absent CSS declaration would do.
+  // For 'fixed' mode, `widthCustom` (verbatim CSS like `100vh`,
+  // `calc(...)`, `var(--w)`) wins over the px fallback so the canvas
+  // matches the file output.
   const widthStyle =
     el.widthMode === 'stretch'
       ? '100%'
@@ -122,7 +125,9 @@ const elementToStyle = (
         ? 'fit-content'
         : el.widthMode === 'auto'
           ? undefined
-          : el.widthValue;
+          : el.widthCustom !== undefined && el.widthCustom.length > 0
+            ? el.widthCustom
+            : el.widthValue;
   const heightStyle =
     el.heightMode === 'stretch'
       ? '100%'
@@ -130,7 +135,9 @@ const elementToStyle = (
         ? 'fit-content'
         : el.heightMode === 'auto'
           ? undefined
-          : el.heightValue;
+          : el.heightCustom !== undefined && el.heightCustom.length > 0
+            ? el.heightCustom
+            : el.heightValue;
   // The page root uses `min-height` so the page frame grows vertically
   // with its content (like a real web page). Other elements use a fixed
   // `height` so they stay the size the user gave them.

@@ -28,6 +28,14 @@ type Props = {
    * properties; right-click to reset them all.
    */
   fields?: ReadonlyArray<keyof BreakpointOverride>;
+  /**
+   * The CSS property names this section emits / controls. Used to
+   * surface a separate warning indicator when the parser saw the
+   * same declaration twice in the element's class block. The names
+   * are CSS-form (`'border-color'`, `'height'`, …) since the parser
+   * tracks duplicates in CSS-property terms.
+   */
+  cssProperties?: ReadonlyArray<string>;
 };
 
 /**
@@ -46,20 +54,55 @@ export const Section = ({
   defaultOpen = true,
   elementId,
   fields,
+  cssProperties,
 }: Props): JSX.Element => {
   const [open, setOpen] = useState(defaultOpen);
-  const indicator =
-    elementId && fields && fields.length > 0 ? (
-      <OverrideIndicator elementId={elementId} fields={fields} />
-    ) : null;
+  const overrideInfo = useOverrideIndicator(elementId, fields);
+  const duplicateInfo = useDuplicateIndicator(elementId, cssProperties);
+
+  // Pick the tooltip whose header / body wraps the title row when an
+  // indicator is active. Duplicates take priority because they signal
+  // a bug-shaped condition the user probably wants to investigate
+  // before tweaking overrides. When both are active, the override dot
+  // is still rendered (and right-clickable to reset) but its tooltip
+  // doesn't claim the wider title-row hit area.
+  const tooltipInfo = duplicateInfo ?? overrideInfo;
+
+  const duplicateDot = duplicateInfo ? (
+    <span
+      className={styles.duplicateDot}
+      aria-label={duplicateInfo.ariaLabel}
+      data-testid="duplicate-dot"
+    />
+  ) : null;
+  const overrideDot = overrideInfo ? (
+    <span
+      className={styles.overrideDot}
+      onContextMenu={overrideInfo.onContextMenu}
+      aria-label={overrideInfo.ariaLabel}
+      data-testid="override-dot"
+    />
+  ) : null;
+
+  const wrapWithTooltip = (node: JSX.Element): JSX.Element => {
+    if (!tooltipInfo) return node;
+    return (
+      <Tooltip header={tooltipInfo.header} label={tooltipInfo.label}>
+        {node}
+      </Tooltip>
+    );
+  };
 
   if (!collapsible) {
     return (
       <section className={styles.section} data-panel-section={title}>
-        <div className={styles.titleRow}>
-          <h3 className={styles.heading}>{title}</h3>
-          {indicator}
-        </div>
+        {wrapWithTooltip(
+          <div className={styles.titleRow}>
+            <h3 className={styles.heading}>{title}</h3>
+            {duplicateDot}
+            {overrideDot}
+          </div>
+        )}
         {children}
       </section>
     );
@@ -68,48 +111,93 @@ export const Section = ({
   const handleToggle = (): void => setOpen((v) => !v);
   return (
     <section className={styles.section} data-panel-section={title}>
-      <button
-        className={styles.toggle}
-        type="button"
-        onClick={handleToggle}
-        aria-expanded={open}
-      >
-        <span className={styles.heading}>{title}</span>
-        {indicator}
-        <IconChevronDown
-          size={14}
-          stroke={2}
-          className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
-          aria-hidden="true"
-        />
-      </button>
+      {wrapWithTooltip(
+        <button
+          className={styles.toggle}
+          type="button"
+          onClick={handleToggle}
+          aria-expanded={open}
+        >
+          <span className={styles.heading}>{title}</span>
+          {duplicateDot}
+          {overrideDot}
+          <IconChevronDown
+            size={14}
+            stroke={2}
+            className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
+            aria-hidden="true"
+          />
+        </button>
+      )}
       {open && children}
     </section>
   );
 };
 
-type IndicatorProps = {
-  elementId: string;
-  fields: ReadonlyArray<keyof BreakpointOverride>;
+type DuplicateIndicatorInfo = {
+  header: string;
+  label: string;
+  ariaLabel: string;
+};
+
+type OverrideIndicatorInfo = {
+  header: string;
+  label: string;
+  ariaLabel: string;
+  onContextMenu: (e: MouseEvent<HTMLSpanElement>) => void;
 };
 
 /**
- * Small dot next to the section title that appears when any of the
+ * Yellow warning state for a section title — fires when the parser
+ * saw any of this section's CSS properties declared more than once
+ * in the element's class block. Editing any field in this section
+ * (or anywhere on the element) rewrites the class block and clears
+ * the duplicate, so the indicator self-heals on the next user
+ * interaction.
+ *
+ * Returns the tooltip data so the section can hoist the hover hit
+ * area onto the whole title row rather than just a tiny dot.
+ */
+const useDuplicateIndicator = (
+  elementId: string | undefined,
+  cssProperties: ReadonlyArray<string> | undefined
+): DuplicateIndicatorInfo | null => {
+  const duplicateProps = useCanvasStore((s) =>
+    elementId ? s.cssDuplicates[elementId] ?? null : null
+  );
+  if (!elementId || !cssProperties || cssProperties.length === 0) return null;
+  if (!duplicateProps || duplicateProps.length === 0) return null;
+  const matched = cssProperties.filter((p) => duplicateProps.includes(p));
+  if (matched.length === 0) return null;
+  const label = matched
+    .map((p) => `- ${p} declared more than once`)
+    .join('\n');
+  return {
+    header: 'Duplicate declarations',
+    label,
+    ariaLabel: `Duplicate CSS declarations: ${matched.join(', ')}`,
+  };
+};
+
+/**
+ * Override-active state for a section title — fires when any of the
  * section's fields is overridden at the currently-active axis (a
- * non-desktop breakpoint OR a non-default state). Wrapped in a
- * Tooltip that lists the overridden property names in CSS form.
- * Right-click resets all overridden fields at that axis.
+ * non-desktop breakpoint OR a non-default state). Returns tooltip
+ * data plus the right-click handler that resets the affected
+ * overrides at that axis.
  *
  * Only one axis surfaces at a time — non-default states are disabled
  * at non-desktop breakpoints, so when both could apply we never
  * actually have both active.
  */
-const OverrideIndicator = ({
-  elementId,
-  fields,
-}: IndicatorProps): JSX.Element | null => {
-  const overriddenBreakpointFields = useBreakpointOverrideFields(elementId);
-  const overriddenStateFields = useStateOverrideFields(elementId);
+const useOverrideIndicator = (
+  elementId: string | undefined,
+  fields: ReadonlyArray<keyof BreakpointOverride> | undefined
+): OverrideIndicatorInfo | null => {
+  const overriddenBreakpointFields = useBreakpointOverrideFields(
+    elementId ?? ''
+  );
+  const overriddenStateFields = useStateOverrideFields(elementId ?? '');
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
   const activeStateName = useCanvasStore((s) => s.activeStateName);
   const resetBreakpointFields = useCanvasStore(
@@ -118,6 +206,7 @@ const OverrideIndicator = ({
   const resetStateFields = useCanvasStore(
     (s) => s.resetElementFieldsAtState
   );
+  if (!elementId || !fields || fields.length === 0) return null;
 
   // Pick which axis to surface. Prefer state when one is active —
   // breakpoint indicators are also disabled (state ⇒ desktop) by the
@@ -150,16 +239,12 @@ const OverrideIndicator = ({
     }
   };
 
-  return (
-    <Tooltip header="Style Overrides" label={label}>
-      <span
-        className={styles.overrideDot}
-        onContextMenu={handleContextMenu}
-        aria-label={`Overridden styles: ${label}`}
-        data-testid="override-dot"
-      />
-    </Tooltip>
-  );
+  return {
+    header: 'Style Overrides',
+    label,
+    ariaLabel: `Overridden styles: ${label}`,
+    onContextMenu: handleContextMenu,
+  };
 };
 
 /**
@@ -190,8 +275,10 @@ const formatOverrideList = (
 const FIELD_LABELS: Record<string, string> = {
   widthMode: 'width',
   widthValue: 'width',
+  widthCustom: 'width',
   heightMode: 'height',
   heightValue: 'height',
+  heightCustom: 'height',
   x: 'left',
   y: 'top',
   display: 'display',

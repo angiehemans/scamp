@@ -230,8 +230,16 @@ export const elementDeclarationLines = (el, parent) => {
     else if (el.widthMode === 'fit-content') {
         lines.push(`width: fit-content;`);
     }
-    else if (el.widthMode === 'fixed' && el.widthValue !== BASE.widthValue) {
-        lines.push(`width: ${el.widthValue}px;`);
+    else if (el.widthMode === 'fixed') {
+        // `widthCustom` carries non-px values (vh, vw, em, calc, var, …)
+        // verbatim. When set, it overrides the px fallback so the file
+        // round-trips exactly what the user / agent wrote.
+        if (el.widthCustom !== undefined && el.widthCustom.length > 0) {
+            lines.push(`width: ${el.widthCustom};`);
+        }
+        else if (el.widthValue !== BASE.widthValue) {
+            lines.push(`width: ${el.widthValue}px;`);
+        }
     }
     if (el.heightMode === 'stretch') {
         lines.push(`height: 100%;`);
@@ -239,8 +247,13 @@ export const elementDeclarationLines = (el, parent) => {
     else if (el.heightMode === 'fit-content') {
         lines.push(`height: fit-content;`);
     }
-    else if (el.heightMode === 'fixed' && el.heightValue !== BASE.heightValue) {
-        lines.push(`height: ${el.heightValue}px;`);
+    else if (el.heightMode === 'fixed') {
+        if (el.heightCustom !== undefined && el.heightCustom.length > 0) {
+            lines.push(`height: ${el.heightCustom};`);
+        }
+        else if (el.heightValue !== BASE.heightValue) {
+            lines.push(`height: ${el.heightValue}px;`);
+        }
     }
     // `min-height` — free-form string. Page-root defaults to `100vh`
     // (via DEFAULT_ROOT_STYLES) so generated pages have visible height
@@ -433,11 +446,38 @@ export const elementDeclarationLines = (el, parent) => {
         }
     }
     // customProperties always go last, in insertion order. They round-trip
-    // through the file untouched.
+    // through the file untouched — except when the typed branches above
+    // already emitted a declaration for the same CSS property name. That
+    // happens when a file has duplicate declarations (`height: 100%;
+    // height: 100vh;`) where one value routes to a typed field and the
+    // other lands in customProperties: emitting both would re-create the
+    // duplicate on every save. Typed wins; the customProperties echo is
+    // dropped. The in-memory `customProperties` bag stays as-is, and the
+    // next round-trip parse won't re-populate it from a file that no
+    // longer has the conflicting declaration.
+    const emittedProps = collectEmittedPropNames(lines);
     for (const [key, value] of Object.entries(el.customProperties)) {
+        if (emittedProps.has(key))
+            continue;
         lines.push(`${key}: ${value};`);
     }
     return lines;
+};
+/**
+ * Pull the CSS property names out of an array of `prop: value;` lines.
+ * Used by both the base-element emitter and the breakpoint-override
+ * emitter to guard the customProperties pass against duplicating a
+ * property the typed branches already emitted.
+ */
+const collectEmittedPropNames = (lines) => {
+    const out = new Set();
+    for (const line of lines) {
+        const colon = line.indexOf(':');
+        if (colon <= 0)
+            continue;
+        out.add(line.slice(0, colon).trim());
+    }
+    return out;
 };
 /**
  * Emit CSS declarations for a single breakpoint override. Unlike
@@ -453,28 +493,47 @@ export const breakpointOverrideLines = (override, element) => {
     const lines = [];
     const has = (k) => Object.prototype.hasOwnProperty.call(override, k);
     // Width — needs both mode and value. Either being in the override
-    // triggers emission.
-    if (has('widthMode') || has('widthValue')) {
+    // triggers emission. `widthCustom` (verbatim CSS for non-px units)
+    // overrides the px fallback when present.
+    if (has('widthMode') || has('widthValue') || has('widthCustom')) {
         const mode = override.widthMode ?? element.widthMode;
         const value = override.widthValue ?? element.widthValue;
+        const custom = has('widthCustom')
+            ? override.widthCustom
+            : element.widthCustom;
         if (mode === 'stretch')
             lines.push(`width: 100%;`);
         else if (mode === 'fit-content')
             lines.push(`width: fit-content;`);
-        else if (mode === 'fixed')
-            lines.push(`width: ${value}px;`);
+        else if (mode === 'fixed') {
+            if (custom !== undefined && custom.length > 0) {
+                lines.push(`width: ${custom};`);
+            }
+            else {
+                lines.push(`width: ${value}px;`);
+            }
+        }
         else if (mode === 'auto')
             lines.push(`width: auto;`);
     }
-    if (has('heightMode') || has('heightValue')) {
+    if (has('heightMode') || has('heightValue') || has('heightCustom')) {
         const mode = override.heightMode ?? element.heightMode;
         const value = override.heightValue ?? element.heightValue;
+        const custom = has('heightCustom')
+            ? override.heightCustom
+            : element.heightCustom;
         if (mode === 'stretch')
             lines.push(`height: 100%;`);
         else if (mode === 'fit-content')
             lines.push(`height: fit-content;`);
-        else if (mode === 'fixed')
-            lines.push(`height: ${value}px;`);
+        else if (mode === 'fixed') {
+            if (custom !== undefined && custom.length > 0) {
+                lines.push(`height: ${custom};`);
+            }
+            else {
+                lines.push(`height: ${value}px;`);
+            }
+        }
         else if (mode === 'auto')
             lines.push(`height: auto;`);
     }
@@ -669,9 +728,15 @@ export const breakpointOverrideLines = (override, element) => {
         lines.push(`top: ${override.y}px;`);
     }
     // customProperties: free-form CSS the user / agent wrote at this
-    // breakpoint. Emitted verbatim, in insertion order, last.
+    // breakpoint. Emitted verbatim, in insertion order, last — except
+    // when a typed branch above already emitted the same CSS prop
+    // (duplicate-declaration scenario, see the base-element emitter for
+    // the long version).
     if (override.customProperties) {
+        const emittedProps = collectEmittedPropNames(lines);
         for (const [key, value] of Object.entries(override.customProperties)) {
+            if (emittedProps.has(key))
+                continue;
             lines.push(`${key}: ${value};`);
         }
     }

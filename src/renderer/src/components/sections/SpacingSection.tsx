@@ -18,6 +18,7 @@ export const SpacingSection = ({ elementId, hideMargin = false }: Props): JSX.El
       title="Spacing"
       elementId={elementId}
       fields={hideMargin ? ['padding'] : ['padding', 'margin']}
+      cssProperties={hideMargin ? ['padding'] : ['padding', 'margin']}
     >
       <Row label="">
         <FourSideInput

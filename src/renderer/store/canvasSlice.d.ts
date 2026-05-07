@@ -122,6 +122,19 @@ type CanvasState = {
         lastPngScale: 1 | 2 | 3;
     };
     /**
+     * Per-element list of CSS property names that appeared more than
+     * once in the element's base class block on the most recent parse.
+     * Empty / absent entries mean "no duplicates seen". The properties
+     * panel reads this to surface a warning indicator on sections that
+     * own the affected fields.
+     *
+     * The cleanup path is implicit: any panel edit on the affected
+     * element triggers `generateCode` which rewrites the class block
+     * from typed state, collapsing duplicates. This map is then
+     * recomputed on the next parse round-trip and clears.
+     */
+    cssDuplicates: Record<string, ReadonlyArray<string>>;
+    /**
      * Mirror of `ProjectConfig.breakpoints` — kept in the store so
      * deeply-nested components (ElementRenderer) can read the table
      * without prop-drilling. Synced by `ProjectShell` on project load
@@ -255,8 +268,8 @@ type CanvasState = {
      * element so round-trips stay text-stable.
      */
     resetElementFieldsAtState: (id: string, stateName: ElementStateName, fields: ReadonlyArray<keyof BreakpointOverride>) => void;
-    loadPage: (page: ActivePage, elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>) => void;
-    reloadElements: (elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>) => void;
+    loadPage: (page: ActivePage, elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
+    reloadElements: (elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
     setPageSource: (source: PageSource) => void;
     setBottomPanel: (panel: BottomPanel) => void;
     setPanelMode: (mode: PanelMode) => void;

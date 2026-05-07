@@ -104,7 +104,7 @@ where elements blend into the elements behind them.
 
 ---
 
-## 3. Export pages and elements
+## 3. Export pages and elements - done 
 
 **User story**
 

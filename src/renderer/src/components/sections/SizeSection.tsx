@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
-import { NumberInput } from '../controls/NumberInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import type {
   GridSelfAlign,
   HeightMode,
+  ScampElement,
   WidthMode,
 } from '@lib/element';
+import { formatSizeValue, parseSizeValue } from '@lib/parsers';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -125,6 +126,60 @@ const useMeasuredSize = (
   return size;
 };
 
+/**
+ * Compute the `patchElement` patch for the W input. Runs the typed
+ * input through `parseSizeValue` so the user can write any CSS
+ * length:
+ *   - `100`, `100px` → fixed-px
+ *   - `100%` → stretch
+ *   - `auto`, `fit-content` → matching keyword mode
+ *   - `100vh`, `2em`, `calc(...)`, `var(--w)` → fixed with the
+ *     verbatim string preserved in `widthCustom`
+ *
+ * For non-fixed modes, leave `widthValue` alone (preserves the
+ * user's last fixed-px value so toggling back via the dropdown
+ * brings it back). Always clear `widthCustom` for non-fixed modes
+ * and for plain px input so stale verbatim strings don't linger.
+ */
+const sizePatchForWidth = (
+  element: ScampElement,
+  raw: string
+): Partial<ScampElement> => {
+  const parsed = parseSizeValue(raw);
+  if (parsed.mode === 'fixed') {
+    return {
+      widthMode: 'fixed',
+      widthValue: parsed.value,
+      widthCustom: parsed.custom,
+    };
+  }
+  return {
+    widthMode: parsed.mode,
+    widthValue: element.widthValue,
+    widthCustom: undefined,
+  };
+};
+
+/** Same shape as `sizePatchForWidth`, but for the H input. */
+const sizePatchForHeight = (
+  element: ScampElement,
+  raw: string
+): Partial<ScampElement> => {
+  const parsed = parseSizeValue(raw);
+  if (parsed.mode === 'fixed') {
+    return {
+      heightMode: 'fixed',
+      heightValue: parsed.value,
+      heightCustom: parsed.custom,
+    };
+  }
+  return {
+    heightMode: parsed.mode,
+    heightValue: element.heightValue,
+    heightCustom: undefined,
+  };
+};
+
 export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
@@ -149,57 +204,100 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
       fields={[
         'widthMode',
         'widthValue',
+        'widthCustom',
         'heightMode',
         'heightValue',
+        'heightCustom',
         'gridColumn',
         'gridRow',
         'alignSelf',
         'justifySelf',
       ]}
+      cssProperties={[
+        'width',
+        'height',
+        'min-height',
+        'grid-column',
+        'grid-row',
+        'align-self',
+        'justify-self',
+      ]}
     >
       <Row label="">
-        <NumberInput
+        <PrefixSuffixInput
           prefix="W"
           title={
             isWidthFixed
-              ? 'Width'
-              : `Computed width (border-box, including padding). Type a number to switch to Fixed.`
+              ? 'Width — type any CSS length (100, 100px, 100vh, 100%, calc(...), auto, fit-content)'
+              : 'Computed width (border-box, including padding). Type any CSS length to override.'
           }
-          value={isWidthFixed ? element.widthValue : measured.width}
-          onChange={(value) =>
-            patchElement(elementId, { widthMode: 'fixed', widthValue: value ?? 0 })
+          value={
+            isWidthFixed
+              ? formatSizeValue(
+                  element.widthMode,
+                  element.widthValue,
+                  element.widthCustom
+                )
+              : measured.width !== undefined
+                ? `${measured.width}px`
+                : ''
           }
-          min={0}
           placeholder={isWidthFixed ? undefined : element.widthMode}
+          onCommit={(raw) =>
+            patchElement(elementId, sizePatchForWidth(element, raw))
+          }
           computed={!isWidthFixed}
         />
         <EnumSelect<WidthMode>
           value={element.widthMode}
           options={WIDTH_MODE_OPTIONS}
-          onChange={(mode) => patchElement(elementId, { widthMode: mode })}
+          onChange={(mode) =>
+            patchElement(
+              elementId,
+              mode === 'fixed'
+                ? { widthMode: 'fixed', widthCustom: undefined }
+                : { widthMode: mode, widthCustom: undefined }
+            )
+          }
           title="Width mode"
         />
       </Row>
       <Row label="">
-        <NumberInput
+        <PrefixSuffixInput
           prefix="H"
           title={
             isHeightFixed
-              ? 'Height'
-              : `Computed height (border-box, including padding). Type a number to switch to Fixed.`
+              ? 'Height — type any CSS length (100, 100px, 100vh, 100%, calc(...), auto, fit-content)'
+              : 'Computed height (border-box, including padding). Type any CSS length to override.'
           }
-          value={isHeightFixed ? element.heightValue : measured.height}
-          onChange={(value) =>
-            patchElement(elementId, { heightMode: 'fixed', heightValue: value ?? 0 })
+          value={
+            isHeightFixed
+              ? formatSizeValue(
+                  element.heightMode,
+                  element.heightValue,
+                  element.heightCustom
+                )
+              : measured.height !== undefined
+                ? `${measured.height}px`
+                : ''
           }
-          min={0}
           placeholder={isHeightFixed ? undefined : element.heightMode}
+          onCommit={(raw) =>
+            patchElement(elementId, sizePatchForHeight(element, raw))
+          }
           computed={!isHeightFixed}
         />
         <EnumSelect<HeightMode>
           value={element.heightMode}
           options={HEIGHT_MODE_OPTIONS}
-          onChange={(mode) => patchElement(elementId, { heightMode: mode })}
+          onChange={(mode) =>
+            patchElement(
+              elementId,
+              mode === 'fixed'
+                ? { heightMode: 'fixed', heightCustom: undefined }
+                : { heightMode: mode, heightCustom: undefined }
+            )
+          }
           title="Height mode"
         />
       </Row>

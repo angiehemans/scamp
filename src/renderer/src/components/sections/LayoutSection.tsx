@@ -187,6 +187,18 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
         'rowGap',
         'justifyItems',
       ]}
+      cssProperties={[
+        'display',
+        'flex-direction',
+        'align-items',
+        'justify-content',
+        'gap',
+        'grid-template-columns',
+        'grid-template-rows',
+        'column-gap',
+        'row-gap',
+        'justify-items',
+      ]}
     >
       <Row label="">
         <SegmentedControl<LayoutMode>

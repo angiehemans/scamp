@@ -64,6 +64,7 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
       defaultOpen={shadows.length > 0}
       elementId={elementId}
       fields={['boxShadows']}
+      cssProperties={['box-shadow']}
     >
       {shadows.length === 0 && (
         <div className={sectionStyles.row}>

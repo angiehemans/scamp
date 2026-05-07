@@ -245,6 +245,25 @@ export type ScampElement = {
     widthValue: number;
     heightMode: HeightMode;
     heightValue: number;
+    /**
+     * Optional verbatim CSS length string for `width`. Only meaningful
+     * when `widthMode === 'fixed'`. When set, the generator emits this
+     * string instead of `${widthValue}px` so non-px units (`vh`, `vw`,
+     * `em`, `rem`, `calc(...)`, `var(--…)`, …) round-trip exactly as
+     * the user / agent wrote them.
+     *
+     * `widthValue` is still maintained as a best-effort integer-px
+     * fallback so the canvas resize math (drag-handles, fit-to-bounds)
+     * has something concrete to work with — for `100vh` we store
+     * `widthValue: 100`, for `calc(100% - 20px)` we store `0` (or the
+     * last known px value).
+     *
+     * Cleared (set to `undefined`) when the user types a plain px value
+     * or switches to a non-fixed mode.
+     */
+    widthCustom?: string;
+    /** As `widthCustom` but for `height`. See that field's docs. */
+    heightCustom?: string;
     x: number;
     y: number;
     /**

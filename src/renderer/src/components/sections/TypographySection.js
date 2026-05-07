@@ -47,6 +47,14 @@ export const TypographySection = ({ elementId }) => {
             'textAlign',
             'lineHeight',
             'letterSpacing',
+        ], cssProperties: [
+            'font-family',
+            'font-size',
+            'font-weight',
+            'color',
+            'text-align',
+            'line-height',
+            'letter-spacing',
         ], children: [_jsx(Row, { label: "", children: _jsx(FontPicker, { value: element.fontFamily ?? '', fonts: allFonts, fontTokens: fontFamilyTokens, onChange: (value) => patchElement(elementId, {
                         fontFamily: value.length > 0 ? value : undefined,
                     }), title: "Font family" }) }), _jsxs(Row, { label: "", children: [_jsx(TokenOrNumberInput, { prefix: "Sz", title: "Font size", value: element.fontSize, tokens: fontSizeTokens, defaultUnit: "px", onChange: (value) => patchElement(elementId, { fontSize: value }), onOpenTheme: openThemePanel ?? undefined, placeholder: "auto" }), _jsx(EnumSelect, { value: String(element.fontWeight ?? 400), options: FONT_WEIGHT_OPTIONS, onChange: (value) => {

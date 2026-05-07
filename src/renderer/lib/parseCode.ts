@@ -58,6 +58,22 @@ export type ParsedTree = {
    * them on every save.
    */
   keyframesBlocks: KeyframesBlock[];
+  /**
+   * Per-element list of CSS property names that appeared more than
+   * once in the element's base class block. Empty array (or absent
+   * key) when no duplicates were seen. The cascade picks last-wins so
+   * Scamp's typed state reflects the final declaration; this map lets
+   * the UI surface a warning indicator on the affected section so
+   * users know the file is in a non-canonical state. Editing any
+   * field on the element via the panel triggers the generator to
+   * rewrite the class block from typed state, which removes the
+   * duplicates.
+   *
+   * Per-state and per-breakpoint duplicates aren't tracked here yet —
+   * they're rarer and the same cleanup path applies (any panel edit
+   * collapses them). Future-extensible.
+   */
+  cssDuplicates: Record<string, ReadonlyArray<string>>;
 };
 
 export type ParseCodeOptions = {
@@ -69,6 +85,32 @@ export type ParseCodeOptions = {
    * project config loaded yet.
    */
   breakpoints?: ReadonlyArray<Breakpoint>;
+};
+
+/**
+ * Return the set of CSS property names that appear more than once in
+ * a declaration list. Used to surface a warning indicator in the
+ * panel when an agent or hand edit left two `height: …` (or any
+ * other property) declarations in the same block.
+ *
+ * Order is preserved by first appearance so callers that render the
+ * list to the user get a stable order.
+ */
+export const findDuplicateDeclProps = (
+  decls: ReadonlyArray<RawDeclaration>
+): string[] => {
+  const counts = new Map<string, number>();
+  const order: string[] = [];
+  for (const { prop } of decls) {
+    const seen = counts.get(prop);
+    if (seen === undefined) {
+      counts.set(prop, 1);
+      order.push(prop);
+    } else {
+      counts.set(prop, seen + 1);
+    }
+  }
+  return order.filter((p) => (counts.get(p) ?? 0) > 1);
 };
 
 /**
@@ -979,6 +1021,7 @@ export const parseCode = (
   const rawElements = parseTsxStructure(tsx);
   const parsedCss = parseCssDeclarations(css, breakpoints);
   const elements: Record<string, ScampElement> = {};
+  const cssDuplicates: Record<string, ReadonlyArray<string>> = {};
 
   // Always start with a root, even if the TSX is missing one. Downstream
   // code (canvas store, ProjectShell) assumes ROOT_ELEMENT_ID exists.
@@ -1063,6 +1106,13 @@ export const parseCode = (
     }
 
     elements[raw.id] = finalElement;
+
+    // Track duplicates in the BASE class block. State / breakpoint
+    // duplicates are deferred — same cleanup path applies (any panel
+    // edit on the element rewrites all rule blocks for it from typed
+    // state) but the indicator surface is rarer there.
+    const dupes = findDuplicateDeclProps(decls);
+    if (dupes.length > 0) cssDuplicates[raw.id] = dupes;
   }
 
   if (!rootSeen) {
@@ -1074,6 +1124,7 @@ export const parseCode = (
     rootId: ROOT_ELEMENT_ID,
     customMediaBlocks: parsedCss.customMediaBlocks,
     keyframesBlocks: parsedCss.keyframesBlocks,
+    cssDuplicates,
     ...(migrated ? { migrated: true } : {}),
   };
 };

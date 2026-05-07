@@ -108,6 +108,7 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
       defaultOpen={transitions.length > 0}
       elementId={elementId}
       fields={['transitions']}
+      cssProperties={['transition']}
     >
       {transitions.length === 0 && (
         <div className={sectionStyles.row}>

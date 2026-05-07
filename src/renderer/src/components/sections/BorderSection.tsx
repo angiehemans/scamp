@@ -30,6 +30,13 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
       title="Border"
       elementId={elementId}
       fields={['borderColor', 'borderStyle', 'borderWidth', 'borderRadius']}
+      cssProperties={[
+        'border',
+        'border-width',
+        'border-style',
+        'border-color',
+        'border-radius',
+      ]}
     >
       <Row label="">
         <ColorInput

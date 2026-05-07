@@ -183,6 +183,20 @@ type CanvasState = {
   };
 
   /**
+   * Per-element list of CSS property names that appeared more than
+   * once in the element's base class block on the most recent parse.
+   * Empty / absent entries mean "no duplicates seen". The properties
+   * panel reads this to surface a warning indicator on sections that
+   * own the affected fields.
+   *
+   * The cleanup path is implicit: any panel edit on the affected
+   * element triggers `generateCode` which rewrites the class block
+   * from typed state, collapsing duplicates. This map is then
+   * recomputed on the next parse round-trip and clears.
+   */
+  cssDuplicates: Record<string, ReadonlyArray<string>>;
+
+  /**
    * Mirror of `ProjectConfig.breakpoints` — kept in the store so
    * deeply-nested components (ElementRenderer) can read the table
    * without prop-drilling. Synced by `ProjectShell` on project load
@@ -337,13 +351,15 @@ type CanvasState = {
     elements: Record<string, ScampElement>,
     source: PageSource,
     customMediaBlocks?: ReadonlyArray<string>,
-    keyframesBlocks?: ReadonlyArray<KeyframesBlock>
+    keyframesBlocks?: ReadonlyArray<KeyframesBlock>,
+    cssDuplicates?: Record<string, ReadonlyArray<string>>
   ) => void;
   reloadElements: (
     elements: Record<string, ScampElement>,
     source: PageSource,
     customMediaBlocks?: ReadonlyArray<string>,
-    keyframesBlocks?: ReadonlyArray<KeyframesBlock>
+    keyframesBlocks?: ReadonlyArray<KeyframesBlock>,
+    cssDuplicates?: Record<string, ReadonlyArray<string>>
   ) => void;
   setPageSource: (source: PageSource) => void;
   setBottomPanel: (panel: BottomPanel) => void;
@@ -691,6 +707,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   activeBreakpointId: 'desktop',
   activeStateName: null,
   exportSettings: { lastFormat: 'png', lastPngScale: 2 },
+  cssDuplicates: {},
   breakpoints: [...DEFAULT_BREAKPOINTS],
   projectFormat: 'nextjs',
   projectPath: '',
@@ -1105,7 +1122,21 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         state.activeBreakpointId,
         state.activeStateName
       );
-      return { elements: { ...state.elements, [id]: next } };
+      // A panel edit on this element triggers `generateCode` to
+      // rewrite its class block from typed state, which collapses any
+      // duplicate declarations the file had. Clear the indicator
+      // optimistically so the user sees feedback immediately rather
+      // than after the round-trip parse.
+      const dupes = state.cssDuplicates;
+      let nextDupes = dupes;
+      if (id in dupes) {
+        nextDupes = { ...dupes };
+        delete nextDupes[id];
+      }
+      return {
+        elements: { ...state.elements, [id]: next },
+        cssDuplicates: nextDupes,
+      };
     }),
 
   resetElementFieldsAtBreakpoint: (id, breakpointId, fields) =>
@@ -1253,24 +1284,39 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       },
     })),
 
-  loadPage: (page, elements, source, customMediaBlocks, keyframesBlocks) =>
+  loadPage: (
+    page,
+    elements,
+    source,
+    customMediaBlocks,
+    keyframesBlocks,
+    cssDuplicates
+  ) =>
     set({
       activePage: page,
       elements,
       pageSource: source,
       pageCustomMediaBlocks: customMediaBlocks ?? [],
       pageKeyframesBlocks: keyframesBlocks ?? [],
+      cssDuplicates: cssDuplicates ?? {},
       selectedElementIds: [],
       isLoading: true,
       lastLoadKind: 'initial',
     }),
 
-  reloadElements: (elements, source, customMediaBlocks, keyframesBlocks) =>
+  reloadElements: (
+    elements,
+    source,
+    customMediaBlocks,
+    keyframesBlocks,
+    cssDuplicates
+  ) =>
     set((state) => ({
       elements,
       pageSource: source,
       pageCustomMediaBlocks: customMediaBlocks ?? state.pageCustomMediaBlocks,
       pageKeyframesBlocks: keyframesBlocks ?? state.pageKeyframesBlocks,
+      cssDuplicates: cssDuplicates ?? state.cssDuplicates,
       // Drop any selection that no longer exists in the new tree (the file
       // could have been edited externally to remove an element).
       selectedElementIds: state.selectedElementIds.filter((id) => id in elements),

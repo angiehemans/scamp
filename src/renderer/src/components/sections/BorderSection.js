@@ -19,5 +19,11 @@ export const BorderSection = ({ elementId }) => {
     const openThemePanel = useCanvasStore((s) => s.openThemePanel);
     if (!element)
         return null;
-    return (_jsxs(Section, { title: "Border", elementId: elementId, fields: ['borderColor', 'borderStyle', 'borderWidth', 'borderRadius'], children: [_jsxs(Row, { label: "", children: [_jsx(ColorInput, { value: element.borderColor, onChange: (value) => patchElement(elementId, { borderColor: value }), presetColors: projectColors.length > 0 ? projectColors : undefined, tokens: themeTokens, onOpenTheme: openThemePanel ?? undefined }), _jsx(EnumSelect, { value: element.borderStyle, options: BORDER_STYLE_OPTIONS, onChange: (value) => patchElement(elementId, { borderStyle: value }), title: "Border style" })] }), _jsxs(Row, { label: "", children: [_jsx(FourSideInput, { prefix: "W", title: "Border width (top right bottom left)", value: element.borderWidth, onChange: (next) => patchElement(elementId, { borderWidth: next }), min: 0 }), _jsx(FourSideInput, { prefix: "R", title: "Border radius (top-left top-right bottom-right bottom-left)", value: element.borderRadius, onChange: (next) => patchElement(elementId, { borderRadius: next }), min: 0 })] })] }));
+    return (_jsxs(Section, { title: "Border", elementId: elementId, fields: ['borderColor', 'borderStyle', 'borderWidth', 'borderRadius'], cssProperties: [
+            'border',
+            'border-width',
+            'border-style',
+            'border-color',
+            'border-radius',
+        ], children: [_jsxs(Row, { label: "", children: [_jsx(ColorInput, { value: element.borderColor, onChange: (value) => patchElement(elementId, { borderColor: value }), presetColors: projectColors.length > 0 ? projectColors : undefined, tokens: themeTokens, onOpenTheme: openThemePanel ?? undefined }), _jsx(EnumSelect, { value: element.borderStyle, options: BORDER_STYLE_OPTIONS, onChange: (value) => patchElement(elementId, { borderStyle: value }), title: "Border style" })] }), _jsxs(Row, { label: "", children: [_jsx(FourSideInput, { prefix: "W", title: "Border width (top right bottom left)", value: element.borderWidth, onChange: (next) => patchElement(elementId, { borderWidth: next }), min: 0 }), _jsx(FourSideInput, { prefix: "R", title: "Border radius (top-left top-right bottom-right bottom-left)", value: element.borderRadius, onChange: (next) => patchElement(elementId, { borderRadius: next }), min: 0 })] })] }));
 };

@@ -126,27 +126,85 @@ describe('cssToScampProperty', () => {
   });
 
   describe('width / height', () => {
-    it('width 100% switches to stretch', () => {
-      expect(apply('width', '100%')).toEqual({ widthMode: 'stretch' });
+    it('width 100% switches to stretch and clears widthCustom', () => {
+      expect(apply('width', '100%')).toEqual({
+        widthMode: 'stretch',
+        widthCustom: undefined,
+      });
     });
-    it('width with px sets fixed mode and value', () => {
-      expect(apply('width', '320px')).toEqual({ widthMode: 'fixed', widthValue: 320 });
+    it('width with px sets fixed mode and value, no custom', () => {
+      expect(apply('width', '320px')).toEqual({
+        widthMode: 'fixed',
+        widthValue: 320,
+        widthCustom: undefined,
+      });
+    });
+    it('width with bare number is treated as px', () => {
+      expect(apply('width', '320')).toEqual({
+        widthMode: 'fixed',
+        widthValue: 320,
+        widthCustom: undefined,
+      });
     });
     it('width fit-content switches to fit-content mode', () => {
-      expect(apply('width', 'fit-content')).toEqual({ widthMode: 'fit-content' });
+      expect(apply('width', 'fit-content')).toEqual({
+        widthMode: 'fit-content',
+        widthCustom: undefined,
+      });
     });
-    it('refuses non-px non-keyword width values', () => {
-      expect(apply('width', '50%')).toBeNull();
-      expect(apply('width', 'min-content')).toBeNull();
+    it('width 100vh stays in fixed mode with verbatim widthCustom', () => {
+      expect(apply('width', '100vh')).toEqual({
+        widthMode: 'fixed',
+        widthValue: 100,
+        widthCustom: '100vh',
+      });
+    });
+    it('width calc() preserves the verbatim string in widthCustom', () => {
+      expect(apply('width', 'calc(100% - 20px)')).toEqual({
+        widthMode: 'fixed',
+        widthValue: 0,
+        widthCustom: 'calc(100% - 20px)',
+      });
+    });
+    it('width var() preserves the verbatim string in widthCustom', () => {
+      expect(apply('width', 'var(--page-w)')).toEqual({
+        widthMode: 'fixed',
+        widthValue: 0,
+        widthCustom: 'var(--page-w)',
+      });
+    });
+    it('width 50% stays fixed (only literal 100% is stretch)', () => {
+      expect(apply('width', '50%')).toEqual({
+        widthMode: 'fixed',
+        widthValue: 50,
+        widthCustom: '50%',
+      });
     });
     it('height 100% switches to stretch', () => {
-      expect(apply('height', '100%')).toEqual({ heightMode: 'stretch' });
+      expect(apply('height', '100%')).toEqual({
+        heightMode: 'stretch',
+        heightCustom: undefined,
+      });
     });
     it('height with px sets fixed mode and value', () => {
-      expect(apply('height', '200px')).toEqual({ heightMode: 'fixed', heightValue: 200 });
+      expect(apply('height', '200px')).toEqual({
+        heightMode: 'fixed',
+        heightValue: 200,
+        heightCustom: undefined,
+      });
+    });
+    it('height 100vh preserves verbatim heightCustom', () => {
+      expect(apply('height', '100vh')).toEqual({
+        heightMode: 'fixed',
+        heightValue: 100,
+        heightCustom: '100vh',
+      });
     });
     it('height fit-content switches to fit-content mode', () => {
-      expect(apply('height', 'fit-content')).toEqual({ heightMode: 'fit-content' });
+      expect(apply('height', 'fit-content')).toEqual({
+        heightMode: 'fit-content',
+        heightCustom: undefined,
+      });
     });
   });
 

@@ -230,7 +230,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         if (parsed.migrated && !projectConfig.canvasMigrationAcknowledged) {
             setShowMigrationBanner(true);
         }
-        loadPage({ name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath }, parsed.elements, { tsx: page.tsxContent, css: page.cssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks);
+        loadPage({ name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath }, parsed.elements, { tsx: page.tsxContent, css: page.cssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
         // Fresh page load — clear undo history so the user can't undo past
         // the initial state of this page.
         useCanvasStore.temporal.getState().clear();

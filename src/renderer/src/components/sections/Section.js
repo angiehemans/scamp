@@ -14,33 +14,79 @@ import styles from './Section.module.css';
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, }) => {
+export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, cssProperties, }) => {
     const [open, setOpen] = useState(defaultOpen);
-    const indicator = elementId && fields && fields.length > 0 ? (_jsx(OverrideIndicator, { elementId: elementId, fields: fields })) : null;
+    const overrideInfo = useOverrideIndicator(elementId, fields);
+    const duplicateInfo = useDuplicateIndicator(elementId, cssProperties);
+    // Pick the tooltip whose header / body wraps the title row when an
+    // indicator is active. Duplicates take priority because they signal
+    // a bug-shaped condition the user probably wants to investigate
+    // before tweaking overrides. When both are active, the override dot
+    // is still rendered (and right-clickable to reset) but its tooltip
+    // doesn't claim the wider title-row hit area.
+    const tooltipInfo = duplicateInfo ?? overrideInfo;
+    const duplicateDot = duplicateInfo ? (_jsx("span", { className: styles.duplicateDot, "aria-label": duplicateInfo.ariaLabel, "data-testid": "duplicate-dot" })) : null;
+    const overrideDot = overrideInfo ? (_jsx("span", { className: styles.overrideDot, onContextMenu: overrideInfo.onContextMenu, "aria-label": overrideInfo.ariaLabel, "data-testid": "override-dot" })) : null;
+    const wrapWithTooltip = (node) => {
+        if (!tooltipInfo)
+            return node;
+        return (_jsx(Tooltip, { header: tooltipInfo.header, label: tooltipInfo.label, children: node }));
+    };
     if (!collapsible) {
-        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), indicator] }), children] }));
+        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), duplicateDot, overrideDot] })), children] }));
     }
     const handleToggle = () => setOpen((v) => !v);
-    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.heading, children: title }), indicator, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] }), open && children] }));
+    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.heading, children: title }), duplicateDot, overrideDot, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] })), open && children] }));
 };
 /**
- * Small dot next to the section title that appears when any of the
+ * Yellow warning state for a section title — fires when the parser
+ * saw any of this section's CSS properties declared more than once
+ * in the element's class block. Editing any field in this section
+ * (or anywhere on the element) rewrites the class block and clears
+ * the duplicate, so the indicator self-heals on the next user
+ * interaction.
+ *
+ * Returns the tooltip data so the section can hoist the hover hit
+ * area onto the whole title row rather than just a tiny dot.
+ */
+const useDuplicateIndicator = (elementId, cssProperties) => {
+    const duplicateProps = useCanvasStore((s) => elementId ? s.cssDuplicates[elementId] ?? null : null);
+    if (!elementId || !cssProperties || cssProperties.length === 0)
+        return null;
+    if (!duplicateProps || duplicateProps.length === 0)
+        return null;
+    const matched = cssProperties.filter((p) => duplicateProps.includes(p));
+    if (matched.length === 0)
+        return null;
+    const label = matched
+        .map((p) => `- ${p} declared more than once`)
+        .join('\n');
+    return {
+        header: 'Duplicate declarations',
+        label,
+        ariaLabel: `Duplicate CSS declarations: ${matched.join(', ')}`,
+    };
+};
+/**
+ * Override-active state for a section title — fires when any of the
  * section's fields is overridden at the currently-active axis (a
- * non-desktop breakpoint OR a non-default state). Wrapped in a
- * Tooltip that lists the overridden property names in CSS form.
- * Right-click resets all overridden fields at that axis.
+ * non-desktop breakpoint OR a non-default state). Returns tooltip
+ * data plus the right-click handler that resets the affected
+ * overrides at that axis.
  *
  * Only one axis surfaces at a time — non-default states are disabled
  * at non-desktop breakpoints, so when both could apply we never
  * actually have both active.
  */
-const OverrideIndicator = ({ elementId, fields, }) => {
-    const overriddenBreakpointFields = useBreakpointOverrideFields(elementId);
-    const overriddenStateFields = useStateOverrideFields(elementId);
+const useOverrideIndicator = (elementId, fields) => {
+    const overriddenBreakpointFields = useBreakpointOverrideFields(elementId ?? '');
+    const overriddenStateFields = useStateOverrideFields(elementId ?? '');
     const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
     const activeStateName = useCanvasStore((s) => s.activeStateName);
     const resetBreakpointFields = useCanvasStore((s) => s.resetElementFieldsAtBreakpoint);
     const resetStateFields = useCanvasStore((s) => s.resetElementFieldsAtState);
+    if (!elementId || !fields || fields.length === 0)
+        return null;
     // Pick which axis to surface. Prefer state when one is active —
     // breakpoint indicators are also disabled (state ⇒ desktop) by the
     // switcher's effect, so this branch ordering matches the routing.
@@ -65,7 +111,12 @@ const OverrideIndicator = ({ elementId, fields, }) => {
             resetBreakpointFields(elementId, activeBreakpointId, overriddenInSection);
         }
     };
-    return (_jsx(Tooltip, { header: "Style Overrides", label: label, children: _jsx("span", { className: styles.overrideDot, onContextMenu: handleContextMenu, "aria-label": `Overridden styles: ${label}`, "data-testid": "override-dot" }) }));
+    return {
+        header: 'Style Overrides',
+        label,
+        ariaLabel: `Overridden styles: ${label}`,
+        onContextMenu: handleContextMenu,
+    };
 };
 /**
  * Format a list of BreakpointOverride field keys as the body of the
@@ -93,8 +144,10 @@ const formatOverrideList = (fields) => {
 const FIELD_LABELS = {
     widthMode: 'width',
     widthValue: 'width',
+    widthCustom: 'width',
     heightMode: 'height',
     heightValue: 'height',
+    heightCustom: 'height',
     x: 'left',
     y: 'top',
     display: 'display',

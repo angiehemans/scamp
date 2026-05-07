@@ -86,8 +86,12 @@
 
 /* Breakpoint-override indicator. Appears next to the section title
    when any of the section's fields is set in the active breakpoint's
-   override. Hover for a list of overridden CSS properties;
-   right-click to reset the whole section's overrides. */
+   override. The hover hit area is the whole title row (Section
+   composes the Tooltip on the title container, not the dot itself),
+   so we don't apply a special cursor here — the title row keeps
+   whatever cursor its parent uses (default for static, pointer for
+   the collapsible toggle). Right-click on the dot itself still
+   resets the section's overrides. */
 .overrideDot {
   flex-shrink: 0;
   width: 6px;
@@ -95,7 +99,24 @@
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-muted);
-  cursor: context-menu;
+}
+
+/* Duplicate-CSS-declaration indicator. Yellow warning dot that
+   appears when the parser saw any of the section's CSS properties
+   declared more than once in the element's class block. The cleanup
+   path is implicit (any panel edit on the element rewrites the rule
+   block from typed state, collapsing duplicates), so this dot
+   self-heals without an explicit click action. Same hit-area model
+   as `.overrideDot`: the tooltip is hoisted onto the title row by
+   Section, so no special cursor here. */
+.duplicateDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn-text, #f59e0b);
+  box-shadow: 0 0 0 2px var(--warn-bg, rgba(245, 158, 11, 0.25));
+  margin-right: 4px;
 }
 
 /* Generic "+ Add row" button used by repeating-row sections like

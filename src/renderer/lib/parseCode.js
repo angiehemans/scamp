@@ -7,6 +7,30 @@ import { parseAnimationShorthand, parsePx } from './parsers';
 import { matchesPreset } from './keyframesMatch';
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID, } from '@shared/types';
 /**
+ * Return the set of CSS property names that appear more than once in
+ * a declaration list. Used to surface a warning indicator in the
+ * panel when an agent or hand edit left two `height: …` (or any
+ * other property) declarations in the same block.
+ *
+ * Order is preserved by first appearance so callers that render the
+ * list to the user get a stable order.
+ */
+export const findDuplicateDeclProps = (decls) => {
+    const counts = new Map();
+    const order = [];
+    for (const { prop } of decls) {
+        const seen = counts.get(prop);
+        if (seen === undefined) {
+            counts.set(prop, 1);
+            order.push(prop);
+        }
+        else {
+            counts.set(prop, seen + 1);
+        }
+    }
+    return order.filter((p) => (counts.get(p) ?? 0) > 1);
+};
+/**
  * Detect the legacy root-sizing three-tuple and return the
  * declarations with it stripped. Only matches the exact shape the
  * pre-canvas-rework generator produced: a single `width: Npx`, a
@@ -770,6 +794,7 @@ export const parseCode = (tsx, css, options) => {
     const rawElements = parseTsxStructure(tsx);
     const parsedCss = parseCssDeclarations(css, breakpoints);
     const elements = {};
+    const cssDuplicates = {};
     // Always start with a root, even if the TSX is missing one. Downstream
     // code (canvas store, ProjectShell) assumes ROOT_ELEMENT_ID exists.
     let rootSeen = false;
@@ -855,6 +880,13 @@ export const parseCode = (tsx, css, options) => {
             };
         }
         elements[raw.id] = finalElement;
+        // Track duplicates in the BASE class block. State / breakpoint
+        // duplicates are deferred — same cleanup path applies (any panel
+        // edit on the element rewrites all rule blocks for it from typed
+        // state) but the indicator surface is rarer there.
+        const dupes = findDuplicateDeclProps(decls);
+        if (dupes.length > 0)
+            cssDuplicates[raw.id] = dupes;
     }
     if (!rootSeen) {
         elements[ROOT_ELEMENT_ID] = makeRoot();
@@ -864,6 +896,7 @@ export const parseCode = (tsx, css, options) => {
         rootId: ROOT_ELEMENT_ID,
         customMediaBlocks: parsedCss.customMediaBlocks,
         keyframesBlocks: parsedCss.keyframesBlocks,
+        cssDuplicates,
         ...(migrated ? { migrated: true } : {}),
     };
 };

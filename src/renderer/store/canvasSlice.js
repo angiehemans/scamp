@@ -281,6 +281,7 @@ export const useCanvasStore = create()(temporal((set) => ({
     activeBreakpointId: 'desktop',
     activeStateName: null,
     exportSettings: { lastFormat: 'png', lastPngScale: 2 },
+    cssDuplicates: {},
     breakpoints: [...DEFAULT_BREAKPOINTS],
     projectFormat: 'nextjs',
     projectPath: '',
@@ -652,7 +653,21 @@ export const useCanvasStore = create()(temporal((set) => ({
         if (!el)
             return state;
         const next = applyPatchWithAxisRouting(el, patch, state.activeBreakpointId, state.activeStateName);
-        return { elements: { ...state.elements, [id]: next } };
+        // A panel edit on this element triggers `generateCode` to
+        // rewrite its class block from typed state, which collapses any
+        // duplicate declarations the file had. Clear the indicator
+        // optimistically so the user sees feedback immediately rather
+        // than after the round-trip parse.
+        const dupes = state.cssDuplicates;
+        let nextDupes = dupes;
+        if (id in dupes) {
+            nextDupes = { ...dupes };
+            delete nextDupes[id];
+        }
+        return {
+            elements: { ...state.elements, [id]: next },
+            cssDuplicates: nextDupes,
+        };
     }),
     resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => set((state) => {
         if (breakpointId === 'desktop')
@@ -791,21 +806,23 @@ export const useCanvasStore = create()(temporal((set) => ({
                 : 0) + 1,
         },
     })),
-    loadPage: (page, elements, source, customMediaBlocks, keyframesBlocks) => set({
+    loadPage: (page, elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => set({
         activePage: page,
         elements,
         pageSource: source,
         pageCustomMediaBlocks: customMediaBlocks ?? [],
         pageKeyframesBlocks: keyframesBlocks ?? [],
+        cssDuplicates: cssDuplicates ?? {},
         selectedElementIds: [],
         isLoading: true,
         lastLoadKind: 'initial',
     }),
-    reloadElements: (elements, source, customMediaBlocks, keyframesBlocks) => set((state) => ({
+    reloadElements: (elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => set((state) => ({
         elements,
         pageSource: source,
         pageCustomMediaBlocks: customMediaBlocks ?? state.pageCustomMediaBlocks,
         pageKeyframesBlocks: keyframesBlocks ?? state.pageKeyframesBlocks,
+        cssDuplicates: cssDuplicates ?? state.cssDuplicates,
         // Drop any selection that no longer exists in the new tree (the file
         // could have been edited externally to remove an element).
         selectedElementIds: state.selectedElementIds.filter((id) => id in elements),

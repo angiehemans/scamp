@@ -119,6 +119,7 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
         defaultOpen={false}
         elementId={elementId}
         fields={['animation']}
+        cssProperties={['animation']}
       >
         <Row
           label="Preset"
@@ -139,6 +140,7 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
         defaultOpen={false}
         elementId={elementId}
         fields={['animation']}
+        cssProperties={['animation']}
       >
         <div className={styles.hint}>
           Multiple animations declared. Edit in CSS mode.
@@ -167,6 +169,7 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
       defaultOpen
       elementId={elementId}
       fields={['animation']}
+      cssProperties={['animation']}
     >
       <Row
         label="Preset"

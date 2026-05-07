@@ -133,5 +133,16 @@ export const LayoutSection = ({ elementId }) => {
             'columnGap',
             'rowGap',
             'justifyItems',
+        ], cssProperties: [
+            'display',
+            'flex-direction',
+            'align-items',
+            'justify-content',
+            'gap',
+            'grid-template-columns',
+            'grid-template-rows',
+            'column-gap',
+            'row-gap',
+            'justify-items',
         ], children: [_jsx(Row, { label: "", children: _jsx(SegmentedControl, { value: mode, options: LAYOUT_OPTIONS, onChange: (value) => patchElement(elementId, computeLayoutPatch(element, value)), title: "Display mode" }) }), isFlex && (_jsxs(_Fragment, { children: [_jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignItems, options: ALIGN_OPTIONS, onChange: (value) => patchElement(elementId, { alignItems: value }), title: "Align items" }), _jsx(EnumSelect, { value: element.justifyContent, options: JUSTIFY_OPTIONS, onChange: (value) => patchElement(elementId, { justifyContent: value }), title: "Justify content" })] }), _jsx(Row, { label: "", children: _jsx(NumberInput, { prefix: "Gap", title: "Gap between flex children", value: element.gap, onChange: (value) => patchElement(elementId, { gap: value ?? 0 }), min: 0 }) })] })), isGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Cols", title: "grid-template-columns", value: element.gridTemplateColumns, placeholder: "1fr 1fr", onCommit: (value) => patchElement(elementId, { gridTemplateColumns: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Rows", title: "grid-template-rows", value: element.gridTemplateRows, placeholder: "auto", onCommit: (value) => patchElement(elementId, { gridTemplateRows: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "C-gap", title: "column-gap", value: element.columnGap, onChange: (value) => patchElement(elementId, { columnGap: value ?? 0 }), min: 0 }), _jsx(NumberInput, { prefix: "R-gap", title: "row-gap", value: element.rowGap, onChange: (value) => patchElement(elementId, { rowGap: value ?? 0 }), min: 0 })] }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignItems, options: ALIGN_OPTIONS, onChange: (value) => patchElement(elementId, { alignItems: value }), title: "Align items" }), _jsx(EnumSelect, { value: element.justifyItems, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifyItems: value }), title: "Justify items" })] })] }))] }));
 };

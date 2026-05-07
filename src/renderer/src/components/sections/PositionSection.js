@@ -8,5 +8,5 @@ export const PositionSection = ({ elementId }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);
     if (!element)
         return null;
-    return (_jsx(Section, { title: "Position", elementId: elementId, fields: ['x', 'y'], children: _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "X", title: "X position", value: element.x, onChange: (value) => patchElement(elementId, { x: value ?? 0 }) }), _jsx(NumberInput, { prefix: "Y", title: "Y position", value: element.y, onChange: (value) => patchElement(elementId, { y: value ?? 0 }) })] }) }));
+    return (_jsx(Section, { title: "Position", elementId: elementId, fields: ['x', 'y'], cssProperties: ['position', 'left', 'top'], children: _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "X", title: "X position", value: element.x, onChange: (value) => patchElement(elementId, { x: value ?? 0 }) }), _jsx(NumberInput, { prefix: "Y", title: "Y position", value: element.y, onChange: (value) => patchElement(elementId, { y: value ?? 0 }) })] }) }));
 };
