@@ -385,6 +385,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   const isEditing = useCanvasStore((s) => s.editingElementId === elementId);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
   const setElementText = useCanvasStore((s) => s.setElementText);
+  const selectElement = useCanvasStore((s) => s.selectElement);
   // The ref is attached to the element's DOM node — for text elements
   // it's the contentEditable target during edit mode.
   const elementRef = useRef<HTMLElement | null>(null);
@@ -487,6 +488,26 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   // rectangle differ only in their children: text renders the element's
   // text directly inside (so the tag wraps the text the way real HTML
   // does), rectangles render their child elements recursively.
+  const handleContextMenu = (
+    e: import('react').MouseEvent<HTMLElement>
+  ): void => {
+    // Don't open a context menu while the user is mid-text-edit on
+    // this element — the browser's native edit menu is more useful
+    // there.
+    if (isText && isEditing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // Select the element so the properties panel switches to its
+    // WYSIWYG view and the Export section's scope reflects the
+    // right-clicked target.
+    selectElement(element.id);
+    window.dispatchEvent(
+      new CustomEvent('scamp:open-element-context-menu', {
+        detail: { x: e.clientX, y: e.clientY, elementId: element.id },
+      })
+    );
+  };
+
   const props: Record<string, unknown> = {
     // `data-scamp-id` mirrors the CSS class name, matching what the code
     // generator writes to disk. `data-element-id` is the raw internal id
@@ -494,6 +515,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     // renames don't force a refactor of every lookup site.
     'data-scamp-id': classNameFor(element),
     'data-element-id': element.id,
+    onContextMenu: handleContextMenu,
     // Animation preview: increment the React key on each Play click
     // so React remounts the element and the CSS animation plays from
     // the top. Stays undefined when not previewing so we don't churn

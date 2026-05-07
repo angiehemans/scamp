@@ -51,7 +51,7 @@ without writing CSS manually.
 
 ---
 
-## 2. CSS blend modes
+## 2. CSS blend modes -Done
 
 **User story**
 
@@ -407,6 +407,141 @@ opacity from 100 to 47 should not create 53 history entries.
   forward history the same as a manual change would
 
 ---
+
+## 6. ## Color picker rework
+
+**User stories**
+
+As a user setting a color in the WYSIWYG panel, I want to pick a color
+from anywhere on my screen using an eyedropper tool so I can match colors
+from my canvas, my code panel, or any other app without having to manually
+copy hex values.
+
+As a user dragging the cursor across the color gradient in the color picker,
+I want the selected color to update smoothly and in real time so the
+interaction feels responsive and precise rather than laggy or jumpy.
+
+---
+
+**Behaviour — eyedropper tool**
+
+- An eyedropper icon button sits alongside the hex input in the color picker
+- Clicking it activates the native Electron eyedropper via
+  `desktopCapturer` or the browser's `EyeDropper` API (see technical
+  notes below)
+- The cursor changes to a crosshair with a color preview magnifier while
+  the eyedropper is active
+- Clicking anywhere on screen — including outside the Scamp window —
+  samples the color at that pixel and populates it back into the color
+  picker and hex input
+- Pressing Escape cancels the eyedropper without changing the current color
+- The sampled color is added to the recent colors row at the bottom of the
+  picker automatically
+
+---
+
+**Behaviour — color picker performance investigation**
+
+The current color gradient picker has a fluidity problem when dragging the
+cursor. Before building any fixes this requires investigation to identify
+the root cause. Likely candidates:
+
+- **Debounce or throttle on the drag handler** — if the `onMouseMove`
+  handler is debounced or the state update is batched too aggressively,
+  the color lags behind the cursor. The fix is to update the local picker
+  state on every `mousemove` event and only write to Zustand (which
+  triggers the CSS update and file write) on `mouseup` or on a much
+  shorter throttle (16ms, one frame)
+- **Zustand state update on every mousemove** — if every drag event
+  triggers a full Zustand state update and a file write debounce, the
+  picker is competing with the sync pipeline on every frame. The picker's
+  internal color state should be local React state (`useState`) during the
+  drag, only committing to Zustand when the drag ends
+- **CSS recalculation on every update** — if the canvas is re-rendering
+  on every color change during a drag, the browser may be doing more
+  layout work than necessary. The element's style should update via a
+  direct DOM style mutation during the drag (bypassing React's render
+  cycle) and only commit through the normal state path on mouseup
+- **Event listener passive flag** — if mouse events on the picker are
+  not marked as passive, the browser may be waiting for event handler
+  completion before updating the display
+
+**Investigation steps:**
+
+1. Profile the color picker drag interaction in Chrome DevTools
+   Performance tab — identify where frame time is being spent
+2. Check whether the bottleneck is in the picker's own render cycle,
+   the Zustand update, or the canvas re-render triggered downstream
+3. Identify which of the above causes applies and fix accordingly
+4. Verify the fix at 60fps on both Mac and Windows before closing
+
+**Target behaviour after fix:**
+
+- Dragging the gradient cursor updates the color preview at 60fps with
+  no perceptible lag between cursor position and displayed color
+- The canvas element's color updates in real time during the drag
+- The file write and Zustand commit happen only on mouseup — not during
+  the drag — so the sync pipeline is not involved in the interactive
+  performance path at all
+- The hue slider and opacity slider have the same smooth behaviour
+
+---
+
+**Color picker polish (while we're in here)**
+
+Since this story touches the color picker internals it is worth addressing
+a few related polish items at the same time:
+
+- **Recent colors row** — a row of small swatches showing the last 8
+  colors used in the current session. Clicking a swatch applies it
+  immediately
+- **Hex input accepts shorthand** — typing `#fff` expands to `#ffffff`
+  on blur
+- **Opacity input** — a separate numeric input (0–100) alongside the
+  hex field for setting alpha without needing to drag the opacity slider
+- **Copy hex on click** — clicking the hex value label copies it to
+  the clipboard with a brief "Copied" confirmation
+
+---
+
+**Technical notes — eyedropper implementation**
+
+There are two implementation paths for the eyedropper in Electron:
+
+**Option A — Web EyeDropper API**
+Chromium 95+ ships a native `EyeDropper` API available in the renderer:
+```ts
+const eyeDropper = new EyeDropper();
+const result = await eyeDropper.open();
+// result.sRGBHex → '#a3b4c5'
+```
+This is the simplest implementation and works well for sampling colors
+from within the Scamp window. The limitation is it may not reliably
+sample colors from outside the Electron window on all platforms.
+
+**Option B — Electron desktopCapturer + screen overlay**
+For sampling colors anywhere on screen including outside the Scamp window,
+use `desktopCapturer` to capture a screenshot of the full screen, render
+it in a transparent fullscreen overlay window, and sample the pixel on
+click. More complex but works reliably cross-platform.
+
+Start with Option A. If users report that the eyedropper cannot sample
+colors from outside the Scamp window, implement Option B as a follow-up.
+
+---
+
+**Notes**
+
+- The performance investigation must happen before any UI changes to
+  the picker — do not add new features on top of a broken interaction
+  model. Fix the drag fluidity first, then add the eyedropper and polish
+- The local-state-during-drag / commit-on-mouseup pattern is the correct
+  architecture for any interactive picker control — apply the same pattern
+  to the opacity slider, hue slider, and any future picker controls
+- The eyedropper requires the `desktopCapturer` permission in Electron's
+  main process if Option B is needed — document this in the IPC
+  architecture notes
+
 
 ## Deferred follow-ups
 

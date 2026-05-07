@@ -7,6 +7,11 @@ import type {
   CopyImageArgs,
   CopyImageResult,
   CreateProjectArgs,
+  ExportChooseSavePathArgs,
+  ExportChooseSavePathResult,
+  ExportPngArgs,
+  ExportResult,
+  ExportSvgArgs,
   FileChangedPayload,
   FilePatchArgs,
   FilePatchResult,
@@ -132,6 +137,18 @@ const api = {
 
   chooseImage: (args?: ChooseImageArgs): Promise<ChooseImageResult> =>
     ipcRenderer.invoke(IPC.FileChooseImage, args),
+
+  // Export (page or element)
+  exportChooseSavePath: (
+    args: ExportChooseSavePathArgs
+  ): Promise<ExportChooseSavePathResult> =>
+    ipcRenderer.invoke(IPC.ExportChooseSavePath, args),
+
+  exportPng: (args: ExportPngArgs): Promise<ExportResult> =>
+    ipcRenderer.invoke(IPC.ExportPng, args),
+
+  exportSvg: (args: ExportSvgArgs): Promise<ExportResult> =>
+    ipcRenderer.invoke(IPC.ExportSvg, args),
 
   // Theme
   readTheme: (args: { projectPath: string }): Promise<string> =>

@@ -13,6 +13,7 @@ import { VisibilitySection } from './sections/VisibilitySection';
 import { ShadowsSection } from './sections/ShadowsSection';
 import { TransitionsSection } from './sections/TransitionsSection';
 import { AnimationSection } from './sections/AnimationSection';
+import { ExportSection } from './sections/ExportSection';
 import styles from './PropertiesPanel.module.css';
 
 /**
@@ -64,6 +65,7 @@ export const UiPanel = (): JSX.Element => {
       <VisibilitySection elementId={elementId} />
       <TransitionsSection elementId={elementId} />
       <AnimationSection elementId={elementId} />
+      <ExportSection />
     </div>
   );
 };

@@ -14,6 +14,7 @@ import { VisibilitySection } from './sections/VisibilitySection';
 import { ShadowsSection } from './sections/ShadowsSection';
 import { TransitionsSection } from './sections/TransitionsSection';
 import { AnimationSection } from './sections/AnimationSection';
+import { ExportSection } from './sections/ExportSection';
 import styles from './PropertiesPanel.module.css';
 /**
  * The typed view of the properties panel. Reads the primary selected
@@ -44,5 +45,5 @@ export const UiPanel = () => {
     // anchor against. Root has no parent; flex children flow with the
     // layout engine.
     const showPosition = !isRoot && !parentIsFlex;
-    return (_jsxs("div", { className: styles.uiPanelBody, children: [!isRoot && _jsx(ElementSection, { elementId: elementId }), showPosition && _jsx(PositionSection, { elementId: elementId }), _jsx(SizeSection, { elementId: elementId }), !isText && !isImage && !isInput && _jsx(LayoutSection, { elementId: elementId }), _jsx(SpacingSection, { elementId: elementId, hideMargin: isRoot }), !isImage && _jsx(BackgroundSection, { elementId: elementId }), !isImage && _jsx(BorderSection, { elementId: elementId }), !isImage && _jsx(ShadowsSection, { elementId: elementId }), isImage && _jsx(ImageSection, { elementId: elementId }), isText && _jsx(TypographySection, { elementId: elementId }), _jsx(VisibilitySection, { elementId: elementId }), _jsx(TransitionsSection, { elementId: elementId }), _jsx(AnimationSection, { elementId: elementId })] }));
+    return (_jsxs("div", { className: styles.uiPanelBody, children: [!isRoot && _jsx(ElementSection, { elementId: elementId }), showPosition && _jsx(PositionSection, { elementId: elementId }), _jsx(SizeSection, { elementId: elementId }), !isText && !isImage && !isInput && _jsx(LayoutSection, { elementId: elementId }), _jsx(SpacingSection, { elementId: elementId, hideMargin: isRoot }), !isImage && _jsx(BackgroundSection, { elementId: elementId }), !isImage && _jsx(BorderSection, { elementId: elementId }), !isImage && _jsx(ShadowsSection, { elementId: elementId }), isImage && _jsx(ImageSection, { elementId: elementId }), isText && _jsx(TypographySection, { elementId: elementId }), _jsx(VisibilitySection, { elementId: elementId }), _jsx(TransitionsSection, { elementId: elementId }), _jsx(AnimationSection, { elementId: elementId }), _jsx(ExportSection, {})] }));
 };

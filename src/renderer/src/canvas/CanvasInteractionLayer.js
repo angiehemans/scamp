@@ -635,7 +635,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     };
     const selectedEl = selectedElementId ? elements[selectedElementId] : null;
     const isEditing = editingElementId !== null;
-    return (_jsxs("div", { ref: layerRef, className: styles.layer, style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onDragOver: handleDragOver, onDrop: handleDrop, children: [draw && (_jsx(DrawPreview, { x: Math.min(draw.startX, draw.currentX) + draw.parentOffsetX, y: Math.min(draw.startY, draw.currentY) + draw.parentOffsetY, width: Math.abs(draw.currentX - draw.startX), height: Math.abs(draw.currentY - draw.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
+    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onDragOver: handleDragOver, onDrop: handleDrop, children: [draw && (_jsx(DrawPreview, { x: Math.min(draw.startX, draw.currentX) + draw.parentOffsetX, y: Math.min(draw.startY, draw.currentY) + draw.parentOffsetY, width: Math.abs(draw.currentX - draw.startX), height: Math.abs(draw.currentY - draw.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
                     left: dropIndicator.rect.x,
                     top: dropIndicator.rect.y,
                     width: dropIndicator.rect.w,

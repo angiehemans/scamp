@@ -61,6 +61,11 @@ export const IPC = {
   TerminalData: 'terminal:data',
   TerminalExit: 'terminal:exit',
 
+  // Export (page or element)
+  ExportChooseSavePath: 'export:chooseSavePath',
+  ExportPng: 'export:png',
+  ExportSvg: 'export:svg',
+
   // E2E test bootstrap (only live when SCAMP_E2E=1)
   TestGetBootstrap: 'test:getBootstrap',
 } as const;

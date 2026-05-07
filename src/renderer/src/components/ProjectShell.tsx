@@ -31,6 +31,7 @@ import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { PageContextMenu, type PageMenuItem } from './PageContextMenu';
+import { ElementContextMenu } from './ElementContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import styles from './ProjectShell.module.css';
@@ -933,6 +934,8 @@ export const ProjectShell = ({
           onClose={() => setPageMenu(null)}
         />
       )}
+      <ElementContextMenu />
+
       {deletingPageName && (
         <ConfirmDialog
           title={`Delete page "${deletingPageName}"?`}

@@ -111,6 +111,17 @@ type CanvasState = {
      */
     activeStateName: ElementStateName | null;
     /**
+     * Persisted-across-the-session export-panel settings. The Export
+     * section lives at the bottom of the WYSIWYG panel and remembers
+     * the user's last format / scale choice so successive exports
+     * don't require re-picking. Lost on app close — there's no
+     * file-backed persistence.
+     */
+    exportSettings: {
+        lastFormat: 'png' | 'svg';
+        lastPngScale: 1 | 2 | 3;
+    };
+    /**
      * Mirror of `ProjectConfig.breakpoints` — kept in the store so
      * deeply-nested components (ElementRenderer) can read the table
      * without prop-drilling. Synced by `ProjectShell` on project load
@@ -251,6 +262,8 @@ type CanvasState = {
     setPanelMode: (mode: PanelMode) => void;
     setActiveBreakpoint: (id: string) => void;
     setActiveState: (state: ElementStateName | null) => void;
+    setExportFormat: (format: 'png' | 'svg') => void;
+    setExportPngScale: (scale: 1 | 2 | 3) => void;
     setBreakpoints: (breakpoints: Breakpoint[]) => void;
     setProjectFormat: (format: ProjectFormat) => void;
     setProjectPath: (path: string) => void;

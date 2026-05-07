@@ -41,6 +41,9 @@ export declare const IPC: {
     readonly TerminalKill: "terminal:kill";
     readonly TerminalData: "terminal:data";
     readonly TerminalExit: "terminal:exit";
+    readonly ExportChooseSavePath: "export:chooseSavePath";
+    readonly ExportPng: "export:png";
+    readonly ExportSvg: "export:svg";
     readonly TestGetBootstrap: "test:getBootstrap";
 };
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

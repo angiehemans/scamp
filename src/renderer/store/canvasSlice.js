@@ -280,6 +280,7 @@ export const useCanvasStore = create()(temporal((set) => ({
     userZoom: null,
     activeBreakpointId: 'desktop',
     activeStateName: null,
+    exportSettings: { lastFormat: 'png', lastPngScale: 2 },
     breakpoints: [...DEFAULT_BREAKPOINTS],
     projectFormat: 'nextjs',
     projectPath: '',
@@ -816,6 +817,12 @@ export const useCanvasStore = create()(temporal((set) => ({
     setPanelMode: (mode) => set({ panelMode: mode }),
     setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
     setActiveState: (activeStateName) => set({ activeStateName }),
+    setExportFormat: (format) => set((state) => ({
+        exportSettings: { ...state.exportSettings, lastFormat: format },
+    })),
+    setExportPngScale: (scale) => set((state) => ({
+        exportSettings: { ...state.exportSettings, lastPngScale: scale },
+    })),
     setBreakpoints: (breakpoints) => set({ breakpoints }),
     setProjectFormat: (projectFormat) => set({ projectFormat }),
     setPageNames: (pageNames) => set({ pageNames }),

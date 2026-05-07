@@ -716,6 +716,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     <div
       ref={layerRef}
       className={styles.layer}
+      data-canvas-chrome="true"
       style={{ pointerEvents: isEditing ? 'none' : 'auto' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

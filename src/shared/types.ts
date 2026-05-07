@@ -383,3 +383,37 @@ export type TestBootstrap = {
   e2e: boolean;
   autoOpenProjectPath: string | null;
 };
+
+// ---- Export IPC payloads ---------------------------------------------
+
+export type ExportFormat = 'png' | 'svg';
+
+export type ExportChooseSavePathArgs = {
+  /** Suggested filename (no extension — the handler appends it). */
+  filename: string;
+  format: ExportFormat;
+  /** Default folder hint, typically the project path. */
+  defaultDir?: string;
+};
+
+export type ExportChooseSavePathResult = {
+  canceled: boolean;
+  path: string | null;
+};
+
+export type ExportPngArgs = {
+  /** Captured PNG as a base64 data URL (`data:image/png;base64,…`). */
+  dataUrl: string;
+  path: string;
+};
+
+export type ExportSvgArgs = {
+  svgString: string;
+  path: string;
+};
+
+export type ExportResult = {
+  ok: boolean;
+  /** Populated on failure — short, user-readable. */
+  error?: string;
+};

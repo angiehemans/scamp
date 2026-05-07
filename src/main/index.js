@@ -10,6 +10,7 @@ import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
+import { registerExportIpc } from './ipc/export';
 import { registerPreviewIpc } from './ipc/preview';
 import { closeAllPreviewWindows, closePreviewWindow, openPreviewWindow, } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
@@ -131,6 +132,7 @@ app.whenReady().then(() => {
     registerTerminalIpc();
     registerThemeIpc();
     registerImageIpc();
+    registerExportIpc();
     registerPreviewIpc({
         open: openPreviewWindow,
         close: closePreviewWindow,
