@@ -8,6 +8,12 @@ import { type TestProject } from './project';
  * Electron session — tests should re-stub per scenario if needed.
  */
 export declare const stubOpenDialog: (app: ElectronApplication, filePath: string) => Promise<void>;
+/**
+ * Replace `dialog.showSaveDialog` so the next call returns
+ * `filePath: <path>` without opening a native dialog. Used by export
+ * specs that need a deterministic save target without a real picker.
+ */
+export declare const stubSaveDialog: (app: ElectronApplication, filePath: string) => Promise<void>;
 export declare const writeFixtureImage: (dir: string, name?: string) => Promise<string>;
 export type ScampFixtures = {
     project: TestProject;

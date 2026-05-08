@@ -12,8 +12,17 @@ The collapsible **Element** section at the top lets you change the HTML tag used
 
 ### Size
 
-- **W** (width) and **H** (height) number inputs.
-- Each dimension has a mode selector: **Fixed**, **Stretch**, **Hug**, or **Auto**.
+- **W** (width) and **H** (height) inputs accept any CSS length:
+  - `100` (treated as `100px`), `100px` → **Fixed**
+  - `100%` → **Stretch**
+  - `auto` → **Auto**
+  - `fit-content` → **Hug**
+  - `100vh`, `100vw`, `2em`, `calc(100% - 20px)`, `var(--page-w)` →
+    **Fixed** with the verbatim value preserved
+- The mode selector (**Fixed** / **Stretch** / **Hug** / **Auto**)
+  auto-syncs with whatever you typed — `100%` flips to Stretch,
+  `auto` flips to Auto, etc. You can also pick the mode manually
+  from the dropdown.
 
 ### Layout
 
@@ -35,10 +44,50 @@ The collapsible **Element** section at the top lets you change the HTML tag used
 - **Color** swatch, **Style** selector (solid, dashed, etc.), **W** (width), **R** (border-radius).
 - Supports shorthand input for radius (e.g. `10 20 10 20`).
 
+### Shadow
+
+- "+ Add shadow" appends a row. Multiple shadows are supported and
+  emit as a comma-separated `box-shadow` value.
+- Per row: **X / Y** offsets, **B** (blur), **S** (spread), color
+  picker, **O** (opacity 0–100%), and an **Outset / Inset** toggle.
+- Color and opacity are split for clarity — the picker writes a hex
+  base color; the **O** input controls the alpha. The combined
+  output is always `rgba(...)`.
+- The remove button (×) drops a single row; setting the section
+  empty drops the entire `box-shadow` declaration.
+
 ### Visibility
 
 - **Opacity** — 0–100% number input.
 - **Display** — Visible / Hidden / None segmented control.
+- **Blend** — `mix-blend-mode` dropdown. Default is **Normal**
+  (no declaration emitted). Options group by category: Darken
+  (Multiply / Darken / Color burn), Lighten (Screen / Lighten /
+  Color dodge), Contrast (Overlay / Soft light / Hard light),
+  Inversion (Difference / Exclusion), and Component (Hue /
+  Saturation / Color / Luminosity).
+
+### Transitions, Animation
+
+See [Transitions](transitions.md) and [Animations](animations.md) for the
+shorthand-emitting Transitions section and the preset-driven
+Animation section.
+
+### Export
+
+The **Export** section sits at the bottom of the WYSIWYG panel
+(Figma-style) and writes a PNG or SVG of the selected element.
+
+- **Format** dropdown: PNG or SVG.
+- **Scale** (PNG only): 1× / 2× / 3× — multiplies the captured
+  pixel resolution.
+- **Size** read-out: live width × height of the export target.
+- The Export button label updates with scope ("Export rect_a1b2"
+  for an element, "Export page" for the page root).
+- Clicking opens a native save dialog. The renderer captures the
+  DOM via `html-to-image`; main writes the bytes.
+- Editor chrome (selection outlines, drop indicators, the
+  CanvasInteractionLayer) is filtered out of every capture.
 
 ## CSS Mode
 
@@ -56,6 +105,24 @@ When the canvas is at a non-desktop breakpoint (Mobile, Tablet, or a custom one 
 - **Right-click** the dot to reset every overridden field in that section — each field reverts to the cascade value from desktop (or a wider breakpoint).
 
 See [Breakpoints](breakpoints.md) for a complete walkthrough.
+
+## Duplicate-CSS Indicator
+
+When the parser sees the same CSS property declared more than once in
+an element's class block (e.g. `height: 100%; height: 100vh;`), the
+section that owns that property surfaces a small **yellow dot** next
+to its title. Hover for a tooltip listing the duplicated property.
+
+Duplicates usually come from agent-written or hand-edited CSS where
+two values landed for the same property. The browser cascade picks
+the last-declared value; Scamp's typed state reflects the same.
+
+**The dot self-heals when you edit any field on the affected
+element**: editing rewrites the rule block from typed state, which
+collapses the duplicates. Existing fallback patterns (e.g. `display:
+-webkit-box; display: flex;`) are flattened to the modern value on
+this rewrite — back up the file first if you want to keep the
+fallback.
 
 ## Tips
 

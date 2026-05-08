@@ -8,9 +8,12 @@ test.describe('terminal: multiple shell tabs', () => {
     window,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.keyboard.press('Control+`');
+    // Use the toolbar button rather than Ctrl+` — the global keydown
+    // listener can race with mount on a cold start, dropping the
+    // shortcut. The toolbar button is wired through the same toggle.
+    await window.getByRole('button', { name: /^Terminal/ }).click();
     const panel = window.getByTestId('terminal-panel');
-    await expect(panel).toBeVisible();
+    await expect(panel).toHaveAttribute('data-hidden', 'false');
 
     // Starts with 1 shell (Shell 1) + App Log.
     await expect(panel.getByText('Shell 1', { exact: true })).toBeVisible();

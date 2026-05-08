@@ -45,27 +45,52 @@ const componentNameFromPage = (pageName: string): string =>
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join('');
 
+const writePage = async (dir: string, name: string): Promise<void> => {
+  await fs.writeFile(
+    path.join(dir, `${name}.tsx`),
+    defaultPageTsx(componentNameFromPage(name), name),
+    'utf-8'
+  );
+  await fs.writeFile(
+    path.join(dir, `${name}.module.css`),
+    DEFAULT_PAGE_CSS,
+    'utf-8'
+  );
+};
+
+export type CreateTestProjectOptions = {
+  /** Project directory's basename. Defaults to `scamp-e2e`. */
+  name?: string;
+  /**
+   * Extra pages to seed beyond the default `home` page. Each name
+   * gets a default TSX + CSS module written to disk. The app's page
+   * scanner will pick them up on open. Default: no extras.
+   */
+  extraPages?: ReadonlyArray<string>;
+};
+
 export const createTestProject = async (
-  name = 'scamp-e2e'
+  options: CreateTestProjectOptions | string = {}
 ): Promise<TestProject> => {
+  // Backwards-compat: callers used to pass the name as a string
+  // positional. Keep that working so wave-1 fixtures don't have to
+  // change.
+  const opts =
+    typeof options === 'string' ? { name: options } : options;
+  const name = opts.name ?? 'scamp-e2e';
+  const extraPages = opts.extraPages ?? [];
+
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-e2e-'));
   const dir = path.join(root, name);
   await fs.mkdir(dir, { recursive: false });
 
   const pageName = 'home';
-  const componentName = componentNameFromPage(pageName);
 
   await fs.writeFile(path.join(dir, 'agent.md'), AGENT_MD_CONTENT_LEGACY, 'utf-8');
-  await fs.writeFile(
-    path.join(dir, `${pageName}.tsx`),
-    defaultPageTsx(componentName, pageName),
-    'utf-8'
-  );
-  await fs.writeFile(
-    path.join(dir, `${pageName}.module.css`),
-    DEFAULT_PAGE_CSS,
-    'utf-8'
-  );
+  await writePage(dir, pageName);
+  for (const extra of extraPages) {
+    await writePage(dir, extra);
+  }
   await fs.writeFile(path.join(dir, 'theme.css'), DEFAULT_THEME_CSS, 'utf-8');
 
   // Suppress the legacy → nextjs migration banner so it doesn't sit on

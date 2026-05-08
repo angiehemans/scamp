@@ -18,6 +18,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Transitions](transitions.md) — Smooth state changes via the Transitions section
 - [Animations](animations.md) — Preset keyframe animations with full timing controls
 - [Linking Between Pages](linking.md) — Internal and external links via the Element section
+- [Export](export.md) — Save the current page or selected element as PNG or SVG
 - [Preview Mode](preview.md) — Open the project in a real Next.js dev server window
 - [Layers Panel](layers-panel.md) — The element tree, selection, reordering, and nesting
 - [Code Output](code-output.md) — What Scamp generates, save status, and the live code preview

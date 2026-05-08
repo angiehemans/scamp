@@ -26,4 +26,14 @@ export type TestProject = {
     /** Recursively delete the project's temp dir. */
     cleanup: () => Promise<void>;
 };
-export declare const createTestProject: (name?: string) => Promise<TestProject>;
+export type CreateTestProjectOptions = {
+    /** Project directory's basename. Defaults to `scamp-e2e`. */
+    name?: string;
+    /**
+     * Extra pages to seed beyond the default `home` page. Each name
+     * gets a default TSX + CSS module written to disk. The app's page
+     * scanner will pick them up on open. Default: no extras.
+     */
+    extraPages?: ReadonlyArray<string>;
+};
+export declare const createTestProject: (options?: CreateTestProjectOptions | string) => Promise<TestProject>;

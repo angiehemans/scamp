@@ -151,25 +151,25 @@ export default function Home() {
 }
 `;
         const parsed = parseCode(TSX, css);
-        // Pin the parser's intermediate state so a regression here is
-        // legible without re-deriving everything from the CSS.
-        expect(parsed.elements['a1b2']?.heightMode).toBe('stretch');
-        expect(parsed.elements['a1b2']?.customProperties).toEqual({
-            height: '100vh',
-        });
+        // Pin the parser's intermediate state. Both declarations route to
+        // typed fields now: `height: 100%` → stretch, then `height: 100vh`
+        // → fixed-with-verbatim wins (last-applied). customProperties is
+        // untouched.
+        expect(parsed.elements['a1b2']?.heightMode).toBe('fixed');
+        expect(parsed.elements['a1b2']?.heightCustom).toBe('100vh');
+        expect(parsed.elements['a1b2']?.customProperties).toEqual({});
         const out = generateCode({
             elements: parsed.elements,
             rootId: parsed.rootId,
             pageName: 'home',
         });
-        // Exactly one `height:` declaration on `.rect_a1b2`. We don't
-        // mandate which one wins — the parser's first-applied value (the
-        // `100%` typed-stretch) is fine; the second (`100vh`) being
-        // dropped on save is the user's "clean up duplicates" intent.
+        // Exactly one `height:` declaration on `.rect_a1b2`, and it's the
+        // verbatim `100vh` (last wins, matches the browser cascade).
         // Word-boundary anchor on `height` so `min-height: 100vh` doesn't
         // accidentally count as a `height` declaration.
         const matches = out.css.match(/(?:^|\s)height:\s*[^;]+;/gm) ?? [];
         expect(matches).toHaveLength(1);
+        expect(matches[0]?.trim()).toBe('height: 100vh;');
     });
     it('a single non-mappable height (no duplicate) still round-trips via customProperties', () => {
         const css = `.root {
