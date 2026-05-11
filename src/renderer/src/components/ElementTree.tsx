@@ -135,10 +135,29 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
   const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     const draggedId = e.dataTransfer.getData(DRAG_MIME);
     setDragOver(null);
-    if (!draggedId || draggedId === element.id) return;
+    const w = window as unknown as { __scampDropDiag?: unknown[] };
+    if (!w.__scampDropDiag) w.__scampDropDiag = [];
+    w.__scampDropDiag.push({
+      stage: 'enter',
+      draggedId,
+      targetId: element.id,
+      targetParent: element.parentId,
+    });
+    if (!draggedId || draggedId === element.id) {
+      w.__scampDropDiag.push({ stage: 'early-return' });
+      return;
+    }
     e.preventDefault();
     const position = computeDropPosition(e, element);
+    w.__scampDropDiag.push({ stage: 'pre-runDrop', position });
+    const beforeChildIds = element.parentId
+      ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
+      : [];
     runDrop(draggedId, element, position, reorderElement);
+    const afterChildIds = element.parentId
+      ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
+      : [];
+    w.__scampDropDiag.push({ stage: 'post-runDrop', beforeChildIds, afterChildIds });
   };
 
   return (

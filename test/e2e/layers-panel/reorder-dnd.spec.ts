@@ -15,8 +15,8 @@ const reorderInTree = async (
   sourceSelector: string,
   targetSelector: string,
   position: 'before' | 'after' | 'inside'
-): Promise<void> => {
-  await page.evaluate(
+): Promise<Record<string, unknown>> => {
+  return await page.evaluate(
     ({ sourceSel, targetSel, pos }) => {
       const src = document.querySelector(sourceSel) as HTMLElement | null;
       const dst = document.querySelector(targetSel) as HTMLElement | null;
@@ -27,13 +27,17 @@ const reorderInTree = async (
       const dataTransfer = new DataTransfer();
       dataTransfer.setData(DRAG_MIME, elementId);
 
-      src.dispatchEvent(
-        new DragEvent('dragstart', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-        })
-      );
+      const diag: Record<string, unknown> = { elementId };
+
+      const dragStartEvt = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+      });
+      src.dispatchEvent(dragStartEvt);
+      diag.afterDragStart_types = Array.from(dataTransfer.types);
+      diag.afterDragStart_data = dataTransfer.getData(DRAG_MIME);
+
       const rect = dst.getBoundingClientRect();
       const y =
         pos === 'before'
@@ -41,27 +45,37 @@ const reorderInTree = async (
           : pos === 'after'
             ? rect.top + rect.height * 0.9
             : rect.top + rect.height * 0.5;
-      dst.dispatchEvent(
-        new DragEvent('dragover', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-          clientX: rect.left + rect.width / 2,
-          clientY: y,
-        })
-      );
-      dst.dispatchEvent(
-        new DragEvent('drop', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-          clientX: rect.left + rect.width / 2,
-          clientY: y,
-        })
-      );
+
+      const dragOverEvt = new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+        clientX: rect.left + rect.width / 2,
+        clientY: y,
+      });
+      const dragOverDispatched = dst.dispatchEvent(dragOverEvt);
+      diag.dragOverReturned = dragOverDispatched;
+      diag.dragOverDefaultPrevented = dragOverEvt.defaultPrevented;
+      diag.afterDragOver_types = Array.from(dataTransfer.types);
+      diag.afterDragOver_data = dataTransfer.getData(DRAG_MIME);
+
+      const dropEvt = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+        clientX: rect.left + rect.width / 2,
+        clientY: y,
+      });
+      const dropDispatched = dst.dispatchEvent(dropEvt);
+      diag.dropReturned = dropDispatched;
+      diag.dropDefaultPrevented = dropEvt.defaultPrevented;
+      diag.afterDrop_types = Array.from(dataTransfer.types);
+      diag.afterDrop_data = dataTransfer.getData(DRAG_MIME);
+
       src.dispatchEvent(
         new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer })
       );
+      return diag;
     },
     { sourceSel: sourceSelector, targetSel: targetSelector, pos: position }
   );
@@ -92,7 +106,7 @@ test.describe('layers panel: drag-and-drop reorder', () => {
     expect(initialOrder).toEqual(['root', firstClass, secondClass]);
 
     // Drag the second row above the first.
-    await reorderInTree(
+    const diag = await reorderInTree(
       window,
       `[data-testid="layers-panel"] [data-element-class="${secondClass}"]`,
       `[data-testid="layers-panel"] [data-element-class="${firstClass}"]`,
@@ -103,6 +117,18 @@ test.describe('layers panel: drag-and-drop reorder', () => {
     const nextOrder = await layersRows(window).evaluateAll((rows) =>
       rows.map((r) => (r as HTMLElement).dataset.elementClass ?? '')
     );
+    if (JSON.stringify(nextOrder) !== JSON.stringify(['root', secondClass, firstClass])) {
+
+      console.log('REORDER_DIAG:', JSON.stringify(diag));
+
+      console.log('REORDER_NEXT_ORDER:', JSON.stringify(nextOrder));
+
+      const dropDiag = await window.evaluate(
+        () => (window as unknown as { __scampDropDiag?: unknown }).__scampDropDiag
+      );
+
+      console.log('REORDER_DROP_DIAG:', JSON.stringify(dropDiag));
+    }
     expect(nextOrder).toEqual(['root', secondClass, firstClass]);
   });
 
