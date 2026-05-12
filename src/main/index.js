@@ -77,7 +77,11 @@ const createWindow = () => {
     win.webContents.on('did-start-navigation', (_e, _url, isInPlace, isMainFrame) => {
         if (!isMainFrame || isInPlace)
             return;
-        disposeAllTerminals();
+        // Fire-and-forget — we don't need to block navigation on the OS
+        // actually reaping the old pty processes. The map is cleared
+        // synchronously inside disposeAllTerminals, so the new renderer
+        // sees an empty slot and can immediately spawn fresh ptys.
+        void disposeAllTerminals();
     });
     win.webContents.setWindowOpenHandler((details) => {
         shell.openExternal(details.url);
@@ -144,11 +148,40 @@ app.whenReady().then(() => {
             createWindow();
     });
 });
-app.on('window-all-closed', () => {
+/**
+ * All shutdown work that must complete before the process actually
+ * exits. Both `before-quit` and `window-all-closed` route through this.
+ * Safe to call concurrently — disposeAllTerminals clears its map
+ * synchronously and stopAllDevServers does the same.
+ */
+const performShutdownCleanup = async () => {
     disposeWatcher();
-    disposeAllTerminals();
     closeAllPreviewWindows();
-    void stopAllDevServers();
-    if (process.platform !== 'darwin')
+    await Promise.all([disposeAllTerminals(), stopAllDevServers()]);
+};
+// Note: when `app.quit()` (or Cmd+Q) initiates shutdown, Electron does
+// NOT emit `window-all-closed` — it goes straight to before-quit →
+// will-quit → quit. That's why the cleanup lives here: it's the only
+// hook that runs reliably during a programmatic quit (e.g. Playwright
+// teardown calling `electronApp.close()`).
+let quitInitiated = false;
+app.on('before-quit', (event) => {
+    if (quitInitiated)
+        return;
+    event.preventDefault();
+    quitInitiated = true;
+    void performShutdownCleanup().finally(() => app.quit());
+});
+app.on('window-all-closed', () => {
+    // Fires only when the user closes the last window directly (not via
+    // app.quit()). On non-darwin we route through quit so the awaited
+    // cleanup in before-quit runs. On darwin the app stays alive — kick
+    // off cleanup anyway since there's no UI to reconnect orphaned ptys
+    // and dev servers to.
+    if (process.platform === 'darwin') {
+        void performShutdownCleanup();
+    }
+    else {
         app.quit();
+    }
 });

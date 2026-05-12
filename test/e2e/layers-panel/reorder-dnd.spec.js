@@ -10,7 +10,7 @@ import { readPageFiles, waitForSaved } from '../fixtures/assertions';
  * mirrors what the browser would do for a real user drag.
  */
 const reorderInTree = async (page, sourceSelector, targetSelector, position) => {
-    await page.evaluate(({ sourceSel, targetSel, pos }) => {
+    return await page.evaluate(({ sourceSel, targetSel, pos }) => {
         const src = document.querySelector(sourceSel);
         const dst = document.querySelector(targetSel);
         if (!src || !dst)
@@ -19,32 +19,47 @@ const reorderInTree = async (page, sourceSelector, targetSelector, position) => 
         const elementId = src.dataset.elementId ?? '';
         const dataTransfer = new DataTransfer();
         dataTransfer.setData(DRAG_MIME, elementId);
-        src.dispatchEvent(new DragEvent('dragstart', {
+        const diag = { elementId };
+        const dragStartEvt = new DragEvent('dragstart', {
             bubbles: true,
             cancelable: true,
             dataTransfer,
-        }));
+        });
+        src.dispatchEvent(dragStartEvt);
+        diag.afterDragStart_types = Array.from(dataTransfer.types);
+        diag.afterDragStart_data = dataTransfer.getData(DRAG_MIME);
         const rect = dst.getBoundingClientRect();
         const y = pos === 'before'
             ? rect.top + rect.height * 0.1
             : pos === 'after'
                 ? rect.top + rect.height * 0.9
                 : rect.top + rect.height * 0.5;
-        dst.dispatchEvent(new DragEvent('dragover', {
+        const dragOverEvt = new DragEvent('dragover', {
             bubbles: true,
             cancelable: true,
             dataTransfer,
             clientX: rect.left + rect.width / 2,
             clientY: y,
-        }));
-        dst.dispatchEvent(new DragEvent('drop', {
+        });
+        const dragOverDispatched = dst.dispatchEvent(dragOverEvt);
+        diag.dragOverReturned = dragOverDispatched;
+        diag.dragOverDefaultPrevented = dragOverEvt.defaultPrevented;
+        diag.afterDragOver_types = Array.from(dataTransfer.types);
+        diag.afterDragOver_data = dataTransfer.getData(DRAG_MIME);
+        const dropEvt = new DragEvent('drop', {
             bubbles: true,
             cancelable: true,
             dataTransfer,
             clientX: rect.left + rect.width / 2,
             clientY: y,
-        }));
+        });
+        const dropDispatched = dst.dispatchEvent(dropEvt);
+        diag.dropReturned = dropDispatched;
+        diag.dropDefaultPrevented = dropEvt.defaultPrevented;
+        diag.afterDrop_types = Array.from(dataTransfer.types);
+        diag.afterDrop_data = dataTransfer.getData(DRAG_MIME);
         src.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer }));
+        return diag;
     }, { sourceSel: sourceSelector, targetSel: targetSelector, pos: position });
 };
 test.describe('layers panel: drag-and-drop reorder', () => {
@@ -62,9 +77,15 @@ test.describe('layers panel: drag-and-drop reorder', () => {
         const initialOrder = await layersRows(window).evaluateAll((rows) => rows.map((r) => r.dataset.elementClass ?? ''));
         expect(initialOrder).toEqual(['root', firstClass, secondClass]);
         // Drag the second row above the first.
-        await reorderInTree(window, `[data-testid="layers-panel"] [data-element-class="${secondClass}"]`, `[data-testid="layers-panel"] [data-element-class="${firstClass}"]`, 'before');
+        const diag = await reorderInTree(window, `[data-testid="layers-panel"] [data-element-class="${secondClass}"]`, `[data-testid="layers-panel"] [data-element-class="${firstClass}"]`, 'before');
         await waitForSaved(window);
         const nextOrder = await layersRows(window).evaluateAll((rows) => rows.map((r) => r.dataset.elementClass ?? ''));
+        if (JSON.stringify(nextOrder) !== JSON.stringify(['root', secondClass, firstClass])) {
+            console.log('REORDER_DIAG:', JSON.stringify(diag));
+            console.log('REORDER_NEXT_ORDER:', JSON.stringify(nextOrder));
+            const dropDiag = await window.evaluate(() => window.__scampDropDiag);
+            console.log('REORDER_DROP_DIAG:', JSON.stringify(dropDiag));
+        }
         expect(nextOrder).toEqual(['root', secondClass, firstClass]);
     });
     test('dropping onto a rectangle row (middle) re-parents as its last child', async ({ window, project, }) => {

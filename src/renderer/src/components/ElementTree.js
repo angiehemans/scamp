@@ -112,11 +112,30 @@ const Row = ({ element, depth, dragOver, setDragOver }) => {
     const handleDrop = (e) => {
         const draggedId = e.dataTransfer.getData(DRAG_MIME);
         setDragOver(null);
-        if (!draggedId || draggedId === element.id)
+        const w = window;
+        if (!w.__scampDropDiag)
+            w.__scampDropDiag = [];
+        w.__scampDropDiag.push({
+            stage: 'enter',
+            draggedId,
+            targetId: element.id,
+            targetParent: element.parentId,
+        });
+        if (!draggedId || draggedId === element.id) {
+            w.__scampDropDiag.push({ stage: 'early-return' });
             return;
+        }
         e.preventDefault();
         const position = computeDropPosition(e, element);
+        w.__scampDropDiag.push({ stage: 'pre-runDrop', position });
+        const beforeChildIds = element.parentId
+            ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
+            : [];
         runDrop(draggedId, element, position, reorderElement);
+        const afterChildIds = element.parentId
+            ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
+            : [];
+        w.__scampDropDiag.push({ stage: 'post-runDrop', beforeChildIds, afterChildIds });
     };
     return (_jsxs("div", { ref: ref, className: `${styles.rowWrap} ${showInside ? styles.rowDropInside : ''}`, draggable: element.id !== ROOT_ELEMENT_ID, onDragStart: handleDragStart, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, "data-testid": "layers-row", "data-element-id": element.id, "data-element-class": classNameFor(element), children: [showBefore && _jsx("div", { className: styles.dropLine }), _jsx(Tooltip, { label: `.${classNameFor(element)}`, children: _jsxs("button", { type: "button", className: `${styles.row} ${isSelected ? styles.rowSelected : ''}`, style: { paddingLeft: 8 + depth * 12 }, onClick: (e) => {
                         if (renaming)

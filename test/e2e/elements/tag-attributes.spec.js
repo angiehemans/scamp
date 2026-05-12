@@ -7,16 +7,23 @@ test.describe('elements: tag-specific attributes', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
+        // The Element section's LinkField now owns href / target / rel
+        // for `<a>` (TAG_ATTRIBUTES['a'] is intentionally empty). Drive
+        // the destination dropdown's External URL path to set the href —
+        // this also tag-swaps the rect to `<a>` in one go.
         const section = panelSection(window, 'Element');
-        await section.locator('select').first().selectOption('a');
-        // Text input for href appears once the tag is anchor.
-        const hrefInput = section.locator('input[placeholder="/path"]').first();
-        await commitInput(hrefInput, '/about');
-        await section.locator('select').nth(1).selectOption('_blank');
+        // Selects in order: 1) Tag, 2) Destination ("Link to").
+        await section.locator('select').nth(1).selectOption('external');
+        const urlInput = section.getByPlaceholder('https://example.com');
+        await commitInput(urlInput, 'https://example.com/about');
+        await waitForSaved(window);
+        // Toggle "Open in new tab" — only visible once the element is
+        // an anchor. Adds target="_blank" + rel="noopener noreferrer".
+        await section.locator('input[type="checkbox"]').check();
         await waitForSaved(window);
         const { tsx } = await readPageFiles(project.dir, project.pageName);
         expect(tsx).toMatch(new RegExp(`<a[^>]*data-scamp-id="${className}"`, 's'));
-        expect(tsx).toMatch(/href="\/about"/);
+        expect(tsx).toMatch(/href="https:\/\/example\.com\/about"/);
         expect(tsx).toMatch(/target="_blank"/);
     });
     test('dialog: Open checkbox emits the boolean attribute', async ({ window, project, }) => {
@@ -37,8 +44,10 @@ test.describe('elements: tag-specific attributes', () => {
         await waitForSaved(window);
         const section = panelSection(window, 'Element');
         await section.locator('select').first().selectOption('form');
-        // The first select after the tag select is the method dropdown.
-        await section.locator('select').nth(1).selectOption('post');
+        // Selects in order: 1) Tag, 2) Destination ("Link to" — added
+        // by LinkField), 3) Method dropdown (the first tag-specific
+        // attribute for `<form>`).
+        await section.locator('select').nth(2).selectOption('post');
         await waitForSaved(window);
         const { tsx } = await readPageFiles(project.dir, project.pageName);
         expect(tsx).toMatch(/method="post"/);

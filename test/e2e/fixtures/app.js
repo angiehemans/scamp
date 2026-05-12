@@ -77,6 +77,21 @@ export const test = base.extend({
             await use(app);
         }
         finally {
+            // Belt-and-suspenders: kill any live ptys before tearing down
+            // the Electron app. The main process also does this in its
+            // `before-quit` handler, but if a spec timed out mid-pty-spawn
+            // and node-pty's signal handling is being flaky on macOS, this
+            // makes sure we don't sit waiting on a SIGTERM that the shell
+            // is ignoring. See `src/main/ipc/terminal.ts:disposeAllTerminals`.
+            await app
+                .evaluate(async () => {
+                const g = globalThis;
+                if (g.__scampDisposeTerminals)
+                    await g.__scampDisposeTerminals();
+            })
+                .catch(() => {
+                // App may already be gone — that's fine, nothing to clean.
+            });
             await app.close().catch(() => {
                 // Swallow close errors — they're expected when a spec fails mid-run.
             });

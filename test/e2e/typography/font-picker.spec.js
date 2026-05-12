@@ -15,9 +15,16 @@ test.describe('typography: font picker', () => {
         if (!className)
             throw new Error('no text element');
         await waitForSaved(window);
-        // Open the font picker — the trigger button reads "System font ▾".
+        // Open the font picker. New text elements default to
+        // `fontFamily: 'var(--font-sans)'` (so the trigger reads
+        // `--font-sans ▾`, not `System font`). Match on the unicode ▾
+        // caret instead, which is unique to the FontPicker trigger.
         const typography = panelSection(window, 'Typography');
-        await typography.getByRole('button', { name: /System font/ }).click();
+        await typography
+            .locator('button')
+            .filter({ hasText: '▾' })
+            .first()
+            .click();
         await window.getByPlaceholder('Search fonts…').waitFor();
         // Pick the first real font in the list. We can't hardcode a name
         // because queryLocalFonts() returns different results on Mac vs
@@ -46,7 +53,11 @@ test.describe('typography: font picker', () => {
             throw new Error('no text element');
         await waitForSaved(window);
         const typography = panelSection(window, 'Typography');
-        await typography.getByRole('button', { name: /System font/ }).click();
+        await typography
+            .locator('button')
+            .filter({ hasText: '▾' })
+            .first()
+            .click();
         const search = window.getByPlaceholder('Search fonts…');
         await search.waitFor();
         // A name Chromium's queryLocalFonts() definitely won't return —

@@ -106,15 +106,57 @@ const killTerminal = (args: TerminalKillArgs): void => {
   terminals.delete(args.id);
 };
 
-export const disposeAllTerminals = (): void => {
-  for (const term of terminals.values()) {
+// SIGTERM grace period before falling back to SIGKILL on shutdown.
+// Mirrors devServerManager's pattern — a polite signal first, then a
+// hard kill if the shell didn't exit (e.g. shell trapped SIGTERM, or
+// a child process is holding the pty open).
+const KILL_GRACE_MS = 1500;
+
+const killAndWait = (term: Term): Promise<void> =>
+  new Promise<void>((resolve) => {
+    let done = false;
+    let killTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      if (killTimer) clearTimeout(killTimer);
+      resolve();
+    };
+
+    term.proc.onExit(() => finish());
+
+    killTimer = setTimeout(() => {
+      try {
+        term.proc.kill('SIGKILL');
+      } catch {
+        // already dead
+      }
+      // SIGKILL is delivered immediately, but give libuv a tick to
+      // close the pty file descriptors before resolving — those open
+      // FDs are what keep the event loop alive past app.quit().
+      setTimeout(finish, 100);
+    }, KILL_GRACE_MS);
+
     try {
-      term.proc.kill();
+      term.proc.kill('SIGTERM');
     } catch {
-      // ignore
+      // Process already exited — onExit may not fire if we attached
+      // after it died, so resolve here.
+      finish();
     }
-  }
+  });
+
+/**
+ * Kill every live pty and wait for the OS to release its file
+ * descriptors. Awaiting this is what lets the Electron process exit
+ * cleanly on quit — see the `before-quit` handler in `src/main/index.ts`.
+ * Calling twice is safe: the map is cleared synchronously up front.
+ */
+export const disposeAllTerminals = async (): Promise<void> => {
+  const all = Array.from(terminals.values());
   terminals.clear();
+  await Promise.all(all.map(killAndWait));
 };
 
 export const registerTerminalIpc = (): void => {
@@ -123,3 +165,11 @@ export const registerTerminalIpc = (): void => {
   ipcMain.handle(IPC.TerminalResize, (_e, args: TerminalResizeArgs) => resizeTerminal(args));
   ipcMain.handle(IPC.TerminalKill, (_e, args: TerminalKillArgs) => killTerminal(args));
 };
+
+// Expose dispose to E2E tests so the Playwright fixture can pre-clean
+// ptys before `app.close()`. The global is only attached in test mode
+// to keep the production surface clean.
+if (process.env['SCAMP_E2E'] === '1') {
+  (globalThis as { __scampDisposeTerminals?: () => Promise<void> }).__scampDisposeTerminals =
+    disposeAllTerminals;
+}
