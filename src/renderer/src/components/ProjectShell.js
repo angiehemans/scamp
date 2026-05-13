@@ -1,8 +1,9 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useCallback, useEffect, useRef, useState, } from 'react';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useHistoryStore } from '@store/historySlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { parseCode } from '@lib/parseCode';
 import { flushPendingPageWrite } from '../syncBridge';
@@ -16,6 +17,7 @@ import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
+import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
 import { ZoomControls } from './ZoomControls';
 import { CanvasSizeControl } from './CanvasSizeControl';
@@ -117,6 +119,8 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
     const bottomPanel = useCanvasStore((s) => s.bottomPanel);
     const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+    const leftSidebarTab = useCanvasStore((s) => s.leftSidebarTab);
+    const setLeftSidebarTab = useCanvasStore((s) => s.setLeftSidebarTab);
     // Once the user opens the terminal we keep TerminalPanel mounted for
     // the lifetime of the project, even when the panel is hidden, so any
     // long-running pty processes (Claude Code, dev servers, watches…)
@@ -231,9 +235,10 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             setShowMigrationBanner(true);
         }
         loadPage({ name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath }, parsed.elements, { tsx: page.tsxContent, css: page.cssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
-        // Fresh page load — clear undo history so the user can't undo past
-        // the initial state of this page.
-        useCanvasStore.temporal.getState().clear();
+        // Per-page history persists across page switches — `loadPage`
+        // activates this page's bucket in the history slice. Don't
+        // clear here; switching back to this page should restore its
+        // stack.
     }, [
         activePageName,
         project.pages,
@@ -390,11 +395,23 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                     return;
                 e.preventDefault();
                 if (e.shiftKey) {
-                    useCanvasStore.temporal.getState().redo();
+                    useHistoryStore.getState().redo();
                 }
                 else {
-                    useCanvasStore.temporal.getState().undo();
+                    useHistoryStore.getState().undo();
                 }
+                return;
+            }
+            // Cmd/Ctrl+Shift+H — toggle the left sidebar tab between
+            // Pages & Layers and History.
+            if ((e.metaKey || e.ctrlKey) &&
+                e.shiftKey &&
+                (e.key === 'h' || e.key === 'H')) {
+                if (isEditableTarget(e.target))
+                    return;
+                e.preventDefault();
+                const canvas = useCanvasStore.getState();
+                canvas.setLeftSidebarTab(canvas.leftSidebarTab === 'history' ? 'layers' : 'history');
                 return;
             }
             // Cmd/Ctrl+G — wrap the current selection in a new flex group.
@@ -563,6 +580,11 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             // Ensure any pending debounced write lands on the OLD files
             // before the rename swaps them out from under us.
             flushPendingPageWrite();
+            // Capture the old tsxPath so we can rekey the history bucket
+            // after the rename. The page's path changes (the file moves on
+            // disk), so without rekey the in-session history would be
+            // stranded under the old key and lost.
+            const oldTsxPath = project.pages.find((p) => p.name === oldName)?.tsxPath;
             const newPage = await window.scamp.renamePage({
                 projectPath: project.path,
                 oldPageName: oldName,
@@ -573,8 +595,17 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             if (activePageName === oldName) {
                 setActivePageName(newPage.name);
             }
-            // Rename is a file-level operation outside the canvas history.
-            useCanvasStore.temporal.getState().clear();
+            // Move the history bucket to the new tsxPath, then push a
+            // `rename-page` entry. The entry lives in the (now renamed)
+            // page's bucket so undoing it surfaces the pre-rename state.
+            if (oldTsxPath) {
+                useHistoryStore.getState().rekeyPage(oldTsxPath, newPage.tsxPath);
+            }
+            useHistoryStore.getState().commitHistory({
+                kind: 'rename-page',
+                previousName: oldName,
+                pageName: newName,
+            }, useCanvasStore.getState().elements);
             resetPageEdit();
         }
         catch (e) {
@@ -641,37 +672,37 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                 }, onDismiss: () => handleProjectConfigChange({
                     ...projectConfig,
                     nextjsMigrationDismissed: true,
-                }) })), _jsxs("div", { className: styles.body, children: [_jsxs("aside", { className: styles.sidebar, children: [_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Pages" }), _jsxs("ul", { className: styles.pageList, children: [project.pages.map((page) => {
-                                                const isDuplicating = pageEdit !== null &&
-                                                    pageEdit !== 'new' &&
-                                                    'duplicate' in pageEdit &&
-                                                    pageEdit.duplicate === page.name;
-                                                const isRenaming = pageEdit !== null &&
-                                                    pageEdit !== 'new' &&
-                                                    'rename' in pageEdit &&
-                                                    pageEdit.rename === page.name;
-                                                if (isDuplicating) {
-                                                    // Seed with `[name]-copy` and select just the "-copy"
-                                                    // portion so the user can retype it instantly.
-                                                    const seed = `${page.name}-copy`;
-                                                    return (_jsx("li", { children: _jsx(PageNameInput, { initialValue: seed, existingNames: existingPageNames, selectRange: [page.name.length, seed.length], onConfirm: (name) => void handleDuplicatePage(page.name, name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }, page.name));
-                                                }
-                                                if (isRenaming) {
-                                                    // Exclude the current name from collision checks so
-                                                    // "rename home → home" surfaces as an explicit no-op
-                                                    // from the IPC rather than as a spurious collision.
-                                                    const otherNames = existingPageNames.filter((n) => n !== page.name);
-                                                    return (_jsx("li", { children: _jsx(PageNameInput, { initialValue: page.name, existingNames: otherNames, onConfirm: (name) => void handleRenamePage(page.name, name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }, page.name));
-                                                }
-                                                return (_jsx("li", { children: _jsx("button", { className: `${styles.pageButton} ${activePageName === page.name ? styles.pageActive : ''}`, onClick: () => {
-                                                            if (isEditingPage)
-                                                                return;
-                                                            setActivePageName(page.name);
-                                                        }, onContextMenu: (e) => openPageMenu(e, page.name), type: "button", children: page.name }) }, page.name));
-                                            }), pageEdit === 'new' && (_jsx("li", { children: _jsx(PageNameInput, { existingNames: existingPageNames, onConfirm: (name) => void handleAddPage(name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }))] }), pageEdit !== 'new' && (_jsx("button", { className: styles.addPageButton, onClick: () => {
-                                            if (isEditingPage)
-                                                return;
-                                            setPageEditError(null);
-                                            setPageEdit('new');
-                                        }, type: "button", children: "+ Add Page" }))] }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] }), _jsxs("div", { className: styles.artboard, children: [_jsx("div", { ref: artboardScrollRef, className: styles.artboardScroll, style: { backgroundColor: projectConfig.artboardBackground }, children: _jsxs("div", { className: styles.canvasContent, children: [_jsxs("div", { className: styles.canvasHeader, children: [_jsx("button", { type: "button", className: styles.canvasHeaderBadge, onClick: () => useCanvasStore.getState().selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activePageName ?? 'Page' }), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(CanvasSizeControl, { config: projectConfig, onChange: handleProjectConfigChange })] }), _jsx(Viewport, { canvasWidth: projectConfig.canvasWidth, canvasOverflowHidden: projectConfig.canvasOverflowHidden, scrollContainerRef: artboardScrollRef })] }) }), _jsx("div", { className: styles.elementToolbar, children: _jsx(Toolbar, { onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }) })] }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: () => setPageMenu(null) })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => setDeletingPageName(null) }))] }));
+                }) })), _jsxs("div", { className: styles.body, children: [_jsxs("aside", { className: styles.sidebar, children: [_jsxs("div", { className: styles.sidebarTabStrip, role: "tablist", children: [_jsx("button", { type: "button", role: "tab", "aria-selected": leftSidebarTab === 'layers', className: `${styles.sidebarTab} ${leftSidebarTab === 'layers' ? styles.sidebarTabActive : ''}`, onClick: () => setLeftSidebarTab('layers'), children: "Pages & Layers" }), _jsx("button", { type: "button", role: "tab", "aria-selected": leftSidebarTab === 'history', className: `${styles.sidebarTab} ${leftSidebarTab === 'history' ? styles.sidebarTabActive : ''}`, onClick: () => setLeftSidebarTab('history'), children: "History" })] }), leftSidebarTab === 'history' && _jsx(HistoryPanel, {}), leftSidebarTab === 'layers' && _jsxs(_Fragment, { children: [_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Pages" }), _jsxs("ul", { className: styles.pageList, children: [project.pages.map((page) => {
+                                                        const isDuplicating = pageEdit !== null &&
+                                                            pageEdit !== 'new' &&
+                                                            'duplicate' in pageEdit &&
+                                                            pageEdit.duplicate === page.name;
+                                                        const isRenaming = pageEdit !== null &&
+                                                            pageEdit !== 'new' &&
+                                                            'rename' in pageEdit &&
+                                                            pageEdit.rename === page.name;
+                                                        if (isDuplicating) {
+                                                            // Seed with `[name]-copy` and select just the "-copy"
+                                                            // portion so the user can retype it instantly.
+                                                            const seed = `${page.name}-copy`;
+                                                            return (_jsx("li", { children: _jsx(PageNameInput, { initialValue: seed, existingNames: existingPageNames, selectRange: [page.name.length, seed.length], onConfirm: (name) => void handleDuplicatePage(page.name, name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }, page.name));
+                                                        }
+                                                        if (isRenaming) {
+                                                            // Exclude the current name from collision checks so
+                                                            // "rename home → home" surfaces as an explicit no-op
+                                                            // from the IPC rather than as a spurious collision.
+                                                            const otherNames = existingPageNames.filter((n) => n !== page.name);
+                                                            return (_jsx("li", { children: _jsx(PageNameInput, { initialValue: page.name, existingNames: otherNames, onConfirm: (name) => void handleRenamePage(page.name, name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }, page.name));
+                                                        }
+                                                        return (_jsx("li", { children: _jsx("button", { className: `${styles.pageButton} ${activePageName === page.name ? styles.pageActive : ''}`, onClick: () => {
+                                                                    if (isEditingPage)
+                                                                        return;
+                                                                    setActivePageName(page.name);
+                                                                }, onContextMenu: (e) => openPageMenu(e, page.name), type: "button", children: page.name }) }, page.name));
+                                                    }), pageEdit === 'new' && (_jsx("li", { children: _jsx(PageNameInput, { existingNames: existingPageNames, onConfirm: (name) => void handleAddPage(name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }))] }), pageEdit !== 'new' && (_jsx("button", { className: styles.addPageButton, onClick: () => {
+                                                    if (isEditingPage)
+                                                        return;
+                                                    setPageEditError(null);
+                                                    setPageEdit('new');
+                                                }, type: "button", children: "+ Add Page" }))] }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsxs("div", { className: styles.artboard, children: [_jsx("div", { ref: artboardScrollRef, className: styles.artboardScroll, style: { backgroundColor: projectConfig.artboardBackground }, children: _jsxs("div", { className: styles.canvasContent, children: [_jsxs("div", { className: styles.canvasHeader, children: [_jsx("button", { type: "button", className: styles.canvasHeaderBadge, onClick: () => useCanvasStore.getState().selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activePageName ?? 'Page' }), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(CanvasSizeControl, { config: projectConfig, onChange: handleProjectConfigChange })] }), _jsx(Viewport, { canvasWidth: projectConfig.canvasWidth, canvasOverflowHidden: projectConfig.canvasOverflowHidden, scrollContainerRef: artboardScrollRef })] }) }), _jsx("div", { className: styles.elementToolbar, children: _jsx(Toolbar, { onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }) })] }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: () => setPageMenu(null) })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => setDeletingPageName(null) }))] }));
 };

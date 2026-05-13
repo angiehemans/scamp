@@ -24,6 +24,8 @@ const makeRoot = () => ({
     inlineFragments: [],
     transitions: [],
     boxShadows: [],
+    filters: [],
+    backdropFilters: [],
 });
 describe('scaffoldNextjsProject', () => {
     let projectDir;

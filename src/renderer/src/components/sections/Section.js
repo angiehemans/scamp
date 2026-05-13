@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { IconChevronDown } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useBreakpointOverrideFields, useStateOverrideFields, } from '@store/useResolvedElement';
+import { FIELD_LABELS } from '@lib/fieldLabels';
 import { Tooltip } from '../controls/Tooltip';
 import styles from './Section.module.css';
 /**
@@ -139,42 +140,6 @@ const formatOverrideList = (fields) => {
         labels.push(label);
     }
     return labels.map((l) => `- ${l}`).join('\n');
-};
-/** Human-readable CSS names for each BreakpointOverride field. */
-const FIELD_LABELS = {
-    widthMode: 'width',
-    widthValue: 'width',
-    widthCustom: 'width',
-    heightMode: 'height',
-    heightValue: 'height',
-    heightCustom: 'height',
-    x: 'left',
-    y: 'top',
-    display: 'display',
-    flexDirection: 'flex-direction',
-    gap: 'gap',
-    alignItems: 'align-items',
-    justifyContent: 'justify-content',
-    padding: 'padding',
-    margin: 'margin',
-    backgroundColor: 'background',
-    borderRadius: 'border-radius',
-    borderWidth: 'border-width',
-    borderStyle: 'border-style',
-    borderColor: 'border-color',
-    opacity: 'opacity',
-    visibilityMode: 'visibility',
-    fontFamily: 'font-family',
-    fontSize: 'font-size',
-    fontWeight: 'font-weight',
-    color: 'color',
-    textAlign: 'text-align',
-    lineHeight: 'line-height',
-    letterSpacing: 'letter-spacing',
-    boxShadows: 'box-shadow',
-    mixBlendMode: 'mix-blend-mode',
-    backgroundBlendMode: 'background-blend-mode',
-    customProperties: 'custom CSS',
 };
 /** A labeled row inside a Section. Wraps the label and the control(s). */
 export const Row = ({ label, children, tooltip }) => {

@@ -4,6 +4,7 @@ import { parseThemeFile } from '@lib/parseTheme';
 import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
 import { useFontsStore } from '@store/fontsSlice';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useHistoryStore } from '@store/historySlice';
 import { useSaveStatusStore, } from '@store/saveStatusSlice';
 import { useAppLogStore } from '@store/appLogSlice';
 const WRITE_DEBOUNCE_MS = 200;
@@ -215,6 +216,15 @@ export const initSyncBridge = () => {
     let writeTimer = null;
     let lastSerializedTsx = null;
     let lastSerializedCss = null;
+    // Register the snapshot-restore callback so the history slice can
+    // apply a saved elements map when the user navigates (undo /
+    // redo / click an entry in the panel). The callback writes
+    // through `setState` rather than the typed `reloadElements`
+    // mutator so it doesn't toggle `isLoading` or push another
+    // history entry — restoration is not an external edit.
+    useHistoryStore.getState().setRestoreSnapshot((snapshot) => {
+        useCanvasStore.setState({ elements: snapshot });
+    });
     /**
      * Generate code for the given (elements, rootId, page) tuple and write
      * it to disk if it differs from the last-written cache. Pure with
@@ -427,10 +437,25 @@ export const initSyncBridge = () => {
             if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
                 return;
             }
+            // If a canvas drag is in flight (transactionDepth > 0), defer
+            // the reload until the transaction ends — option B from the
+            // history-panel plan. The history slice queues the snapshot
+            // and applies it via `restoreSnapshot` once the user releases
+            // the mouse.
+            const history = useHistoryStore.getState();
+            if (history.transactionDepth > 0) {
+                history.enqueueExternalEdit(parsed.elements);
+                // The page source still needs to update so the bottom code
+                // panel reflects the disk content; we update the source but
+                // leave the canvas elements alone until the drag ends.
+                return;
+            }
             state.reloadElements(parsed.elements, nextSource, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
-            // External edits invalidate the undo history — the old states
-            // reference element maps that no longer match the file on disk.
-            useCanvasStore.temporal.getState().clear();
+            // Push an `external-edit` entry rather than clearing — the
+            // history panel surfaces the agent's edit as a navigable
+            // step. Future entries can undo past it; new user actions
+            // discard the forward history as usual.
+            history.enqueueExternalEdit(parsed.elements);
         }
         catch (err) {
             // Transient parse failure — the next chokidar event (once the

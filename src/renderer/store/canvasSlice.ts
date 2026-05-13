@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { temporal } from 'zundo';
 import {
   cloneElementSubtree,
   generateElementId,
@@ -14,7 +13,9 @@ import {
   type KeyframesBlock,
   type ScampElement,
 } from '@lib/element';
+import { useHistoryStore, type HistoryCommitInput } from './historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
+import { classNameFor } from '@lib/generateCode';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import {
@@ -71,6 +72,14 @@ export type PageSource = {
 };
 
 export type BottomPanel = 'code' | 'terminal' | 'none';
+
+/**
+ * Which tab is active in the left sidebar. `'layers'` shows the
+ * existing Pages + Layers stack (the default); `'history'` shows
+ * the per-page visual history panel. Per-session preference —
+ * not persisted to disk.
+ */
+export type LeftSidebarTab = 'layers' | 'history';
 
 /**
  * Properties panel display mode. `'ui'` shows typed form controls grouped
@@ -139,6 +148,9 @@ type CanvasState = {
 
   // UI: which view of the properties panel is active. See `PanelMode`.
   panelMode: PanelMode;
+
+  // UI: which tab is active in the left sidebar (layers vs history).
+  leftSidebarTab: LeftSidebarTab;
 
   /**
    * Manual canvas zoom. `null` means "auto fit to container width" — the
@@ -364,6 +376,7 @@ type CanvasState = {
   setPageSource: (source: PageSource) => void;
   setBottomPanel: (panel: BottomPanel) => void;
   setPanelMode: (mode: PanelMode) => void;
+  setLeftSidebarTab: (tab: LeftSidebarTab) => void;
   setActiveBreakpoint: (id: string) => void;
   setActiveState: (state: ElementStateName | null) => void;
   setExportFormat: (format: 'png' | 'svg') => void;
@@ -691,7 +704,19 @@ const freshId = (existing: ReadonlySet<string>): string => {
   return `g${i}`;
 };
 
-export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
+/**
+ * Helper: snapshot the current elements map and push a history
+ * entry. Called from every mutation that should be undoable.
+ * No-op when called outside an active page (no history bucket
+ * to write to) — see `useHistoryStore.commitHistory`.
+ */
+const commitElementsToHistory = (input: HistoryCommitInput): void => {
+  useHistoryStore
+    .getState()
+    .commitHistory(input, useCanvasStore.getState().elements);
+};
+
+export const useCanvasStore = create<CanvasState>()((set) => ({
   elements: { [ROOT_ELEMENT_ID]: makeRootElement() },
   rootElementId: ROOT_ELEMENT_ID,
   selectedElementIds: [],
@@ -703,6 +728,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
   lastLoadKind: null,
   bottomPanel: 'none',
   panelMode: 'ui',
+  leftSidebarTab: 'layers',
   userZoom: null,
   activeBreakpointId: 'desktop',
   activeStateName: null,
@@ -752,6 +778,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [id],
       };
     });
+    commitElementsToHistory({ kind: 'draw-rect', elementIds: [id] });
     return id;
   },
 
@@ -774,6 +801,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         editingElementId: id,
       };
     });
+    commitElementsToHistory({ kind: 'add-text', elementIds: [id] });
     return id;
   },
 
@@ -792,6 +820,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [id],
       };
     });
+    commitElementsToHistory({ kind: 'add-image', elementIds: [id] });
     return id;
   },
 
@@ -810,10 +839,16 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [id],
       };
     });
+    commitElementsToHistory({ kind: 'add-input', elementIds: [id] });
     return id;
   },
 
-  deleteElement: (id) =>
+  deleteElement: (id) => {
+    // Capture the element's display name before it's removed so the
+    // history entry's label can read sensibly ("Deleted hero_card_a1b2")
+    // even after the element is gone from the live map.
+    const beforeEl = useCanvasStore.getState().elements[id];
+    const previousName = beforeEl ? classNameFor(beforeEl) : undefined;
     set((state) => {
       // Root is the page frame and can't be removed.
       if (id === ROOT_ELEMENT_ID) return state;
@@ -858,7 +893,9 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
             ? null
             : state.editingElementId,
       };
-    }),
+    });
+    commitElementsToHistory({ kind: 'delete', elementIds: [id], previousName });
+  },
 
   duplicateElement: (id) => {
     let createdId: string | null = null;
@@ -930,6 +967,12 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [result.newId],
       };
     });
+    if (createdId !== null) {
+      commitElementsToHistory({
+        kind: 'duplicate',
+        elementIds: [createdId],
+      });
+    }
     return createdId;
   },
 
@@ -996,6 +1039,12 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [result.newId],
       };
     });
+    if (createdId !== null) {
+      commitElementsToHistory({
+        kind: 'paste',
+        elementIds: [createdId],
+      });
+    }
     return createdId;
   },
 
@@ -1012,10 +1061,16 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [result.groupId],
       };
     });
+    if (createdId !== null) {
+      commitElementsToHistory({
+        kind: 'group',
+        elementIds: [createdId],
+      });
+    }
     return createdId;
   },
 
-  ungroupElement: (id) =>
+  ungroupElement: (id) => {
     set((state) => {
       const result = ungroupSiblings(state.elements, id);
       if (!result) return state;
@@ -1023,7 +1078,9 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         elements: result.elements,
         selectedElementIds: result.promotedIds,
       };
-    }),
+    });
+    commitElementsToHistory({ kind: 'ungroup', elementIds: [id] });
+  },
 
   wrapInLinkParent: (elementId, href, options) => {
     let wrapperId: string | null = null;
@@ -1049,28 +1106,42 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         selectedElementIds: [result.wrapperId],
       };
     });
+    if (wrapperId !== null) {
+      commitElementsToHistory({
+        kind: 'wrap-link',
+        elementIds: [elementId],
+      });
+    }
     return wrapperId;
   },
 
-  reorderElement: (elementId, newParentId, newIndex) =>
+  reorderElement: (elementId, newParentId, newIndex) => {
     set((state) => {
       const next = reorderElementPure(state.elements, elementId, newParentId, newIndex);
       if (!next) return state;
       return { elements: next };
-    }),
+    });
+    commitElementsToHistory({ kind: 'reorder', elementIds: [elementId] });
+  },
 
   setEditingElement: (id) => set({ editingElementId: id }),
 
-  setElementText: (id, text) =>
+  setElementText: (id, text) => {
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
       return {
         elements: { ...state.elements, [id]: { ...el, text } },
       };
-    }),
+    });
+    commitElementsToHistory({
+      kind: 'patch',
+      elementIds: [id],
+      propertyKeys: ['text'],
+    });
+  },
 
-  moveElement: (id, x, y) =>
+  moveElement: (id, x, y) => {
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
@@ -1085,9 +1156,16 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         null
       );
       return { elements: { ...state.elements, [id]: next } };
-    }),
+    });
+    // moveElement is called every pointermove tick during a drag,
+    // wrapped in a beginHistoryTransaction / endHistoryTransaction
+    // pair by CanvasInteractionLayer. The commit here is suppressed
+    // while the transaction is open and a single `move` entry is
+    // committed on pointerup.
+    commitElementsToHistory({ kind: 'move', elementIds: [id] });
+  },
 
-  resizeElement: (id, x, y, width, height) =>
+  resizeElement: (id, x, y, width, height) => {
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
@@ -1110,9 +1188,24 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         null
       );
       return { elements: { ...state.elements, [id]: next } };
-    }),
+    });
+    // resizeElement runs every pointermove tick during a handle drag,
+    // wrapped in a transaction by CanvasInteractionLayer. Per-tick
+    // commits are suppressed; the wrapping endHistoryTransaction
+    // records a single `resize` entry on pointerup.
+    commitElementsToHistory({ kind: 'resize', elementIds: [id] });
+  },
 
-  patchElement: (id, patch) =>
+  patchElement: (id, patch) => {
+    // Special-case: a rename-only patch gets a `rename` history
+    // entry with the previous display name, so the panel reads
+    // "Renamed old to new" instead of "Changed name — new".
+    const isRenameOnly =
+      Object.keys(patch).length === 1 && 'name' in patch;
+    const beforeEl = useCanvasStore.getState().elements[id];
+    const previousName =
+      isRenameOnly && beforeEl ? classNameFor(beforeEl) : undefined;
+
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
@@ -1137,9 +1230,24 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         elements: { ...state.elements, [id]: next },
         cssDuplicates: nextDupes,
       };
-    }),
+    });
 
-  resetElementFieldsAtBreakpoint: (id, breakpointId, fields) =>
+    if (isRenameOnly) {
+      commitElementsToHistory({
+        kind: 'rename',
+        elementIds: [id],
+        previousName,
+      });
+    } else {
+      commitElementsToHistory({
+        kind: 'patch',
+        elementIds: [id],
+        propertyKeys: Object.keys(patch) as ReadonlyArray<keyof ScampElement>,
+      });
+    }
+  },
+
+  resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => {
     set((state) => {
       if (breakpointId === 'desktop') return state;
       const el = state.elements[id];
@@ -1168,9 +1276,15 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       return {
         elements: { ...state.elements, [id]: nextElement },
       };
-    }),
+    });
+    commitElementsToHistory({
+      kind: 'patch',
+      elementIds: [id],
+      propertyKeys: fields,
+    });
+  },
 
-  resetElementFieldsAtState: (id, stateName, fields) =>
+  resetElementFieldsAtState: (id, stateName, fields) => {
     set((state) => {
       const el = state.elements[id];
       if (!el || !el.stateOverrides) return state;
@@ -1200,9 +1314,15 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       return {
         elements: { ...state.elements, [id]: nextElement },
       };
-    }),
+    });
+    commitElementsToHistory({
+      kind: 'patch',
+      elementIds: [id],
+      propertyKeys: fields,
+    });
+  },
 
-  setAnimation: (id, animation) =>
+  setAnimation: (id, animation) => {
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
@@ -1235,9 +1355,15 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
         elements: { ...state.elements, [id]: next },
         pageKeyframesBlocks: keyframes,
       };
-    }),
+    });
+    commitElementsToHistory({
+      kind: 'patch',
+      elementIds: [id],
+      propertyKeys: ['animation'],
+    });
+  },
 
-  removeAnimation: (id) =>
+  removeAnimation: (id) => {
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
@@ -1269,7 +1395,13 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
           ? (elNoStates as ScampElement)
           : { ...el, stateOverrides: nextOverrides };
       return { elements: { ...state.elements, [id]: nextEl } };
-    }),
+    });
+    commitElementsToHistory({
+      kind: 'patch',
+      elementIds: [id],
+      propertyKeys: ['animation'],
+    });
+  },
 
   playAnimation: (elementId) =>
     set((state) => ({
@@ -1291,7 +1423,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     customMediaBlocks,
     keyframesBlocks,
     cssDuplicates
-  ) =>
+  ) => {
     set({
       activePage: page,
       elements,
@@ -1302,7 +1434,12 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       selectedElementIds: [],
       isLoading: true,
       lastLoadKind: 'initial',
-    }),
+    });
+    // Activate the page's history bucket. The per-page history stack
+    // persists across page switches; reactivating the same page id
+    // here is a no-op for an existing bucket.
+    useHistoryStore.getState().setActivePageId(page.tsxPath);
+  },
 
   reloadElements: (
     elements,
@@ -1310,7 +1447,7 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
     customMediaBlocks,
     keyframesBlocks,
     cssDuplicates
-  ) =>
+  ) => {
     set((state) => ({
       elements,
       pageSource: source,
@@ -1322,13 +1459,20 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       selectedElementIds: state.selectedElementIds.filter((id) => id in elements),
       isLoading: true,
       lastLoadKind: 'external',
-    })),
+    }));
+    // syncBridge is responsible for pushing the `external-edit`
+    // history entry (it calls enqueueExternalEdit AFTER reloadElements
+    // settles); we don't push from here so initial-format-migration
+    // reloads don't pollute the history.
+  },
 
   setPageSource: (source) => set({ pageSource: source }),
 
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
 
   setPanelMode: (mode) => set({ panelMode: mode }),
+
+  setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
 
   setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
 
@@ -1401,17 +1545,6 @@ export const useCanvasStore = create<CanvasState>()(temporal((set) => ({
       // fit-to-container mode regardless of the previous session.
       userZoom: null,
     }),
-}), {
-  // Only track element state for undo/redo — ignore UI state like
-  // activeTool, selectedElementIds, bottomPanel, panelMode, etc.
-  partialize: (state) => ({ elements: state.elements }),
-  limit: 50,
-  // Avoid recording history when the store is loading from disk
-  // (page load, external file change). Those mutations call
-  // set({ isLoading: true }), but partialize only sees `elements`
-  // so we use the equality check to skip recording when the whole
-  // elements map is replaced wholesale during a load.
-  equality: (a, b) => a.elements === b.elements,
 }));
 
 // ---- Derived selectors ----

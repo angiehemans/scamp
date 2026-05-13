@@ -1,0 +1,102 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.empty {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  font-style: italic;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.divider {
+  margin: 6px 12px 4px;
+  padding: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  border-top: 1px dashed var(--border);
+  padding-top: 6px;
+}
+
+.row {
+  margin: 0;
+}
+
+.rowButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.rowButton:hover:not(:disabled) {
+  background: var(--bg-raised);
+}
+
+.rowButton:disabled {
+  cursor: default;
+}
+
+.current .rowButton {
+  background: var(--bg-raised);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  font-weight: 500;
+}
+
+.future .label,
+.future .secondary,
+.future .timestamp {
+  color: var(--text-secondary);
+  opacity: 0.55;
+}
+
+.bullet {
+  width: 8px;
+  color: var(--accent);
+  font-size: 8px;
+  line-height: 1;
+}
+
+.label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.secondary {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.timestamp {
+  color: var(--text-secondary);
+  font-size: 11px;
+  white-space: nowrap;
+}

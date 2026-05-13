@@ -2,6 +2,7 @@ import {
   parseBorderRadiusShorthandOrNull,
   parseBorderShorthand,
   parseBoxShadowShorthand,
+  parseFilterList,
   parsePaddingShorthandOrNull,
   parsePxOrNull,
   parseSizeValue,
@@ -236,6 +237,16 @@ export const cssToScampProperty: Record<string, Mapper> = {
     const trimmed = v.trim().toLowerCase();
     if (!isBlendMode(trimmed)) return null;
     return { backgroundBlendMode: trimmed };
+  },
+  filter: (v) => {
+    const parsed = parseFilterList(v);
+    if (parsed === null) return null;
+    return { filters: parsed };
+  },
+  'backdrop-filter': (v) => {
+    const parsed = parseFilterList(v);
+    if (parsed === null) return null;
+    return { backdropFilters: parsed };
   },
 
   // ---- Grid ----

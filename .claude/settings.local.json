@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx playwright *)"
+      "Bash(npx playwright *)",
+      "Bash(npm run *)",
+      "Bash(npx vitest *)",
+      "Bash(npx tsc *)"
     ]
   }
 }

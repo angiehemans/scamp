@@ -230,6 +230,8 @@ export const groupSiblings = (elements, ids, groupId) => {
         backgroundBlendMode: 'normal',
         position: 'auto',
         boxShadows: [],
+        filters: [],
+        backdropFilters: [],
         transitions: [],
         inlineFragments: [],
         customProperties: {},
@@ -325,6 +327,8 @@ export const wrapElement = (elements, elementId, wrapperId, template) => {
         backgroundBlendMode: 'normal',
         position: 'auto',
         boxShadows: [],
+        filters: [],
+        backdropFilters: [],
         transitions: [],
         inlineFragments: [],
         customProperties: { ...(template.customProperties ?? {}) },
@@ -466,6 +470,8 @@ export const cloneElementSubtree = (elements, rootCloneId, newParentId, existing
             borderRadius: [old.borderRadius[0], old.borderRadius[1], old.borderRadius[2], old.borderRadius[3]],
             borderWidth: [old.borderWidth[0], old.borderWidth[1], old.borderWidth[2], old.borderWidth[3]],
             boxShadows: old.boxShadows.map((s) => ({ ...s })),
+            filters: old.filters.map((f) => ({ ...f })),
+            backdropFilters: old.backdropFilters.map((f) => ({ ...f })),
             // Clear the name on clones so the duplicate gets a fresh default
             // class name. The user can rename it from the layers panel.
             name: undefined,

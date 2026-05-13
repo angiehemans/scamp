@@ -213,7 +213,8 @@ taking a manual screenshot.
 
 ---
 
-## 4. CSS filters
+## 4. CSS filters - done
+
 
 **User story**
 
@@ -564,3 +565,30 @@ in the spec. Both were deliberately deferred when story #1 landed
   drag-to-reorder UX. Build the reorder pattern once for both
   sections in a single UX pass instead of shipping two slightly
   different versions.
+
+### CSS filter follow-ups (deferred from story #4)
+
+CSS filters (story #4) shipped on 2026-05-12. A few affordances and
+related kinds were deliberately punted:
+
+- **`drop-shadow()` filter kind.** CSS filter has a tenth function
+  Scamp doesn't model (`filter: drop-shadow(0 4px 8px #000)`).
+  Different semantics from `box-shadow` (follows the alpha mask
+  rather than the box bounds) and needs its own four-parameter
+  editor row. Agent-written `drop-shadow(...)` already round-trips
+  via `customProperties`; promote to a typed kind once the rest of
+  the filter UX is proven and we have a reusable row pattern for
+  the four-arg shape.
+- **Drag-to-reorder filter rows.** Filter order matters
+  (`blur(8px) brightness(120%)` ≠ `brightness(120%) blur(8px)`).
+  Shipped v1 without reorder — the user can remove + re-add to
+  reorder. Pair with the box-shadow reorder follow-up above for a
+  single drag-and-drop pass shared between the two sections.
+- **Per-row visibility toggle.** Same CSS-file-representation
+  problem as box-shadow's deferred toggle. Pair with that follow-up
+  rather than solving twice.
+- **Slider control for percent-typed kinds.** Story spec calls for
+  `Slider + number (%)` rows. Shipped v1 with `NumberInput` only;
+  build a reusable `RangeSlider` control and use it alongside the
+  numeric input once it has 2+ callers (filters + colour-picker
+  opacity slider is the natural pairing).

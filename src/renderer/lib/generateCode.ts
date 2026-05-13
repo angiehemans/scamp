@@ -12,6 +12,7 @@ import {
 import {
   formatAnimationShorthand,
   formatBoxShadowShorthand,
+  formatFilterList,
   formatTransitionShorthand,
 } from './parsers';
 import {
@@ -501,6 +502,15 @@ export const elementDeclarationLines = (
     lines.push(`background-blend-mode: ${el.backgroundBlendMode};`);
   }
 
+  // Filters — single space-joined declaration per property. Empty
+  // lists omit.
+  if (el.filters.length > 0) {
+    lines.push(`filter: ${formatFilterList(el.filters)};`);
+  }
+  if (el.backdropFilters.length > 0) {
+    lines.push(`backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
+  }
+
   // Transitions — single shorthand per element. Empty list omits.
   if (el.transitions.length > 0) {
     lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
@@ -765,6 +775,27 @@ export const breakpointOverrideLines = (
     override.backgroundBlendMode !== undefined
   ) {
     lines.push(`background-blend-mode: ${override.backgroundBlendMode};`);
+  }
+
+  // Filters — empty list at a breakpoint or state scope emits
+  // `filter: none` (or `backdrop-filter: none`) so the cascade
+  // explicitly clears the inherited list rather than silently
+  // leaving it in place. Same convention as transitions and shadows.
+  if (has('filters') && override.filters !== undefined) {
+    if (override.filters.length === 0) {
+      lines.push('filter: none;');
+    } else {
+      lines.push(`filter: ${formatFilterList(override.filters)};`);
+    }
+  }
+  if (has('backdropFilters') && override.backdropFilters !== undefined) {
+    if (override.backdropFilters.length === 0) {
+      lines.push('backdrop-filter: none;');
+    } else {
+      lines.push(
+        `backdrop-filter: ${formatFilterList(override.backdropFilters)};`
+      );
+    }
   }
 
   // Transitions — empty list at a breakpoint emits `transition: none`

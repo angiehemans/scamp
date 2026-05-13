@@ -11,6 +11,7 @@ import { TypographySection } from './sections/TypographySection';
 import { ImageSection } from './sections/ImageSection';
 import { VisibilitySection } from './sections/VisibilitySection';
 import { ShadowsSection } from './sections/ShadowsSection';
+import { FiltersSection } from './sections/FiltersSection';
 import { TransitionsSection } from './sections/TransitionsSection';
 import { AnimationSection } from './sections/AnimationSection';
 import { ExportSection } from './sections/ExportSection';
@@ -60,6 +61,7 @@ export const UiPanel = (): JSX.Element => {
       {!isImage && <BackgroundSection elementId={elementId} />}
       {!isImage && <BorderSection elementId={elementId} />}
       {!isImage && <ShadowsSection elementId={elementId} />}
+      <FiltersSection elementId={elementId} />
       {isImage && <ImageSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />

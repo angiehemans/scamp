@@ -236,6 +236,43 @@ export type BoxShadowDef = {
 };
 
 /**
+ * The set of CSS filter functions Scamp models as typed entries.
+ * Each kind carries a single numeric argument in its canonical unit:
+ *
+ *   - blur        → px  (length)
+ *   - hue-rotate  → deg (angle)
+ *   - everything else → % (percentage)
+ *
+ * Functions outside this set (`drop-shadow`, `url(...)`, vendor
+ * prefixes) refuse from the mapper and round-trip verbatim via
+ * `customProperties`.
+ */
+export type FilterKind =
+  | 'blur'
+  | 'brightness'
+  | 'contrast'
+  | 'grayscale'
+  | 'hue-rotate'
+  | 'invert'
+  | 'opacity'
+  | 'saturate'
+  | 'sepia';
+
+/**
+ * One CSS filter function applied to an element. The kind picks
+ * which function name is emitted and the unit; `value` is the
+ * numeric argument in that unit (percent kinds use 100 = 100%,
+ * not 1.0, so the panel renders the value the user types directly).
+ *
+ * Used for both `filter` and `backdrop-filter` — the two lists are
+ * independent fields on the element but share this row shape.
+ */
+export type FilterDef = {
+  kind: FilterKind;
+  value: number;
+};
+
+/**
  * One `@keyframes` rule on a page, preserved at the page level
  * because keyframes are shared resources — multiple elements can
  * reference the same `fade-in-up` block. Mirrors the
@@ -458,6 +495,27 @@ export type ScampElement = {
    * verbatim in `customProperties` and leave this list empty.
    */
   boxShadows: ReadonlyArray<BoxShadowDef>;
+
+  /**
+   * Ordered list of CSS filter functions applied to the element.
+   * Empty by default. Emitted as a single space-joined
+   * `filter: f1(...) f2(...)` declaration when non-empty. Order
+   * matters — filters apply in sequence and reordering changes the
+   * visual result. Agent-written `filter` values containing functions
+   * outside `FilterKind` (`drop-shadow`, `url(...)`, `var(...)` args)
+   * refuse from the mapper and preserve verbatim in
+   * `customProperties`.
+   */
+  filters: ReadonlyArray<FilterDef>;
+
+  /**
+   * Same shape as `filters` but emitted as `backdrop-filter`. Applies
+   * filter effects to the content behind the element (visible only
+   * when the element's background is partially transparent). The
+   * two lists are independent — adding a blur to `filters` doesn't
+   * touch `backdropFilters`.
+   */
+  backdropFilters: ReadonlyArray<FilterDef>;
 
   /**
    * Ordered list of CSS transitions. Empty by default. Emitted as a
@@ -849,6 +907,8 @@ export const groupSiblings = (
     backgroundBlendMode: 'normal',
     position: 'auto',
     boxShadows: [],
+    filters: [],
+    backdropFilters: [],
     transitions: [],
     inlineFragments: [],
     customProperties: {},
@@ -959,6 +1019,8 @@ export const wrapElement = (
     backgroundBlendMode: 'normal',
     position: 'auto',
     boxShadows: [],
+    filters: [],
+    backdropFilters: [],
     transitions: [],
     inlineFragments: [],
     customProperties: { ...(template.customProperties ?? {}) },
@@ -1111,6 +1173,8 @@ export const cloneElementSubtree = (
       borderRadius: [old.borderRadius[0], old.borderRadius[1], old.borderRadius[2], old.borderRadius[3]],
       borderWidth: [old.borderWidth[0], old.borderWidth[1], old.borderWidth[2], old.borderWidth[3]],
       boxShadows: old.boxShadows.map((s) => ({ ...s })),
+      filters: old.filters.map((f) => ({ ...f })),
+      backdropFilters: old.backdropFilters.map((f) => ({ ...f })),
       // Clear the name on clones so the duplicate gets a fresh default
       // class name. The user can rename it from the layers panel.
       name: undefined,

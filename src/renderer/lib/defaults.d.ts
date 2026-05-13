@@ -1,4 +1,4 @@
-import type { BoxShadowDef } from './element';
+import type { BoxShadowDef, FilterDef } from './element';
 /**
  * Default style values applied to every newly-created rectangle.
  *
@@ -39,6 +39,8 @@ export declare const DEFAULT_RECT_STYLES: {
     backgroundBlendMode: "normal";
     position: "auto";
     boxShadows: ReadonlyArray<BoxShadowDef>;
+    filters: ReadonlyArray<FilterDef>;
+    backdropFilters: ReadonlyArray<FilterDef>;
     transitions: ReadonlyArray<{
         property: string;
         durationMs: number;
@@ -113,6 +115,8 @@ export declare const DEFAULT_ROOT_STYLES: {
     backgroundBlendMode: "normal";
     position: "auto";
     boxShadows: ReadonlyArray<BoxShadowDef>;
+    filters: ReadonlyArray<FilterDef>;
+    backdropFilters: ReadonlyArray<FilterDef>;
     transitions: ReadonlyArray<{
         property: string;
         durationMs: number;

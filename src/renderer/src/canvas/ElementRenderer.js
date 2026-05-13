@@ -5,7 +5,7 @@ import { ROOT_ELEMENT_ID } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
-import { formatAnimationShorthand, formatBoxShadowShorthand } from '@lib/parsers';
+import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, } from '@lib/parsers';
 import { customPropsToStyle } from '@lib/customProps';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
@@ -288,6 +288,15 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
     }
     if (el.backgroundBlendMode !== 'normal') {
         base.backgroundBlendMode = el.backgroundBlendMode;
+    }
+    // Filters / backdrop-filter — same pattern as box-shadow: format
+    // the typed list so the canvas matches the file output. Empty list
+    // → no declaration (browser default).
+    if (el.filters.length > 0) {
+        base.filter = formatFilterList(el.filters);
+    }
+    if (el.backdropFilters.length > 0) {
+        base.backdropFilter = formatFilterList(el.backdropFilters);
     }
     // Spread customProperties LAST so unmapped CSS the user / agent
     // wrote (box-shadow, line-height, font-family, margin, …) actually

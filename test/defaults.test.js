@@ -34,6 +34,8 @@ describe('DEFAULT_RECT_STYLES', () => {
             mixBlendMode: 'normal',
             backgroundBlendMode: 'normal',
             boxShadows: [],
+            filters: [],
+            backdropFilters: [],
             transitions: [],
             inlineFragments: [],
         });

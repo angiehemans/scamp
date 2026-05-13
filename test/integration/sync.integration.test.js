@@ -45,6 +45,8 @@ const makeRoot = (childIds = []) => ({
     mixBlendMode: 'normal',
     backgroundBlendMode: 'normal',
     boxShadows: [],
+    filters: [],
+    backdropFilters: [],
     transitions: [],
     inlineFragments: [],
     customProperties: {},

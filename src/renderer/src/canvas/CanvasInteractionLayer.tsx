@@ -1,5 +1,6 @@
 import { DragEvent, PointerEvent, RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useHistoryStore } from '@store/historySlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { clampToParent, MIN_SIZE } from '@lib/bounds';
 import { assetsDirSegment } from '@renderer/src/lib/path';
@@ -333,6 +334,12 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       if (!el) return;
       e.preventDefault();
       target.setPointerCapture(e.pointerId);
+      // Open a history transaction so the per-tick `resizeElement`
+      // calls during the drag don't each create their own history
+      // entry. The wrapping `endHistoryTransaction` in
+      // `handlePointerUp` commits a single `resize` entry on
+      // pointer release.
+      useHistoryStore.getState().beginHistoryTransaction();
       setResize({
         id: selectedElementId,
         handle,
@@ -441,6 +448,10 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     }
     e.preventDefault();
     target.setPointerCapture(e.pointerId);
+    // Open a history transaction so per-tick `moveElement` calls
+    // during the drag coalesce into a single `move` entry on
+    // pointer release.
+    useHistoryStore.getState().beginHistoryTransaction();
     setMove({
       id: hitId,
       pointerStartX: e.clientX,
@@ -643,6 +654,25 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
         setTool('select');
       }
       setDraw(null);
+    }
+    if (move) {
+      // Close the move transaction — commits one `move` entry
+      // covering the drag and drains any external edit that
+      // arrived mid-drag.
+      useHistoryStore
+        .getState()
+        .endHistoryTransaction(
+          { kind: 'move', elementIds: [move.id] },
+          useCanvasStore.getState().elements
+        );
+    }
+    if (resize) {
+      useHistoryStore
+        .getState()
+        .endHistoryTransaction(
+          { kind: 'resize', elementIds: [resize.id] },
+          useCanvasStore.getState().elements
+        );
     }
     setMove(null);
     setResize(null);

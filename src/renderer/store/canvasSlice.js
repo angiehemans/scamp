@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { temporal } from 'zundo';
 import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
+import { useHistoryStore } from './historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
+import { classNameFor } from '@lib/generateCode';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import { DEFAULT_BREAKPOINTS, } from '@shared/types';
@@ -265,7 +266,18 @@ const freshId = (existing) => {
         i += 1;
     return `g${i}`;
 };
-export const useCanvasStore = create()(temporal((set) => ({
+/**
+ * Helper: snapshot the current elements map and push a history
+ * entry. Called from every mutation that should be undoable.
+ * No-op when called outside an active page (no history bucket
+ * to write to) — see `useHistoryStore.commitHistory`.
+ */
+const commitElementsToHistory = (input) => {
+    useHistoryStore
+        .getState()
+        .commitHistory(input, useCanvasStore.getState().elements);
+};
+export const useCanvasStore = create()((set) => ({
     elements: { [ROOT_ELEMENT_ID]: makeRootElement() },
     rootElementId: ROOT_ELEMENT_ID,
     selectedElementIds: [],
@@ -277,6 +289,7 @@ export const useCanvasStore = create()(temporal((set) => ({
     lastLoadKind: null,
     bottomPanel: 'none',
     panelMode: 'ui',
+    leftSidebarTab: 'layers',
     userZoom: null,
     activeBreakpointId: 'desktop',
     activeStateName: null,
@@ -321,6 +334,7 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [id],
             };
         });
+        commitElementsToHistory({ kind: 'draw-rect', elementIds: [id] });
         return id;
     },
     createText: (input) => {
@@ -343,6 +357,7 @@ export const useCanvasStore = create()(temporal((set) => ({
                 editingElementId: id,
             };
         });
+        commitElementsToHistory({ kind: 'add-text', elementIds: [id] });
         return id;
     },
     createImage: (input) => {
@@ -361,6 +376,7 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [id],
             };
         });
+        commitElementsToHistory({ kind: 'add-image', elementIds: [id] });
         return id;
     },
     createInput: (input) => {
@@ -379,54 +395,63 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [id],
             };
         });
+        commitElementsToHistory({ kind: 'add-input', elementIds: [id] });
         return id;
     },
-    deleteElement: (id) => set((state) => {
-        // Root is the page frame and can't be removed.
-        if (id === ROOT_ELEMENT_ID)
-            return state;
-        const target = state.elements[id];
-        if (!target)
-            return state;
-        // Collect this element + all descendants so we can drop them in one
-        // pass. Walks childIds depth-first; safe because the canvas tree is
-        // a tree (no cycles).
-        const toRemove = new Set();
-        const visit = (visitId) => {
-            if (toRemove.has(visitId))
-                return;
-            toRemove.add(visitId);
-            const el = state.elements[visitId];
-            if (!el)
-                return;
-            for (const childId of el.childIds)
-                visit(childId);
-        };
-        visit(id);
-        const nextElements = {};
-        for (const [key, value] of Object.entries(state.elements)) {
-            if (toRemove.has(key))
-                continue;
-            nextElements[key] = value;
-        }
-        // Detach from parent's childIds.
-        if (target.parentId) {
-            const parent = nextElements[target.parentId];
-            if (parent) {
-                nextElements[target.parentId] = {
-                    ...parent,
-                    childIds: parent.childIds.filter((childId) => childId !== id),
-                };
+    deleteElement: (id) => {
+        // Capture the element's display name before it's removed so the
+        // history entry's label can read sensibly ("Deleted hero_card_a1b2")
+        // even after the element is gone from the live map.
+        const beforeEl = useCanvasStore.getState().elements[id];
+        const previousName = beforeEl ? classNameFor(beforeEl) : undefined;
+        set((state) => {
+            // Root is the page frame and can't be removed.
+            if (id === ROOT_ELEMENT_ID)
+                return state;
+            const target = state.elements[id];
+            if (!target)
+                return state;
+            // Collect this element + all descendants so we can drop them in one
+            // pass. Walks childIds depth-first; safe because the canvas tree is
+            // a tree (no cycles).
+            const toRemove = new Set();
+            const visit = (visitId) => {
+                if (toRemove.has(visitId))
+                    return;
+                toRemove.add(visitId);
+                const el = state.elements[visitId];
+                if (!el)
+                    return;
+                for (const childId of el.childIds)
+                    visit(childId);
+            };
+            visit(id);
+            const nextElements = {};
+            for (const [key, value] of Object.entries(state.elements)) {
+                if (toRemove.has(key))
+                    continue;
+                nextElements[key] = value;
             }
-        }
-        return {
-            elements: nextElements,
-            selectedElementIds: state.selectedElementIds.filter((s) => !toRemove.has(s)),
-            editingElementId: state.editingElementId && toRemove.has(state.editingElementId)
-                ? null
-                : state.editingElementId,
-        };
-    }),
+            // Detach from parent's childIds.
+            if (target.parentId) {
+                const parent = nextElements[target.parentId];
+                if (parent) {
+                    nextElements[target.parentId] = {
+                        ...parent,
+                        childIds: parent.childIds.filter((childId) => childId !== id),
+                    };
+                }
+            }
+            return {
+                elements: nextElements,
+                selectedElementIds: state.selectedElementIds.filter((s) => !toRemove.has(s)),
+                editingElementId: state.editingElementId && toRemove.has(state.editingElementId)
+                    ? null
+                    : state.editingElementId,
+            };
+        });
+        commitElementsToHistory({ kind: 'delete', elementIds: [id], previousName });
+    },
     duplicateElement: (id) => {
         let createdId = null;
         set((state) => {
@@ -485,6 +510,12 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [result.newId],
             };
         });
+        if (createdId !== null) {
+            commitElementsToHistory({
+                kind: 'duplicate',
+                elementIds: [createdId],
+            });
+        }
         return createdId;
     },
     copyElement: (id) => {
@@ -546,6 +577,12 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [result.newId],
             };
         });
+        if (createdId !== null) {
+            commitElementsToHistory({
+                kind: 'paste',
+                elementIds: [createdId],
+            });
+        }
         return createdId;
     },
     groupElements: (ids) => {
@@ -563,17 +600,26 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [result.groupId],
             };
         });
+        if (createdId !== null) {
+            commitElementsToHistory({
+                kind: 'group',
+                elementIds: [createdId],
+            });
+        }
         return createdId;
     },
-    ungroupElement: (id) => set((state) => {
-        const result = ungroupSiblings(state.elements, id);
-        if (!result)
-            return state;
-        return {
-            elements: result.elements,
-            selectedElementIds: result.promotedIds,
-        };
-    }),
+    ungroupElement: (id) => {
+        set((state) => {
+            const result = ungroupSiblings(state.elements, id);
+            if (!result)
+                return state;
+            return {
+                elements: result.elements,
+                selectedElementIds: result.promotedIds,
+            };
+        });
+        commitElementsToHistory({ kind: 'ungroup', elementIds: [id] });
+    },
     wrapInLinkParent: (elementId, href, options) => {
         let wrapperId = null;
         set((state) => {
@@ -601,200 +647,281 @@ export const useCanvasStore = create()(temporal((set) => ({
                 selectedElementIds: [result.wrapperId],
             };
         });
+        if (wrapperId !== null) {
+            commitElementsToHistory({
+                kind: 'wrap-link',
+                elementIds: [elementId],
+            });
+        }
         return wrapperId;
     },
-    reorderElement: (elementId, newParentId, newIndex) => set((state) => {
-        const next = reorderElementPure(state.elements, elementId, newParentId, newIndex);
-        if (!next)
-            return state;
-        return { elements: next };
-    }),
+    reorderElement: (elementId, newParentId, newIndex) => {
+        set((state) => {
+            const next = reorderElementPure(state.elements, elementId, newParentId, newIndex);
+            if (!next)
+                return state;
+            return { elements: next };
+        });
+        commitElementsToHistory({ kind: 'reorder', elementIds: [elementId] });
+    },
     setEditingElement: (id) => set({ editingElementId: id }),
-    setElementText: (id, text) => set((state) => {
-        const el = state.elements[id];
-        if (!el)
-            return state;
-        return {
-            elements: { ...state.elements, [id]: { ...el, text } },
-        };
-    }),
-    moveElement: (id, x, y) => set((state) => {
-        const el = state.elements[id];
-        if (!el)
-            return state;
-        // Direct manipulation (drag-to-move) always lands on the base —
-        // never on a state override, even if a state is active in the
-        // panel. Moving an element on the canvas is a layout edit, not
-        // a hover-state design decision.
-        const next = applyPatchWithAxisRouting(el, { x, y }, state.activeBreakpointId, null);
-        return { elements: { ...state.elements, [id]: next } };
-    }),
-    resizeElement: (id, x, y, width, height) => set((state) => {
-        const el = state.elements[id];
-        if (!el)
-            return state;
-        // Dragging a handle is an explicit "I want this size" gesture, so
-        // we always switch to fixed mode — otherwise resizing a stretched
-        // or fit-content element would silently store a value that the
-        // generator wouldn't emit. Like moveElement, resize edits land
-        // on the base regardless of the active state.
-        const next = applyPatchWithAxisRouting(el, {
-            x,
-            y,
-            widthValue: width,
-            heightValue: height,
-            widthMode: 'fixed',
-            heightMode: 'fixed',
-        }, state.activeBreakpointId, null);
-        return { elements: { ...state.elements, [id]: next } };
-    }),
-    patchElement: (id, patch) => set((state) => {
-        const el = state.elements[id];
-        if (!el)
-            return state;
-        const next = applyPatchWithAxisRouting(el, patch, state.activeBreakpointId, state.activeStateName);
-        // A panel edit on this element triggers `generateCode` to
-        // rewrite its class block from typed state, which collapses any
-        // duplicate declarations the file had. Clear the indicator
-        // optimistically so the user sees feedback immediately rather
-        // than after the round-trip parse.
-        const dupes = state.cssDuplicates;
-        let nextDupes = dupes;
-        if (id in dupes) {
-            nextDupes = { ...dupes };
-            delete nextDupes[id];
-        }
-        return {
-            elements: { ...state.elements, [id]: next },
-            cssDuplicates: nextDupes,
-        };
-    }),
-    resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => set((state) => {
-        if (breakpointId === 'desktop')
-            return state;
-        const el = state.elements[id];
-        if (!el || !el.breakpointOverrides)
-            return state;
-        const existing = el.breakpointOverrides[breakpointId];
-        if (!existing)
-            return state;
-        const nextOverride = { ...existing };
-        for (const field of fields) {
-            delete nextOverride[field];
-        }
-        const overrides = { ...el.breakpointOverrides };
-        if (Object.keys(nextOverride).length === 0) {
-            // Empty override object — drop the breakpoint key so
-            // generateCode won't emit an empty @media rule.
-            delete overrides[breakpointId];
-        }
-        else {
-            overrides[breakpointId] = nextOverride;
-        }
-        // If no breakpoints have any overrides, delete the whole field
-        // so round-trips stay text-stable.
-        const { breakpointOverrides: _, ...elWithoutOverrides } = el;
-        const nextElement = Object.keys(overrides).length === 0
-            ? elWithoutOverrides
-            : { ...el, breakpointOverrides: overrides };
-        return {
-            elements: { ...state.elements, [id]: nextElement },
-        };
-    }),
-    resetElementFieldsAtState: (id, stateName, fields) => set((state) => {
-        const el = state.elements[id];
-        if (!el || !el.stateOverrides)
-            return state;
-        const existing = el.stateOverrides[stateName];
-        if (!existing)
-            return state;
-        const nextOverride = { ...existing };
-        for (const field of fields) {
-            delete nextOverride[field];
-        }
-        const overrides = {
-            ...el.stateOverrides,
-        };
-        if (Object.keys(nextOverride).length === 0) {
-            // Empty override object — drop the state key so generateCode
-            // won't emit an empty pseudo-class block.
-            delete overrides[stateName];
-        }
-        else {
-            overrides[stateName] = nextOverride;
-        }
-        // If no states have any overrides, delete the whole field so
-        // round-trips stay text-stable.
-        const { stateOverrides: _, ...elWithoutOverrides } = el;
-        const nextElement = Object.keys(overrides).length === 0
-            ? elWithoutOverrides
-            : { ...el, stateOverrides: overrides };
-        return {
-            elements: { ...state.elements, [id]: nextElement },
-        };
-    }),
-    setAnimation: (id, animation) => set((state) => {
-        const el = state.elements[id];
-        if (!el)
-            return state;
-        // Route the animation patch through the same axis-routing the
-        // panel sections use — base when default state is active, the
-        // matching state override otherwise.
-        const next = applyPatchWithAxisRouting(el, { animation }, state.activeBreakpointId, state.activeStateName);
-        // Ensure a `KeyframesBlock` exists for the chosen name. If the
-        // page already has one with this name (preset or agent-edited),
-        // leave it alone — preserves user intent. If absent, append the
-        // canonical preset body for known presets; for unknown names
-        // we leave it absent (the agent owns those).
-        let keyframes = state.pageKeyframesBlocks;
-        const existing = keyframes.find((b) => b.name === animation.name);
-        if (!existing && isPresetName(animation.name)) {
-            const preset = PRESETS_BY_NAME.get(animation.name);
-            if (preset) {
-                keyframes = [
-                    ...keyframes,
-                    { name: preset.name, body: preset.body, isPreset: true },
-                ];
+    setElementText: (id, text) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            return {
+                elements: { ...state.elements, [id]: { ...el, text } },
+            };
+        });
+        commitElementsToHistory({
+            kind: 'patch',
+            elementIds: [id],
+            propertyKeys: ['text'],
+        });
+    },
+    moveElement: (id, x, y) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            // Direct manipulation (drag-to-move) always lands on the base —
+            // never on a state override, even if a state is active in the
+            // panel. Moving an element on the canvas is a layout edit, not
+            // a hover-state design decision.
+            const next = applyPatchWithAxisRouting(el, { x, y }, state.activeBreakpointId, null);
+            return { elements: { ...state.elements, [id]: next } };
+        });
+        // moveElement is called every pointermove tick during a drag,
+        // wrapped in a beginHistoryTransaction / endHistoryTransaction
+        // pair by CanvasInteractionLayer. The commit here is suppressed
+        // while the transaction is open and a single `move` entry is
+        // committed on pointerup.
+        commitElementsToHistory({ kind: 'move', elementIds: [id] });
+    },
+    resizeElement: (id, x, y, width, height) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            // Dragging a handle is an explicit "I want this size" gesture, so
+            // we always switch to fixed mode — otherwise resizing a stretched
+            // or fit-content element would silently store a value that the
+            // generator wouldn't emit. Like moveElement, resize edits land
+            // on the base regardless of the active state.
+            const next = applyPatchWithAxisRouting(el, {
+                x,
+                y,
+                widthValue: width,
+                heightValue: height,
+                widthMode: 'fixed',
+                heightMode: 'fixed',
+            }, state.activeBreakpointId, null);
+            return { elements: { ...state.elements, [id]: next } };
+        });
+        // resizeElement runs every pointermove tick during a handle drag,
+        // wrapped in a transaction by CanvasInteractionLayer. Per-tick
+        // commits are suppressed; the wrapping endHistoryTransaction
+        // records a single `resize` entry on pointerup.
+        commitElementsToHistory({ kind: 'resize', elementIds: [id] });
+    },
+    patchElement: (id, patch) => {
+        // Special-case: a rename-only patch gets a `rename` history
+        // entry with the previous display name, so the panel reads
+        // "Renamed old to new" instead of "Changed name — new".
+        const isRenameOnly = Object.keys(patch).length === 1 && 'name' in patch;
+        const beforeEl = useCanvasStore.getState().elements[id];
+        const previousName = isRenameOnly && beforeEl ? classNameFor(beforeEl) : undefined;
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            const next = applyPatchWithAxisRouting(el, patch, state.activeBreakpointId, state.activeStateName);
+            // A panel edit on this element triggers `generateCode` to
+            // rewrite its class block from typed state, which collapses any
+            // duplicate declarations the file had. Clear the indicator
+            // optimistically so the user sees feedback immediately rather
+            // than after the round-trip parse.
+            const dupes = state.cssDuplicates;
+            let nextDupes = dupes;
+            if (id in dupes) {
+                nextDupes = { ...dupes };
+                delete nextDupes[id];
             }
-        }
-        return {
-            elements: { ...state.elements, [id]: next },
-            pageKeyframesBlocks: keyframes,
-        };
-    }),
-    removeAnimation: (id) => set((state) => {
-        const el = state.elements[id];
-        if (!el)
-            return state;
-        // Two cases: clear the base animation, or clear the active
-        // state's animation override.
-        if (state.activeStateName === null) {
-            const { animation: _drop, ...rest } = el;
-            const nextEl = el.animation === undefined ? el : rest;
-            return { elements: { ...state.elements, [id]: nextEl } };
-        }
-        const overrides = el.stateOverrides;
-        const stateOverride = overrides?.[state.activeStateName];
-        if (!overrides || !stateOverride)
-            return state;
-        const { animation: _drop, ...restOverride } = stateOverride;
-        const nextOverrides = {
-            ...overrides,
-        };
-        if (Object.keys(restOverride).length === 0) {
-            delete nextOverrides[state.activeStateName];
+            return {
+                elements: { ...state.elements, [id]: next },
+                cssDuplicates: nextDupes,
+            };
+        });
+        if (isRenameOnly) {
+            commitElementsToHistory({
+                kind: 'rename',
+                elementIds: [id],
+                previousName,
+            });
         }
         else {
-            nextOverrides[state.activeStateName] = restOverride;
+            commitElementsToHistory({
+                kind: 'patch',
+                elementIds: [id],
+                propertyKeys: Object.keys(patch),
+            });
         }
-        // Drop the whole stateOverrides field if no states remain so
-        // round-trips stay text-stable.
-        const { stateOverrides: _o, ...elNoStates } = el;
-        const nextEl = Object.keys(nextOverrides).length === 0
-            ? elNoStates
-            : { ...el, stateOverrides: nextOverrides };
-        return { elements: { ...state.elements, [id]: nextEl } };
-    }),
+    },
+    resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => {
+        set((state) => {
+            if (breakpointId === 'desktop')
+                return state;
+            const el = state.elements[id];
+            if (!el || !el.breakpointOverrides)
+                return state;
+            const existing = el.breakpointOverrides[breakpointId];
+            if (!existing)
+                return state;
+            const nextOverride = { ...existing };
+            for (const field of fields) {
+                delete nextOverride[field];
+            }
+            const overrides = { ...el.breakpointOverrides };
+            if (Object.keys(nextOverride).length === 0) {
+                // Empty override object — drop the breakpoint key so
+                // generateCode won't emit an empty @media rule.
+                delete overrides[breakpointId];
+            }
+            else {
+                overrides[breakpointId] = nextOverride;
+            }
+            // If no breakpoints have any overrides, delete the whole field
+            // so round-trips stay text-stable.
+            const { breakpointOverrides: _, ...elWithoutOverrides } = el;
+            const nextElement = Object.keys(overrides).length === 0
+                ? elWithoutOverrides
+                : { ...el, breakpointOverrides: overrides };
+            return {
+                elements: { ...state.elements, [id]: nextElement },
+            };
+        });
+        commitElementsToHistory({
+            kind: 'patch',
+            elementIds: [id],
+            propertyKeys: fields,
+        });
+    },
+    resetElementFieldsAtState: (id, stateName, fields) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el || !el.stateOverrides)
+                return state;
+            const existing = el.stateOverrides[stateName];
+            if (!existing)
+                return state;
+            const nextOverride = { ...existing };
+            for (const field of fields) {
+                delete nextOverride[field];
+            }
+            const overrides = {
+                ...el.stateOverrides,
+            };
+            if (Object.keys(nextOverride).length === 0) {
+                // Empty override object — drop the state key so generateCode
+                // won't emit an empty pseudo-class block.
+                delete overrides[stateName];
+            }
+            else {
+                overrides[stateName] = nextOverride;
+            }
+            // If no states have any overrides, delete the whole field so
+            // round-trips stay text-stable.
+            const { stateOverrides: _, ...elWithoutOverrides } = el;
+            const nextElement = Object.keys(overrides).length === 0
+                ? elWithoutOverrides
+                : { ...el, stateOverrides: overrides };
+            return {
+                elements: { ...state.elements, [id]: nextElement },
+            };
+        });
+        commitElementsToHistory({
+            kind: 'patch',
+            elementIds: [id],
+            propertyKeys: fields,
+        });
+    },
+    setAnimation: (id, animation) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            // Route the animation patch through the same axis-routing the
+            // panel sections use — base when default state is active, the
+            // matching state override otherwise.
+            const next = applyPatchWithAxisRouting(el, { animation }, state.activeBreakpointId, state.activeStateName);
+            // Ensure a `KeyframesBlock` exists for the chosen name. If the
+            // page already has one with this name (preset or agent-edited),
+            // leave it alone — preserves user intent. If absent, append the
+            // canonical preset body for known presets; for unknown names
+            // we leave it absent (the agent owns those).
+            let keyframes = state.pageKeyframesBlocks;
+            const existing = keyframes.find((b) => b.name === animation.name);
+            if (!existing && isPresetName(animation.name)) {
+                const preset = PRESETS_BY_NAME.get(animation.name);
+                if (preset) {
+                    keyframes = [
+                        ...keyframes,
+                        { name: preset.name, body: preset.body, isPreset: true },
+                    ];
+                }
+            }
+            return {
+                elements: { ...state.elements, [id]: next },
+                pageKeyframesBlocks: keyframes,
+            };
+        });
+        commitElementsToHistory({
+            kind: 'patch',
+            elementIds: [id],
+            propertyKeys: ['animation'],
+        });
+    },
+    removeAnimation: (id) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            // Two cases: clear the base animation, or clear the active
+            // state's animation override.
+            if (state.activeStateName === null) {
+                const { animation: _drop, ...rest } = el;
+                const nextEl = el.animation === undefined ? el : rest;
+                return { elements: { ...state.elements, [id]: nextEl } };
+            }
+            const overrides = el.stateOverrides;
+            const stateOverride = overrides?.[state.activeStateName];
+            if (!overrides || !stateOverride)
+                return state;
+            const { animation: _drop, ...restOverride } = stateOverride;
+            const nextOverrides = {
+                ...overrides,
+            };
+            if (Object.keys(restOverride).length === 0) {
+                delete nextOverrides[state.activeStateName];
+            }
+            else {
+                nextOverrides[state.activeStateName] = restOverride;
+            }
+            // Drop the whole stateOverrides field if no states remain so
+            // round-trips stay text-stable.
+            const { stateOverrides: _o, ...elNoStates } = el;
+            const nextEl = Object.keys(nextOverrides).length === 0
+                ? elNoStates
+                : { ...el, stateOverrides: nextOverrides };
+            return { elements: { ...state.elements, [id]: nextEl } };
+        });
+        commitElementsToHistory({
+            kind: 'patch',
+            elementIds: [id],
+            propertyKeys: ['animation'],
+        });
+    },
     playAnimation: (elementId) => set((state) => ({
         previewAnimation: {
             elementId,
@@ -806,32 +933,45 @@ export const useCanvasStore = create()(temporal((set) => ({
                 : 0) + 1,
         },
     })),
-    loadPage: (page, elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => set({
-        activePage: page,
-        elements,
-        pageSource: source,
-        pageCustomMediaBlocks: customMediaBlocks ?? [],
-        pageKeyframesBlocks: keyframesBlocks ?? [],
-        cssDuplicates: cssDuplicates ?? {},
-        selectedElementIds: [],
-        isLoading: true,
-        lastLoadKind: 'initial',
-    }),
-    reloadElements: (elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => set((state) => ({
-        elements,
-        pageSource: source,
-        pageCustomMediaBlocks: customMediaBlocks ?? state.pageCustomMediaBlocks,
-        pageKeyframesBlocks: keyframesBlocks ?? state.pageKeyframesBlocks,
-        cssDuplicates: cssDuplicates ?? state.cssDuplicates,
-        // Drop any selection that no longer exists in the new tree (the file
-        // could have been edited externally to remove an element).
-        selectedElementIds: state.selectedElementIds.filter((id) => id in elements),
-        isLoading: true,
-        lastLoadKind: 'external',
-    })),
+    loadPage: (page, elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => {
+        set({
+            activePage: page,
+            elements,
+            pageSource: source,
+            pageCustomMediaBlocks: customMediaBlocks ?? [],
+            pageKeyframesBlocks: keyframesBlocks ?? [],
+            cssDuplicates: cssDuplicates ?? {},
+            selectedElementIds: [],
+            isLoading: true,
+            lastLoadKind: 'initial',
+        });
+        // Activate the page's history bucket. The per-page history stack
+        // persists across page switches; reactivating the same page id
+        // here is a no-op for an existing bucket.
+        useHistoryStore.getState().setActivePageId(page.tsxPath);
+    },
+    reloadElements: (elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => {
+        set((state) => ({
+            elements,
+            pageSource: source,
+            pageCustomMediaBlocks: customMediaBlocks ?? state.pageCustomMediaBlocks,
+            pageKeyframesBlocks: keyframesBlocks ?? state.pageKeyframesBlocks,
+            cssDuplicates: cssDuplicates ?? state.cssDuplicates,
+            // Drop any selection that no longer exists in the new tree (the file
+            // could have been edited externally to remove an element).
+            selectedElementIds: state.selectedElementIds.filter((id) => id in elements),
+            isLoading: true,
+            lastLoadKind: 'external',
+        }));
+        // syncBridge is responsible for pushing the `external-edit`
+        // history entry (it calls enqueueExternalEdit AFTER reloadElements
+        // settles); we don't push from here so initial-format-migration
+        // reloads don't pollute the history.
+    },
     setPageSource: (source) => set({ pageSource: source }),
     setBottomPanel: (panel) => set({ bottomPanel: panel }),
     setPanelMode: (mode) => set({ panelMode: mode }),
+    setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
     setActiveBreakpoint: (id) => set({ activeBreakpointId: id }),
     setActiveState: (activeStateName) => set({ activeStateName }),
     setExportFormat: (format) => set((state) => ({
@@ -883,17 +1023,6 @@ export const useCanvasStore = create()(temporal((set) => ({
         // fit-to-container mode regardless of the previous session.
         userZoom: null,
     }),
-}), {
-    // Only track element state for undo/redo — ignore UI state like
-    // activeTool, selectedElementIds, bottomPanel, panelMode, etc.
-    partialize: (state) => ({ elements: state.elements }),
-    limit: 50,
-    // Avoid recording history when the store is loading from disk
-    // (page load, external file change). Those mutations call
-    // set({ isLoading: true }), but partialize only sees `elements`
-    // so we use the equality check to skip recording when the whole
-    // elements map is replaced wholesale during a load.
-    equality: (a, b) => a.elements === b.elements,
 }));
 // ---- Derived selectors ----
 const EXCLUDED_COLORS = new Set(['transparent', 'inherit', 'initial', 'unset', 'currentColor']);

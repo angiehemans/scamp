@@ -309,6 +309,70 @@ describe('cssToScampProperty', () => {
             expect(apply('background-blend-mode', 'plus-lighter')).toBeNull();
         });
     });
+    describe('filter', () => {
+        it('routes a single function into the typed filters field', () => {
+            expect(apply('filter', 'blur(4px)')).toEqual({
+                filters: [{ kind: 'blur', value: 4 }],
+            });
+        });
+        it('routes a multi-function list in order', () => {
+            expect(apply('filter', 'blur(4px) brightness(120%) grayscale(50%)')).toEqual({
+                filters: [
+                    { kind: 'blur', value: 4 },
+                    { kind: 'brightness', value: 120 },
+                    { kind: 'grayscale', value: 50 },
+                ],
+            });
+        });
+        it('parses function names case-insensitively', () => {
+            expect(apply('filter', 'BLUR(4px)')).toEqual({
+                filters: [{ kind: 'blur', value: 4 }],
+            });
+        });
+        it('clears to empty list for none', () => {
+            expect(apply('filter', 'none')).toEqual({ filters: [] });
+        });
+        it('refuses unknown filter functions', () => {
+            expect(apply('filter', 'drop-shadow(0 4px 8px #000)')).toBeNull();
+        });
+        it('refuses inherit / initial / unset / revert', () => {
+            expect(apply('filter', 'inherit')).toBeNull();
+            expect(apply('filter', 'initial')).toBeNull();
+            expect(apply('filter', 'unset')).toBeNull();
+            expect(apply('filter', 'revert')).toBeNull();
+        });
+        it('refuses if ANY function fails (no silent drops)', () => {
+            expect(apply('filter', 'blur(4px) drop-shadow(0 0 0)')).toBeNull();
+        });
+        it('refuses unit-mismatched arguments', () => {
+            expect(apply('filter', 'blur(50%)')).toBeNull();
+            expect(apply('filter', 'brightness(2px)')).toBeNull();
+        });
+        it('refuses unitless decimal arguments for percent-typed kinds', () => {
+            expect(apply('filter', 'brightness(1.2)')).toBeNull();
+        });
+    });
+    describe('backdrop-filter', () => {
+        it('routes a single function into the typed backdropFilters field', () => {
+            expect(apply('backdrop-filter', 'blur(12px)')).toEqual({
+                backdropFilters: [{ kind: 'blur', value: 12 }],
+            });
+        });
+        it('routes a multi-function list', () => {
+            expect(apply('backdrop-filter', 'blur(12px) saturate(150%)')).toEqual({
+                backdropFilters: [
+                    { kind: 'blur', value: 12 },
+                    { kind: 'saturate', value: 150 },
+                ],
+            });
+        });
+        it('clears to empty list for none', () => {
+            expect(apply('backdrop-filter', 'none')).toEqual({ backdropFilters: [] });
+        });
+        it('refuses unknown filter functions', () => {
+            expect(apply('backdrop-filter', 'drop-shadow(0 0 0)')).toBeNull();
+        });
+    });
     describe('padding', () => {
         it('parses 1-value shorthand', () => {
             expect(apply('padding', '8px')).toEqual({ padding: [8, 8, 8, 8] });

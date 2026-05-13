@@ -41,6 +41,13 @@ export type PageSource = {
 };
 export type BottomPanel = 'code' | 'terminal' | 'none';
 /**
+ * Which tab is active in the left sidebar. `'layers'` shows the
+ * existing Pages + Layers stack (the default); `'history'` shows
+ * the per-page visual history panel. Per-session preference —
+ * not persisted to disk.
+ */
+export type LeftSidebarTab = 'layers' | 'history';
+/**
  * Properties panel display mode. `'ui'` shows typed form controls grouped
  * by section; `'css'` shows the raw CSS editor. Both modes read the same
  * underlying element state, so flipping between them is lossless.
@@ -83,6 +90,7 @@ type CanvasState = {
     lastLoadKind: 'initial' | 'external' | null;
     bottomPanel: BottomPanel;
     panelMode: PanelMode;
+    leftSidebarTab: LeftSidebarTab;
     /**
      * Manual canvas zoom. `null` means "auto fit to container width" — the
      * Viewport falls back to the auto-fit calculation. A number is treated
@@ -273,6 +281,7 @@ type CanvasState = {
     setPageSource: (source: PageSource) => void;
     setBottomPanel: (panel: BottomPanel) => void;
     setPanelMode: (mode: PanelMode) => void;
+    setLeftSidebarTab: (tab: LeftSidebarTab) => void;
     setActiveBreakpoint: (id: string) => void;
     setActiveState: (state: ElementStateName | null) => void;
     setExportFormat: (format: 'png' | 'svg') => void;
@@ -322,11 +331,7 @@ type CanvasState = {
     setOpenThemePanel: (fn: (() => void) | null) => void;
     resetForNewPage: () => void;
 };
-export declare const useCanvasStore: import("zustand").UseBoundStore<Omit<import("zustand").StoreApi<CanvasState>, "temporal"> & {
-    temporal: import("zustand").StoreApi<import("zundo").TemporalState<{
-        elements: Record<string, ScampElement>;
-    }>>;
-}>;
+export declare const useCanvasStore: import("zustand").UseBoundStore<import("zustand").StoreApi<CanvasState>>;
 /**
  * Extract all color values used across every element in the current page.
  * Deduplicated and sorted by frequency (most used first). Returns an empty

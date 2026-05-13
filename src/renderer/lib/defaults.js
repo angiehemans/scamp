@@ -38,6 +38,8 @@ export const DEFAULT_RECT_STYLES = {
     backgroundBlendMode: 'normal',
     position: 'auto',
     boxShadows: [],
+    filters: [],
+    backdropFilters: [],
     transitions: [],
     inlineFragments: [],
 };
@@ -98,6 +100,8 @@ export const DEFAULT_ROOT_STYLES = {
     backgroundBlendMode: 'normal',
     position: 'auto',
     boxShadows: [],
+    filters: [],
+    backdropFilters: [],
     transitions: [],
     inlineFragments: [],
 };

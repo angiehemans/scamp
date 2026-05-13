@@ -87,6 +87,36 @@ describe('agent-friendly: var()-based shorthands round-trip verbatim', () => {
     const out = roundTripCss('  background-blend-mode: multiply, screen;');
     expect(out).toContain('background-blend-mode: multiply, screen;');
   });
+
+  it('filter: drop-shadow(...) (unmodelled filter function)', () => {
+    const out = roundTripCss('  filter: drop-shadow(0 4px 8px #000);');
+    expect(out).toContain('filter: drop-shadow(0 4px 8px #000);');
+  });
+
+  it('filter: url(#svg-filter) (SVG filter reference)', () => {
+    const out = roundTripCss('  filter: url(#svg-filter);');
+    expect(out).toContain('filter: url(#svg-filter);');
+  });
+
+  it('filter: blur(var(--blur-md)) (token-based argument)', () => {
+    const out = roundTripCss('  filter: blur(var(--blur-md));');
+    expect(out).toContain('filter: blur(var(--blur-md));');
+  });
+
+  it('filter: brightness(1.2) (unitless decimal not modelled)', () => {
+    const out = roundTripCss('  filter: brightness(1.2);');
+    expect(out).toContain('filter: brightness(1.2);');
+  });
+
+  it('filter: inherit', () => {
+    const out = roundTripCss('  filter: inherit;');
+    expect(out).toContain('filter: inherit;');
+  });
+
+  it('backdrop-filter: brightness(1.2) (unitless decimal)', () => {
+    const out = roundTripCss('  backdrop-filter: brightness(1.2);');
+    expect(out).toContain('backdrop-filter: brightness(1.2);');
+  });
 });
 
 describe('agent-friendly: percent / non-px values round-trip verbatim', () => {

@@ -9,6 +9,7 @@ import { IconPlayerPlay } from '@tabler/icons-react';
 import type { ProjectData, PageFile, ProjectConfig } from '@shared/types';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useHistoryStore } from '@store/historySlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { parseCode } from '@lib/parseCode';
 import { flushPendingPageWrite } from '../syncBridge';
@@ -22,6 +23,7 @@ import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
+import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
 import { ZoomControls } from './ZoomControls';
 import { CanvasSizeControl } from './CanvasSizeControl';
@@ -155,6 +157,8 @@ export const ProjectShell = ({
   const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
   const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+  const leftSidebarTab = useCanvasStore((s) => s.leftSidebarTab);
+  const setLeftSidebarTab = useCanvasStore((s) => s.setLeftSidebarTab);
 
   // Once the user opens the terminal we keep TerminalPanel mounted for
   // the lifetime of the project, even when the panel is hidden, so any
@@ -275,9 +279,10 @@ export const ProjectShell = ({
       parsed.keyframesBlocks,
       parsed.cssDuplicates
     );
-    // Fresh page load — clear undo history so the user can't undo past
-    // the initial state of this page.
-    useCanvasStore.temporal.getState().clear();
+    // Per-page history persists across page switches — `loadPage`
+    // activates this page's bucket in the history slice. Don't
+    // clear here; switching back to this page should restore its
+    // stack.
   }, [
     activePageName,
     project.pages,
@@ -434,10 +439,26 @@ export const ProjectShell = ({
         if (isEditableTarget(e.target)) return;
         e.preventDefault();
         if (e.shiftKey) {
-          useCanvasStore.temporal.getState().redo();
+          useHistoryStore.getState().redo();
         } else {
-          useCanvasStore.temporal.getState().undo();
+          useHistoryStore.getState().undo();
         }
+        return;
+      }
+
+      // Cmd/Ctrl+Shift+H — toggle the left sidebar tab between
+      // Pages & Layers and History.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.key === 'h' || e.key === 'H')
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        const canvas = useCanvasStore.getState();
+        canvas.setLeftSidebarTab(
+          canvas.leftSidebarTab === 'history' ? 'layers' : 'history'
+        );
         return;
       }
 
@@ -608,6 +629,11 @@ export const ProjectShell = ({
       // Ensure any pending debounced write lands on the OLD files
       // before the rename swaps them out from under us.
       flushPendingPageWrite();
+      // Capture the old tsxPath so we can rekey the history bucket
+      // after the rename. The page's path changes (the file moves on
+      // disk), so without rekey the in-session history would be
+      // stranded under the old key and lost.
+      const oldTsxPath = project.pages.find((p) => p.name === oldName)?.tsxPath;
       const newPage = await window.scamp.renamePage({
         projectPath: project.path,
         oldPageName: oldName,
@@ -620,8 +646,20 @@ export const ProjectShell = ({
       if (activePageName === oldName) {
         setActivePageName(newPage.name);
       }
-      // Rename is a file-level operation outside the canvas history.
-      useCanvasStore.temporal.getState().clear();
+      // Move the history bucket to the new tsxPath, then push a
+      // `rename-page` entry. The entry lives in the (now renamed)
+      // page's bucket so undoing it surfaces the pre-rename state.
+      if (oldTsxPath) {
+        useHistoryStore.getState().rekeyPage(oldTsxPath, newPage.tsxPath);
+      }
+      useHistoryStore.getState().commitHistory(
+        {
+          kind: 'rename-page',
+          previousName: oldName,
+          pageName: newName,
+        },
+        useCanvasStore.getState().elements
+      );
       resetPageEdit();
     } catch (e) {
       setPageEditError(e instanceof Error ? e.message : String(e));
@@ -754,6 +792,32 @@ export const ProjectShell = ({
       )}
       <div className={styles.body}>
         <aside className={styles.sidebar}>
+          <div className={styles.sidebarTabStrip} role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftSidebarTab === 'layers'}
+              className={`${styles.sidebarTab} ${
+                leftSidebarTab === 'layers' ? styles.sidebarTabActive : ''
+              }`}
+              onClick={() => setLeftSidebarTab('layers')}
+            >
+              Pages & Layers
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={leftSidebarTab === 'history'}
+              className={`${styles.sidebarTab} ${
+                leftSidebarTab === 'history' ? styles.sidebarTabActive : ''
+              }`}
+              onClick={() => setLeftSidebarTab('history')}
+            >
+              History
+            </button>
+          </div>
+          {leftSidebarTab === 'history' && <HistoryPanel />}
+          {leftSidebarTab === 'layers' && <>
           <div className={styles.sidebarSection}>
             <h2 className={styles.sidebarTitle}>Pages</h2>
             <ul className={styles.pageList}>
@@ -857,6 +921,7 @@ export const ProjectShell = ({
             <h2 className={styles.sidebarTitle}>Layers</h2>
             <ElementTree />
           </div>
+          </>}
         </aside>
         <div className={styles.artboard}>
           <div
