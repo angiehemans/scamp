@@ -292,7 +292,7 @@ manually.
 
 ---
 
-## 5. Visual history panel
+## 5. Visual history panel - Done
 
 **User story**
 

@@ -1,6 +1,7 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
+import { previewStyle } from '../controls/livePreview';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FourSideInput } from '../controls/FourSideInput';
 import type { BorderStyle } from '@lib/element';
@@ -42,6 +43,9 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
         <ColorInput
           value={element.borderColor}
           onChange={(value) => patchElement(elementId, { borderColor: value })}
+          onPreview={previewStyle(elementId, 'borderColor')}
+          historyElementId={elementId}
+          historyPropertyKey="borderColor"
           presetColors={projectColors.length > 0 ? projectColors : undefined}
           tokens={themeTokens}
           onOpenTheme={openThemePanel ?? undefined}

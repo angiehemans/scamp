@@ -81,6 +81,7 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
           key={idx}
           index={idx}
           shadow={shadow}
+          elementId={elementId}
           onChange={(patch) => updateRow(idx, patch)}
           onRemove={() => removeRow(idx)}
           projectColors={projectColors}
@@ -104,6 +105,8 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
 type RowProps = {
   index: number;
   shadow: BoxShadowDef;
+  /** Element this shadow row edits — passed to the picker's history entry. */
+  elementId: string;
   onChange: (patch: Partial<BoxShadowDef>) => void;
   onRemove: () => void;
   projectColors: ReadonlyArray<string>;
@@ -114,6 +117,7 @@ type RowProps = {
 const ShadowRow = ({
   index,
   shadow,
+  elementId,
   onChange,
   onRemove,
   projectColors,
@@ -192,6 +196,7 @@ const ShadowRow = ({
       <Row label="">
         <ShadowColorRow
           color={shadow.color}
+          elementId={elementId}
           onChange={(color) => onChange({ color })}
           projectColors={projectColors}
           themeTokens={themeTokens}
@@ -204,6 +209,8 @@ const ShadowRow = ({
 
 type ColorRowProps = {
   color: string;
+  /** Element id for the picker's history entry tag. */
+  elementId: string;
   onChange: (next: string) => void;
   projectColors: ReadonlyArray<string>;
   themeTokens: ReadonlyArray<ThemeToken>;
@@ -222,6 +229,7 @@ type ColorRowProps = {
  */
 const ShadowColorRow = ({
   color,
+  elementId,
   onChange,
   projectColors,
   themeTokens,
@@ -259,6 +267,8 @@ const ShadowColorRow = ({
       <ColorInput
         value={color}
         onChange={handleColorChange}
+        historyElementId={elementId}
+        historyPropertyKey="boxShadows"
         presetColors={projectColors.length > 0 ? projectColors : undefined}
         tokens={themeTokens}
         onOpenTheme={onOpenTheme}

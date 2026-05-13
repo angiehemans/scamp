@@ -155,14 +155,140 @@
 .colorPopover {
   position: fixed;
   z-index: 100;
-  /* Match the SketchPicker's rendered size (including padding/border)
-     so the panel doesn't resize when switching tabs. */
-  width: 231px;
+  /* Match the rendered size (including padding/border) so the
+     panel doesn't resize when switching tabs. */
+  width: 240px;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+}
+
+/* Pad the picker so the draggable handle circles aren't clipped
+   by the popover's `overflow: hidden`. The handles extend ~9px
+   past the gradient bounds on each axis when at the corners. */
+.colorPickerCanvas {
+  padding: 10px 12px 8px;
+}
+
+.colorPickerCanvas :global(.react-colorful) {
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+}
+
+.colorPickerCanvas :global(.react-colorful__saturation) {
+  border-radius: 4px;
+  height: 160px;
+  margin-bottom: 8px;
+}
+
+.colorPickerCanvas :global(.react-colorful__hue),
+.colorPickerCanvas :global(.react-colorful__alpha) {
+  height: 12px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.colorPickerCanvas :global(.react-colorful__alpha):last-child,
+.colorPickerCanvas :global(.react-colorful__hue):last-child {
+  margin-bottom: 0;
+}
+
+/* The handle is positioned absolutely at the cursor; make it
+   slightly smaller so it sits cleanly inside the padded canvas
+   without clipping. */
+.colorPickerCanvas :global(.react-colorful__pointer) {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+
+.colorTabBody {
+  display: flex;
+  flex-direction: column;
+}
+
+.colorControlsRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.colorPopoverHex {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Opacity input is fixed-width — only needs to fit "100%". */
+.colorPopoverOpacity {
+  flex: none;
+  width: 64px;
+}
+
+/* Eyedropper button sits leftmost in the controls row. Sized to
+   match the input row height for visual alignment. */
+.colorPopoverEyedropper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.colorPopoverEyedropper:hover {
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+.swatchSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.swatchSection:last-child {
+  border-bottom: none;
+}
+
+.swatchSectionLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.swatchRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.swatchButton {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background-clip: padding-box;
+  cursor: pointer;
+  padding: 0;
+}
+
+.swatchButton:hover {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .pickerTabs {

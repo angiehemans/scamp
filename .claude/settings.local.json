@@ -4,7 +4,9 @@
       "Bash(npx playwright *)",
       "Bash(npm run *)",
       "Bash(npx vitest *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

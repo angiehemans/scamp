@@ -6,6 +6,7 @@ import { useResolvedElement } from '@store/useResolvedElement';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { classifyToken } from '@lib/tokenClassify';
 import { ColorInput } from '../controls/ColorInput';
+import { previewStyle } from '../controls/livePreview';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FontPicker } from '../controls/FontPicker';
 import { SegmentedControl } from '../controls/SegmentedControl';
@@ -122,6 +123,9 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
         <ColorInput
           value={element.color ?? '#000000'}
           onChange={(value) => patchElement(elementId, { color: value })}
+          onPreview={previewStyle(elementId, 'color')}
+          historyElementId={elementId}
+          historyPropertyKey="color"
           presetColors={projectColors.length > 0 ? projectColors : undefined}
           tokens={themeTokens}
           onOpenTheme={openThemePanel ?? undefined}

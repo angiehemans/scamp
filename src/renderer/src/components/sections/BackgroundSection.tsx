@@ -4,6 +4,7 @@ import { assetsDirSegment } from '@renderer/src/lib/path';
 import type { BlendMode } from '@lib/element';
 import { BlendModeSelect } from '../controls/BlendModeSelect';
 import { ColorInput } from '../controls/ColorInput';
+import { previewStyle } from '../controls/livePreview';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
@@ -111,6 +112,9 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
         <ColorInput
           value={element.backgroundColor}
           onChange={(value) => patchElement(elementId, { backgroundColor: value })}
+          onPreview={previewStyle(elementId, 'backgroundColor')}
+          historyElementId={elementId}
+          historyPropertyKey="backgroundColor"
           presetColors={projectColors.length > 0 ? projectColors : undefined}
           tokens={themeTokens}
           onOpenTheme={openThemePanel ?? undefined}
