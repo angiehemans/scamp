@@ -26,6 +26,12 @@ export const IPC = {
     SettingsGet: 'settings:get',
     SettingsSetDefaultFolder: 'settings:setDefaultFolder',
     SettingsUpdate: 'settings:update',
+    // Sentry crash reporting — invoked when the Privacy toggle or
+    // the first-launch opt-in prompt changes the user's choice. The
+    // main process re-runs initSentryIfOptedIn / closeSentry so
+    // the change takes effect this session, no restart required.
+    AppReinitSentry: 'app:reinitSentry',
+    AppGetVersion: 'app:getVersion',
     // Per-project config (scamp.config.json)
     ProjectConfigRead: 'projectConfig:read',
     ProjectConfigWrite: 'projectConfig:write',

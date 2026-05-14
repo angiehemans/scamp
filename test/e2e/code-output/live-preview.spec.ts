@@ -15,7 +15,7 @@ test.describe('code output: live preview', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    await window.getByRole('button', { name: /^Code\s/ }).click();
+    await window.getByRole('button', { name: /^Code$/ }).click();
 
     // The panel's left pane is labelled `home.tsx` and contains the
     // default page skeleton.
@@ -27,7 +27,7 @@ test.describe('code output: live preview', () => {
     window,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Code\s/ }).click();
+    await window.getByRole('button', { name: /^Code$/ }).click();
 
     await selectTool(window, 'r');
     await dragInFrame(window, { x: 120, y: 120 }, { x: 300, y: 250 });

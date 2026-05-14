@@ -12,7 +12,7 @@ import { useCanvasStore, type Tool } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
 import styles from './Toolbar.module.css';
 
-const ICON_SIZE = 16;
+const ICON_SIZE = 18;
 
 type ToolDef = {
   tool: Tool;
@@ -64,28 +64,35 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
             onClick={() => setTool(t.tool)}
             type="button"
             aria-pressed={activeTool === t.tool}
+            aria-label={t.label}
             data-tool={t.tool}
           >
             {t.icon}
-            {t.label}
-            <span className={styles.shortcut}>{t.shortcut}</span>
           </button>
         </Tooltip>
       ))}
       <span className={styles.spacer} />
       {onOpenTheme && (
         <Tooltip label="Theme tokens">
-          <button className={styles.button} onClick={onOpenTheme} type="button">
+          <button
+            className={styles.button}
+            onClick={onOpenTheme}
+            type="button"
+            aria-label="Theme tokens"
+          >
             <IconPalette size={ICON_SIZE} />
-            Theme
           </button>
         </Tooltip>
       )}
       {onOpenSettings && (
         <Tooltip label="Settings">
-          <button className={styles.button} onClick={onOpenSettings} type="button">
+          <button
+            className={styles.button}
+            onClick={onOpenSettings}
+            type="button"
+            aria-label="Settings"
+          >
             <IconSettings size={ICON_SIZE} />
-            Settings
           </button>
         </Tooltip>
       )}

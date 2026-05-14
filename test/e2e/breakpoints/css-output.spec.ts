@@ -71,7 +71,7 @@ test.describe('breakpoints: CSS output', () => {
     // bridge updates on every external file change. Gives us an
     // observable signal that the external write has been parsed before
     // we kick off another canvas edit.
-    await window.getByRole('button', { name: /^Code\s/ }).click();
+    await window.getByRole('button', { name: /^Code$/ }).click();
     await expect(
       window.getByText('home.module.css', { exact: true })
     ).toBeVisible();

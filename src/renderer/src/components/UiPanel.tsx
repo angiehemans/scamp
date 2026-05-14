@@ -56,11 +56,11 @@ export const UiPanel = (): JSX.Element => {
       {!isRoot && <ElementSection elementId={elementId} />}
       {showPosition && <PositionSection elementId={elementId} />}
       <SizeSection elementId={elementId} />
-      {!isText && !isImage && !isInput && <LayoutSection elementId={elementId} />}
+      {!isText && !isInput && <LayoutSection elementId={elementId} />}
       <SpacingSection elementId={elementId} hideMargin={isRoot} />
-      {!isImage && <BackgroundSection elementId={elementId} />}
-      {!isImage && <BorderSection elementId={elementId} />}
-      {!isImage && <ShadowsSection elementId={elementId} />}
+      <BackgroundSection elementId={elementId} />
+      <BorderSection elementId={elementId} />
+      <ShadowsSection elementId={elementId} />
       <FiltersSection elementId={elementId} />
       {isImage && <ImageSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}

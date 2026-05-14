@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useCallback, useEffect, useRef, useState, } from 'react';
-import { IconPlayerPlay } from '@tabler/icons-react';
+import { IconCode, IconPlayerPlay, IconTerminal2, } from '@tabler/icons-react';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
@@ -659,7 +659,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         },
     ];
     const isEditingPage = pageEdit !== null;
-    return (_jsxs("div", { className: styles.shell, children: [_jsxs("header", { className: styles.toolbar, children: [_jsx("button", { className: styles.backButton, onClick: onClose, type: "button", children: "\u2190 Projects" }), _jsx("span", { className: styles.spacer }), _jsx(ZoomControls, {}), _jsx(Tooltip, { label: "Toggle code panel", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'code' ? styles.toggleActive : ''}`, onClick: toggleCodePanel, type: "button", children: ["Code ", bottomPanel === 'code' ? '▾' : '▸'] }) }), _jsx(Tooltip, { label: "Toggle terminal (Ctrl+`)", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'terminal' ? styles.toggleActive : ''}`, onClick: toggleTerminalPanel, type: "button", children: ["Terminal ", bottomPanel === 'terminal' ? '▾' : '▸'] }) }), _jsx(Tooltip, { label: canPreview
+    return (_jsxs("div", { className: styles.shell, children: [_jsxs("header", { className: styles.toolbar, children: [_jsx("button", { className: styles.backButton, onClick: onClose, type: "button", children: "\u2190 Projects" }), _jsx("span", { className: styles.spacer }), _jsx(ZoomControls, {}), _jsx(Tooltip, { label: "Toggle code panel", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'code' ? styles.toggleActive : ''}`, onClick: toggleCodePanel, type: "button", children: [_jsx(IconCode, { size: 14, className: styles.toggleButtonIcon }), "Code"] }) }), _jsx(Tooltip, { label: "Toggle terminal (Ctrl+`)", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'terminal' ? styles.toggleActive : ''}`, onClick: toggleTerminalPanel, type: "button", children: [_jsx(IconTerminal2, { size: 14, className: styles.toggleButtonIcon }), "Terminal"] }) }), _jsx(Tooltip, { label: canPreview
                             ? 'Open this project in a real browser preview window (⌘P)'
                             : projectFormatForPreview === 'legacy'
                                 ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'

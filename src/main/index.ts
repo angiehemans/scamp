@@ -1,12 +1,12 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, nativeTheme, net, protocol, session, shell } from 'electron';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
-import type { TestBootstrap } from '@shared/types';
+import type { Settings, TestBootstrap } from '@shared/types';
 import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
-import { registerSettingsIpc } from './ipc/settings';
+import { registerSettingsIpc, readSettingsSync } from './ipc/settings';
 import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
@@ -20,6 +20,8 @@ import {
 } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher } from './watcher';
+import { initSentryIfOptedIn, setSentryEnabled } from './sentry';
+import { buildApplicationMenu } from './menu';
 
 const TEST_BOOTSTRAP: TestBootstrap = {
   e2e: process.env['SCAMP_E2E'] === '1',
@@ -28,6 +30,22 @@ const TEST_BOOTSTRAP: TestBootstrap = {
       ? process.env['SCAMP_E2E_OPEN_PROJECT'] ?? null
       : null,
 };
+
+// Initialise Sentry at module load — BEFORE the `app.whenReady`
+// promise can resolve. The SDK hooks into Electron's protocol /
+// IPC layers, which Electron locks down once it fires its
+// internal 'ready' event, so calling `Sentry.init` from inside
+// `whenReady().then(...)` throws "Sentry SDK should be initialized
+// before the Electron app 'ready' event is fired".
+//
+// `app.getPath('userData')` is one of the few Electron APIs that's
+// available pre-ready, so the sync settings read here is safe. A
+// fresh install reads `sentryOptIn: null` and the SDK init no-ops
+// until the renderer's first-launch prompt writes a real choice
+// — at which point the renderer fires the `app:reinitSentry` IPC
+// (registered later inside `whenReady`) and the SDK comes up live.
+const initialSettings = readSettingsSync();
+initSentryIfOptedIn(initialSettings.sentryOptIn === true);
 
 const registerTestIpc = (): void => {
   ipcMain.handle(IPC.TestGetBootstrap, (): TestBootstrap => TEST_BOOTSTRAP);
@@ -121,6 +139,10 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 app.whenReady().then(() => {
+  // Sentry init has already happened at module load — see the
+  // pre-`whenReady` block above. Don't re-init here; the SDK
+  // requires the very first call to be before 'ready' fires.
+
   nativeTheme.themeSource = 'dark';
 
   // Grant `local-fonts` so the renderer can call
@@ -162,6 +184,27 @@ app.whenReady().then(() => {
     close: closePreviewWindow,
   });
   registerTestIpc();
+
+  // Sentry opt-in toggle — called from the renderer when the
+  // Privacy switch (or the first-launch prompt) flips. The SDK
+  // is already running from the module-load init; this just
+  // toggles transmission, so no re-init is needed (and no
+  // pre-ready check is hit).
+  ipcMain.handle(IPC.AppReinitSentry, (_e, optedIn: boolean) => {
+    setSentryEnabled(optedIn);
+  });
+
+  // Expose the app version to the renderer for diagnostic UI.
+  // Reads from `package.json` via Electron at the main side; the
+  // renderer can't read `app.getVersion()` directly through
+  // contextIsolation.
+  ipcMain.handle(IPC.AppGetVersion, (): string => app.getVersion());
+
+  // Application menu — platform-standard entries (File / Edit /
+  // View / Window) plus the Help → Report a bug submenu that
+  // opens a pre-filled GitHub issue. Must register BEFORE the
+  // first BrowserWindow so macOS picks up the app menu.
+  Menu.setApplicationMenu(buildApplicationMenu());
 
   createWindow();
 

@@ -3,15 +3,54 @@ import { StartScreen } from './components/StartScreen';
 import { ProjectShell } from './components/ProjectShell';
 import { SettingsPage } from './components/SettingsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SentryOptInPrompt } from './components/SentryOptInPrompt';
 import { initSyncBridge } from './syncBridge';
 import { useFontsStore } from '@store/fontsSlice';
 import type { ProjectData } from '@shared/types';
 
 type View = 'start' | 'project' | 'settings';
 
+/**
+ * Crash-reporting opt-in state. `null` while we're reading the
+ * stored pref via IPC; `'pending'` when the user has not been
+ * asked yet (the prompt is rendered); `'resolved'` once they've
+ * decided either way (regardless of which way). Only `'resolved'`
+ * lets the rest of the app render — we don't want the user
+ * distracted by the prompt mid-session.
+ */
+type OptInState = 'loading' | 'pending' | 'resolved';
+
 export const App = (): JSX.Element => {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [view, setView] = useState<View>('start');
+  const [optInState, setOptInState] = useState<OptInState>('loading');
+
+  // On mount, read settings.sentryOptIn. `null` (or any error
+  // reading the file) → show the opt-in prompt. `true` or `false`
+  // → user has already decided, render the app normally.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const settings = await window.scamp.getSettings();
+        setOptInState(settings.sentryOptIn === null ? 'pending' : 'resolved');
+      } catch {
+        // Settings read failed — fall through to the prompt so the
+        // user can still make a choice this session.
+        setOptInState('pending');
+      }
+    })();
+  }, []);
+
+  const handleOptInDecision = async (optedIn: boolean): Promise<void> => {
+    try {
+      await window.scamp.updateSettings({ sentryOptIn: optedIn });
+      await window.scamp.reinitSentry(optedIn);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[opt-in] persist failed:', err);
+    }
+    setOptInState('resolved');
+  };
 
   useEffect(() => {
     return initSyncBridge();
@@ -39,6 +78,21 @@ export const App = (): JSX.Element => {
       setView('project');
     })();
   }, []);
+
+  // First-launch crash-reporting opt-in. Renders before anything
+  // else so the user makes the choice before any project loads.
+  if (optInState === 'loading') {
+    // Brief blank state while the IPC round-trip resolves. Avoids
+    // a flash of the StartScreen before the prompt mounts.
+    return <></>;
+  }
+  if (optInState === 'pending') {
+    return (
+      <SentryOptInPrompt
+        onDecision={(optedIn) => void handleOptInDecision(optedIn)}
+      />
+    );
+  }
 
   if (view === 'settings') {
     return (

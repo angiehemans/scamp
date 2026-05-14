@@ -37,6 +37,13 @@ declare const api: {
     getSettings: () => Promise<Settings>;
     setDefaultProjectsFolder: (path: string | null) => Promise<Settings>;
     updateSettings: (patch: Partial<Settings>) => Promise<Settings>;
+    /** Trigger the main process to (re-)initialise or shut down Sentry
+     *  in response to the Privacy toggle changing or the first-launch
+     *  opt-in prompt being answered. */
+    reinitSentry: (optedIn: boolean) => Promise<void>;
+    /** The Scamp app version (from package.json) — useful in any
+     *  diagnostic UI that wants to surface it. */
+    getAppVersion: () => Promise<string>;
     readProjectConfig: (args: ProjectConfigReadArgs) => Promise<ProjectConfig>;
     writeProjectConfig: (args: ProjectConfigWriteArgs) => Promise<ProjectConfig>;
     onFileChanged: (handler: (payload: FileChangedPayload) => void) => (() => void);

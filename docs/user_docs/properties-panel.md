@@ -56,6 +56,19 @@ The collapsible **Element** section at the top lets you change the HTML tag used
 - The remove button (×) drops a single row; setting the section
   empty drops the entire `box-shadow` declaration.
 
+### Filters
+
+- A row of CSS `filter` functions applied in order: blur,
+  brightness, contrast, grayscale, hue-rotate, invert, opacity,
+  saturate, sepia.
+- "+ Add filter" appends a row. Each row has a kind dropdown and
+  a numeric value input with the right unit suffix (px, %, deg).
+- "Backdrop filter" toggle opens a second row of filters that
+  apply to the content **behind** the element via
+  `backdrop-filter`. Visible only when the element has a
+  partially transparent background.
+- Full details in [Filters](filters.md).
+
 ### Visibility
 
 - **Opacity** — 0–100% number input.

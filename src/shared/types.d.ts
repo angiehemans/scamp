@@ -49,6 +49,19 @@ export type Settings = {
      * missing key; no UI reads from it.
      */
     artboardBackground: string;
+    /**
+     * Anonymous crash-reporting consent (Sentry).
+     *
+     *   `null`  — the user has not been asked yet; the first-launch
+     *             opt-in prompt fires.
+     *   `true`  — Sentry is initialised with the privacy-safe config.
+     *   `false` — the user declined; no Sentry SDK code runs.
+     *
+     * Set explicitly by the opt-in prompt and by the Settings →
+     * Privacy toggle. Defaults to `null` for fresh installs and for
+     * any legacy install whose `settings.json` predates this field.
+     */
+    sentryOptIn: boolean | null;
 };
 /**
  * Per-project configuration persisted as `scamp.config.json` at the

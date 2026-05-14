@@ -11,7 +11,7 @@ import { waitForSaved } from '../fixtures/assertions';
 test.describe('code output: live preview', () => {
     test('toggling the Code panel shows the active page source', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();
-        await window.getByRole('button', { name: /^Code\s/ }).click();
+        await window.getByRole('button', { name: /^Code$/ }).click();
         // The panel's left pane is labelled `home.tsx` and contains the
         // default page skeleton.
         await expect(window.getByText('home.tsx', { exact: true })).toBeVisible();
@@ -19,7 +19,7 @@ test.describe('code output: live preview', () => {
     });
     test('drawing a rect updates the preview with the new class', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();
-        await window.getByRole('button', { name: /^Code\s/ }).click();
+        await window.getByRole('button', { name: /^Code$/ }).click();
         await selectTool(window, 'r');
         await dragInFrame(window, { x: 120, y: 120 }, { x: 300, y: 250 });
         const className = await canvasElementsByPrefix(window, 'rect_')

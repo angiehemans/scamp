@@ -9,15 +9,15 @@
 }
 
 .button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   background: none;
   border: none;
   color: var(--text-primary);
-font-size: 13px;
-  font-weight: 500;
-  padding: 6px 12px;
+  padding: 0;
   border-radius: var(--radius-md);
   cursor: pointer;
 }
@@ -38,17 +38,4 @@ font-size: 13px;
 
 .spacer {
   flex: 1;
-}
-
-.shortcut {
-font-size: 11px;
-  color: var(--text-secondary);
-  background: var(--bg-canvas);
-  padding: 1px 5px;
-  border-radius: 3px;
-}
-
-.active .shortcut {
-  background: rgba(0, 0, 0, 0.25);
-  color: #cfe0fb;
 }

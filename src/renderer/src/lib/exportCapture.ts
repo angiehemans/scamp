@@ -1,4 +1,5 @@
 import { toPng, toSvg } from 'html-to-image';
+import elementStyles from '../canvas/ElementRenderer.module.css';
 
 /**
  * Inputs for a single capture. The caller resolves the right DOM
@@ -38,6 +39,56 @@ const isChromeNode = (node: Node): boolean => {
     current = current.parentNode;
   }
   return false;
+};
+
+/**
+ * The blue selection outline is painted on the element itself via
+ * the `.selected` CSS-module class (see
+ * `ElementRenderer.module.css` — `outline: 2px solid var(--accent)`).
+ * `data-canvas-chrome` filters the canvas interaction layer but
+ * can't strip a class from the element being captured. So for the
+ * duration of the capture we remove that class from every element
+ * in the subtree, then restore it afterwards.
+ *
+ * Same pattern is used for the dashed `textEditing` outline, in
+ * case a user manages to fire an export while a text element is
+ * mid-edit.
+ */
+const withChromeClassesHidden = async <T>(
+  node: HTMLElement,
+  fn: () => Promise<T>
+): Promise<T> => {
+  const chromeClassNames = [
+    elementStyles.selected,
+    elementStyles.textEditing,
+  ].filter((c): c is string => typeof c === 'string' && c.length > 0);
+  if (chromeClassNames.length === 0) return fn();
+
+  // Capture every element in the subtree (including the root) that
+  // currently carries any chrome class, and the specific classes
+  // that need restoring. We snapshot only the classes we strip so
+  // restoration doesn't clobber any class added between strip and
+  // restore (rare, but cheap insurance).
+  const restorations: Array<{ el: Element; classes: string[] }> = [];
+  const candidates: Element[] = [node, ...node.querySelectorAll('*')];
+  for (const el of candidates) {
+    const stripped: string[] = [];
+    for (const cls of chromeClassNames) {
+      if (el.classList.contains(cls)) {
+        el.classList.remove(cls);
+        stripped.push(cls);
+      }
+    }
+    if (stripped.length > 0) restorations.push({ el, classes: stripped });
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const { el, classes } of restorations) {
+      el.classList.add(...classes);
+    }
+  }
 };
 
 /**
@@ -81,16 +132,18 @@ export const capturePng = (
   inputs: CaptureInputs & { scale: 1 | 2 | 3 }
 ): Promise<string> =>
   withTransformReset(inputs.node, () =>
-    toPng(inputs.node, {
-      width: inputs.width,
-      height: inputs.height,
-      pixelRatio: inputs.scale,
-      cacheBust: true,
-      filter: (n) => !isChromeNode(n),
-      ...(inputs.backgroundColor !== null
-        ? { backgroundColor: inputs.backgroundColor }
-        : {}),
-    })
+    withChromeClassesHidden(inputs.node, () =>
+      toPng(inputs.node, {
+        width: inputs.width,
+        height: inputs.height,
+        pixelRatio: inputs.scale,
+        cacheBust: true,
+        filter: (n) => !isChromeNode(n),
+        ...(inputs.backgroundColor !== null
+          ? { backgroundColor: inputs.backgroundColor }
+          : {}),
+      })
+    )
   );
 
 /**
@@ -105,15 +158,17 @@ export const capturePng = (
  */
 export const captureSvg = async (inputs: CaptureInputs): Promise<string> => {
   const dataUrl = await withTransformReset(inputs.node, () =>
-    toSvg(inputs.node, {
-      width: inputs.width,
-      height: inputs.height,
-      cacheBust: true,
-      filter: (n) => !isChromeNode(n),
-      ...(inputs.backgroundColor !== null
-        ? { backgroundColor: inputs.backgroundColor }
-        : {}),
-    })
+    withChromeClassesHidden(inputs.node, () =>
+      toSvg(inputs.node, {
+        width: inputs.width,
+        height: inputs.height,
+        cacheBust: true,
+        filter: (n) => !isChromeNode(n),
+        ...(inputs.backgroundColor !== null
+          ? { backgroundColor: inputs.backgroundColor }
+          : {}),
+      })
+    )
   );
   return decodeSvgDataUrl(dataUrl);
 };

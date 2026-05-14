@@ -5,7 +5,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { IconPlayerPlay } from '@tabler/icons-react';
+import {
+  IconCode,
+  IconPlayerPlay,
+  IconTerminal2,
+} from '@tabler/icons-react';
 import type { ProjectData, PageFile, ProjectConfig } from '@shared/types';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
@@ -732,7 +736,8 @@ export const ProjectShell = ({
             onClick={toggleCodePanel}
             type="button"
           >
-            Code {bottomPanel === 'code' ? '▾' : '▸'}
+            <IconCode size={14} className={styles.toggleButtonIcon} />
+            Code
           </button>
         </Tooltip>
         <Tooltip label="Toggle terminal (Ctrl+`)">
@@ -743,7 +748,8 @@ export const ProjectShell = ({
             onClick={toggleTerminalPanel}
             type="button"
           >
-            Terminal {bottomPanel === 'terminal' ? '▾' : '▸'}
+            <IconTerminal2 size={14} className={styles.toggleButtonIcon} />
+            Terminal
           </button>
         </Tooltip>
         <Tooltip

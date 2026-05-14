@@ -21,6 +21,8 @@ export declare const IPC: {
     readonly SettingsGet: "settings:get";
     readonly SettingsSetDefaultFolder: "settings:setDefaultFolder";
     readonly SettingsUpdate: "settings:update";
+    readonly AppReinitSentry: "app:reinitSentry";
+    readonly AppGetVersion: "app:getVersion";
     readonly ProjectConfigRead: "projectConfig:read";
     readonly ProjectConfigWrite: "projectConfig:write";
     readonly FileCopyImage: "file:copyImage";

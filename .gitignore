@@ -6,3 +6,6 @@ dist
 .vite
 test-results
 playwright-report
+.env
+.env.local
+.env.*.local

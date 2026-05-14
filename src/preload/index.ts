@@ -113,6 +113,17 @@ const api = {
   updateSettings: (patch: Partial<Settings>): Promise<Settings> =>
     ipcRenderer.invoke(IPC.SettingsUpdate, patch),
 
+  /** Trigger the main process to (re-)initialise or shut down Sentry
+   *  in response to the Privacy toggle changing or the first-launch
+   *  opt-in prompt being answered. */
+  reinitSentry: (optedIn: boolean): Promise<void> =>
+    ipcRenderer.invoke(IPC.AppReinitSentry, optedIn),
+
+  /** The Scamp app version (from package.json) — useful in any
+   *  diagnostic UI that wants to surface it. */
+  getAppVersion: (): Promise<string> =>
+    ipcRenderer.invoke(IPC.AppGetVersion),
+
   readProjectConfig: (args: ProjectConfigReadArgs): Promise<ProjectConfig> =>
     ipcRenderer.invoke(IPC.ProjectConfigRead, args),
 

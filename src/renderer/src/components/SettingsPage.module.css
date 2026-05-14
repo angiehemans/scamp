@@ -65,10 +65,17 @@
 }
 
 .rowLabel {
-  width: 140px;
+  width: 180px;
   flex-shrink: 0;
   font-size: 13px;
   color: var(--text-primary);
+}
+
+.rowHint {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-secondary);
 }
 
 .rowControl {
@@ -109,4 +116,13 @@
 
 .smallButton:hover {
   background: #404040;
+}
+
+.smallButtonActive {
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+
+.smallButtonActive:hover {
+  background: var(--accent);
 }

@@ -1,5 +1,5 @@
 import { app, ipcMain } from 'electron';
-import { promises as fs } from 'fs';
+import { promises as fs, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 /**
@@ -12,27 +12,56 @@ const storePath = () => join(app.getPath('userData'), 'settings.json');
 const DEFAULT_SETTINGS = {
     defaultProjectsFolder: null,
     artboardBackground: '#0f0f0f',
+    sentryOptIn: null,
+};
+/**
+ * Parse a Settings JSON blob with the same migration / defaulting
+ * logic the async path uses. Pulled into its own pure helper so the
+ * sync startup read and the async IPC read share one source of truth.
+ */
+const parseSettingsBlob = (raw) => {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object')
+        return { ...DEFAULT_SETTINGS };
+    const obj = parsed;
+    const folder = obj['defaultProjectsFolder'];
+    const artboard = obj['artboardBackground'];
+    // Migrate: old `canvasBackground` key mapped to the same concept.
+    const legacy = obj['canvasBackground'];
+    const artboardValue = typeof artboard === 'string'
+        ? artboard
+        : typeof legacy === 'string'
+            ? legacy
+            : DEFAULT_SETTINGS.artboardBackground;
+    const optIn = obj['sentryOptIn'];
+    return {
+        defaultProjectsFolder: typeof folder === 'string' ? folder : null,
+        artboardBackground: artboardValue,
+        sentryOptIn: typeof optIn === 'boolean' ? optIn : null,
+    };
 };
 const readStore = async () => {
     try {
         const raw = await fs.readFile(storePath(), 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object')
-            return { ...DEFAULT_SETTINGS };
-        const obj = parsed;
-        const folder = obj['defaultProjectsFolder'];
-        const artboard = obj['artboardBackground'];
-        // Migrate: old `canvasBackground` key mapped to the same concept.
-        const legacy = obj['canvasBackground'];
-        const artboardValue = typeof artboard === 'string'
-            ? artboard
-            : typeof legacy === 'string'
-                ? legacy
-                : DEFAULT_SETTINGS.artboardBackground;
-        return {
-            defaultProjectsFolder: typeof folder === 'string' ? folder : null,
-            artboardBackground: artboardValue,
-        };
+        return parseSettingsBlob(raw);
+    }
+    catch {
+        return { ...DEFAULT_SETTINGS };
+    }
+};
+/**
+ * Synchronous read for the main process's startup path. Sentry's
+ * `init()` decision needs to happen before the BrowserWindow is
+ * created, which means before `app.whenReady`'s promise can
+ * resolve an async read. Sync + try/catch + defaults is the
+ * safest shape — any error (file missing, malformed JSON, perm
+ * issue) returns the defaults with `sentryOptIn: null` so the
+ * renderer's opt-in prompt fires.
+ */
+export const readSettingsSync = () => {
+    try {
+        const raw = readFileSync(storePath(), 'utf-8');
+        return parseSettingsBlob(raw);
     }
     catch {
         return { ...DEFAULT_SETTINGS };

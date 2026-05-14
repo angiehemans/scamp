@@ -1,14 +1,43 @@
-import { jsx as _jsx } from "react/jsx-runtime";
+import { Fragment as _Fragment, jsx as _jsx } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { StartScreen } from './components/StartScreen';
 import { ProjectShell } from './components/ProjectShell';
 import { SettingsPage } from './components/SettingsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SentryOptInPrompt } from './components/SentryOptInPrompt';
 import { initSyncBridge } from './syncBridge';
 import { useFontsStore } from '@store/fontsSlice';
 export const App = () => {
     const [project, setProject] = useState(null);
     const [view, setView] = useState('start');
+    const [optInState, setOptInState] = useState('loading');
+    // On mount, read settings.sentryOptIn. `null` (or any error
+    // reading the file) → show the opt-in prompt. `true` or `false`
+    // → user has already decided, render the app normally.
+    useEffect(() => {
+        void (async () => {
+            try {
+                const settings = await window.scamp.getSettings();
+                setOptInState(settings.sentryOptIn === null ? 'pending' : 'resolved');
+            }
+            catch {
+                // Settings read failed — fall through to the prompt so the
+                // user can still make a choice this session.
+                setOptInState('pending');
+            }
+        })();
+    }, []);
+    const handleOptInDecision = async (optedIn) => {
+        try {
+            await window.scamp.updateSettings({ sentryOptIn: optedIn });
+            await window.scamp.reinitSentry(optedIn);
+        }
+        catch (err) {
+            // eslint-disable-next-line no-console
+            console.error('[opt-in] persist failed:', err);
+        }
+        setOptInState('resolved');
+    };
     useEffect(() => {
         return initSyncBridge();
     }, []);
@@ -34,6 +63,16 @@ export const App = () => {
             setView('project');
         })();
     }, []);
+    // First-launch crash-reporting opt-in. Renders before anything
+    // else so the user makes the choice before any project loads.
+    if (optInState === 'loading') {
+        // Brief blank state while the IPC round-trip resolves. Avoids
+        // a flash of the StartScreen before the prompt mounts.
+        return _jsx(_Fragment, {});
+    }
+    if (optInState === 'pending') {
+        return (_jsx(SentryOptInPrompt, { onDecision: (optedIn) => void handleOptInDecision(optedIn) }));
+    }
     if (view === 'settings') {
         return (_jsx(SettingsPage, { onBack: () => setView(project ? 'project' : 'start') }));
     }

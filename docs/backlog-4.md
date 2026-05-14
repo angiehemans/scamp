@@ -409,7 +409,7 @@ opacity from 100 to 47 should not create 53 history entries.
 
 ---
 
-## 6. ## Color picker rework
+## 6. ## Color picker rework - done
 
 **User stories**
 

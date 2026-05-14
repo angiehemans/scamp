@@ -42,7 +42,7 @@ test.describe('breakpoints: CSS output', () => {
         // bridge updates on every external file change. Gives us an
         // observable signal that the external write has been parsed before
         // we kick off another canvas edit.
-        await window.getByRole('button', { name: /^Code\s/ }).click();
+        await window.getByRole('button', { name: /^Code$/ }).click();
         await expect(window.getByText('home.module.css', { exact: true })).toBeVisible();
         // Append a min-width media block externally — Scamp should preserve
         // it through subsequent saves without trying to interpret it.

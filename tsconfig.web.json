@@ -32,8 +32,10 @@
     "src/main/ipc/projectFormat.ts",
     "src/main/ipc/projectMigrate.ts",
     "src/main/ipc/projectScaffold.ts",
+    "src/main/ipc/settings.ts",
     "src/main/devServer/portAlloc.ts",
     "src/main/devServer/readyDetector.ts",
-    "src/main/pendingWrites.ts"
+    "src/main/pendingWrites.ts",
+    "src/main/sentry.ts"
   ]
 }

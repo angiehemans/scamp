@@ -35,6 +35,13 @@ const api = {
     getSettings: () => ipcRenderer.invoke(IPC.SettingsGet),
     setDefaultProjectsFolder: (path) => ipcRenderer.invoke(IPC.SettingsSetDefaultFolder, { path }),
     updateSettings: (patch) => ipcRenderer.invoke(IPC.SettingsUpdate, patch),
+    /** Trigger the main process to (re-)initialise or shut down Sentry
+     *  in response to the Privacy toggle changing or the first-launch
+     *  opt-in prompt being answered. */
+    reinitSentry: (optedIn) => ipcRenderer.invoke(IPC.AppReinitSentry, optedIn),
+    /** The Scamp app version (from package.json) — useful in any
+     *  diagnostic UI that wants to surface it. */
+    getAppVersion: () => ipcRenderer.invoke(IPC.AppGetVersion),
     readProjectConfig: (args) => ipcRenderer.invoke(IPC.ProjectConfigRead, args),
     writeProjectConfig: (args) => ipcRenderer.invoke(IPC.ProjectConfigWrite, args),
     onFileChanged: (handler) => {
