@@ -45,6 +45,7 @@ const makeRoot = (childIds = []) => ({
     boxShadows: [],
     filters: [],
     backdropFilters: [],
+    toggledOffGroups: [],
     transitions: [],
     inlineFragments: [],
     customProperties: {},
@@ -277,6 +278,7 @@ describe('filter: state overrides', () => {
                 stateOverrides: {
                     hover: {
                         backdropFilters: [],
+                        toggledOffGroups: [],
                     },
                 },
             }),

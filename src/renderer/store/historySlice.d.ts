@@ -1,4 +1,4 @@
-import type { ScampElement } from '@lib/element';
+import type { PropertyGroup, ScampElement } from '@lib/element';
 import { type HistoryActionKind, type PageHistory } from './historyTypes';
 /**
  * Metadata for a new entry. `id`, `timestamp`, and `snapshot` are
@@ -10,6 +10,8 @@ export type HistoryCommitInput = {
     propertyKeys?: ReadonlyArray<keyof ScampElement>;
     previousName?: string;
     pageName?: string;
+    toggleGroup?: PropertyGroup;
+    toggleGroupOn?: boolean;
 };
 /**
  * Callback the canvas store registers so the history slice can

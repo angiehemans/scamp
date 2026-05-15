@@ -27,6 +27,25 @@ type Props = {
      * tracks duplicates in CSS-property terms.
      */
     cssProperties?: ReadonlyArray<string>;
+    /**
+     * Group-toggle slot. When provided, the section's title row
+     * renders a small eye-icon button that flips the whole group
+     * off / on. The section's content dims (50% opacity,
+     * `pointer-events: none`) when `isOn` is false so the inactive
+     * state is unmistakable.
+     *
+     * Omit on sections that aren't CSS-property groups (Element,
+     * Position, Size, Layout, Visibility, Export — see
+     * `propertyGroups.ts` for the rationale on the latter three).
+     */
+    groupToggle?: {
+        isOn: boolean;
+        onChange: (on: boolean) => void;
+        /** Human-readable group name for the tooltip
+         *  ("Hide Shadow" / "Show Shadow"). Defaults to the
+         *  section's `title`. */
+        label?: string;
+    };
 };
 /**
  * Card-like wrapper for one panel section. Renders a small heading
@@ -37,7 +56,7 @@ type Props = {
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, }: Props) => JSX.Element;
+export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, groupToggle, }: Props) => JSX.Element;
 type RowProps = {
     label: string;
     children: ReactNode;

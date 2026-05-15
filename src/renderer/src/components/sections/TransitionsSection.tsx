@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { TransitionDef } from '@lib/element';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
@@ -62,9 +62,13 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
   const [unitState, setUnitState] = useState<
     Record<number, { duration: TimeUnit; delay: TimeUnit }>
   >({});
+  const groupToggle = useGroupToggle(elementId, 'transitions');
 
   if (!element) return null;
   const transitions: ReadonlyArray<TransitionDef> = element.transitions;
+  // Hide the eye when no transitions are defined (or already off).
+  const effectiveGroupToggle =
+    transitions.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
 
   const setTransitions = (next: ReadonlyArray<TransitionDef>): void => {
     patchElement(elementId, { transitions: next });
@@ -107,6 +111,7 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
       collapsible
       defaultOpen={transitions.length > 0}
       elementId={elementId}
+      groupToggle={effectiveGroupToggle}
       fields={['transitions']}
       cssProperties={['transition']}
     >

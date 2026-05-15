@@ -1,5 +1,5 @@
 import { useState, type MouseEvent, type ReactNode } from 'react';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import {
   useBreakpointOverrideFields,
@@ -37,6 +37,25 @@ type Props = {
    * tracks duplicates in CSS-property terms.
    */
   cssProperties?: ReadonlyArray<string>;
+  /**
+   * Group-toggle slot. When provided, the section's title row
+   * renders a small eye-icon button that flips the whole group
+   * off / on. The section's content dims (50% opacity,
+   * `pointer-events: none`) when `isOn` is false so the inactive
+   * state is unmistakable.
+   *
+   * Omit on sections that aren't CSS-property groups (Element,
+   * Position, Size, Layout, Visibility, Export — see
+   * `propertyGroups.ts` for the rationale on the latter three).
+   */
+  groupToggle?: {
+    isOn: boolean;
+    onChange: (on: boolean) => void;
+    /** Human-readable group name for the tooltip
+     *  ("Hide Shadow" / "Show Shadow"). Defaults to the
+     *  section's `title`. */
+    label?: string;
+  };
 };
 
 /**
@@ -56,10 +75,41 @@ export const Section = ({
   elementId,
   fields,
   cssProperties,
+  groupToggle,
 }: Props): JSX.Element => {
   const [open, setOpen] = useState(defaultOpen);
   const overrideInfo = useOverrideIndicator(elementId, fields);
   const duplicateInfo = useDuplicateIndicator(elementId, cssProperties);
+
+  // Eye-icon toggle button rendered when this section is part of
+  // the togglable-group taxonomy. Visible regardless of the
+  // section's collapse state so the user can flip without
+  // expanding first.
+  const groupLabel = groupToggle?.label ?? title;
+  const groupToggleButton = groupToggle ? (
+    <Tooltip label={groupToggle.isOn ? `Hide ${groupLabel}` : `Show ${groupLabel}`}>
+      <button
+        type="button"
+        className={styles.groupToggleButton}
+        onClick={(e) => {
+          // Stop propagation so clicking the toggle doesn't
+          // also collapse the section (when the title row IS the
+          // collapse button).
+          e.stopPropagation();
+          groupToggle.onChange(!groupToggle.isOn);
+        }}
+        aria-label={groupToggle.isOn ? `Hide ${groupLabel}` : `Show ${groupLabel}`}
+        aria-pressed={!groupToggle.isOn}
+      >
+        {groupToggle.isOn ? (
+          <IconEye size={14} stroke={2} />
+        ) : (
+          <IconEyeOff size={14} stroke={2} />
+        )}
+      </button>
+    </Tooltip>
+  ) : null;
+  const groupOff = groupToggle?.isOn === false;
 
   // Pick the tooltip whose header / body wraps the title row when an
   // indicator is active. Duplicates take priority because they signal
@@ -94,6 +144,25 @@ export const Section = ({
     );
   };
 
+  // Wrap children only when this section has a groupToggle —
+  // otherwise the rows stay direct children of `.section` so its
+  // flex-column gap continues to apply unchanged. When wrapped,
+  // `.groupContent` re-applies the same column-gap layout (the
+  // single wrapper child would otherwise collapse the gap between
+  // its sibling rows). `.groupOff` dims + disables interaction
+  // when the group is toggled off; the title row stays
+  // interactive so the user can toggle back on without
+  // un-collapsing.
+  const wrappedContent = groupToggle ? (
+    <div
+      className={`${styles.groupContent} ${groupOff ? styles.groupOff : ''}`.trim()}
+    >
+      {children}
+    </div>
+  ) : (
+    children
+  );
+
   if (!collapsible) {
     return (
       <section className={styles.section} data-panel-section={title}>
@@ -102,9 +171,10 @@ export const Section = ({
             <h3 className={styles.heading}>{title}</h3>
             {duplicateDot}
             {overrideDot}
+            {groupToggleButton}
           </div>
         )}
-        {children}
+        {wrappedContent}
       </section>
     );
   }
@@ -122,6 +192,7 @@ export const Section = ({
           <span className={styles.heading}>{title}</span>
           {duplicateDot}
           {overrideDot}
+          {groupToggleButton}
           <IconChevronDown
             size={14}
             stroke={2}
@@ -130,7 +201,7 @@ export const Section = ({
           />
         </button>
       )}
-      {open && children}
+      {open && wrappedContent}
     </section>
   );
 };

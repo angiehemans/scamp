@@ -6,6 +6,20 @@
 export type WidthMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 /**
+ * The fixed taxonomy of CSS-property "groups" the panel surfaces
+ * as togglable section headers. See
+ * `src/renderer/lib/propertyGroups.ts` for the group → field
+ * mapping and the helper functions that consume it.
+ *
+ * Lives in this module (rather than propertyGroups.ts) so
+ * `ScampElement.toggledOffGroups` can be typed without a circular
+ * import — propertyGroups.ts imports `ScampElement` itself.
+ *
+ * Sizing, Layout, and Visibility are deliberately NOT togglable
+ * — see `propertyGroups.ts`'s module doc for the rationale.
+ */
+export type PropertyGroup = 'background' | 'border' | 'shadow' | 'typography' | 'filters' | 'blend' | 'transitions' | 'animation';
+/**
  * `display` values the panel models directly. `'none'` here is the
  * "block" mode (no flex / no grid layout) — visibility:none is a
  * separate concept in `visibilityMode`. Naming keeps the legacy
@@ -439,6 +453,26 @@ export type ScampElement = {
      * canvas).
      */
     inlineFragments: ReadonlyArray<InlineFragment>;
+    /**
+     * Property groups the user has toggled OFF for this element.
+     * Empty by default. Each entry is a `PropertyGroup` string
+     * (`'shadow'`, `'background'`, etc. — see
+     * `src/renderer/lib/propertyGroups.ts` for the full list).
+     *
+     * Element-scoped: a toggled-off group applies across the base
+     * styles AND every per-state / per-breakpoint override. The
+     * typed values inside the group are NOT cleared — they're
+     * preserved in their fields so toggling back ON restores them
+     * unchanged. The canvas renders as if those properties weren't
+     * set; the generator emits them as a labelled comment block
+     * (label + commented decls — e.g. a `shadow off` label
+     * followed by the commented `box-shadow` declaration) after
+     * the active declarations.
+     *
+     * Stored sorted + deduped so on-disk round-trips stay
+     * text-stable.
+     */
+    toggledOffGroups: ReadonlyArray<PropertyGroup>;
     customProperties: Record<string, string>;
     /**
      * Per-breakpoint style overrides keyed by breakpoint id (matching

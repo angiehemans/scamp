@@ -1,6 +1,6 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { assetsDirSegment } from '@renderer/src/lib/path';
 import { BlendModeSelect } from '../controls/BlendModeSelect';
 import { ColorInput } from '../controls/ColorInput';
@@ -34,12 +34,18 @@ export const BackgroundSection = ({ elementId }) => {
     const activePage = useCanvasStore((s) => s.activePage);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
     const projectPath = useCanvasStore((s) => s.projectPath);
+    const groupToggle = useGroupToggle(elementId, 'background');
     if (!element)
         return null;
     const bgImage = element.customProperties['background-image'] ?? null;
     const bgSize = element.customProperties['background-size'] ?? 'cover';
     const bgPosition = element.customProperties['background-position'] ?? 'center';
     const bgRepeat = element.customProperties['background-repeat'] ?? 'no-repeat';
+    // Hide the group-toggle eye when there's nothing in this section
+    // to hide. Stays visible while the group is already off so the
+    // user can flip it back on without first re-adding a value.
+    const hasBackgroundContent = element.backgroundColor !== 'transparent' || bgImage !== null;
+    const effectiveGroupToggle = hasBackgroundContent || !groupToggle.isOn ? groupToggle : undefined;
     const handleSetBackgroundImage = async () => {
         if (!activePage || !projectPath)
             return;
@@ -81,7 +87,7 @@ export const BackgroundSection = ({ elementId }) => {
     // Only surface the background-blend dropdown when a blend can
     // actually be observed: an image AND a non-default color.
     const showBackgroundBlend = bgImage !== null && element.backgroundColor !== 'transparent';
-    return (_jsxs(Section, { title: "Background", elementId: elementId, fields: ['backgroundColor', 'backgroundBlendMode'], cssProperties: [
+    return (_jsxs(Section, { title: "Background", elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['backgroundColor', 'backgroundBlendMode'], cssProperties: [
             'background',
             'background-color',
             'background-image',

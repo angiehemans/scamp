@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { ANIMATION_PRESETS, } from '@lib/animationPresets';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
@@ -62,12 +62,18 @@ export const AnimationSection = ({ elementId }) => {
     const setAnimation = useCanvasStore((s) => s.setAnimation);
     const removeAnimation = useCanvasStore((s) => s.removeAnimation);
     const playAnimation = useCanvasStore((s) => s.playAnimation);
+    const groupToggle = useGroupToggle(elementId, 'animation');
     if (!element)
         return null;
     const animation = element.animation;
     // Multi-animation source ends up in customProperties.animation —
     // the picker can't model the multi case, so we surface a hint.
     const multiAnimationRaw = element.customProperties.animation;
+    // Hide the eye when there's no animation defined (and the group
+    // isn't already off — leave it visible so the user can toggle
+    // back on).
+    const hasAnimationContent = animation !== undefined || multiAnimationRaw !== undefined;
+    const effectiveGroupToggle = hasAnimationContent || !groupToggle.isOn ? groupToggle : undefined;
     const handleSelectPreset = (value) => {
         if (value === NONE_VALUE) {
             removeAnimation(elementId);
@@ -91,11 +97,11 @@ export const AnimationSection = ({ elementId }) => {
     };
     // No typed animation AND no raw animation declaration → empty state.
     if (!animation && !multiAnimationRaw) {
-        return (_jsx(Section, { title: "Animation", collapsible: true, defaultOpen: false, elementId: elementId, fields: ['animation'], cssProperties: ['animation'], children: _jsx(Row, { label: "Preset", tooltip: "Pick an animation to play on this element. Choose None to remove.", children: _jsx(PresetSelect, { value: NONE_VALUE, onChange: handleSelectPreset }) }) }));
+        return (_jsx(Section, { title: "Animation", collapsible: true, defaultOpen: false, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['animation'], cssProperties: ['animation'], children: _jsx(Row, { label: "Preset", tooltip: "Pick an animation to play on this element. Choose None to remove.", children: _jsx(PresetSelect, { value: NONE_VALUE, onChange: handleSelectPreset }) }) }));
     }
     // Multi-animation source → can't model, defer to CSS mode.
     if (!animation && multiAnimationRaw) {
-        return (_jsx(Section, { title: "Animation", collapsible: true, defaultOpen: false, elementId: elementId, fields: ['animation'], cssProperties: ['animation'], children: _jsx("div", { className: styles.hint, children: "Multiple animations declared. Edit in CSS mode." }) }));
+        return (_jsx(Section, { title: "Animation", collapsible: true, defaultOpen: false, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['animation'], cssProperties: ['animation'], children: _jsx("div", { className: styles.hint, children: "Multiple animations declared. Edit in CSS mode." }) }));
     }
     if (!animation)
         return null;
@@ -105,7 +111,7 @@ export const AnimationSection = ({ elementId }) => {
     const isCustom = !animation.isPreset;
     const stateHasOverride = stateMode !== null &&
         rawElement?.stateOverrides?.[stateMode]?.animation !== undefined;
-    return (_jsxs(Section, { title: "Animation", collapsible: true, defaultOpen: true, elementId: elementId, fields: ['animation'], cssProperties: ['animation'], children: [_jsx(Row, { label: "Preset", tooltip: "The named animation. Switching presets replaces all the properties below with that preset's defaults.", children: _jsx(PresetSelect, { value: animation.name, onChange: handleSelectPreset, isCustom: isCustom }) }), stateMode !== null && !stateHasOverride && (_jsxs("div", { className: styles.hint, children: ["Same as default \u2014 edits will create a ", stateMode, "-state override."] })), _jsx(DualField, { left: {
+    return (_jsxs(Section, { title: "Animation", collapsible: true, defaultOpen: true, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['animation'], cssProperties: ['animation'], children: [_jsx(Row, { label: "Preset", tooltip: "The named animation. Switching presets replaces all the properties below with that preset's defaults.", children: _jsx(PresetSelect, { value: animation.name, onChange: handleSelectPreset, isCustom: isCustom }) }), stateMode !== null && !stateHasOverride && (_jsxs("div", { className: styles.hint, children: ["Same as default \u2014 edits will create a ", stateMode, "-state override."] })), _jsx(DualField, { left: {
                     label: 'Duration',
                     tooltip: 'How long one iteration of the animation takes.',
                     children: (_jsx(NumberInput, { value: animation.durationMs, onChange: (ms) => ms !== undefined && updateField({ durationMs: ms }), min: 0, suffix: "ms" })),

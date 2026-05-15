@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useBreakpointOverrideFields, useStateOverrideFields, } from '@store/useResolvedElement';
 import { FIELD_LABELS } from '@lib/fieldLabels';
@@ -15,10 +15,23 @@ import styles from './Section.module.css';
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, cssProperties, }) => {
+export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, cssProperties, groupToggle, }) => {
     const [open, setOpen] = useState(defaultOpen);
     const overrideInfo = useOverrideIndicator(elementId, fields);
     const duplicateInfo = useDuplicateIndicator(elementId, cssProperties);
+    // Eye-icon toggle button rendered when this section is part of
+    // the togglable-group taxonomy. Visible regardless of the
+    // section's collapse state so the user can flip without
+    // expanding first.
+    const groupLabel = groupToggle?.label ?? title;
+    const groupToggleButton = groupToggle ? (_jsx(Tooltip, { label: groupToggle.isOn ? `Hide ${groupLabel}` : `Show ${groupLabel}`, children: _jsx("button", { type: "button", className: styles.groupToggleButton, onClick: (e) => {
+                // Stop propagation so clicking the toggle doesn't
+                // also collapse the section (when the title row IS the
+                // collapse button).
+                e.stopPropagation();
+                groupToggle.onChange(!groupToggle.isOn);
+            }, "aria-label": groupToggle.isOn ? `Hide ${groupLabel}` : `Show ${groupLabel}`, "aria-pressed": !groupToggle.isOn, children: groupToggle.isOn ? (_jsx(IconEye, { size: 14, stroke: 2 })) : (_jsx(IconEyeOff, { size: 14, stroke: 2 })) }) })) : null;
+    const groupOff = groupToggle?.isOn === false;
     // Pick the tooltip whose header / body wraps the title row when an
     // indicator is active. Duplicates take priority because they signal
     // a bug-shaped condition the user probably wants to investigate
@@ -33,11 +46,21 @@ export const Section = ({ title, children, collapsible = false, defaultOpen = tr
             return node;
         return (_jsx(Tooltip, { header: tooltipInfo.header, label: tooltipInfo.label, children: node }));
     };
+    // Wrap children only when this section has a groupToggle —
+    // otherwise the rows stay direct children of `.section` so its
+    // flex-column gap continues to apply unchanged. When wrapped,
+    // `.groupContent` re-applies the same column-gap layout (the
+    // single wrapper child would otherwise collapse the gap between
+    // its sibling rows). `.groupOff` dims + disables interaction
+    // when the group is toggled off; the title row stays
+    // interactive so the user can toggle back on without
+    // un-collapsing.
+    const wrappedContent = groupToggle ? (_jsx("div", { className: `${styles.groupContent} ${groupOff ? styles.groupOff : ''}`.trim(), children: children })) : (children);
     if (!collapsible) {
-        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), duplicateDot, overrideDot] })), children] }));
+        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), duplicateDot, overrideDot, groupToggleButton] })), wrappedContent] }));
     }
     const handleToggle = () => setOpen((v) => !v);
-    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.heading, children: title }), duplicateDot, overrideDot, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] })), open && children] }));
+    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.heading, children: title }), duplicateDot, overrideDot, groupToggleButton, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] })), open && wrappedContent] }));
 };
 /**
  * Yellow warning state for a section title — fires when the parser

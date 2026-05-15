@@ -1,4 +1,4 @@
-import { type BreakpointOverride, type ElementAnimation, type ElementStateName, type KeyframesBlock, type ScampElement } from '@lib/element';
+import { type BreakpointOverride, type ElementAnimation, type ElementStateName, type KeyframesBlock, type PropertyGroup, type ScampElement } from '@lib/element';
 import { type Breakpoint, type ProjectFormat, type ThemeToken } from '@shared/types';
 export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 export type NewRectInput = {
@@ -311,6 +311,15 @@ type CanvasState = {
      * an automatic side effect.
      */
     removeAnimation: (elementId: string) => void;
+    /**
+     * Toggle a CSS-property group OFF or ON for an element. When
+     * OFF, the canvas renders as if the group's typed fields
+     * weren't set, and `generateCode` emits them as a labelled
+     * comment block. The typed values are preserved — toggling
+     * back ON restores them. Element-scoped: applies across all
+     * per-state and per-breakpoint overrides.
+     */
+    togglePropertyGroup: (elementId: string, group: PropertyGroup, on: boolean) => void;
     /**
      * Trigger a one-shot canvas preview of the element's animation.
      * Renders with a fresh React `key` so the animation plays from

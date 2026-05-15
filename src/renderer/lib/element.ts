@@ -6,6 +6,29 @@
 
 export type WidthMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
+
+/**
+ * The fixed taxonomy of CSS-property "groups" the panel surfaces
+ * as togglable section headers. See
+ * `src/renderer/lib/propertyGroups.ts` for the group → field
+ * mapping and the helper functions that consume it.
+ *
+ * Lives in this module (rather than propertyGroups.ts) so
+ * `ScampElement.toggledOffGroups` can be typed without a circular
+ * import — propertyGroups.ts imports `ScampElement` itself.
+ *
+ * Sizing, Layout, and Visibility are deliberately NOT togglable
+ * — see `propertyGroups.ts`'s module doc for the rationale.
+ */
+export type PropertyGroup =
+  | 'background'
+  | 'border'
+  | 'shadow'
+  | 'typography'
+  | 'filters'
+  | 'blend'
+  | 'transitions'
+  | 'animation';
 /**
  * `display` values the panel models directly. `'none'` here is the
  * "block" mode (no flex / no grid layout) — visibility:none is a
@@ -547,6 +570,27 @@ export type ScampElement = {
    */
   inlineFragments: ReadonlyArray<InlineFragment>;
 
+  /**
+   * Property groups the user has toggled OFF for this element.
+   * Empty by default. Each entry is a `PropertyGroup` string
+   * (`'shadow'`, `'background'`, etc. — see
+   * `src/renderer/lib/propertyGroups.ts` for the full list).
+   *
+   * Element-scoped: a toggled-off group applies across the base
+   * styles AND every per-state / per-breakpoint override. The
+   * typed values inside the group are NOT cleared — they're
+   * preserved in their fields so toggling back ON restores them
+   * unchanged. The canvas renders as if those properties weren't
+   * set; the generator emits them as a labelled comment block
+   * (label + commented decls — e.g. a `shadow off` label
+   * followed by the commented `box-shadow` declaration) after
+   * the active declarations.
+   *
+   * Stored sorted + deduped so on-disk round-trips stay
+   * text-stable.
+   */
+  toggledOffGroups: ReadonlyArray<PropertyGroup>;
+
   // Passthrough — properties the canvas can't visually represent
   customProperties: Record<string, string>;
 
@@ -911,6 +955,7 @@ export const groupSiblings = (
     backdropFilters: [],
     transitions: [],
     inlineFragments: [],
+    toggledOffGroups: [],
     customProperties: {},
   };
 
@@ -1023,6 +1068,7 @@ export const wrapElement = (
     backdropFilters: [],
     transitions: [],
     inlineFragments: [],
+    toggledOffGroups: [],
     customProperties: { ...(template.customProperties ?? {}) },
     ...(template.tag !== undefined ? { tag: template.tag } : {}),
     ...(template.attributes !== undefined
@@ -1175,6 +1221,7 @@ export const cloneElementSubtree = (
       boxShadows: old.boxShadows.map((s) => ({ ...s })),
       filters: old.filters.map((f) => ({ ...f })),
       backdropFilters: old.backdropFilters.map((f) => ({ ...f })),
+      toggledOffGroups: [...old.toggledOffGroups],
       // Clear the name on clones so the duplicate gets a fresh default
       // class name. The user can rename it from the layers panel.
       name: undefined,

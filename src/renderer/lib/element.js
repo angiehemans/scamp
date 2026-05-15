@@ -234,6 +234,7 @@ export const groupSiblings = (elements, ids, groupId) => {
         backdropFilters: [],
         transitions: [],
         inlineFragments: [],
+        toggledOffGroups: [],
         customProperties: {},
     };
     // Build the next elements map.
@@ -331,6 +332,7 @@ export const wrapElement = (elements, elementId, wrapperId, template) => {
         backdropFilters: [],
         transitions: [],
         inlineFragments: [],
+        toggledOffGroups: [],
         customProperties: { ...(template.customProperties ?? {}) },
         ...(template.tag !== undefined ? { tag: template.tag } : {}),
         ...(template.attributes !== undefined
@@ -472,6 +474,7 @@ export const cloneElementSubtree = (elements, rootCloneId, newParentId, existing
             boxShadows: old.boxShadows.map((s) => ({ ...s })),
             filters: old.filters.map((f) => ({ ...f })),
             backdropFilters: old.backdropFilters.map((f) => ({ ...f })),
+            toggledOffGroups: [...old.toggledOffGroups],
             // Clear the name on clones so the duplicate gets a fresh default
             // class name. The user can rename it from the layers panel.
             name: undefined,

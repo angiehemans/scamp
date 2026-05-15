@@ -1,4 +1,4 @@
-import type { BreakpointOverride, ScampElement, StateOverride } from '@lib/element';
+import type { BreakpointOverride, PropertyGroup, ScampElement, StateOverride } from '@lib/element';
 /**
  * React hook returning the element AS IT WILL RENDER at the active
  * breakpoint and active state — the raw element overlaid with every
@@ -35,3 +35,14 @@ export declare const useBreakpointOverrideFields: (elementId: string | null) => 
  * has no override registered at that state.
  */
 export declare const useStateOverrideFields: (elementId: string | null) => ReadonlySet<keyof StateOverride>;
+/**
+ * Hook returning the `groupToggle` prop for a section's
+ * property-group eye button. Reads the raw element's
+ * `toggledOffGroups` and exposes a stable `onChange` bound to the
+ * canvas slice action. Element-scoped — independent of the active
+ * breakpoint / state.
+ */
+export declare const useGroupToggle: (elementId: string, group: PropertyGroup) => {
+    isOn: boolean;
+    onChange: (on: boolean) => void;
+};

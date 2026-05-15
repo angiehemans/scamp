@@ -1,6 +1,7 @@
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID, slugifyName, } from './element';
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, formatTransitionShorthand, } from './parsers';
+import { CUSTOM_PROP_TO_GROUP } from './propertyGroups';
 import { DESKTOP_BREAKPOINT_ID, } from '@shared/types';
 const escapeHtml = (raw) => raw
     .replace(/&/g, '&amp;')
@@ -207,6 +208,32 @@ const generateTsx = (elements, rootId, pageName, cssModuleImportName) => {
  */
 export const elementDeclarationLines = (el, parent) => {
     const lines = [];
+    // Buffer for declarations routed into toggled-off group comment
+    // blocks. Keyed by group; values are the already-`/* … */`-wrapped
+    // commented decls in emit order. Drained at the end of the
+    // function as `/* group off */` blocks appended after the
+    // active lines.
+    const commentedByGroup = new Map();
+    const offGroups = new Set(el.toggledOffGroups);
+    /**
+     * Route a `prop: value;` line either to the active lines buffer
+     * or to the appropriate group's comment buffer. `group === null`
+     * means the property isn't part of a togglable group and always
+     * emits actively (sizing, layout, position, spacing,
+     * visibilityMode/opacity).
+     */
+    const emit = (group, line) => {
+        if (group !== null && offGroups.has(group)) {
+            const bucket = commentedByGroup.get(group);
+            if (bucket)
+                bucket.push(`/* ${line} */`);
+            else
+                commentedByGroup.set(group, [`/* ${line} */`]);
+        }
+        else {
+            lines.push(line);
+        }
+    };
     const isRoot = el.id === ROOT_ELEMENT_ID;
     // When the parent is a flex OR grid container, this element is laid
     // out by that engine and should NOT have absolute positioning —
@@ -345,44 +372,48 @@ export const elementDeclarationLines = (el, parent) => {
             lines.push(`margin: ${mt}px ${mr}px ${mb}px ${ml}px;`);
         }
     }
-    // Appearance
+    // Appearance — togglable groups route through `emit(group, …)`
+    // so the line either lands in the active buffer or in the
+    // group's comment buffer (drained at the end of this function).
     if (el.backgroundColor !== BASE.backgroundColor) {
-        lines.push(`background: ${el.backgroundColor};`);
+        emit('background', `background: ${el.backgroundColor};`);
     }
     const [tl, tr, br, bl] = el.borderRadius;
     if (tl || tr || br || bl) {
-        lines.push(`border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
+        emit('border', `border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
     }
     const [bwt, bwr, bwb, bwl] = el.borderWidth;
     const hasBorder = bwt || bwr || bwb || bwl ||
         el.borderStyle !== BASE.borderStyle ||
         el.borderColor !== BASE.borderColor;
     if (hasBorder) {
-        lines.push(`border-width: ${bwt}px ${bwr}px ${bwb}px ${bwl}px;`);
-        lines.push(`border-style: ${el.borderStyle};`);
-        lines.push(`border-color: ${el.borderColor};`);
+        emit('border', `border-width: ${bwt}px ${bwr}px ${bwb}px ${bwl}px;`);
+        emit('border', `border-style: ${el.borderStyle};`);
+        emit('border', `border-color: ${el.borderColor};`);
     }
     // Text properties (only on text elements, only when set). Size-
     // related values are stored as full CSS strings so token refs and
     // non-px units round-trip without extra state.
     if (el.type === 'text') {
         if (el.fontFamily !== undefined)
-            lines.push(`font-family: ${el.fontFamily};`);
+            emit('typography', `font-family: ${el.fontFamily};`);
         if (el.fontSize !== undefined)
-            lines.push(`font-size: ${el.fontSize};`);
+            emit('typography', `font-size: ${el.fontSize};`);
         if (el.fontWeight !== undefined)
-            lines.push(`font-weight: ${el.fontWeight};`);
+            emit('typography', `font-weight: ${el.fontWeight};`);
         if (el.color !== undefined)
-            lines.push(`color: ${el.color};`);
+            emit('typography', `color: ${el.color};`);
         if (el.textAlign !== undefined)
-            lines.push(`text-align: ${el.textAlign};`);
+            emit('typography', `text-align: ${el.textAlign};`);
         if (el.lineHeight !== undefined)
-            lines.push(`line-height: ${el.lineHeight};`);
+            emit('typography', `line-height: ${el.lineHeight};`);
         if (el.letterSpacing !== undefined) {
-            lines.push(`letter-spacing: ${el.letterSpacing};`);
+            emit('typography', `letter-spacing: ${el.letterSpacing};`);
         }
     }
-    // Visibility + opacity
+    // Visibility + opacity — NOT togglable. These always emit
+    // actively. (See `propertyGroups.ts` for why Visibility isn't
+    // a togglable group.)
     if (el.visibilityMode === 'hidden') {
         lines.push('visibility: hidden;');
     }
@@ -391,35 +422,35 @@ export const elementDeclarationLines = (el, parent) => {
     }
     // Box shadows — single shorthand per element. Empty list omits.
     if (el.boxShadows.length > 0) {
-        lines.push(`box-shadow: ${formatBoxShadowShorthand(el.boxShadows)};`);
+        emit('shadow', `box-shadow: ${formatBoxShadowShorthand(el.boxShadows)};`);
     }
     // Blend modes — `normal` is the default and emits no declaration.
     // The data layer permits any non-default keyword regardless of
     // whether a background image is set; the panel hides the
     // background-blend control when there's nothing to blend.
     if (el.mixBlendMode !== BASE.mixBlendMode) {
-        lines.push(`mix-blend-mode: ${el.mixBlendMode};`);
+        emit('blend', `mix-blend-mode: ${el.mixBlendMode};`);
     }
     if (el.backgroundBlendMode !== BASE.backgroundBlendMode) {
-        lines.push(`background-blend-mode: ${el.backgroundBlendMode};`);
+        emit('blend', `background-blend-mode: ${el.backgroundBlendMode};`);
     }
     // Filters — single space-joined declaration per property. Empty
     // lists omit.
     if (el.filters.length > 0) {
-        lines.push(`filter: ${formatFilterList(el.filters)};`);
+        emit('filters', `filter: ${formatFilterList(el.filters)};`);
     }
     if (el.backdropFilters.length > 0) {
-        lines.push(`backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
+        emit('filters', `backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
     }
     // Transitions — single shorthand per element. Empty list omits.
     if (el.transitions.length > 0) {
-        lines.push(`transition: ${formatTransitionShorthand(el.transitions)};`);
+        emit('transitions', `transition: ${formatTransitionShorthand(el.transitions)};`);
     }
     // Animation — single shorthand per element. Multi-animation source
     // round-trips via customProperties.animation rather than this
     // typed field; the field is undefined when no animation applies.
     if (el.animation) {
-        lines.push(`animation: ${formatAnimationShorthand(el.animation)};`);
+        emit('animation', `animation: ${formatAnimationShorthand(el.animation)};`);
     }
     // Position. The element's typed `position` field decides the
     // strategy:
@@ -463,11 +494,33 @@ export const elementDeclarationLines = (el, parent) => {
     // dropped. The in-memory `customProperties` bag stays as-is, and the
     // next round-trip parse won't re-populate it from a file that no
     // longer has the conflicting declaration.
+    //
+    // `customProperties` keys owned by a togglable group (e.g.
+    // `background-image` → background) route through `emit(group, …)`
+    // so they end up in the right comment block when the group is
+    // toggled off.
     const emittedProps = collectEmittedPropNames(lines);
     for (const [key, value] of Object.entries(el.customProperties)) {
         if (emittedProps.has(key))
             continue;
-        lines.push(`${key}: ${value};`);
+        const ownedBy = CUSTOM_PROP_TO_GROUP[key] ?? null;
+        emit(ownedBy, `${key}: ${value};`);
+    }
+    // Toggled-off groups: emit a `/* <group> off */` label followed
+    // by every commented declaration we captured for that group.
+    // Iterates `el.toggledOffGroups` directly (already sorted +
+    // deduped at commit time) so the on-disk order is stable.
+    // One blank-line separator between blocks; one before the first
+    // block when there are active lines above.
+    for (const group of el.toggledOffGroups) {
+        if (lines.length > 0)
+            lines.push('');
+        lines.push(`/* ${group} off */`);
+        const commented = commentedByGroup.get(group);
+        if (commented) {
+            for (const c of commented)
+                lines.push(c);
+        }
     }
     return lines;
 };
@@ -500,6 +553,24 @@ const collectEmittedPropNames = (lines) => {
 export const breakpointOverrideLines = (override, element) => {
     const lines = [];
     const has = (k) => Object.prototype.hasOwnProperty.call(override, k);
+    // Same two-buffer pattern as `elementDeclarationLines`. Toggled-
+    // off groups inherit from the element's base-level
+    // `toggledOffGroups` array — the toggle is element-scoped, so
+    // overrides for an off group are also commented out.
+    const commentedByGroup = new Map();
+    const offGroups = new Set(element.toggledOffGroups);
+    const emit = (group, line) => {
+        if (group !== null && offGroups.has(group)) {
+            const bucket = commentedByGroup.get(group);
+            if (bucket)
+                bucket.push(`/* ${line} */`);
+            else
+                commentedByGroup.set(group, [`/* ${line} */`]);
+        }
+        else {
+            lines.push(line);
+        }
+    };
     // Width — needs both mode and value. Either being in the override
     // triggers emission. `widthCustom` (verbatim CSS for non-px units)
     // overrides the px fallback when present.
@@ -624,22 +695,23 @@ export const breakpointOverrideLines = (override, element) => {
         lines.push(`margin: ${t}px ${r}px ${b}px ${l}px;`);
     }
     if (has('backgroundColor') && override.backgroundColor !== undefined) {
-        lines.push(`background: ${override.backgroundColor};`);
+        emit('background', `background: ${override.backgroundColor};`);
     }
     if (has('borderRadius') && override.borderRadius) {
         const [tl, tr, br, bl] = override.borderRadius;
-        lines.push(`border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
+        emit('border', `border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
     }
     if (has('borderWidth') && override.borderWidth) {
         const [t, r, b, l] = override.borderWidth;
-        lines.push(`border-width: ${t}px ${r}px ${b}px ${l}px;`);
+        emit('border', `border-width: ${t}px ${r}px ${b}px ${l}px;`);
     }
     if (has('borderStyle') && override.borderStyle) {
-        lines.push(`border-style: ${override.borderStyle};`);
+        emit('border', `border-style: ${override.borderStyle};`);
     }
     if (has('borderColor') && override.borderColor !== undefined) {
-        lines.push(`border-color: ${override.borderColor};`);
+        emit('border', `border-color: ${override.borderColor};`);
     }
+    // Opacity + visibility are NOT togglable — always active.
     if (has('opacity') && override.opacity !== undefined) {
         lines.push(`opacity: ${override.opacity};`);
     }
@@ -654,10 +726,10 @@ export const breakpointOverrideLines = (override, element) => {
     // shadow rather than silently leaving it in place.
     if (has('boxShadows') && override.boxShadows !== undefined) {
         if (override.boxShadows.length === 0) {
-            lines.push('box-shadow: none;');
+            emit('shadow', 'box-shadow: none;');
         }
         else {
-            lines.push(`box-shadow: ${formatBoxShadowShorthand(override.boxShadows)};`);
+            emit('shadow', `box-shadow: ${formatBoxShadowShorthand(override.boxShadows)};`);
         }
     }
     // Blend modes — present-in-override means the user chose a value at
@@ -666,11 +738,11 @@ export const breakpointOverrideLines = (override, element) => {
     // `none`). Cascading-by-omission is what the user gets by not
     // touching the dropdown at all.
     if (has('mixBlendMode') && override.mixBlendMode !== undefined) {
-        lines.push(`mix-blend-mode: ${override.mixBlendMode};`);
+        emit('blend', `mix-blend-mode: ${override.mixBlendMode};`);
     }
     if (has('backgroundBlendMode') &&
         override.backgroundBlendMode !== undefined) {
-        lines.push(`background-blend-mode: ${override.backgroundBlendMode};`);
+        emit('blend', `background-blend-mode: ${override.backgroundBlendMode};`);
     }
     // Filters — empty list at a breakpoint or state scope emits
     // `filter: none` (or `backdrop-filter: none`) so the cascade
@@ -678,18 +750,18 @@ export const breakpointOverrideLines = (override, element) => {
     // leaving it in place. Same convention as transitions and shadows.
     if (has('filters') && override.filters !== undefined) {
         if (override.filters.length === 0) {
-            lines.push('filter: none;');
+            emit('filters', 'filter: none;');
         }
         else {
-            lines.push(`filter: ${formatFilterList(override.filters)};`);
+            emit('filters', `filter: ${formatFilterList(override.filters)};`);
         }
     }
     if (has('backdropFilters') && override.backdropFilters !== undefined) {
         if (override.backdropFilters.length === 0) {
-            lines.push('backdrop-filter: none;');
+            emit('filters', 'backdrop-filter: none;');
         }
         else {
-            lines.push(`backdrop-filter: ${formatFilterList(override.backdropFilters)};`);
+            emit('filters', `backdrop-filter: ${formatFilterList(override.backdropFilters)};`);
         }
     }
     // Transitions — empty list at a breakpoint emits `transition: none`
@@ -697,10 +769,10 @@ export const breakpointOverrideLines = (override, element) => {
     // silently leaving it in place.
     if (has('transitions') && override.transitions !== undefined) {
         if (override.transitions.length === 0) {
-            lines.push('transition: none;');
+            emit('transitions', 'transition: none;');
         }
         else {
-            lines.push(`transition: ${formatTransitionShorthand(override.transitions)};`);
+            emit('transitions', `transition: ${formatTransitionShorthand(override.transitions)};`);
         }
     }
     // Animation — only set on `StateOverride` (which extends
@@ -712,35 +784,35 @@ export const breakpointOverrideLines = (override, element) => {
         const anim = override
             .animation;
         if (anim) {
-            lines.push(`animation: ${formatAnimationShorthand(anim)};`);
+            emit('animation', `animation: ${formatAnimationShorthand(anim)};`);
         }
         else {
             // Explicit `animation: none` to clear an inherited animation.
-            lines.push('animation: none;');
+            emit('animation', 'animation: none;');
         }
     }
     // Text properties — only meaningful on text elements but cheap to
     // emit based on presence in the override.
     if (has('fontFamily') && override.fontFamily !== undefined) {
-        lines.push(`font-family: ${override.fontFamily};`);
+        emit('typography', `font-family: ${override.fontFamily};`);
     }
     if (has('fontSize') && override.fontSize !== undefined) {
-        lines.push(`font-size: ${override.fontSize};`);
+        emit('typography', `font-size: ${override.fontSize};`);
     }
     if (has('fontWeight') && override.fontWeight !== undefined) {
-        lines.push(`font-weight: ${override.fontWeight};`);
+        emit('typography', `font-weight: ${override.fontWeight};`);
     }
     if (has('color') && override.color !== undefined) {
-        lines.push(`color: ${override.color};`);
+        emit('typography', `color: ${override.color};`);
     }
     if (has('textAlign') && override.textAlign !== undefined) {
-        lines.push(`text-align: ${override.textAlign};`);
+        emit('typography', `text-align: ${override.textAlign};`);
     }
     if (has('lineHeight') && override.lineHeight !== undefined) {
-        lines.push(`line-height: ${override.lineHeight};`);
+        emit('typography', `line-height: ${override.lineHeight};`);
     }
     if (has('letterSpacing') && override.letterSpacing !== undefined) {
-        lines.push(`letter-spacing: ${override.letterSpacing};`);
+        emit('typography', `letter-spacing: ${override.letterSpacing};`);
     }
     // Position — emit the typed `position` keyword first when set at
     // this breakpoint, then x/y as left/top. `position: 'auto'` at a
@@ -759,14 +831,32 @@ export const breakpointOverrideLines = (override, element) => {
     // breakpoint. Emitted verbatim, in insertion order, last — except
     // when a typed branch above already emitted the same CSS prop
     // (duplicate-declaration scenario, see the base-element emitter for
-    // the long version).
+    // the long version). Group-owned keys (e.g. `background-image`
+    // → background) route through `emit(group, …)` so they end up
+    // in the right comment block when the group is toggled off.
     if (override.customProperties) {
         const emittedProps = collectEmittedPropNames(lines);
         for (const [key, value] of Object.entries(override.customProperties)) {
             if (emittedProps.has(key))
                 continue;
-            lines.push(`${key}: ${value};`);
+            const ownedBy = CUSTOM_PROP_TO_GROUP[key] ?? null;
+            emit(ownedBy, `${key}: ${value};`);
         }
+    }
+    // Toggled-off group comment blocks — same emission pattern as
+    // `elementDeclarationLines`. Appended after the active override
+    // declarations, in canonical (sorted) order so on-disk text
+    // stays stable. Iterates the element's `toggledOffGroups`
+    // because the toggle is element-scoped.
+    for (const group of element.toggledOffGroups) {
+        const commented = commentedByGroup.get(group);
+        if (!commented || commented.length === 0)
+            continue;
+        if (lines.length > 0)
+            lines.push('');
+        lines.push(`/* ${group} off */`);
+        for (const c of commented)
+            lines.push(c);
     }
     return lines;
 };
@@ -803,7 +893,7 @@ const stateBlockFor = (el, state, override) => {
     const lines = breakpointOverrideLines(override, el);
     if (lines.length === 0)
         return null;
-    const body = lines.map((line) => `  ${line}`).join('\n');
+    const body = lines.map((line) => line.length === 0 ? "" : `  ${line}`).join('\n');
     return `.${classNameFor(el)}:${state} {\n${body}\n}`;
 };
 /**
@@ -816,7 +906,7 @@ const stateBlockFor = (el, state, override) => {
 const elementCssChunks = (el, parent) => {
     const chunks = [];
     const baseLines = elementDeclarationLines(el, parent);
-    const baseBody = baseLines.map((line) => `  ${line}`).join('\n');
+    const baseBody = baseLines.map((line) => line.length === 0 ? "" : `  ${line}`).join('\n');
     chunks.push(`.${classNameFor(el)} {\n${baseBody}\n}`);
     const overrides = el.stateOverrides;
     if (overrides) {
@@ -868,7 +958,7 @@ const generateCss = (elements, rootId, breakpoints, customMediaBlocks, pageKeyfr
             const lines = breakpointOverrideLines(override, el);
             if (lines.length === 0)
                 continue;
-            const body = lines.map((line) => `    ${line}`).join('\n');
+            const body = lines.map((line) => line.length === 0 ? "" : `    ${line}`).join('\n');
             rules.push(`  .${classNameFor(el)} {\n${body}\n  }`);
         }
         if (rules.length === 0)

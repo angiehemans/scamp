@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
 import { previewStyle } from '../controls/livePreview';
 import { EnumSelect } from '../controls/EnumSelect';
@@ -18,9 +18,17 @@ export const BorderSection = ({ elementId }) => {
     const projectColors = useCanvasStore(selectProjectColors);
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+    const groupToggle = useGroupToggle(elementId, 'border');
     if (!element)
         return null;
-    return (_jsxs(Section, { title: "Border", elementId: elementId, fields: ['borderColor', 'borderStyle', 'borderWidth', 'borderRadius'], cssProperties: [
+    // Hide the eye when no border is set AND no rounded corners.
+    // Border radius lives in the same group, so a rounded-but-
+    // un-bordered element still has something to toggle.
+    const hasBorderContent = element.borderStyle !== 'none' ||
+        element.borderWidth.some((w) => w > 0) ||
+        element.borderRadius.some((r) => r > 0);
+    const effectiveGroupToggle = hasBorderContent || !groupToggle.isOn ? groupToggle : undefined;
+    return (_jsxs(Section, { title: "Border", elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['borderColor', 'borderStyle', 'borderWidth', 'borderRadius'], cssProperties: [
             'border',
             'border-width',
             'border-style',

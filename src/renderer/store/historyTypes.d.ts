@@ -1,10 +1,10 @@
-import type { ScampElement } from '@lib/element';
+import type { PropertyGroup, ScampElement } from '@lib/element';
 /**
  * Discriminated taxonomy of canvas mutations the history panel
  * surfaces. Labels are generated from this kind plus the entry's
  * resolved metadata at display time — see `formatHistoryLabel`.
  */
-export type HistoryActionKind = 'draw-rect' | 'add-text' | 'add-image' | 'add-input' | 'delete' | 'move' | 'resize' | 'patch' | 'raw-css' | 'rename' | 'rename-page' | 'add-page' | 'delete-page' | 'paste' | 'duplicate' | 'group' | 'ungroup' | 'wrap-link' | 'reorder' | 'external-edit';
+export type HistoryActionKind = 'draw-rect' | 'add-text' | 'add-image' | 'add-input' | 'delete' | 'move' | 'resize' | 'patch' | 'raw-css' | 'rename' | 'rename-page' | 'add-page' | 'delete-page' | 'paste' | 'duplicate' | 'group' | 'ungroup' | 'wrap-link' | 'reorder' | 'toggle-group' | 'external-edit';
 /**
  * One entry in a page's history stack. Stores the post-action
  * snapshot of the elements map plus the metadata needed to render
@@ -37,6 +37,11 @@ export type HistoryEntry = {
     previousName?: string;
     /** For `add-page` / `delete-page` / `rename-page`. */
     pageName?: string;
+    /** For `toggle-group`: the group that was flipped and whether
+     *  it's now ON or OFF. Drives the label
+     *  ("Hid Shadow — rect_a1b2" / "Showed Shadow — rect_a1b2"). */
+    toggleGroup?: PropertyGroup;
+    toggleGroupOn?: boolean;
     /** Full elements map after this action committed. */
     snapshot: Record<string, ScampElement>;
 };

@@ -2,6 +2,7 @@ import { useCanvasStore } from './canvasSlice';
 import { resolveElementAtState } from '@lib/stateCascade';
 import type {
   BreakpointOverride,
+  PropertyGroup,
   ScampElement,
   StateOverride,
 } from '@lib/element';
@@ -88,6 +89,29 @@ export const useStateOverrideFields = (
   });
   if (keys.length === 0) return EMPTY_STATE_SET;
   return new Set(keys);
+};
+
+/**
+ * Hook returning the `groupToggle` prop for a section's
+ * property-group eye button. Reads the raw element's
+ * `toggledOffGroups` and exposes a stable `onChange` bound to the
+ * canvas slice action. Element-scoped — independent of the active
+ * breakpoint / state.
+ */
+export const useGroupToggle = (
+  elementId: string,
+  group: PropertyGroup
+): { isOn: boolean; onChange: (on: boolean) => void } => {
+  const isOn = useCanvasStore((s) => {
+    const el = s.elements[elementId];
+    if (!el) return true;
+    return !el.toggledOffGroups.includes(group);
+  });
+  const togglePropertyGroup = useCanvasStore((s) => s.togglePropertyGroup);
+  return {
+    isOn,
+    onChange: (on: boolean): void => togglePropertyGroup(elementId, group, on),
+  };
 };
 
 const EMPTY_KEYS: Array<keyof BreakpointOverride> = [];

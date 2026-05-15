@@ -182,3 +182,42 @@ Per-state overrides (`:hover`, `:active`, `:focus`) are supported
 for most of the above CSS properties via the state switcher in
 the panel header; switch states, edit any property, and the
 override commits to `stateOverrides[<state>]` on the element.
+
+---
+
+## Toggled-off property groups (comment block format)
+
+The panel's per-section eye icon flips a whole group of related
+CSS properties off for the selected element. The typed values are
+preserved in memory; on disk, the group's declarations are
+re-emitted inside the element's class block as a labelled
+comment block at the end of the rule. Example:
+
+```css
+.rect_a1b2 {
+  position: absolute;
+  background: #ff0000;
+  /* shadow off */
+  /* box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.15); */
+}
+```
+
+The label format is `<group> off`, where `<group>` is one of:
+`animation`, `background`, `blend`, `border`, `filters`,
+`shadow`, `transitions`, `typography`. Labels are emitted
+alphabetised when multiple groups are off.
+
+The label is element-scoped: a single label in the base class
+turns the group off everywhere on that element (state +
+breakpoint overrides included). Agents writing one of these
+blocks should place the label directly above the commented
+declarations they belong to; the parser captures every commented
+`prop: value` line that follows the label until the next active
+declaration ends the block.
+
+The Sizing, Layout, Visibility, Position, Element, and Export
+sections do not surface a toggle in the panel (and the parser
+ignores `sizing off` / `layout off` / `visibility off` labels) —
+toggling them off would hide or collapse the element rather
+than just preview-without-those-styles, which is the wrong
+affordance for an eye-icon toggle.

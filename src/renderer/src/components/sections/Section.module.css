@@ -101,6 +101,68 @@
   box-shadow: 0 0 0 2px var(--accent-muted);
 }
 
+/* Eye-icon button in the section title row. Flips the group
+   toggle off/on. Visible only when the section's `groupToggle`
+   prop is set. Right-aligned in the title row via
+   `margin-left: auto`; when the section is collapsible, the
+   chevron caret follows immediately to its right (the
+   `.groupToggleButton ~ .caret` rule below zeroes the caret's
+   own auto margin so they cluster together rather than spacing
+   apart). */
+.groupToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm, 3px);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Caret normally right-aligns itself; when an eye icon precedes
+   it, the eye is the right-cluster anchor instead, so cancel
+   the caret's auto margin to keep them adjacent. */
+.groupToggleButton ~ .caret {
+  margin-left: 0;
+}
+
+.groupToggleButton:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface, transparent);
+}
+
+.groupToggleButton[aria-pressed='true'] {
+  /* OFF state — the eye-off icon is showing. Slightly dim the
+     button so it reads as a flipped state rather than a neutral
+     control. */
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+/* Wrapper around section children, present whenever a Section
+   has a groupToggle. Preserves the parent `.section`'s
+   flex-column gap between rows (the inner wrapper would
+   otherwise collapse the gap by replacing the row siblings
+   with one wrapper child). When the group is toggled OFF, the
+   `.groupOff` modifier dims the content and disables
+   interaction so the user can't accidentally edit values that
+   won't render. */
+.groupContent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupOff {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* Duplicate-CSS-declaration indicator. Yellow warning dot that
    appears when the parser saw any of the section's CSS properties
    declared more than once in the element's class block. The cleanup

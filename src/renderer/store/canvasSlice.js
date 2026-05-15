@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
+import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore } from './historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { classNameFor } from '@lib/generateCode';
@@ -920,6 +921,34 @@ export const useCanvasStore = create()((set) => ({
             kind: 'patch',
             elementIds: [id],
             propertyKeys: ['animation'],
+        });
+    },
+    togglePropertyGroup: (id, group, on) => {
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            // Compute the next list. ON means "remove the group from
+            // toggledOffGroups"; OFF means "add it (if absent)".
+            // `canonicalizeGroupList` sorts + dedupes so two paths to
+            // the same logical state produce the same on-disk text.
+            const current = el.toggledOffGroups;
+            const isCurrentlyOff = current.includes(group);
+            if (on && !isCurrentlyOff)
+                return state; // already on
+            if (!on && isCurrentlyOff)
+                return state; // already off
+            const next = on
+                ? canonicalizeGroupList(current.filter((g) => g !== group))
+                : canonicalizeGroupList([...current, group]);
+            const nextEl = { ...el, toggledOffGroups: next };
+            return { elements: { ...state.elements, [id]: nextEl } };
+        });
+        commitElementsToHistory({
+            kind: 'toggle-group',
+            elementIds: [id],
+            toggleGroup: group,
+            toggleGroupOn: on,
         });
     },
     playAnimation: (elementId) => set((state) => ({

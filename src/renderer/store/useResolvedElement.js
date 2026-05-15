@@ -77,6 +77,26 @@ export const useStateOverrideFields = (elementId) => {
         return EMPTY_STATE_SET;
     return new Set(keys);
 };
+/**
+ * Hook returning the `groupToggle` prop for a section's
+ * property-group eye button. Reads the raw element's
+ * `toggledOffGroups` and exposes a stable `onChange` bound to the
+ * canvas slice action. Element-scoped — independent of the active
+ * breakpoint / state.
+ */
+export const useGroupToggle = (elementId, group) => {
+    const isOn = useCanvasStore((s) => {
+        const el = s.elements[elementId];
+        if (!el)
+            return true;
+        return !el.toggledOffGroups.includes(group);
+    });
+    const togglePropertyGroup = useCanvasStore((s) => s.togglePropertyGroup);
+    return {
+        isOn,
+        onChange: (on) => togglePropertyGroup(elementId, group, on),
+    };
+};
 const EMPTY_KEYS = [];
 const EMPTY_SET = new Set();
 const EMPTY_STATE_KEYS = [];

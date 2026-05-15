@@ -1,4 +1,4 @@
-import type { BoxShadowDef, FilterDef } from './element';
+import type { BoxShadowDef, FilterDef, PropertyGroup } from './element';
 
 /**
  * Default style values applied to every newly-created rectangle.
@@ -52,6 +52,7 @@ export const DEFAULT_RECT_STYLES = {
     | { kind: 'text'; value: string; afterChildIndex: number }
     | { kind: 'jsx'; source: string; afterChildIndex: number }
   >,
+  toggledOffGroups: [] as ReadonlyArray<PropertyGroup>,
 };
 
 export type DefaultRectStyles = typeof DEFAULT_RECT_STYLES;
@@ -125,6 +126,7 @@ export const DEFAULT_ROOT_STYLES = {
     | { kind: 'text'; value: string; afterChildIndex: number }
     | { kind: 'jsx'; source: string; afterChildIndex: number }
   >,
+  toggledOffGroups: [] as ReadonlyArray<PropertyGroup>,
 };
 
 export type DefaultRootStyles = typeof DEFAULT_ROOT_STYLES;

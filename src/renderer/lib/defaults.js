@@ -42,6 +42,7 @@ export const DEFAULT_RECT_STYLES = {
     backdropFilters: [],
     transitions: [],
     inlineFragments: [],
+    toggledOffGroups: [],
 };
 /**
  * Defaults for the page-root element.
@@ -104,4 +105,5 @@ export const DEFAULT_ROOT_STYLES = {
     backdropFilters: [],
     transitions: [],
     inlineFragments: [],
+    toggledOffGroups: [],
 };

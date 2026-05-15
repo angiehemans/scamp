@@ -93,6 +93,14 @@ export const formatHistoryLabel = (entry, elements) => {
             return `Wrapped ${firstName} in <a>`;
         case 'reorder':
             return `Reordered ${firstName}`;
+        case 'toggle-group': {
+            const group = entry.toggleGroup ?? 'group';
+            // Title-case the group label for prose readability:
+            // 'shadow' → 'Shadow', 'blend' → 'Blend'.
+            const label = group.charAt(0).toUpperCase() + group.slice(1);
+            const verb = entry.toggleGroupOn ? 'Showed' : 'Hid';
+            return `${verb} ${label} — ${firstName}`;
+        }
         case 'external-edit':
             return 'External edit detected';
     }

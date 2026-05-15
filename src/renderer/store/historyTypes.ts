@@ -1,4 +1,4 @@
-import type { ScampElement } from '@lib/element';
+import type { PropertyGroup, ScampElement } from '@lib/element';
 
 /**
  * Discriminated taxonomy of canvas mutations the history panel
@@ -25,6 +25,7 @@ export type HistoryActionKind =
   | 'ungroup'
   | 'wrap-link'
   | 'reorder'
+  | 'toggle-group'
   | 'external-edit';
 
 /**
@@ -59,6 +60,11 @@ export type HistoryEntry = {
   previousName?: string;
   /** For `add-page` / `delete-page` / `rename-page`. */
   pageName?: string;
+  /** For `toggle-group`: the group that was flipped and whether
+   *  it's now ON or OFF. Drives the label
+   *  ("Hid Shadow — rect_a1b2" / "Showed Shadow — rect_a1b2"). */
+  toggleGroup?: PropertyGroup;
+  toggleGroupOn?: boolean;
   /** Full elements map after this action committed. */
   snapshot: Record<string, ScampElement>;
 };

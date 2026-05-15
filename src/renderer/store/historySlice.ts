@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ScampElement } from '@lib/element';
+import type { PropertyGroup, ScampElement } from '@lib/element';
 import {
   COALESCE_WINDOW_MS,
   MAX_HISTORY_ENTRIES,
@@ -18,6 +18,8 @@ export type HistoryCommitInput = {
   propertyKeys?: ReadonlyArray<keyof ScampElement>;
   previousName?: string;
   pageName?: string;
+  toggleGroup?: PropertyGroup;
+  toggleGroupOn?: boolean;
 };
 
 /**
@@ -250,6 +252,8 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       propertyKeys: input.propertyKeys,
       previousName: input.previousName,
       pageName: input.pageName,
+      toggleGroup: input.toggleGroup,
+      toggleGroupOn: input.toggleGroupOn,
       snapshot,
     };
     trimmed.push(entry);

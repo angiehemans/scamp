@@ -33,6 +33,7 @@ const makeRoot = (): ScampElement => ({
   boxShadows: [],
   filters: [],
   backdropFilters: [],
+  toggledOffGroups: [],
 });
 
 describe('scaffoldNextjsProject', () => {

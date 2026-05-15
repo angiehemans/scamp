@@ -37,6 +37,7 @@ describe('DEFAULT_RECT_STYLES', () => {
       boxShadows: [],
       filters: [],
       backdropFilters: [],
+      toggledOffGroups: [],
       transitions: [],
       inlineFragments: [],
     });

@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { combineShadowColor, splitShadowColor } from '@lib/parsers';
 import { ColorInput } from '../controls/ColorInput';
 import { NumberInput } from '../controls/NumberInput';
@@ -27,9 +27,12 @@ export const ShadowsSection = ({ elementId }) => {
     const projectColors = useCanvasStore(selectProjectColors);
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+    const groupToggle = useGroupToggle(elementId, 'shadow');
     if (!element)
         return null;
     const shadows = element.boxShadows;
+    // Hide the eye when there are no shadows defined (or already off).
+    const effectiveGroupToggle = shadows.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
     const setShadows = (next) => {
         patchElement(elementId, { boxShadows: next });
     };
@@ -42,7 +45,7 @@ export const ShadowsSection = ({ elementId }) => {
     const addRow = () => {
         setShadows([...shadows, { ...DEFAULT_NEW_SHADOW }]);
     };
-    return (_jsxs(Section, { title: "Shadow", collapsible: true, defaultOpen: shadows.length > 0, elementId: elementId, fields: ['boxShadows'], cssProperties: ['box-shadow'], children: [shadows.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: sectionStyles.rowLabel, "data-testid": "shadows-empty", children: "None" }) })), shadows.map((shadow, idx) => (_jsx(ShadowRow, { index: idx, shadow: shadow, elementId: elementId, onChange: (patch) => updateRow(idx, patch), onRemove: () => removeRow(idx), projectColors: projectColors, themeTokens: themeTokens, onOpenTheme: openThemePanel ?? undefined }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRow, children: "+ Add shadow" }) })] }));
+    return (_jsxs(Section, { title: "Shadow", collapsible: true, defaultOpen: shadows.length > 0, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['boxShadows'], cssProperties: ['box-shadow'], children: [shadows.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: sectionStyles.rowLabel, "data-testid": "shadows-empty", children: "None" }) })), shadows.map((shadow, idx) => (_jsx(ShadowRow, { index: idx, shadow: shadow, elementId: elementId, onChange: (patch) => updateRow(idx, patch), onRemove: () => removeRow(idx), projectColors: projectColors, themeTokens: themeTokens, onOpenTheme: openThemePanel ?? undefined }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRow, children: "+ Add shadow" }) })] }));
 };
 const ShadowRow = ({ index, shadow, elementId, onChange, onRemove, projectColors, themeTokens, onOpenTheme, }) => {
     return (_jsxs("div", { className: styles.shadowRow, children: [_jsxs("div", { className: styles.rowHeader, children: [_jsxs("span", { className: styles.rowTitle, children: ["Shadow ", index + 1, shadow.inset && (_jsx(Tooltip, { label: "Inset shadow \u2014 drawn inside the box", children: _jsx("span", { className: styles.insetIcon, "aria-hidden": "true", children: "\u25E7" }) }))] }), _jsx(Tooltip, { label: "Remove shadow", children: _jsx("button", { type: "button", className: sectionStyles.rowRemoveButton, onClick: onRemove, "aria-label": `Remove shadow ${index + 1}`, children: "\u00D7" }) })] }), _jsx(Row, { label: "", children: _jsx(SegmentedControl, { value: shadow.inset ? 'inset' : 'outset', options: INSET_OPTIONS, onChange: (next) => onChange({ inset: next === 'inset' }), title: "Inset shadows are drawn inside the box rather than around it" }) }), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "X", title: "X offset", value: shadow.offsetX, onChange: (value) => value !== undefined && onChange({ offsetX: value }) }), _jsx(NumberInput, { prefix: "Y", title: "Y offset", value: shadow.offsetY, onChange: (value) => value !== undefined && onChange({ offsetY: value }) })] }), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "B", title: "Blur radius", value: shadow.blur, onChange: (value) => value !== undefined && onChange({ blur: value }), min: 0 }), _jsx(NumberInput, { prefix: "S", title: "Spread radius", value: shadow.spread, onChange: (value) => value !== undefined && onChange({ spread: value }) })] }), _jsx(Row, { label: "", children: _jsx(ShadowColorRow, { color: shadow.color, elementId: elementId, onChange: (color) => onChange({ color }), projectColors: projectColors, themeTokens: themeTokens, onOpenTheme: onOpenTheme }) })] }));

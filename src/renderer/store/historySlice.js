@@ -121,6 +121,8 @@ export const useHistoryStore = create((set, get) => ({
             propertyKeys: input.propertyKeys,
             previousName: input.previousName,
             pageName: input.pageName,
+            toggleGroup: input.toggleGroup,
+            toggleGroupOn: input.toggleGroupOn,
             snapshot,
         };
         trimmed.push(entry);

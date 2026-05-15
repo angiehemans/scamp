@@ -50,6 +50,7 @@ const makeRoot = (childIds: string[] = []): ScampElement => ({
   boxShadows: [],
   filters: [],
   backdropFilters: [],
+  toggledOffGroups: [],
   transitions: [],
   inlineFragments: [],
   customProperties: {},
@@ -302,6 +303,7 @@ describe('filter: state overrides', () => {
         stateOverrides: {
           hover: {
             backdropFilters: [],
+            toggledOffGroups: [],
           },
         },
       }),

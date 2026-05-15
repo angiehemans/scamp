@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useMemo, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
@@ -44,9 +44,12 @@ export const TransitionsSection = ({ elementId }) => {
     // is always canonical ms; the unit is just a UI affordance for typing
     // shorter numbers when the user is working in seconds.
     const [unitState, setUnitState] = useState({});
+    const groupToggle = useGroupToggle(elementId, 'transitions');
     if (!element)
         return null;
     const transitions = element.transitions;
+    // Hide the eye when no transitions are defined (or already off).
+    const effectiveGroupToggle = transitions.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
     const setTransitions = (next) => {
         patchElement(elementId, { transitions: next });
     };
@@ -75,7 +78,7 @@ export const TransitionsSection = ({ elementId }) => {
         };
         setTransitions([...transitions, seed]);
     };
-    return (_jsxs(Section, { title: "Transitions", collapsible: true, defaultOpen: transitions.length > 0, elementId: elementId, fields: ['transitions'], cssProperties: ['transition'], children: [transitions.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: sectionStyles.rowLabel, "data-testid": "transitions-empty", children: "None" }) })), transitions.map((t, idx) => (_jsx(TransitionRow, { transition: t, unit: unitFor(idx), onChange: (patch) => updateRow(idx, patch), onUnitChange: (axis, unit) => setUnit(idx, axis, unit), onRemove: () => removeRow(idx) }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRow, children: "+ Add transition" }) })] }));
+    return (_jsxs(Section, { title: "Transitions", collapsible: true, defaultOpen: transitions.length > 0, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['transitions'], cssProperties: ['transition'], children: [transitions.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: sectionStyles.rowLabel, "data-testid": "transitions-empty", children: "None" }) })), transitions.map((t, idx) => (_jsx(TransitionRow, { transition: t, unit: unitFor(idx), onChange: (patch) => updateRow(idx, patch), onUnitChange: (axis, unit) => setUnit(idx, axis, unit), onRemove: () => removeRow(idx) }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRow, children: "+ Add transition" }) })] }));
 };
 const TransitionRow = ({ transition, unit, onChange, onUnitChange, onRemove, }) => {
     // Detect whether the stored easing is a named keyword or a custom

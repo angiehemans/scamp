@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { FilterDef, FilterKind } from '@lib/element';
 import {
   FILTER_DEFAULTS,
@@ -50,10 +50,16 @@ const KIND_TOOLTIPS: Record<FilterKind, string> = {
 export const FiltersSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
+  const groupToggle = useGroupToggle(elementId, 'filters');
   if (!element) return null;
 
   const filters: ReadonlyArray<FilterDef> = element.filters;
   const backdropFilters: ReadonlyArray<FilterDef> = element.backdropFilters;
+  // Hide the eye when no filters are defined (or already off).
+  const effectiveGroupToggle =
+    filters.length > 0 || backdropFilters.length > 0 || !groupToggle.isOn
+      ? groupToggle
+      : undefined;
 
   // The backdrop subsection is gated behind a session-local toggle so
   // the common case stays compact. Once the user adds a row the
@@ -107,6 +113,7 @@ export const FiltersSection = ({ elementId }: Props): JSX.Element | null => {
       collapsible
       defaultOpen={filters.length > 0 || backdropFilters.length > 0}
       elementId={elementId}
+      groupToggle={effectiveGroupToggle}
       fields={['filters', 'backdropFilters']}
       cssProperties={['filter', 'backdrop-filter']}
     >

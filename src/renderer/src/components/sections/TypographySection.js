@@ -2,7 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useMemo } from 'react';
 import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { classifyToken } from '@lib/tokenClassify';
 import { ColorInput } from '../controls/ColorInput';
@@ -38,9 +38,21 @@ export const TypographySection = ({ elementId }) => {
     const lineHeightTokens = useMemo(() => themeTokens.filter((t) => classifyToken(t.value) === 'lineHeight'), [themeTokens]);
     const fontFamilyTokens = useMemo(() => themeTokens.filter((t) => classifyToken(t.value) === 'fontFamily'), [themeTokens]);
     const letterSpacingTokens = fontSizeTokens; // lengths work for both
+    const groupToggle = useGroupToggle(elementId, 'typography');
     if (!element || element.type !== 'text')
         return null;
-    return (_jsxs(Section, { title: "Typography", elementId: elementId, fields: [
+    // Hide the eye when none of the typed typography fields are set
+    // (and the group isn't already off — leave it visible so the
+    // user can toggle back on).
+    const hasTypographyContent = element.fontFamily !== undefined ||
+        element.fontSize !== undefined ||
+        element.fontWeight !== undefined ||
+        element.color !== undefined ||
+        element.textAlign !== undefined ||
+        element.lineHeight !== undefined ||
+        element.letterSpacing !== undefined;
+    const effectiveGroupToggle = hasTypographyContent || !groupToggle.isOn ? groupToggle : undefined;
+    return (_jsxs(Section, { title: "Typography", elementId: elementId, groupToggle: effectiveGroupToggle, fields: [
             'fontFamily',
             'fontSize',
             'fontWeight',

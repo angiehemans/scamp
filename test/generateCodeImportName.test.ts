@@ -43,6 +43,7 @@ const makeRoot = (): ScampElement => ({
   boxShadows: [],
   filters: [],
   backdropFilters: [],
+  toggledOffGroups: [],
   transitions: [],
   inlineFragments: [],
   customProperties: {},

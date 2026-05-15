@@ -1,5 +1,5 @@
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
-import { useResolvedElement } from '@store/useResolvedElement';
+import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { BoxShadowDef } from '@lib/element';
 import { combineShadowColor, splitShadowColor } from '@lib/parsers';
 import type { ThemeToken } from '@shared/types';
@@ -37,9 +37,13 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
   const projectColors = useCanvasStore(selectProjectColors);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+  const groupToggle = useGroupToggle(elementId, 'shadow');
   if (!element) return null;
 
   const shadows: ReadonlyArray<BoxShadowDef> = element.boxShadows;
+  // Hide the eye when there are no shadows defined (or already off).
+  const effectiveGroupToggle =
+    shadows.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
 
   const setShadows = (next: ReadonlyArray<BoxShadowDef>): void => {
     patchElement(elementId, { boxShadows: next });
@@ -63,6 +67,7 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
       collapsible
       defaultOpen={shadows.length > 0}
       elementId={elementId}
+      groupToggle={effectiveGroupToggle}
       fields={['boxShadows']}
       cssProperties={['box-shadow']}
     >

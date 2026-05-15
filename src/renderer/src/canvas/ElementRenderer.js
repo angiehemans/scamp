@@ -1,12 +1,13 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { createElement, useEffect, useRef, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { ROOT_ELEMENT_ID } from '@lib/element';
+import { ROOT_ELEMENT_ID, } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, } from '@lib/parsers';
 import { customPropsToStyle } from '@lib/customProps';
+import { CUSTOM_PROP_TO_GROUP } from '@lib/propertyGroups';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
@@ -145,6 +146,15 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
             effectiveHeight = undefined;
         }
     }
+    // Element-scoped property-group toggles. When a group is off,
+    // the renderer skips writing its styles so the canvas matches the
+    // generator (which emits the same decls inside a comment block).
+    // `transitions` and `animation` aren't applied to the typed style
+    // here (transitions only matter mid-state-change, animation is
+    // gated below on the preview path), so the relevant guards live
+    // alongside those branches.
+    const offGroups = new Set(el.toggledOffGroups);
+    const isOff = (g) => offGroups.has(g);
     const base = {
         // Flex children render as `position: relative` so they remain a
         // positioning context for their own `position: absolute` descendants
@@ -186,7 +196,11 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
         // need to set `min-height: 100vh` themselves.
         minHeight: isRoot ? `${EMPTY_FRAME_MIN_HEIGHT}px` : undefined,
         ...flexProps,
-        background: resolveTokenColor(el.backgroundColor, tokens),
+        // `background` lives in the background group; `border-radius`
+        // is a sizing/shape concern that doesn't get a toggle.
+        background: isOff('background')
+            ? undefined
+            : resolveTokenColor(el.backgroundColor, tokens),
         borderRadius: `${el.borderRadius[0]}px ${el.borderRadius[1]}px ${el.borderRadius[2]}px ${el.borderRadius[3]}px`,
         boxSizing: 'border-box',
         // Reset browser-default margins on semantic text tags (h1, p, etc.)
@@ -194,7 +208,7 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
         margin: 0,
     };
     const [bwt, bwr, bwb, bwl] = el.borderWidth;
-    if (el.borderStyle !== 'none' && (bwt || bwr || bwb || bwl)) {
+    if (!isOff('border') && el.borderStyle !== 'none' && (bwt || bwr || bwb || bwl)) {
         base.borderWidth = `${bwt}px ${bwr}px ${bwb}px ${bwl}px`;
         base.borderStyle = el.borderStyle;
         base.borderColor = resolveTokenColor(el.borderColor, tokens);
@@ -240,7 +254,7 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
     if (mt || mr || mb || ml) {
         base.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
     }
-    if (el.type === 'text') {
+    if (el.type === 'text' && !isOff('typography')) {
         if (el.fontFamily !== undefined)
             base.fontFamily = resolveTokenValue(el.fontFamily, tokens);
         if (el.fontSize !== undefined)
@@ -278,25 +292,29 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
     // Box shadows are stored as a typed list; format the shorthand the
     // same way the generator does so the canvas matches the file output.
     // Empty list → no declaration (browser default).
-    if (el.boxShadows.length > 0) {
+    if (!isOff('shadow') && el.boxShadows.length > 0) {
         base.boxShadow = formatBoxShadowShorthand(el.boxShadows);
     }
     // Blend modes — only apply when non-default so we don't fight with
     // browser inheritance for elements that haven't been touched.
-    if (el.mixBlendMode !== 'normal') {
-        base.mixBlendMode = el.mixBlendMode;
-    }
-    if (el.backgroundBlendMode !== 'normal') {
-        base.backgroundBlendMode = el.backgroundBlendMode;
+    if (!isOff('blend')) {
+        if (el.mixBlendMode !== 'normal') {
+            base.mixBlendMode = el.mixBlendMode;
+        }
+        if (el.backgroundBlendMode !== 'normal') {
+            base.backgroundBlendMode = el.backgroundBlendMode;
+        }
     }
     // Filters / backdrop-filter — same pattern as box-shadow: format
     // the typed list so the canvas matches the file output. Empty list
     // → no declaration (browser default).
-    if (el.filters.length > 0) {
-        base.filter = formatFilterList(el.filters);
-    }
-    if (el.backdropFilters.length > 0) {
-        base.backdropFilter = formatFilterList(el.backdropFilters);
+    if (!isOff('filters')) {
+        if (el.filters.length > 0) {
+            base.filter = formatFilterList(el.filters);
+        }
+        if (el.backdropFilters.length > 0) {
+            base.backdropFilter = formatFilterList(el.backdropFilters);
+        }
     }
     // Spread customProperties LAST so unmapped CSS the user / agent
     // wrote (box-shadow, line-height, font-family, margin, …) actually
@@ -306,7 +324,17 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
     // `margin: 0` we apply earlier IS overridable here, which is what
     // we want: a user-written `margin-bottom: 8px` should win over the
     // browser-default-reset.
-    const customStyle = customPropsToStyle(el.customProperties);
+    // Filter group-owned customProperties (e.g. `background-image`,
+    // `background-size`) when their group is toggled off so the canvas
+    // matches the generator's commented-out output.
+    const filteredCustomProperties = {};
+    for (const [key, value] of Object.entries(el.customProperties)) {
+        const owningGroup = CUSTOM_PROP_TO_GROUP[key];
+        if (owningGroup && isOff(owningGroup))
+            continue;
+        filteredCustomProperties[key] = value;
+    }
+    const customStyle = customPropsToStyle(filteredCustomProperties);
     // Resolve relative `url("./...")` references in custom properties to
     // absolute `scamp-asset://` URLs so background-image etc. load correctly
     // on the canvas preview.
@@ -435,7 +463,8 @@ export const ElementRenderer = ({ elementId }) => {
     // each Play click so the animation re-runs from the top.
     if (previewAnimation !== null &&
         element.animation &&
-        element.animation.playState !== 'paused') {
+        element.animation.playState !== 'paused' &&
+        !element.toggledOffGroups.includes('animation')) {
         style = {
             ...style,
             animation: formatAnimationShorthand({

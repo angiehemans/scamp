@@ -11,8 +11,10 @@ import {
   type ElementAnimation,
   type ElementStateName,
   type KeyframesBlock,
+  type PropertyGroup,
   type ScampElement,
 } from '@lib/element';
+import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore, type HistoryCommitInput } from './historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { classNameFor } from '@lib/generateCode';
@@ -406,6 +408,19 @@ type CanvasState = {
    * an automatic side effect.
    */
   removeAnimation: (elementId: string) => void;
+  /**
+   * Toggle a CSS-property group OFF or ON for an element. When
+   * OFF, the canvas renders as if the group's typed fields
+   * weren't set, and `generateCode` emits them as a labelled
+   * comment block. The typed values are preserved — toggling
+   * back ON restores them. Element-scoped: applies across all
+   * per-state and per-breakpoint overrides.
+   */
+  togglePropertyGroup: (
+    elementId: string,
+    group: PropertyGroup,
+    on: boolean
+  ) => void;
   /**
    * Trigger a one-shot canvas preview of the element's animation.
    * Renders with a fresh React `key` so the animation plays from
@@ -1400,6 +1415,32 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       kind: 'patch',
       elementIds: [id],
       propertyKeys: ['animation'],
+    });
+  },
+
+  togglePropertyGroup: (id, group, on) => {
+    set((state) => {
+      const el = state.elements[id];
+      if (!el) return state;
+      // Compute the next list. ON means "remove the group from
+      // toggledOffGroups"; OFF means "add it (if absent)".
+      // `canonicalizeGroupList` sorts + dedupes so two paths to
+      // the same logical state produce the same on-disk text.
+      const current = el.toggledOffGroups;
+      const isCurrentlyOff = current.includes(group);
+      if (on && !isCurrentlyOff) return state; // already on
+      if (!on && isCurrentlyOff) return state; // already off
+      const next: ReadonlyArray<PropertyGroup> = on
+        ? canonicalizeGroupList(current.filter((g) => g !== group))
+        : canonicalizeGroupList([...current, group]);
+      const nextEl: ScampElement = { ...el, toggledOffGroups: next };
+      return { elements: { ...state.elements, [id]: nextEl } };
+    });
+    commitElementsToHistory({
+      kind: 'toggle-group',
+      elementIds: [id],
+      toggleGroup: group,
+      toggleGroupOn: on,
     });
   },
 

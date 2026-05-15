@@ -3,6 +3,7 @@ import postcss from 'postcss';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
 import { cssToScampProperty, isMappedProperty } from './cssPropertyMap';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID, } from './element';
+import { canonicalizeGroupList, isPropertyGroup, } from './propertyGroups';
 import { parseAnimationShorthand, parsePx } from './parsers';
 import { matchesPreset } from './keyframesMatch';
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID, } from '@shared/types';
@@ -64,6 +65,100 @@ const stripLegacyRootSizing = (decls) => {
     }
     const stripped = decls.filter((_, i) => i !== widthIdx && i !== minHeightIdx && i !== positionIdx);
     return { decls: stripped, migrated: true };
+};
+/**
+ * Match a `<group> off` comment-body string (already trimmed and
+ * lower-cased) and return the corresponding `PropertyGroup` when
+ * the word before `off` is a known group name. Whitespace around
+ * the word is tolerated, but the comment text must contain only
+ * the label — anything else (e.g. trailing decls) refuses.
+ */
+const matchGroupLabel = (text) => {
+    const match = text.trim().toLowerCase().match(/^([a-z]+)\s+off$/);
+    if (!match)
+        return null;
+    const candidate = match[1];
+    if (!candidate || !isPropertyGroup(candidate))
+        return null;
+    return candidate;
+};
+/**
+ * Parse a comment body that LOOKS like a CSS declaration —
+ * `<prop>: <value>` (trailing `;` optional) — into a typed
+ * `RawDeclaration`. Used inside a toggled-off group block to
+ * recover the commented-out typed state. Returns null when the
+ * comment isn't shaped like a declaration (e.g. just notes or
+ * the group label itself).
+ */
+const parseCommentAsDeclaration = (text) => {
+    const trimmed = text.trim();
+    // Strip a single trailing `;` if present (the generator emits
+    // them; agents may or may not).
+    const stripped = trimmed.endsWith(';')
+        ? trimmed.slice(0, -1).trimEnd()
+        : trimmed;
+    const colonIdx = stripped.indexOf(':');
+    if (colonIdx < 1)
+        return null;
+    const prop = stripped.slice(0, colonIdx).trim();
+    const value = stripped.slice(colonIdx + 1).trim();
+    if (prop.length === 0 || value.length === 0)
+        return null;
+    // CSS property names: letters / digits / dashes, starting with
+    // a letter or dash. Rejects free-form prose so we don't try to
+    // route arbitrary text comments through cssPropertyMap.
+    if (!/^[a-zA-Z-][a-zA-Z0-9-]*$/.test(prop))
+        return null;
+    return { prop, value };
+};
+/**
+ * Walk a rule's nodes manually, collecting both active
+ * declarations (`decl`) and commented-out toggled-off-group
+ * blocks (`comment` nodes interleaved with the active decls).
+ *
+ * A `<group> off` label comment (e.g. `shadow off`) opens
+ * capture mode for the named group; subsequent `comment` nodes
+ * inside the same rule whose bodies parse as `prop: value` get
+ * added to `decls` as if active — so the typed values inside
+ * the comment block are preserved for round-trip. Toggling the
+ * group back ON via the panel promotes them to active
+ * declarations.
+ *
+ * The `toggledOff` array accumulates the group names seen in
+ * labels (sorted + deduped by the caller). Element-scoped: a
+ * label in any of the element's blocks (base, breakpoint, state)
+ * adds the group to the element's `toggledOffGroups`.
+ */
+const collectRuleNodes = (rule) => {
+    const decls = [];
+    const toggledOff = [];
+    let captureGroup = null;
+    for (const child of rule.nodes ?? []) {
+        if (child.type === 'comment') {
+            const text = child.text;
+            const label = matchGroupLabel(text);
+            if (label) {
+                captureGroup = label;
+                if (!toggledOff.includes(label))
+                    toggledOff.push(label);
+                continue;
+            }
+            if (captureGroup) {
+                const decl = parseCommentAsDeclaration(text);
+                if (decl)
+                    decls.push(decl);
+            }
+            continue;
+        }
+        if (child.type === 'decl') {
+            // Any real declaration ends the capture mode — a commented
+            // block is a contiguous run terminated by the next active
+            // line.
+            captureGroup = null;
+            decls.push({ prop: child.prop, value: child.value });
+        }
+    }
+    return { decls, toggledOff };
 };
 const CLASS_NAME_RE = /\{?\s*styles\.([A-Za-z_][A-Za-z0-9_]*)\s*\}?/;
 /**
@@ -411,6 +506,14 @@ const parseCssDeclarations = (css, breakpoints) => {
     const rawByClass = new Map();
     const customMediaBlocks = [];
     const keyframesBlocks = [];
+    const toggledOffByClass = new Map();
+    /** Merge a freshly-parsed `toggledOff` list into the union map. */
+    const mergeToggledOff = (className, groups) => {
+        if (groups.length === 0)
+            return;
+        const existing = toggledOffByClass.get(className) ?? [];
+        toggledOffByClass.set(className, canonicalizeGroupList([...existing, ...groups]));
+    };
     let root;
     try {
         root = postcss.parse(css);
@@ -423,6 +526,7 @@ const parseCssDeclarations = (css, breakpoints) => {
             rawByClass,
             customMediaBlocks,
             keyframesBlocks,
+            toggledOffByClass,
         };
     }
     // Walk top-level rules first — these are the base class blocks
@@ -449,10 +553,8 @@ const parseCssDeclarations = (css, breakpoints) => {
             rawByClass.set(classification.className, list);
             continue;
         }
-        const decls = [];
-        node.walkDecls((decl) => {
-            decls.push({ prop: decl.prop, value: decl.value });
-        });
+        const { decls, toggledOff } = collectRuleNodes(node);
+        mergeToggledOff(classification.className, toggledOff);
         if (classification.kind === 'base') {
             byClass.set(classification.className, decls);
         }
@@ -532,16 +634,18 @@ const parseCssDeclarations = (css, breakpoints) => {
             customMediaBlocks.push(node.toString());
             continue;
         }
-        // Extract per-class declarations inside this @media.
+        // Extract per-class declarations inside this @media. Same
+        // toggled-off-group treatment as the base/state walk: a
+        // label inside a breakpoint scope counts toward the
+        // element-level `toggledOffGroups`, and commented decls
+        // inside parse into the breakpoint's typed override.
         const bucket = byBreakpoint.get(bpId) ?? new Map();
         node.walkRules((rule) => {
             const c = classifyClassSelector(rule.selector.trim());
             if (c === null || c.kind !== 'base')
                 return;
-            const decls = [];
-            rule.walkDecls((decl) => {
-                decls.push({ prop: decl.prop, value: decl.value });
-            });
+            const { decls, toggledOff } = collectRuleNodes(rule);
+            mergeToggledOff(c.className, toggledOff);
             bucket.set(c.className, decls);
         });
         byBreakpoint.set(bpId, bucket);
@@ -553,6 +657,7 @@ const parseCssDeclarations = (css, breakpoints) => {
         rawByClass,
         customMediaBlocks,
         keyframesBlocks,
+        toggledOffByClass,
     };
 };
 /**
@@ -877,6 +982,17 @@ export const parseCode = (tsx, css, options) => {
             finalElement = {
                 ...finalElement,
                 customSelectorBlocks: rawBlocks,
+            };
+        }
+        // Element-scoped property-group toggles. Any group labelled as
+        // off in any rule (base / state / breakpoint) is treated as off
+        // for the whole element — same surface the user toggles in the
+        // panel. `toggledOffByClass` is already canonicalised.
+        const toggledOff = parsedCss.toggledOffByClass.get(raw.className);
+        if (toggledOff && toggledOff.length > 0) {
+            finalElement = {
+                ...finalElement,
+                toggledOffGroups: toggledOff,
             };
         }
         elements[raw.id] = finalElement;

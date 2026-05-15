@@ -280,3 +280,31 @@ it('round-trips cleanly: generateCode → parseCode reproduces original state', 
 - Don't add a dependency for something achievable in ~20 lines of TypeScript
 - Don't build WYSIWYG controls (color pickers, sliders, dropdowns) — that is post-POC scope
 - Don't put canvas or page state in React component state — it belongs in Zustand
+
+---
+
+## `.js` shim regen — never with the dev server running
+
+`src/renderer/**` and `src/main/**` each have committed `.js` + `.d.ts`
+shims paired with every `.ts` / `.tsx` source file. Vite's default
+resolution order prefers `.js` over `.ts`, so the dev server and
+Vitest both read the shim, not the source — which means **edits to
+a `.ts` file don't take effect until the shim is regenerated** via
+`npx tsc --build tsconfig.web.json --force`.
+
+**Never run that regen while `npm run dev` is running.** The shim
+files get rewritten while HMR is watching them, which reloads
+`parseCode` / `generateCode` / store modules mid-session. The
+canvas in-memory state for any currently-open project gets dropped
+to empty. The on-disk project files are NOT touched — recovery is
+just force-quit and reopen — but it's still alarming and a real
+risk if the user happens to save during the reload window.
+
+Rules:
+- Stop the dev server before `tsc --build`.
+- If you edit a `.ts` in `src/renderer/lib/` or `src/renderer/store/`
+  and intend to test in the running app (not just via Vitest),
+  warn the user and ask them to stop the dev server first.
+- Vitest CAN read the stale shim too — if a test passes against
+  the old behaviour after a `.ts` edit, regen the shim before
+  trusting the result.
