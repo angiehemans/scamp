@@ -9,6 +9,11 @@ export const IPC = {
   ProjectOpen: 'project:open',
   ProjectRead: 'project:read',
   ProjectMigrate: 'project:migrate',
+  // Fired by the file watcher when a page-file appears or
+  // disappears externally (agent / editor / file manager).
+  // The renderer reacts by re-reading the project's pages
+  // list so the page navigator reflects on-disk reality.
+  ProjectPagesChanged: 'project:pagesChanged',
 
   // File operations
   FileWrite: 'file:write',

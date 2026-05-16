@@ -61,12 +61,42 @@ export const watchProject = async (folderPath: string): Promise<void> => {
     },
   });
 
-  const handle = (changedPath: string): void => {
+  const handleChange = (changedPath: string): void => {
     void emitChange(changedPath);
   };
 
-  watcher.on('add', handle);
-  watcher.on('change', handle);
+  // `add` and `unlink` may indicate a new / removed page. Run the
+  // same `emitChange` logic (so the renderer's syncBridge sees a
+  // `file:changed` event for the active page when it gets
+  // recreated) AND broadcast a separate `project:pages-changed`
+  // event so the page navigator refreshes its list.
+  //
+  // We don't try to distinguish in-app writes from external ones —
+  // the renderer re-reads the project on this event and compares
+  // page-name sets, so a no-op refresh is harmless. The pending
+  // write tracker still suppresses `file:changed` for the
+  // renderer's own page saves.
+  const handleAddOrUnlink = (changedPath: string): void => {
+    void emitChange(changedPath);
+    maybeNotifyPagesChanged(changedPath);
+  };
+
+  watcher.on('add', handleAddOrUnlink);
+  watcher.on('unlink', handleAddOrUnlink);
+  watcher.on('change', handleChange);
+};
+
+/**
+ * Page files always end in `.tsx` or `.module.css`. Filter here
+ * so the renderer isn't woken up for unrelated file system noise
+ * (config edits, log files, etc.).
+ */
+const maybeNotifyPagesChanged = (changedPath: string): void => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const isTsx = extname(changedPath) === '.tsx';
+  const isCss = changedPath.endsWith('.module.css');
+  if (!isTsx && !isCss) return;
+  mainWindow.webContents.send(IPC.ProjectPagesChanged);
 };
 
 export const registerPendingWrite = (

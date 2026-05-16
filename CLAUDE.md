@@ -285,12 +285,22 @@ it('round-trips cleanly: generateCode → parseCode reproduces original state', 
 
 ## `.js` shim regen — never with the dev server running
 
-`src/renderer/**` and `src/main/**` each have committed `.js` + `.d.ts`
-shims paired with every `.ts` / `.tsx` source file. Vite's default
-resolution order prefers `.js` over `.ts`, so the dev server and
-Vitest both read the shim, not the source — which means **edits to
-a `.ts` file don't take effect until the shim is regenerated** via
-`npx tsc --build tsconfig.web.json --force`.
+`src/renderer/**`, `src/main/**`, `src/preload/**`, and `src/shared/**`
+each have committed `.js` + `.d.ts` shims paired with every `.ts` /
+`.tsx` source file. Vite's default resolution order prefers `.js`
+over `.ts`, so the dev server (renderer + main + preload) and
+Vitest all read the shim, not the source — which means **edits
+to a `.ts` file don't take effect until the shim is regenerated.**
+
+There are two projects, one per side:
+- Renderer + shared: `npx tsc --build tsconfig.web.json --force`
+- Main + preload + shared: `npx tsc --build tsconfig.node.json --force`
+
+Run BOTH after editing files that span sides (e.g. an IPC channel
+constant in `src/shared/` plus a new handler in `src/main/` plus a
+listener in `src/renderer/`). Forgetting the main-side regen
+silently leaves the main process running the old watcher / IPC
+handlers even though the renderer has the new code.
 
 **Never run that regen while `npm run dev` is running.** The shim
 files get rewritten while HMR is watching them, which reloads

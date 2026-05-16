@@ -8,6 +8,7 @@ export declare const IPC: {
     readonly ProjectOpen: "project:open";
     readonly ProjectRead: "project:read";
     readonly ProjectMigrate: "project:migrate";
+    readonly ProjectPagesChanged: "project:pagesChanged";
     readonly FileWrite: "file:write";
     readonly FilePatch: "file:patch";
     readonly FileChanged: "file:changed";

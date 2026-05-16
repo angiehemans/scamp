@@ -41,6 +41,69 @@ export const App = () => {
     useEffect(() => {
         return initSyncBridge();
     }, []);
+    // When the file watcher reports that a page-file appeared or
+    // disappeared on disk (agent created a page, user dropped a
+    // file in the folder, etc.), re-read the project and update
+    // the navigator. The handler keys off the latest project state
+    // via the functional setProject so it stays correct across
+    // re-mounts without needing `project` in the dependency array
+    // (which would otherwise re-subscribe on every project change).
+    useEffect(() => {
+        const off = window.scamp.onProjectPagesChanged(() => {
+            setProject((current) => {
+                if (!current)
+                    return current;
+                void (async () => {
+                    try {
+                        const next = await window.scamp.readProject({
+                            folderPath: current.path,
+                        });
+                        setProject((latest) => {
+                            if (!latest)
+                                return latest;
+                            // Preserve the old page object references for any
+                            // page whose content hasn't changed. ProjectShell's
+                            // page-load useEffect uses `project.pages` as a
+                            // dep; without this preservation, every chokidar
+                            // event on any file would re-create the active
+                            // page object and re-fire `loadPage`, racing with
+                            // any in-flight debounced save and tripping the
+                            // 2s ack watchdog.
+                            const byName = new Map(latest.pages.map((p) => [p.name, p]));
+                            const mergedPages = next.pages.map((np) => {
+                                const old = byName.get(np.name);
+                                if (old &&
+                                    old.tsxContent === np.tsxContent &&
+                                    old.cssContent === np.cssContent &&
+                                    old.tsxPath === np.tsxPath &&
+                                    old.cssPath === np.cssPath) {
+                                    return old;
+                                }
+                                return np;
+                            });
+                            // Skip the state update entirely when the page-set
+                            // and every page's content match — re-reads from
+                            // the renderer's own page-save chokidar events
+                            // hit this branch and never touch React state.
+                            const same = mergedPages.length === latest.pages.length &&
+                                mergedPages.every((p, i) => p === latest.pages[i]);
+                            if (same)
+                                return latest;
+                            return { ...next, pages: mergedPages };
+                        });
+                    }
+                    catch {
+                        // Read failed — most likely the project folder was
+                        // moved or deleted while open. Leave the current
+                        // state alone; the next user action will surface a
+                        // clearer error.
+                    }
+                })();
+                return current;
+            });
+        });
+        return off;
+    }, []);
     // Warm the system-font list on app start. The call is cheap on a
     // warm session and falls back to a baseline list if the Local Font
     // Access API isn't available.

@@ -49,6 +49,11 @@ const api = {
         ipcRenderer.on(IPC.FileChanged, listener);
         return () => ipcRenderer.removeListener(IPC.FileChanged, listener);
     },
+    onProjectPagesChanged: (handler) => {
+        const listener = () => handler();
+        ipcRenderer.on(IPC.ProjectPagesChanged, listener);
+        return () => ipcRenderer.removeListener(IPC.ProjectPagesChanged, listener);
+    },
     onFileWriteAck: (handler) => {
         const listener = (_e, payload) => handler(payload);
         ipcRenderer.on(IPC.FileWriteAck, listener);

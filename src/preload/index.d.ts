@@ -47,6 +47,7 @@ declare const api: {
     readProjectConfig: (args: ProjectConfigReadArgs) => Promise<ProjectConfig>;
     writeProjectConfig: (args: ProjectConfigWriteArgs) => Promise<ProjectConfig>;
     onFileChanged: (handler: (payload: FileChangedPayload) => void) => (() => void);
+    onProjectPagesChanged: (handler: () => void) => (() => void);
     onFileWriteAck: (handler: (payload: FileWriteAckPayload) => void) => (() => void);
     copyImage: (args: CopyImageArgs) => Promise<CopyImageResult>;
     chooseImage: (args?: ChooseImageArgs) => Promise<ChooseImageResult>;
