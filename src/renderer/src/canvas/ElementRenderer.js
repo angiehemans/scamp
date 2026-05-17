@@ -8,6 +8,7 @@ import { resolveElementAtState } from '@lib/stateCascade';
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, } from '@lib/parsers';
 import { customPropsToStyle } from '@lib/customProps';
 import { CUSTOM_PROP_TO_GROUP } from '@lib/propertyGroups';
+import { getTagDefaultPadding, paddingEquals } from '@lib/tagDefaults';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
@@ -246,8 +247,20 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
         if (el.justifySelf !== 'stretch')
             base.justifySelf = el.justifySelf;
     }
-    const [pt, pr, pb, pl] = el.padding;
-    if (pt || pr || pb || pl) {
+    // Apply an inline `padding` override only when the typed
+    // padding differs from the tag's effective default. For most
+    // tags that default is `[0,0,0,0]` and we skip the inline
+    // style, letting the browser's UA rules apply (which are also
+    // zero). For UA-padded tags (`<ul>`, `<ol>`, `<dd>`) the
+    // typed default is `[0,0,0,40]` — matching the UA's
+    // `padding-inline-start: 40px` — so we still skip the inline
+    // style and let the browser render its 40px naturally. A user
+    // value that differs from the tag default (e.g. zero padding
+    // on a `<ul>`) emits the inline override so the canvas reads
+    // 0 and matches the generated CSS file.
+    const tagPaddingDefault = getTagDefaultPadding(tagFor(el));
+    if (!paddingEquals(el.padding, tagPaddingDefault)) {
+        const [pt, pr, pb, pl] = el.padding;
         base.padding = `${pt}px ${pr}px ${pb}px ${pl}px`;
     }
     const [mt, mr, mb, ml] = el.margin;

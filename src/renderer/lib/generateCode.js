@@ -1,4 +1,5 @@
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
+import { getTagDefaultPadding, paddingEquals } from './tagDefaults';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID, slugifyName, } from './element';
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, formatTransitionShorthand, } from './parsers';
 import { CUSTOM_PROP_TO_GROUP } from './propertyGroups';
@@ -358,9 +359,16 @@ export const elementDeclarationLines = (el, parent) => {
             lines.push(`justify-self: ${el.justifySelf};`);
         }
     }
-    // Padding (only when any side is non-zero)
-    const [pt, pr, pb, pl] = el.padding;
-    if (pt || pr || pb || pl) {
+    // Padding — emit when it differs from the tag's effective
+    // default. For most tags that's `[0,0,0,0]`, so we omit when
+    // every side is zero. For UA-padded tags (`<ul>`, `<ol>`,
+    // `<dd>`) the effective default is `[0,0,0,40]`; an explicit
+    // `[0,0,0,0]` on those tags is a user override of the UA
+    // padding-inline-start and MUST emit, otherwise the file
+    // re-renders with the browser's 40px back in place.
+    const tagPaddingDefault = getTagDefaultPadding(tagFor(el));
+    if (!paddingEquals(el.padding, tagPaddingDefault)) {
+        const [pt, pr, pb, pl] = el.padding;
         lines.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
     }
     // Margin — skipped on root because the page frame doesn't sit inside

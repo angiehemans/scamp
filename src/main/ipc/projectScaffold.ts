@@ -4,6 +4,7 @@ import type { PageFile, ProjectFormat } from '@shared/types';
 import {
   AGENT_MD_CONTENT,
   AGENT_MD_CONTENT_LEGACY,
+  CLAUDE_MD_CONTENT,
   DEFAULT_NEXT_CONFIG_TS,
   DEFAULT_PAGE_CSS,
   DEFAULT_THEME_CSS,
@@ -136,6 +137,11 @@ export const scaffoldNextjsProject = async (
     'utf-8'
   );
   await fs.writeFile(
+    join(projectPath, 'CLAUDE.md'),
+    CLAUDE_MD_CONTENT,
+    'utf-8'
+  );
+  await fs.writeFile(
     join(projectPath, 'package.json'),
     defaultPackageJson(projectName),
     'utf-8'
@@ -210,6 +216,49 @@ export const refreshLayoutTemplateIfNeeded = async (
 };
 
 /**
+ * Refresh \`agent.md\` AND its Claude Code loader \`CLAUDE.md\` to the
+ * latest Scamp-shipped templates whenever the on-disk content
+ * differs. Both files are fully Scamp-managed — \`agent.md\` is the
+ * canonical agent instructions, \`CLAUDE.md\` is a tiny stub that
+ * uses Claude Code's \`@./agent.md\` import syntax so sessions
+ * auto-load the guidance on start. The managed-file marker at the
+ * top of each template flags that hand-edits won't survive.
+ *
+ * Refreshing on open means new Scamp releases ship updated agent
+ * guidance to every project on the next open without the user
+ * having to think about it.
+ *
+ * Missing file → write it. Content matches latest → no-op. Anything
+ * else → overwrite. The compare-first check skips the chokidar
+ * event when there's no actual change.
+ */
+export const refreshAgentMdIfNeeded = async (
+  projectPath: string,
+  format: ProjectFormat
+): Promise<void> => {
+  const agentTarget =
+    format === 'nextjs' ? AGENT_MD_CONTENT : AGENT_MD_CONTENT_LEGACY;
+  await refreshManagedFile(join(projectPath, 'agent.md'), agentTarget);
+  await refreshManagedFile(
+    join(projectPath, 'CLAUDE.md'),
+    CLAUDE_MD_CONTENT
+  );
+};
+
+const refreshManagedFile = async (
+  path: string,
+  target: string
+): Promise<void> => {
+  try {
+    const existing = await fs.readFile(path, 'utf-8');
+    if (existing === target) return;
+  } catch {
+    // File missing — fall through and write the template.
+  }
+  await fs.writeFile(path, target, 'utf-8');
+};
+
+/**
  * Additively add Scamp's project-default theme rules to the project's
  * `theme.css` if missing — the `--font-sans` token, the universal
  * `box-sizing: border-box` reset, and the body-level font-family
@@ -250,6 +299,11 @@ export const scaffoldLegacyProject = async (
   await fs.writeFile(
     join(projectPath, 'agent.md'),
     AGENT_MD_CONTENT_LEGACY,
+    'utf-8'
+  );
+  await fs.writeFile(
+    join(projectPath, 'CLAUDE.md'),
+    CLAUDE_MD_CONTENT,
     'utf-8'
   );
   const componentName = componentNameFromPage('home');

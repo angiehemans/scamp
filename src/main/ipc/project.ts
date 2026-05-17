@@ -25,6 +25,7 @@ import {
   ensureThemeDefaultsIfNeeded,
   readProjectLegacy,
   readProjectNextjs,
+  refreshAgentMdIfNeeded,
   refreshLayoutTemplateIfNeeded,
   scaffoldLegacyProject,
   scaffoldNextjsProject,
@@ -135,6 +136,13 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   // are a no-op. Carries projects scaffolded before these defaults
   // landed forward without an explicit user action.
   await ensureThemeDefaultsIfNeeded(args.folderPath, project.format).catch(
+    () => undefined
+  );
+  // Refresh `agent.md` to the latest template. The file is fully
+  // Scamp-managed (a banner at the top of the template flags this);
+  // refreshing on open guarantees every new Scamp release ships
+  // updated agent guidance without the user having to think about it.
+  await refreshAgentMdIfNeeded(args.folderPath, project.format).catch(
     () => undefined
   );
   await addRecentProject({

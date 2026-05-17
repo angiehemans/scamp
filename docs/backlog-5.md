@@ -409,3 +409,101 @@ signed, auto-updatable builds.
 - The Gumroad download page should note that auto-updates are available
   from v[first auto-update version] onwards — users on earlier versions
   will need to download manually one final time
+
+---
+
+## 4. UA margin defaults round-trip on text tags
+
+**User story**
+
+As a Scamp user, I want to write `margin: 0` on a `<p>` (or `<h1>`,
+`<ul>`, `<blockquote>`, etc.) in the CSS panel and have it persist
+through saves, so my override of the browser's UA-stylesheet margin
+isn't silently dropped.
+
+---
+
+**Behaviour today**
+
+- For `<ul>`/`<ol>`/`<dd>` padding, the UA-aware tag-default fix
+  (shipped 2026-05-16) makes `padding: 0` survive the round-trip.
+  `tagDefaults.ts` models the UA `padding-inline-start: 40px` as
+  `[0, 0, 0, 40]`, so an explicit `[0,0,0,0]` differs from the tag
+  default and the generator emits it.
+- The same bug still exists for **margins** on text tags. UA defaults
+  like `p { margin-block: 1em }`, `h1 { margin: 0.67em 0 }`, `ul {
+  margin-block: 1em }`, `blockquote { margin: 1em 40px }` round-trip
+  away when the user writes `margin: 0` — the generator compares
+  against the universal `[0,0,0,0]` default and omits.
+
+---
+
+**Why padding could be fixed but margin can't (yet)**
+
+- Padding defaults on lists are a fixed `40px` value — the spec
+  hardcodes `padding-inline-start: 40px` regardless of font-size,
+  so a single `[0, 0, 0, 40]` tag default is correct everywhere.
+- Margin defaults on text tags are **em-based**: `p`'s margin is
+  `1em` of the `p`'s own font-size, `h1`'s margin is `0.67em` of
+  `h1`'s 2em font-size, etc. The computed px value drifts with
+  the user's theme font-size and any per-element font-size
+  overrides. Picking a fixed-px tag default (e.g. `[16, 0, 16, 0]`
+  for `p`) would cause canvas drift: a paragraph in a 32px-base
+  theme would render `32px` margins in the browser but show
+  `16px` margins on the Scamp canvas.
+
+---
+
+**Behaviour wanted**
+
+- `margin: 0` on a `<p>` (or any text tag with a UA margin) survives
+  generate → parse → generate cycles.
+- A `<p>` with no margin declaration in the file continues to render
+  with the browser's UA margin on the canvas — Scamp doesn't
+  artificially insert a margin line on first save.
+- Per-element font-size changes don't desync the canvas from what the
+  browser would render.
+
+---
+
+**Implementation sketches (pick one)**
+
+1. **Track declared CSS properties per-element.** Parser records
+   every CSS property name it saw in the source block (a
+   `declaredProperties: ReadonlySet<string>` on `ScampElement`).
+   Generator emits any property in the set regardless of
+   default-match. Panel edits also add to the set when the user
+   touches a value. Most general fix; handles ALL "I wrote a
+   property that equals Scamp's default" cases, not just margins.
+   Requires careful thinking about when to REMOVE props from the set
+   (e.g. when a user resets via the panel).
+2. **Em-aware tag default resolver.** Build a function `getTagMargin(
+   tag, fontSize)` that returns the computed margin in px for any
+   element, factoring the user's effective font-size. Renderer reads
+   from the resolved value. Generator compares against the same.
+   Conceptually pure but requires plumbing font-size through every
+   margin decision and handling cascading font sizes through nested
+   elements.
+3. **Inject a CSS reset.** Add a project-wide `* { margin: 0;
+   padding: 0 }` (or per-tag reset) to `theme.css` so all UA defaults
+   are zeroed out before any Scamp-generated CSS lands. After that
+   Scamp's universal `[0,0,0,0]` default is correct everywhere
+   without any tag awareness. Cheap and matches what most modern
+   designs do anyway; downside is it silently changes the visual
+   default of every text tag for new projects (and is harder to opt
+   out of than the current "honor UA defaults" model).
+
+---
+
+**Notes**
+
+- Margins ALSO affect `<body>`'s 8px UA default and `<form>`'s
+  defaults — a complete fix would cover those too.
+- The current `tagDefaults.ts` is intentionally narrow (padding only,
+  three tags); whichever approach we pick should either extend it or
+  replace it cleanly.
+- No clean workaround for users today: any `margin` value typed in
+  the CSS panel routes through the typed margin field, and zero
+  margins get default-omitted on the next regen. A reset rule
+  added to the user's `theme.css` is the only escape hatch until
+  this lands.

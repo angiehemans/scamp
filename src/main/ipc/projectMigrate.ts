@@ -4,6 +4,7 @@ import { basename, join } from 'path';
 import type { PageFile } from '@shared/types';
 import {
   AGENT_MD_CONTENT,
+  CLAUDE_MD_CONTENT,
   DEFAULT_NEXT_CONFIG_TS,
   DEFAULT_THEME_CSS,
   defaultLayoutTsx,
@@ -20,6 +21,7 @@ import { readProjectLegacy } from './projectScaffold';
  */
 const RECOGNISED_ROOT_FILES = new Set([
   'agent.md',
+  'CLAUDE.md',
   'theme.css',
   // Per-project Scamp config stays at the project root.
   'scamp.config.json',
@@ -126,6 +128,11 @@ const stageNextjsTree = async (
   await fs.writeFile(
     join(stageDir, 'agent.md'),
     AGENT_MD_CONTENT,
+    'utf-8'
+  );
+  await fs.writeFile(
+    join(stageDir, 'CLAUDE.md'),
+    CLAUDE_MD_CONTENT,
     'utf-8'
   );
   await fs.writeFile(

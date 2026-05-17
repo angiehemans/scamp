@@ -1,6 +1,7 @@
 import { Parser } from 'htmlparser2';
 import postcss from 'postcss';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
+import { getTagDefaultPadding } from './tagDefaults';
 import { cssToScampProperty, isMappedProperty } from './cssPropertyMap';
 import {
   ELEMENT_STATES,
@@ -580,6 +581,27 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
         // svg/select capture state if this is the element that opened
         // them.
         const top = stack.pop();
+        // Structural correction for ambiguous tags. Some HTML tags
+        // (e.g. `<li>`, `<a>`, `<label>`) can semantically be either
+        // a text node or a container. `inferElementType` defaults
+        // them to `text` based on the tag name, which is right for
+        // a leaf like `<li>Item</li>` but wrong for the much more
+        // common `<li><span>...</span><span>...</span></li>` —
+        // text-typed elements only render their `.text` content and
+        // ignore Scamp children, so the inner spans visually
+        // disappear on the canvas. When we close one of these
+        // elements and it ended up with Scamp children, upgrade it
+        // to a rectangle so its children render. Only applies when
+        // the className prefix didn't pin the type explicitly (a
+        // `text_` prefix is honored regardless).
+        if (
+          top &&
+          top.type === 'text' &&
+          top.childIds.length > 0 &&
+          !top.className.startsWith('text_')
+        ) {
+          top.type = 'rectangle';
+        }
         if (top && top === svgTarget) {
           const closeAt = parser.startIndex ?? tsx.length;
           const source = tsx.slice(svgInnerStart, closeAt);
@@ -1013,8 +1035,16 @@ const makeBaseline = (raw: RawElement): ScampElement => {
   // Root has its own default shape (100% stretch / auto height / white
   // page background); every other element starts from rect defaults.
   const defaults = isRoot ? DEFAULT_ROOT_STYLES : DEFAULT_RECT_STYLES;
+  // Apply UA-padding-aware tag defaults so a file with no `padding`
+  // declaration on a `<ul>` parses to the UA-equivalent
+  // `[0, 0, 0, 40]` — matching what the browser renders. Without
+  // this, the canvas would model `<ul>` as zero-padding (parser
+  // default) and the next regen would have to add a `padding: 0`
+  // line every save, dirtying the file just to keep state coherent.
+  const tagPadding = isRoot ? defaults.padding : getTagDefaultPadding(raw.tag);
   return {
     ...defaults,
+    padding: [...tagPadding] as [number, number, number, number],
     id: raw.id,
     type: raw.type,
     parentId: raw.parentId,

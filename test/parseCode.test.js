@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { DEFAULT_RECT_STYLES } from '@lib/defaults';
@@ -398,6 +399,111 @@ describe('parseCode — expanded text tag set', () => {
         }
         expect(elements['t001']?.tag).toBe('pre');
         expect(elements['t005']?.tag).toBe('li');
+    });
+});
+describe('parseCode + generateCode — UA padding defaults for list tags', () => {
+    it('parses a <ul> with no padding declaration as the UA default [0,0,0,40]', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <ul data-scamp-id="list_a001" className={styles.list_a001} />
+    </div>`;
+        const css = `.list_a001 {}`;
+        const { elements } = parseCode(tsx, css);
+        expect(elements['a001']?.padding).toEqual([0, 0, 0, 40]);
+    });
+    it('parses an explicit `padding: 0` on a <ul> as [0,0,0,0]', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <ul data-scamp-id="list_a001" className={styles.list_a001} />
+    </div>`;
+        const css = `.list_a001 { padding: 0px 0px 0px 0px; }`;
+        const { elements } = parseCode(tsx, css);
+        expect(elements['a001']?.padding).toEqual([0, 0, 0, 0]);
+    });
+    it('round-trips `padding: 0` on a <ul> through generate → parse', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <ul data-scamp-id="list_a001" className={styles.list_a001} />
+    </div>`;
+        const css = `.list_a001 { padding: 0px 0px 0px 0px; }`;
+        const parsed = parseCode(tsx, css);
+        const regen = generateCode({
+            elements: parsed.elements,
+            rootId: parsed.rootId,
+            pageName: 'home',
+        });
+        // The generator must emit `padding: 0` since `<ul>`'s default
+        // is [0,0,0,40] and the parsed value is [0,0,0,0].
+        expect(regen.css).toContain('padding: 0px 0px 0px 0px;');
+        const reparsed = parseCode(regen.tsx, regen.css);
+        expect(reparsed.elements['a001']?.padding).toEqual([0, 0, 0, 0]);
+    });
+    it('round-trips a <ul> with no padding declaration cleanly (no spurious padding line)', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <ul data-scamp-id="list_a001" className={styles.list_a001} />
+    </div>`;
+        const css = `.list_a001 {}`;
+        const parsed = parseCode(tsx, css);
+        const regen = generateCode({
+            elements: parsed.elements,
+            rootId: parsed.rootId,
+            pageName: 'home',
+        });
+        // Default UA padding [0,0,0,40] matches the tag default, so
+        // the generator should omit the declaration entirely — file
+        // stays text-stable.
+        expect(regen.css).not.toMatch(/padding:/);
+    });
+    it('still omits zero padding on a <div> (the universal default)', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="rect_a001" className={styles.rect_a001} />
+    </div>`;
+        const css = `.rect_a001 { padding: 0px 0px 0px 0px; }`;
+        const parsed = parseCode(tsx, css);
+        const regen = generateCode({
+            elements: parsed.elements,
+            rootId: parsed.rootId,
+            pageName: 'home',
+        });
+        expect(regen.css).not.toMatch(/padding:/);
+    });
+});
+describe('parseCode — ambiguous tag promoted to rectangle when it has children', () => {
+    it('flips a custom-prefixed <li> to rectangle when it contains Scamp children', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <ul data-scamp-id="card_list_a001" className={styles.card_list_a001}>
+        <li data-scamp-id="card_row_a002" className={styles.card_row_a002}>
+          <span data-scamp-id="card_tool_a003" className={styles.card_tool_a003}>Scamp</span>
+          <span data-scamp-id="status_yes_a004" className={styles.status_yes_a004}>Yes</span>
+        </li>
+      </ul>
+    </div>`;
+        const css = `.card_list_a001 {} .card_row_a002 {} .card_tool_a003 {} .status_yes_a004 {}`;
+        const { elements } = parseCode(tsx, css);
+        // The <li> has nested <span>s with their own data-scamp-ids, so it
+        // must be a rectangle for its children to actually render.
+        expect(elements['a002']?.type).toBe('rectangle');
+        expect(elements['a002']?.childIds).toEqual(['a003', 'a004']);
+        // Leaf <span>s with no children stay as text.
+        expect(elements['a003']?.type).toBe('text');
+        expect(elements['a004']?.type).toBe('text');
+    });
+    it('keeps a childless ambiguous tag as text', () => {
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <li data-scamp-id="b001" className={styles.bullet_b001}>Just text</li>
+    </div>`;
+        const css = `.bullet_b001 {}`;
+        const { elements } = parseCode(tsx, css);
+        expect(elements['b001']?.type).toBe('text');
+    });
+    it('honors an explicit text_ prefix even when children are present', () => {
+        // Edge case: agent wrote `text_` prefix but nested elements anyway.
+        // Trust the explicit prefix — the agent picked text on purpose.
+        const tsx = `<div data-scamp-id="root" className={styles.root}>
+      <li data-scamp-id="t001" className={styles.text_t001}>
+        <span data-scamp-id="t002" className={styles.text_t002}>nested</span>
+      </li>
+    </div>`;
+        const css = `.text_t001 {} .text_t002 {}`;
+        const { elements } = parseCode(tsx, css);
+        expect(elements['t001']?.type).toBe('text');
     });
 });
 describe('parseCode — select options', () => {

@@ -1,4 +1,26 @@
 /**
+ * Stub `CLAUDE.md` written alongside `agent.md`. Claude Code reads
+ * `CLAUDE.md` automatically at session start, and its `@./agent.md`
+ * import syntax pulls the full agent.md content into context — so
+ * sessions land with the Scamp guidance already loaded instead of
+ * relying on the agent to remember to read `agent.md` first. The
+ * stub itself stays tiny so the on-disk story is "agent.md is the
+ * source of truth, CLAUDE.md just routes the loader to it".
+ *
+ * Same managed-file disclaimer + refresh-on-open behaviour as
+ * agent.md — there's nothing in here for a user to customise.
+ */
+export const CLAUDE_MD_CONTENT = `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
+
+# Scamp Project — Claude Code Loader
+
+This file exists so Claude Code auto-loads the Scamp agent
+instructions on session start. The real content lives in
+\`agent.md\`; the import below pulls it in.
+
+@./agent.md
+`;
+/**
  * Legacy `agent.md` — written into projects using the flat file layout
  * (`<page>.tsx` + `<page>.module.css` at the project root, assets in
  * `assets/`). Kept as the canonical instructions for legacy projects
@@ -8,7 +30,9 @@
  * working in legacy projects depend on it being accurate for that
  * layout.
  */
-export const AGENT_MD_CONTENT_LEGACY = `# Scamp Project — Agent Instructions
+export const AGENT_MD_CONTENT_LEGACY = `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
+
+# Scamp Project — Agent Instructions
 
 You are editing files in a Scamp project. Scamp is a local design tool
 that bidirectionally syncs canvas state with real \`.tsx\` + CSS module
@@ -59,6 +83,49 @@ files. Anything you write here is parsed and re-rendered on the canvas.
   is parsed (see "Responsive breakpoints").
 - One class = one rule block, always.
 - \`data-scamp-id\` must always match the CSS class name exactly.
+
+### Each rendered element needs its OWN unique class
+
+A common mistake is to treat a className like a reusable "type"
+or "component class" — defining \`.card\` once and reusing it on
+ten sibling \`<div>\`s. **That does not work in Scamp.**
+
+Every JSX element you render is a separate element on the
+canvas, and every element needs its own unique
+\`data-scamp-id\` + className pair, where the class name ends in
+its own fresh 4-char hex suffix.
+
+❌ WRONG — reusing one class across siblings, omitting
+\`data-scamp-id\` on duplicates, and skipping the hex suffix:
+
+\`\`\`tsx
+<ul className={styles.card_list}>
+  <li data-scamp-id="card_row" className={styles.card_row}>Scamp</li>
+  <li className={styles.card_row}>Figma</li>
+  <li className={styles.card_row}>Framer</li>
+</ul>
+\`\`\`
+
+Scamp's parser sees one element here (the first \`<li>\`), drops
+the rest, and the canvas will not match the file.
+
+✅ RIGHT — every visible element gets its own id+class with a
+unique hex suffix. If the rows share styles, write the rule
+ONCE in CSS keyed off the parent (e.g. \`.card_list_x1y2 > li\`)
+or just repeat the declarations in each block:
+
+\`\`\`tsx
+<ul data-scamp-id="card_list_x1y2" className={styles.card_list_x1y2}>
+  <li data-scamp-id="card_row_a1b2" className={styles.card_row_a1b2}>Scamp</li>
+  <li data-scamp-id="card_row_c3d4" className={styles.card_row_c3d4}>Figma</li>
+  <li data-scamp-id="card_row_e5f6" className={styles.card_row_e5f6}>Framer</li>
+</ul>
+\`\`\`
+
+The same applies to every level of nesting — buttons, list
+items, repeated cards, table rows. If you'd render N copies on
+the page, you need N unique class names, each with its own hex
+suffix and its own \`data-scamp-id\`.
 
 ## File editing order — CSS first, then TSX
 
@@ -901,7 +968,9 @@ export const DEFAULT_PAGE_CSS = `.root {
  * project structure, asset path conventions, and the list of files
  * agents should leave alone.
  */
-export const AGENT_MD_CONTENT = `# Scamp Project — Agent Instructions
+export const AGENT_MD_CONTENT = `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
+
+# Scamp Project — Agent Instructions
 
 You are editing files in a Scamp project. Scamp is a local design tool
 that bidirectionally syncs canvas state with real \`.tsx\` + CSS module
@@ -956,6 +1025,49 @@ Scamp without any reorganisation.
   is parsed (see "Responsive breakpoints").
 - One class = one rule block, always.
 - \`data-scamp-id\` must always match the CSS class name exactly.
+
+### Each rendered element needs its OWN unique class
+
+A common mistake is to treat a className like a reusable "type"
+or "component class" — defining \`.card\` once and reusing it on
+ten sibling \`<div>\`s. **That does not work in Scamp.**
+
+Every JSX element you render is a separate element on the
+canvas, and every element needs its own unique
+\`data-scamp-id\` + className pair, where the class name ends in
+its own fresh 4-char hex suffix.
+
+❌ WRONG — reusing one class across siblings, omitting
+\`data-scamp-id\` on duplicates, and skipping the hex suffix:
+
+\`\`\`tsx
+<ul className={styles.card_list}>
+  <li data-scamp-id="card_row" className={styles.card_row}>Scamp</li>
+  <li className={styles.card_row}>Figma</li>
+  <li className={styles.card_row}>Framer</li>
+</ul>
+\`\`\`
+
+Scamp's parser sees one element here (the first \`<li>\`), drops
+the rest, and the canvas will not match the file.
+
+✅ RIGHT — every visible element gets its own id+class with a
+unique hex suffix. If the rows share styles, write the rule
+ONCE in CSS keyed off the parent (e.g. \`.card_list_x1y2 > li\`)
+or just repeat the declarations in each block:
+
+\`\`\`tsx
+<ul data-scamp-id="card_list_x1y2" className={styles.card_list_x1y2}>
+  <li data-scamp-id="card_row_a1b2" className={styles.card_row_a1b2}>Scamp</li>
+  <li data-scamp-id="card_row_c3d4" className={styles.card_row_c3d4}>Figma</li>
+  <li data-scamp-id="card_row_e5f6" className={styles.card_row_e5f6}>Framer</li>
+</ul>
+\`\`\`
+
+The same applies to every level of nesting — buttons, list
+items, repeated cards, table rows. If you'd render N copies on
+the page, you need N unique class names, each with its own hex
+suffix and its own \`data-scamp-id\`.
 
 ## File editing order — CSS first, then TSX
 

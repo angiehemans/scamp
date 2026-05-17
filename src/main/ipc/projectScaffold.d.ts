@@ -38,6 +38,24 @@ export declare const scaffoldNextjsProject: (projectPath: string, projectName: s
  */
 export declare const refreshLayoutTemplateIfNeeded: (projectPath: string) => Promise<void>;
 /**
+ * Refresh \`agent.md\` AND its Claude Code loader \`CLAUDE.md\` to the
+ * latest Scamp-shipped templates whenever the on-disk content
+ * differs. Both files are fully Scamp-managed — \`agent.md\` is the
+ * canonical agent instructions, \`CLAUDE.md\` is a tiny stub that
+ * uses Claude Code's \`@./agent.md\` import syntax so sessions
+ * auto-load the guidance on start. The managed-file marker at the
+ * top of each template flags that hand-edits won't survive.
+ *
+ * Refreshing on open means new Scamp releases ship updated agent
+ * guidance to every project on the next open without the user
+ * having to think about it.
+ *
+ * Missing file → write it. Content matches latest → no-op. Anything
+ * else → overwrite. The compare-first check skips the chokidar
+ * event when there's no actual change.
+ */
+export declare const refreshAgentMdIfNeeded: (projectPath: string, format: ProjectFormat) => Promise<void>;
+/**
  * Additively add Scamp's project-default theme rules to the project's
  * `theme.css` if missing — the `--font-sans` token, the universal
  * `box-sizing: border-box` reset, and the body-level font-family

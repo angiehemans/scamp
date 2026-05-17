@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { randomBytes } from 'crypto';
 import { basename, join } from 'path';
-import { AGENT_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, } from '@shared/agentMd';
+import { AGENT_MD_CONTENT, CLAUDE_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, } from '@shared/agentMd';
 import { readProjectLegacy } from './projectScaffold';
 /**
  * Anything in the legacy project root that the migrator knows how to
@@ -12,6 +12,7 @@ import { readProjectLegacy } from './projectScaffold';
  */
 const RECOGNISED_ROOT_FILES = new Set([
     'agent.md',
+    'CLAUDE.md',
     'theme.css',
     // Per-project Scamp config stays at the project root.
     'scamp.config.json',
@@ -91,6 +92,7 @@ const stageNextjsTree = async (legacyDir, stageDir, projectName, pages) => {
     }
     // Project root infrastructure files
     await fs.writeFile(join(stageDir, 'agent.md'), AGENT_MD_CONTENT, 'utf-8');
+    await fs.writeFile(join(stageDir, 'CLAUDE.md'), CLAUDE_MD_CONTENT, 'utf-8');
     await fs.writeFile(join(stageDir, 'package.json'), defaultPackageJson(projectName), 'utf-8');
     await fs.writeFile(join(stageDir, 'next.config.ts'), DEFAULT_NEXT_CONFIG_TS, 'utf-8');
     // public/assets — copy over any legacy assets/ contents.

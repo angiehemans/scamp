@@ -5,10 +5,16 @@ import path from 'path';
 import {
   readProjectLegacy,
   readProjectNextjs,
+  refreshAgentMdIfNeeded,
   scaffoldLegacyProject,
   scaffoldNextjsProject,
   themePathFor,
 } from '../../src/main/ipc/projectScaffold';
+import {
+  AGENT_MD_CONTENT,
+  AGENT_MD_CONTENT_LEGACY,
+  CLAUDE_MD_CONTENT,
+} from '../../src/shared/agentMd';
 import { detectProjectFormat } from '../../src/main/ipc/projectFormat';
 import { generateCode } from '../../src/renderer/lib/generateCode';
 import { parseCode } from '../../src/renderer/lib/parseCode';
@@ -59,6 +65,7 @@ describe('scaffoldNextjsProject', () => {
     };
 
     expect(await list('')).toEqual([
+      'CLAUDE.md',
       'agent.md',
       'app',
       'next.config.ts',
@@ -242,6 +249,7 @@ describe('scaffoldLegacyProject', () => {
     await scaffoldLegacyProject(projectDir);
     const entries = (await fs.readdir(projectDir)).sort();
     expect(entries).toEqual([
+      'CLAUDE.md',
       'agent.md',
       'home.module.css',
       'home.tsx',
@@ -267,6 +275,90 @@ describe('scaffoldLegacyProject', () => {
     await scaffoldLegacyProject(projectDir);
     const pages = await readProjectLegacy(projectDir);
     expect(pages.map((p) => p.name)).toEqual(['home']);
+  });
+});
+
+describe('refreshAgentMdIfNeeded', () => {
+  let projectDir: string;
+
+  beforeEach(async () => {
+    const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-agentmd-'));
+    projectDir = path.join(tmp, 'my-project');
+    await fs.mkdir(projectDir);
+  });
+
+  afterEach(async () => {
+    await fs.rm(path.dirname(projectDir), { recursive: true, force: true });
+  });
+
+  it('writes the nextjs template when agent.md is missing', async () => {
+    await refreshAgentMdIfNeeded(projectDir, 'nextjs');
+    const content = await fs.readFile(path.join(projectDir, 'agent.md'), 'utf-8');
+    expect(content).toBe(AGENT_MD_CONTENT);
+  });
+
+  it('writes the legacy template when agent.md is missing', async () => {
+    await refreshAgentMdIfNeeded(projectDir, 'legacy');
+    const content = await fs.readFile(path.join(projectDir, 'agent.md'), 'utf-8');
+    expect(content).toBe(AGENT_MD_CONTENT_LEGACY);
+  });
+
+  it('overwrites a stale agent.md with the current template', async () => {
+    const stale = '# Old Scamp agent instructions from a prior release\n';
+    await fs.writeFile(path.join(projectDir, 'agent.md'), stale, 'utf-8');
+    await refreshAgentMdIfNeeded(projectDir, 'nextjs');
+    const content = await fs.readFile(path.join(projectDir, 'agent.md'), 'utf-8');
+    expect(content).toBe(AGENT_MD_CONTENT);
+  });
+
+  it('is a no-op when agent.md already matches the current template', async () => {
+    await fs.writeFile(
+      path.join(projectDir, 'agent.md'),
+      AGENT_MD_CONTENT,
+      'utf-8'
+    );
+    const mtimeBefore = (
+      await fs.stat(path.join(projectDir, 'agent.md'))
+    ).mtimeMs;
+    // Small delay so mtime granularity (often 1ms or 1s on ext4) can
+    // actually register a re-write if one happened.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await refreshAgentMdIfNeeded(projectDir, 'nextjs');
+    const mtimeAfter = (
+      await fs.stat(path.join(projectDir, 'agent.md'))
+    ).mtimeMs;
+    expect(mtimeAfter).toBe(mtimeBefore);
+  });
+
+  it('writes the managed-file marker at the top of the template', () => {
+    expect(AGENT_MD_CONTENT.startsWith('<!--')).toBe(true);
+    expect(AGENT_MD_CONTENT_LEGACY.startsWith('<!--')).toBe(true);
+  });
+
+  it('writes CLAUDE.md alongside agent.md so Claude Code auto-loads the guidance', async () => {
+    await refreshAgentMdIfNeeded(projectDir, 'nextjs');
+    const claudeMd = await fs.readFile(
+      path.join(projectDir, 'CLAUDE.md'),
+      'utf-8'
+    );
+    expect(claudeMd).toBe(CLAUDE_MD_CONTENT);
+    // The loader stub must use Claude Code's @import syntax so the
+    // real instructions in agent.md actually get pulled into context.
+    expect(claudeMd).toContain('@./agent.md');
+  });
+
+  it('overwrites a stale CLAUDE.md with the current template', async () => {
+    await fs.writeFile(
+      path.join(projectDir, 'CLAUDE.md'),
+      '# An old version of the loader\n',
+      'utf-8'
+    );
+    await refreshAgentMdIfNeeded(projectDir, 'nextjs');
+    const claudeMd = await fs.readFile(
+      path.join(projectDir, 'CLAUDE.md'),
+      'utf-8'
+    );
+    expect(claudeMd).toBe(CLAUDE_MD_CONTENT);
   });
 });
 
