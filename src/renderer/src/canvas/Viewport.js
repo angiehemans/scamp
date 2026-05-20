@@ -1,7 +1,10 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
+import { useAppLogStore } from '@store/appLogSlice';
+import { wouldCreateComponentCycle } from '@lib/componentUsage';
+import { DEFAULT_BODY_FONT_FAMILY, } from '@shared/agentMd';
+import { MAX_COMPONENT_CANVAS_DIM, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
 import { ElementRenderer } from './ElementRenderer';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import styles from './Viewport.module.css';
@@ -19,7 +22,7 @@ const FRAME_FIT_INSET = 40;
  * to distribute within.
  */
 export const EMPTY_FRAME_MIN_HEIGHT = 900;
-export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef, }) => {
+export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scrollContainerRef, onResize, }) => {
     const frameRef = useRef(null);
     const [scale, setScale] = useState(1);
     // Tracks the frame's natural (pre-scale) height so the frameShell
@@ -27,6 +30,12 @@ export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef
     // own content grows.
     const [frameH, setFrameH] = useState(0);
     const rootElementId = useCanvasStore((s) => s.rootElementId);
+    // Canvas resize handles only show when the root is selected —
+    // matches the per-element selection-handle pattern (handles
+    // appear on the active selection, nothing else). Tracking the
+    // boolean via a derived selector keeps re-renders to actual
+    // root-selection changes rather than every selection mutation.
+    const isRootSelected = useCanvasStore((s) => s.selectedElementIds.includes(rootElementId));
     const activeTool = useCanvasStore((s) => s.activeTool);
     const userZoom = useCanvasStore((s) => s.userZoom);
     const themeTokens = useCanvasStore((s) => s.themeTokens);
@@ -101,14 +110,118 @@ export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef
         ro.observe(frame);
         return () => ro.disconnect();
     }, []);
+    // Drop target for the sidebar's component drag-and-drop. The
+    // `onDragOver` preventDefault is the HTML5-DnD opt-in that
+    // makes the element a valid drop target; we gate it on our
+    // own mime so other drags (text selections, files, etc.)
+    // aren't accidentally consumed.
+    const handleDragOver = (e) => {
+        if (e.dataTransfer.types.includes('application/x-scamp-component')) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        }
+    };
+    const handleDrop = (e) => {
+        const componentName = e.dataTransfer.getData('application/x-scamp-component');
+        if (!componentName)
+            return;
+        e.preventDefault();
+        // Cycle guard: dropping component A into the editor of A
+        // (or into B where B transitively contains A) would form an
+        // infinite render loop. Refuse before mutating state. The
+        // user gets an inline log entry rather than a silent fail;
+        // Phase 7's broader warning UX surfaces this more
+        // prominently.
+        const store = useCanvasStore.getState();
+        const activeTargetName = store.activeComponent?.name ?? null;
+        if (wouldCreateComponentCycle(store.componentTrees, activeTargetName, componentName)) {
+            useAppLogStore
+                .getState()
+                .log('warn', `Refused: placing ${componentName} inside ${activeTargetName} would create a cycle.`);
+            return;
+        }
+        const frame = frameRef.current;
+        if (!frame)
+            return;
+        // The frame is `transform: scale(scale)` from its top-left,
+        // so converting client coords to canvas-local is (clientX -
+        // rect.left) / scale on each axis. Phase 3 places every
+        // instance at the page root regardless of what's beneath the
+        // cursor — parent-resolution + drop-into-container land in
+        // Phase 4+.
+        const rect = frame.getBoundingClientRect();
+        const x = Math.max(0, Math.round((e.clientX - rect.left) / scale));
+        const y = Math.max(0, Math.round((e.clientY - rect.top) / scale));
+        store.insertComponentInstance({
+            parentId: rootElementId,
+            componentName,
+            x,
+            y,
+        });
+    };
+    const SIGN = {
+        br: { w: 1, h: 1 },
+        bl: { w: -1, h: 1 },
+        tr: { w: 1, h: -1 },
+        tl: { w: -1, h: -1 },
+    };
+    // Pointer-based corner resize. `setPointerCapture` keeps the
+    // drag attached to the handle even when the cursor leaves it.
+    // Each move emits a (width, height) snapshot scaled by the
+    // frame's transform so logical pixels match the stored canvas
+    // size.
+    const makeResizePointerDown = (corner) => (e) => {
+        if (!onResize)
+            return;
+        e.preventDefault();
+        e.stopPropagation();
+        const startClientX = e.clientX;
+        const startClientY = e.clientY;
+        const startWidth = canvasWidth;
+        // `canvasHeight` is the user-set MIN height; the frame
+        // grows past it when content overflows. Resizing should
+        // start from the user-set value (not the measured value)
+        // so dragging is predictable when content is taller than
+        // the min.
+        const startHeight = canvasHeight ?? frameH;
+        const signs = SIGN[corner];
+        const target = e.currentTarget;
+        target.setPointerCapture(e.pointerId);
+        const onMove = (ev) => {
+            const dx = (ev.clientX - startClientX) / scale;
+            const dy = (ev.clientY - startClientY) / scale;
+            const nextWidth = Math.max(MIN_COMPONENT_CANVAS_DIM, Math.min(MAX_COMPONENT_CANVAS_DIM, Math.round(startWidth + dx * signs.w)));
+            const nextHeight = Math.max(MIN_COMPONENT_CANVAS_DIM, Math.min(MAX_COMPONENT_CANVAS_DIM, Math.round(startHeight + dy * signs.h)));
+            onResize(nextWidth, nextHeight);
+        };
+        const onUp = (ev) => {
+            try {
+                target.releasePointerCapture(ev.pointerId);
+            }
+            catch {
+                // Pointer capture already released by the runtime — ignore.
+            }
+            target.removeEventListener('pointermove', onMove);
+            target.removeEventListener('pointerup', onUp);
+            target.removeEventListener('pointercancel', onUp);
+        };
+        target.addEventListener('pointermove', onMove);
+        target.addEventListener('pointerup', onUp);
+        target.addEventListener('pointercancel', onUp);
+    };
+    // Frame-shell reserved height follows the LARGER of the
+    // user-set min and the measured content height — so a small
+    // canvas grows as the user adds elements past it. For page
+    // mode (no canvasHeight), `frameH` is the only signal.
+    const reservedHeight = canvasHeight !== undefined ? Math.max(canvasHeight, frameH) : frameH;
     return (_jsx("div", { className: styles.frameShell, style: {
             width: frameW * scale,
-            height: frameH * scale,
+            height: reservedHeight * scale,
         }, children: _jsxs("div", { ref: frameRef, className: styles.frame, "data-testid": "canvas-frame", "data-canvas-width": frameW, "data-canvas-scale": scale, "data-cursor": activeTool === 'rectangle' || activeTool === 'image'
                 ? 'crosshair'
                 : activeTool === 'text'
                     ? 'text'
-                    : 'default', style: {
+                    : 'default', onDragOver: handleDragOver, onDrop: handleDrop, style: {
                 // Project theme tokens live on the frame as real CSS custom
                 // properties, so `var(--…)` references inside any descendant
                 // (typed inline styles, customProperties, hand-written CSS
@@ -116,7 +229,11 @@ export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef
                 // explicit style properties below win on key collisions.
                 ...themeCssVars,
                 width: `${frameW}px`,
-                minHeight: `${EMPTY_FRAME_MIN_HEIGHT}px`,
+                // Component mode: `canvasHeight` is a MIN — the canvas
+                // grows past it as the user adds elements that overflow.
+                // Page mode falls back to the EMPTY_FRAME_MIN_HEIGHT
+                // floor so blank pages have a visible canvas to draw on.
+                minHeight: `${canvasHeight ?? EMPTY_FRAME_MIN_HEIGHT}px`,
                 overflow: canvasOverflowHidden ? 'hidden' : undefined,
                 transform: `scale(${scale})`,
                 transformOrigin: 'top left',
@@ -127,7 +244,8 @@ export const Viewport = ({ canvasWidth, canvasOverflowHidden, scrollContainerRef
                 // chrome font (Ubuntu Mono on Linux, San Francisco on
                 // macOS, etc.) and visually disagrees with the preview.
                 fontFamily: themeFontFamily,
-            }, children: [_jsx(CanvasKeyframes, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale })] }) }));
+                position: 'relative',
+            }, children: [_jsx(CanvasKeyframes, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale }), onResize && isRootSelected && (_jsxs(_Fragment, { children: [_jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTL}`, onPointerDown: makeResizePointerDown('tl'), "aria-label": "Resize canvas (top-left)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTR}`, onPointerDown: makeResizePointerDown('tr'), "aria-label": "Resize canvas (top-right)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBL}`, onPointerDown: makeResizePointerDown('bl'), "aria-label": "Resize canvas (bottom-left)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBR}`, onPointerDown: makeResizePointerDown('br'), "aria-label": "Resize canvas (bottom-right)", title: "Drag to resize" })] }))] }) }));
 };
 /**
  * Mounts a `<style>` element inside the canvas frame containing the

@@ -264,7 +264,10 @@ type RawElement = {
   id: string;
   type: ElementType;
   /** The HTML tag name as written in the source file. Captured so the
-   *  generator can round-trip semantic tags like h1, section, header. */
+   *  generator can round-trip semantic tags like h1, section, header.
+   *  For component instances, this is the PascalCase component name
+   *  (recovered from the file's import pre-pass — htmlparser2
+   *  lowercases by default). */
   tag: string;
   className: string;
   parentId: string | null;
@@ -295,9 +298,122 @@ type RawElement = {
   svgSource: string | null;
   /** Options collected from `<select>` child `<option>` elements. */
   selectOptions: SelectOption[] | null;
+
+  // Component-instance fields. Populated only when
+  // `type === 'component-instance'`.
+  componentName: string | null;
+  instanceId: string | null;
+  propOverrides: Record<string, string> | null;
+  missingComponent: boolean;
+};
+
+/**
+ * Match `import Pascal from '@/components/Pascal/Pascal';` (or
+ * with double quotes; trailing semicolon optional). Used by the
+ * import pre-pass to learn which capitalised JSX tags in the
+ * source resolve to Scamp components — without this map, the
+ * lowercased tag stream from htmlparser2 can't tell `<Button/>`
+ * apart from a real `<button>`.
+ */
+const COMPONENT_IMPORT_RE =
+  /import\s+([A-Z][A-Za-z0-9_]*)\s+from\s+['"]@\/components\/([A-Z][A-Za-z0-9_]*)\/\2['"];?/g;
+
+/**
+ * Build a lowercase-tag → PascalCase-component-name map from
+ * the page's `import` lines. The lowercase key is what
+ * htmlparser2 surfaces in `onopentag`; the value is the
+ * original-case name we use for `componentName`.
+ *
+ * Imports whose imported binding doesn't match the path-component
+ * (e.g. `import Btn from '@/components/Button/Button'`) are
+ * skipped — Scamp's generator only emits the canonical form, and
+ * renaming the binding without renaming the folder would
+ * desync component identity from the import.
+ */
+const scanComponentImports = (tsx: string): Map<string, string> => {
+  const out = new Map<string, string>();
+  for (const match of tsx.matchAll(COMPONENT_IMPORT_RE)) {
+    const importedName = match[1];
+    const folderName = match[2];
+    if (importedName !== folderName) continue;
+    out.set(importedName!.toLowerCase(), importedName!);
+  }
+  return out;
 };
 
 const CLASS_NAME_RE = /\{?\s*styles\.([A-Za-z_][A-Za-z0-9_]*)\s*\}?/;
+
+/**
+ * Match the destructured props on a component's default-export
+ * function — the form generateCode emits for any component with
+ * at least one text-prop:
+ *
+ *   export default function Foo({ label = "Hello" }: FooProps)
+ *
+ * Captures the contents of the inner `{ … }` so a follow-up pass
+ * can extract individual `name = "default"` pairs. Matches greedy
+ * stop on the closing `}` — none of the destructured defaults are
+ * objects in Scamp's emitted form (all values are plain string
+ * literals), so a balanced-brace parser isn't needed.
+ *
+ * No match → the function has no text-props (or it's a page,
+ * which never emits this form). Callers fall back to an empty
+ * defaults map.
+ */
+const COMPONENT_PROPS_DESTRUCTURE_RE =
+  /export\s+default\s+function\s+\w+\s*\(\s*\{([^}]*)\}\s*:\s*\w+Props\s*\)/;
+
+/**
+ * Match one `name = "literal"` pair inside the destructure block.
+ * Identifier syntax matches what the renderer's Data tab allows
+ * (lowerCamelCase JS identifier). The string body is captured raw
+ * — escape sequences are decoded by `decodeTsStringLiteral`.
+ */
+const PROPS_DESTRUCTURE_PAIR_RE =
+  /([a-z][a-zA-Z0-9_]*)\s*=\s*"((?:\\.|[^"\\])*)"/g;
+
+/**
+ * Match a JSX-expression-only text body, ignoring surrounding
+ * whitespace from generator indentation. Used to detect when a
+ * parsed text element's content is a single `{propName}` ref so
+ * we can hydrate it into the typed `prop` field.
+ */
+const PROP_REF_TEXT_RE = /^\s*\{([a-z][a-zA-Z0-9_]*)\}\s*$/;
+
+/**
+ * Reverse of `tsStringLiteral` in generateCode.ts. Decodes the
+ * minimal set of escapes the generator emits.
+ */
+const decodeTsStringLiteral = (raw: string): string =>
+  raw
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\');
+
+/**
+ * Parse the function-signature destructure into a `propName →
+ * defaultText` map. Components with no text-props (and pages,
+ * which never emit this form) return an empty map. The returned
+ * map is the authoritative source for restoring a text element's
+ * `text` field after its JSX-expression body resolves to a known
+ * prop name.
+ */
+const parsePropsDestructure = (tsx: string): Map<string, string> => {
+  const out = new Map<string, string>();
+  const block = tsx.match(COMPONENT_PROPS_DESTRUCTURE_RE);
+  if (!block) return out;
+  const inner = block[1] ?? '';
+  // Iterate with a fresh regex each time — global flags are stateful.
+  const pairRe = new RegExp(PROPS_DESTRUCTURE_PAIR_RE.source, 'g');
+  for (const m of inner.matchAll(pairRe)) {
+    const name = m[1];
+    const raw = m[2];
+    if (!name) continue;
+    out.set(name, decodeTsStringLiteral(raw ?? ''));
+  }
+  return out;
+};
 
 /**
  * Tags that count as text by default. The className prefix
@@ -367,6 +483,11 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
   const elements: RawElement[] = [];
   const stack: RawElement[] = [];
   const byId = new Map<string, RawElement>();
+  // Resolve lowercased JSX tag names back to their imported
+  // PascalCase form (htmlparser2 lowercases tags). Pages that
+  // don't use any components get an empty map; the
+  // component-instance recognition path naturally skips for those.
+  const componentImports = scanComponentImports(tsx);
 
   // Parallel to every onopentag event, regardless of whether we
   // pushed a RawElement onto `stack`. Lets onclosetag know whether to
@@ -412,6 +533,71 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
             selected: 'selected' in attribs,
           };
           frames.push('option');
+          return;
+        }
+
+        // Component instance: a JSX tag carrying
+        // `data-scamp-instance-id`. The tag name we see here is
+        // lowercased (htmlparser2 default), so we recover the
+        // PascalCase component name via the import pre-pass. A
+        // matching `import` confirms the reference; otherwise the
+        // element still parses but is flagged as
+        // `missingComponent` so the renderer can surface an error
+        // placeholder.
+        const rawInstanceId = attribs['data-scamp-instance-id'];
+        if (typeof rawInstanceId === 'string' && rawInstanceId.length > 0) {
+          const resolvedName = componentImports.get(name);
+          const componentName = resolvedName ?? name;
+          const parentId =
+            stack.length > 0 ? stack[stack.length - 1]!.id : null;
+          // Use the instanceId itself as the canvas element id —
+          // these need to be unique across the page anyway, and
+          // reusing it keeps debugging simple. (For very old
+          // `data-scamp-instance-id="inst_a1b2"` we strip the
+          // `inst_` prefix; the canvas id is the hex tail.)
+          const id = rawInstanceId.includes('_')
+            ? rawInstanceId.slice(rawInstanceId.lastIndexOf('_') + 1)
+            : rawInstanceId;
+          // Every attribute other than the instance id is treated
+          // as a prop override. Empty-string values are kept (an
+          // explicit "render empty" override is distinct from
+          // absence). React-specific attributes that don't follow
+          // PascalCase prop conventions (e.g. `className`,
+          // `style`) round-trip through `propOverrides` too — we
+          // don't model styling on instances in Phase 1.
+          const propOverrides: Record<string, string> = {};
+          for (const [attrName, attrValue] of Object.entries(attribs)) {
+            if (attrName === 'data-scamp-instance-id') continue;
+            propOverrides[attrName] = attrValue;
+          }
+          const el: RawElement = {
+            id,
+            type: 'component-instance',
+            tag: componentName,
+            className: '',
+            parentId,
+            childIds: [],
+            text: null,
+            inlineFragments: [],
+            name: null,
+            src: null,
+            alt: null,
+            attributes: {},
+            svgSource: null,
+            selectOptions: null,
+            componentName,
+            instanceId: rawInstanceId,
+            propOverrides,
+            missingComponent: resolvedName === undefined,
+          };
+          if (parentId) {
+            const parent = byId.get(parentId);
+            parent?.childIds.push(id);
+          }
+          elements.push(el);
+          byId.set(id, el);
+          stack.push(el);
+          frames.push('pushed');
           return;
         }
 
@@ -493,6 +679,13 @@ const parseTsxStructure = (tsx: string): RawElement[] => {
           attributes: extraAttributes,
           svgSource: null,
           selectOptions: null,
+          // Component-instance fields default empty/null on
+          // regular elements; only set on the component-instance
+          // branch above.
+          componentName: null,
+          instanceId: null,
+          propOverrides: null,
+          missingComponent: false,
         };
         if (parentId) {
           const parent = byId.get(parentId);
@@ -1056,8 +1249,12 @@ const makeBaseline = (raw: RawElement): ScampElement => {
     ...(raw.type === 'text' && raw.text !== null ? { text: raw.text.trim() } : {}),
     // Only store an explicit tag when it's NOT the type's default. Keeps
     // the round-trip text-stable: a `<div>` rectangle parses with no
-    // `tag` field and the generator emits a `<div>` again.
-    ...(raw.tag !== defaultTagForType(raw.type) ? { tag: raw.tag } : {}),
+    // `tag` field and the generator emits a `<div>` again. Component
+    // instances skip this entirely — their identity is `componentName`,
+    // not a Scamp `tag` override.
+    ...(raw.type !== 'component-instance' && raw.tag !== defaultTagForType(raw.type)
+      ? { tag: raw.tag }
+      : {}),
     ...(raw.name !== null ? { name: raw.name } : {}),
     ...(raw.src !== null ? { src: raw.src } : {}),
     ...(raw.alt !== null ? { alt: raw.alt } : {}),
@@ -1067,6 +1264,18 @@ const makeBaseline = (raw: RawElement): ScampElement => {
     ...(Object.keys(raw.attributes).length > 0 ? { attributes: raw.attributes } : {}),
     ...(raw.svgSource !== null ? { svgSource: raw.svgSource } : {}),
     ...(raw.selectOptions !== null ? { selectOptions: raw.selectOptions } : {}),
+    // Component-instance carry-through. Identity lives in
+    // `componentName` + `instanceId`; overrides land in
+    // `propOverrides`. `missingComponent` only emitted when true so
+    // round-trips stay text-stable for well-resolved instances.
+    ...(raw.type === 'component-instance'
+      ? {
+          componentName: raw.componentName ?? raw.tag,
+          instanceId: raw.instanceId ?? raw.id,
+          propOverrides: raw.propOverrides ?? {},
+          ...(raw.missingComponent ? { missingComponent: true } : {}),
+        }
+      : {}),
   };
 };
 
@@ -1169,6 +1378,12 @@ export const parseCode = (
   const parsedCss = parseCssDeclarations(css, breakpoints);
   const elements: Record<string, ScampElement> = {};
   const cssDuplicates: Record<string, ReadonlyArray<string>> = {};
+  // Map of `propName → defaultText` extracted from the component's
+  // function destructure (empty for pages, which never emit a
+  // `[Name]Props` destructure). Used in the post-pass to hydrate
+  // each text element whose body resolves to `{propName}` back
+  // into a typed `prop` field.
+  const propDefaults = parsePropsDestructure(tsx);
 
   // Always start with a root, even if the TSX is missing one. Downstream
   // code (canvas store, ProjectShell) assumes ROOT_ELEMENT_ID exists.
@@ -1276,6 +1491,30 @@ export const parseCode = (
 
   if (!rootSeen) {
     elements[ROOT_ELEMENT_ID] = makeRoot();
+  }
+
+  // Post-pass: hydrate component text-props. When a text element's
+  // captured body is a single `{propName}` JSX expression AND the
+  // function signature declared a default for that prop, set the
+  // typed `prop` field and restore `text` to the destructure
+  // default. Unresolved `{whatever}` expressions stay as literal
+  // text so user-/agent-written JSX round-trips byte-stably.
+  if (propDefaults.size > 0) {
+    for (const id of Object.keys(elements)) {
+      const el = elements[id];
+      if (!el || el.type !== 'text') continue;
+      const text = el.text;
+      if (typeof text !== 'string') continue;
+      const m = text.match(PROP_REF_TEXT_RE);
+      if (!m) continue;
+      const propName = m[1]!;
+      if (!propDefaults.has(propName)) continue;
+      elements[id] = {
+        ...el,
+        prop: propName,
+        text: propDefaults.get(propName) ?? '',
+      };
+    }
   }
 
   return {

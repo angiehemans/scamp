@@ -82,6 +82,77 @@ Optimistic concurrency control on the write path:
 The pre-write read is one extra `fs.readFile` per save — a few
 hundred microseconds at most, well inside the debounce budget.
 
+---
+
+## `@sentry/electron` 7.13.0 crashes on renderer scope updates with missing breadcrumbs
+
+**First observed:** 2026-05-17 (during Phase 2 of the components
+feature — but the bug is in the dependency, not our code).
+**Status:** patched locally via a hand-applied diff to
+`node_modules/@sentry/electron/{main,esm/main}/ipc.js` AND
+`out/main/index.js`. Patch saved at
+`patches/@sentry+electron+7.13.0.patch`. Re-application across
+fresh `npm install` is NOT automatic yet — see "Persisting the
+patch" below.
+
+### Symptom
+
+Opening a project crashes the renderer immediately: the canvas
+won't accept clicks, no toolbar key commands work, the dev
+terminal shows:
+
+```
+TypeError: Cannot read properties of undefined (reading 'pop')
+    at handleScope (.../out/main/index.js:21168:44)
+[main] renderer crashed: crashed 139
+Error sending from webFrameMain: Render frame was disposed …
+[main] renderer became unresponsive
+```
+
+### Root cause
+
+`@sentry/electron`'s main-side `handleScope` (in
+`main/ipc.js` line 129 in 7.13.0):
+
+```js
+const breadcrumb = sentScope.breadcrumbs.pop();
+```
+
+There's no defensive check. The renderer-side Sentry sometimes
+sends scope payloads with the `breadcrumbs` field omitted; the
+unguarded `.pop()` throws `TypeError`. Because the throw is
+inside Electron's protocol-handle async, the unhandled exception
+takes the renderer process down with it. Chokidar then keeps
+trying to message the dead frame, producing the
+`Render frame was disposed` follow-on errors.
+
+### Workaround applied
+
+Three files patched in place with `(sentScope.breadcrumbs ?? []).pop()`:
+
+- `node_modules/@sentry/electron/main/ipc.js` (CJS — what main consumes)
+- `node_modules/@sentry/electron/esm/main/ipc.js` (ESM — what bundlers pick up)
+- `out/main/index.js` (the already-built bundle, so a restart of
+  `npm run dev` picks the fix up immediately without a fresh
+  `npm run build`)
+
+### Persisting the patch
+
+`node_modules/` patches are wiped on every fresh
+`npm install`. To make the fix survive:
+
+1. `npm install --save-dev patch-package`
+2. Add `"postinstall": "patch-package"` to `package.json` scripts.
+3. Re-run `npm install` once to verify the existing
+   `patches/@sentry+electron+7.13.0.patch` re-applies.
+
+Optional: open an upstream PR adding the `?? []` guard to
+`@sentry/electron`'s `handleScope`. The fix is two characters;
+the test surface is one new "renderer sent partial scope"
+case.
+
+---
+
 ### Related: late-chokidar echo race
 
 While diagnosing the above, we also identified a separate but

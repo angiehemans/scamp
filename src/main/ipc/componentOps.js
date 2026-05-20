@@ -1,0 +1,187 @@
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import { DEFAULT_PAGE_CSS } from '@shared/agentMd';
+/**
+ * Folder + binding identifier for a Scamp component. Must be
+ * PascalCase: the folder name, the TSX filename, the React
+ * function name, AND every page's `import` binding all share
+ * this string, so it has to be a valid JSX identifier. Disallow
+ * underscores and hyphens — they would break Capitalised-tag
+ * detection in the parser.
+ */
+const COMPONENT_NAME_RE = /^[A-Z][A-Za-z0-9]*$/;
+/**
+ * Path layout for one component. Mirrors `pagePathsFor` in
+ * shape — folder + TSX + CSS module, where the folder is the
+ * component's canonical identifier.
+ */
+export const componentPathsFor = (projectPath, componentName) => {
+    const componentDir = join(projectPath, 'components', componentName);
+    return {
+        tsxPath: join(componentDir, `${componentName}.tsx`),
+        cssPath: join(componentDir, `${componentName}.module.css`),
+        componentDir,
+    };
+};
+const pathExists = async (p) => {
+    try {
+        await fs.access(p);
+        return true;
+    }
+    catch {
+        return false;
+    }
+};
+/**
+ * The default starter TSX written for a brand-new blank
+ * component. A single empty root `<div>` styled by
+ * `<Name>.module.css`'s `.root` block, ready for the user to
+ * draw inside. The function name + folder name + CSS-module
+ * import all agree so a rename later only has to flip the three
+ * matched strings.
+ */
+const defaultComponentTsx = (componentName) => `import styles from './${componentName}.module.css';
+
+export default function ${componentName}() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+    </div>
+  );
+}
+`;
+/**
+ * Refuses to operate on a non-Nextjs project — components don't
+ * exist in the legacy layout, and silently no-op'ing would
+ * leave the renderer with a dangling state. The renderer's
+ * components sidebar handles the surfacing.
+ */
+const assertNextjs = (format) => {
+    if (format !== 'nextjs') {
+        throw new Error('Components are only supported in Next.js-format projects.');
+    }
+};
+export const createComponent = async (args, format) => {
+    assertNextjs(format);
+    if (!COMPONENT_NAME_RE.test(args.componentName)) {
+        throw new Error(`Invalid component name "${args.componentName}". Use PascalCase letters and digits only (e.g. \`Button\`, \`HeroCard\`).`);
+    }
+    const { tsxPath, cssPath, componentDir } = componentPathsFor(args.projectPath, args.componentName);
+    if (await pathExists(componentDir)) {
+        throw new Error(`A component named "${args.componentName}" already exists.`);
+    }
+    // Ensure the parent `components/` exists before creating the
+    // per-component subfolder so the recursive mkdir below works
+    // on a fresh project.
+    await fs.mkdir(join(args.projectPath, 'components'), { recursive: true });
+    await fs.mkdir(componentDir, { recursive: false });
+    // Initial content: the convert-to-component flow passes
+    // pre-generated TSX + CSS that captures the source subtree's
+    // design. A plain-add flow leaves both undefined, falling back
+    // to the blank scaffold (single `root` div, empty CSS).
+    const tsxContent = args.tsxContent ?? defaultComponentTsx(args.componentName);
+    const cssContent = args.cssContent ?? DEFAULT_PAGE_CSS;
+    await fs.writeFile(tsxPath, tsxContent, 'utf-8');
+    await fs.writeFile(cssPath, cssContent, 'utf-8');
+    return {
+        name: args.componentName,
+        tsxPath,
+        cssPath,
+        tsxContent,
+        cssContent,
+    };
+};
+export const deleteComponent = async (args, format) => {
+    assertNextjs(format);
+    if (!COMPONENT_NAME_RE.test(args.componentName)) {
+        throw new Error(`Invalid component name "${args.componentName}".`);
+    }
+    const { componentDir } = componentPathsFor(args.projectPath, args.componentName);
+    // Recursive remove — the folder contains exactly the TSX + CSS
+    // pair (plus any thumbnails Phase 9 adds later), all owned by
+    // Scamp. `force: true` makes the call idempotent if the user /
+    // an agent already deleted the folder out from under us.
+    await fs.rm(componentDir, { recursive: true, force: true });
+};
+export const readComponent = async (args, format) => {
+    assertNextjs(format);
+    if (!COMPONENT_NAME_RE.test(args.componentName)) {
+        throw new Error(`Invalid component name "${args.componentName}".`);
+    }
+    const { tsxPath, cssPath } = componentPathsFor(args.projectPath, args.componentName);
+    try {
+        const [tsxContent, cssContent] = await Promise.all([
+            fs.readFile(tsxPath, 'utf-8'),
+            fs.readFile(cssPath, 'utf-8'),
+        ]);
+        return {
+            name: args.componentName,
+            tsxPath,
+            cssPath,
+            tsxContent,
+            cssContent,
+        };
+    }
+    catch {
+        return null;
+    }
+};
+/**
+ * Phase 9 — Components sidebar thumbnail. The renderer captures
+ * the component canvas via `html-to-image`, base64-encodes it,
+ * and ships the data URL here. We decode and write to a
+ * `.scamp/component-thumbs/` directory inside the project,
+ * creating the parent tree on first write. The scaffolded
+ * `.gitignore` excludes `.scamp/` so the file stays local.
+ */
+const thumbnailPathFor = (projectPath, componentName) => {
+    const dir = join(projectPath, '.scamp', 'component-thumbs');
+    const file = join(dir, `${componentName}.png`);
+    return { dir, file };
+};
+const decodeDataUrl = (dataUrl) => {
+    const comma = dataUrl.indexOf(',');
+    if (comma < 0)
+        throw new Error('Malformed data URL');
+    const base64 = dataUrl.slice(comma + 1);
+    return Buffer.from(base64, 'base64');
+};
+export const writeComponentThumbnail = async (args, format) => {
+    assertNextjs(format);
+    if (!COMPONENT_NAME_RE.test(args.componentName)) {
+        return {
+            ok: false,
+            error: `Invalid component name "${args.componentName}".`,
+        };
+    }
+    try {
+        const { dir, file } = thumbnailPathFor(args.projectPath, args.componentName);
+        await fs.mkdir(dir, { recursive: true });
+        const buf = decodeDataUrl(args.dataUrl);
+        await fs.writeFile(file, buf);
+        return { ok: true, thumbnailPath: file };
+    }
+    catch (err) {
+        return {
+            ok: false,
+            error: err instanceof Error ? err.message : 'Thumbnail write failed.',
+        };
+    }
+};
+export const readComponentThumbnail = async (args, format) => {
+    assertNextjs(format);
+    if (!COMPONENT_NAME_RE.test(args.componentName)) {
+        return { base64: null };
+    }
+    const { file } = thumbnailPathFor(args.projectPath, args.componentName);
+    try {
+        const buf = await fs.readFile(file);
+        return { base64: buf.toString('base64') };
+    }
+    catch {
+        // Missing / unreadable thumbnails fall back to the sidebar
+        // placeholder. We intentionally collapse all read errors to
+        // null rather than surfacing them — a permissions issue would
+        // be reported elsewhere when the component itself is read.
+        return { base64: null };
+    }
+};

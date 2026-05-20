@@ -24,6 +24,17 @@ export const IPC = {
     PageDelete: 'page:delete',
     PageDuplicate: 'page:duplicate',
     PageRename: 'page:rename',
+    // Component operations — reusable component definitions in
+    // `components/<Name>/<Name>.tsx` + `.module.css`. Mirror of the
+    // page operations above. Nextjs-format projects only.
+    ComponentCreate: 'component:create',
+    ComponentDelete: 'component:delete',
+    ComponentRead: 'component:read',
+    // Thumbnail capture for the sidebar preview. Written under
+    // `.scamp/component-thumbs/<Name>.png` inside the project so it
+    // stays local-only (the scaffolded `.gitignore` ignores `.scamp/`).
+    ComponentWriteThumbnail: 'component:writeThumbnail',
+    ComponentReadThumbnail: 'component:readThumbnail',
     // Recent projects
     RecentProjectsGet: 'recentProjects:get',
     RecentProjectsRemove: 'recentProjects:remove',

@@ -44,6 +44,20 @@ export type NewTextInput = {
   text?: string;
 };
 
+/**
+ * Input shape for placing a component instance on the active
+ * page. `componentName` is the PascalCase name resolved from the
+ * sidebar drag source. Position is in canvas-local coordinates;
+ * sizing falls through to `auto` because the rendered component
+ * defines its own dimensions.
+ */
+export type NewComponentInstanceInput = {
+  parentId: string;
+  componentName: string;
+  x: number;
+  y: number;
+};
+
 export type NewImageInput = {
   parentId: string;
   x: number;
@@ -68,6 +82,38 @@ export type ActivePage = {
   cssPath: string;
 };
 
+/**
+ * The currently-open component definition, when the canvas is in
+ * the component editor (Phase 2 of the components feature).
+ * Structurally identical to `ActivePage` but kept as a separate
+ * type so call sites can document which kind of artifact they're
+ * editing. The invariant is that AT MOST ONE of `activePage` /
+ * `activeComponent` is non-null at any time — loadPage clears
+ * activeComponent and loadComponent clears activePage.
+ */
+export type ActiveComponent = {
+  name: string;
+  tsxPath: string;
+  cssPath: string;
+};
+
+/**
+ * A parsed component's element tree, cached on the canvas store
+ * so the renderer can render instance subtrees on pages without
+ * re-parsing every frame. One entry per component; the map lives
+ * at `canvasStore.componentTrees`, keyed by PascalCase
+ * component name.
+ *
+ * `elements` follows the same flat-map shape as the page's
+ * `elements` field — keyed by short canvas id, rooted at
+ * `rootId`. Renderers walk it the same way they walk the page's
+ * own element map.
+ */
+export type ComponentTree = {
+  elements: Record<string, ScampElement>;
+  rootId: string;
+};
+
 export type PageSource = {
   tsx: string;
   css: string;
@@ -85,13 +131,16 @@ export type LeftSidebarTab = 'layers' | 'history';
 
 /**
  * Properties panel display mode. `'ui'` shows typed form controls grouped
- * by section; `'css'` shows the raw CSS editor. Both modes read the same
- * underlying element state, so flipping between them is lossless.
+ * by section; `'css'` shows the raw CSS editor; `'data'` shows the
+ * component-prop list (component editor only). `'ui'` and `'css'` read
+ * the same underlying element state, so flipping between them is
+ * lossless. `'data'` is a component-scoped view that ignores the per-
+ * element selection.
  *
  * Stored on the canvas store (not persisted to disk) so the user's choice
  * survives selection changes during a session.
  */
-export type PanelMode = 'ui' | 'css';
+export type PanelMode = 'ui' | 'css' | 'data';
 
 /**
  * Discrete zoom levels for the canvas. Pressing Cmd/Ctrl+= and Cmd/Ctrl+-
@@ -122,6 +171,15 @@ type CanvasState = {
   // Active page sync — set when a page is loaded; null between project open
   // and first page selection.
   activePage: ActivePage | null;
+
+  /**
+   * Active component sync — set when the canvas has entered the
+   * component editor. Mutually exclusive with `activePage`: setting
+   * one clears the other (see `loadPage` / `loadComponent`).
+   * The sync bridge reads whichever is non-null to decide which
+   * file pair to write back to.
+   */
+  activeComponent: ActiveComponent | null;
 
   // The current on-disk content of the active page. Updated by the sync
   // bridge whenever the canvas writes to disk OR an external edit comes
@@ -258,12 +316,34 @@ type CanvasState = {
   pendingPageNavigation: string | null;
 
   /**
+   * One-shot request to open a component in the component editor.
+   * The canvas's component-instance double-click handler sets this;
+   * `ProjectShell` consumes it via an effect (same shape as the
+   * page-navigation flow above), routes through its
+   * `openComponent` and clears the field.
+   */
+  pendingComponentNavigation: string | null;
+
+  /**
    * `@media` blocks the parser couldn't route to a known breakpoint
    * (min-width, prefers-color-scheme, custom max-widths…). Kept in
    * the store so `generateCode` can re-emit them untouched on every
    * write. Replaced whole-hog on page load / external edit.
    */
   pageCustomMediaBlocks: ReadonlyArray<string>;
+
+  /**
+   * Canvas-frame minimum height in logical pixels. The page
+   * editor sets this to the `EMPTY_FRAME_MIN_HEIGHT` constant
+   * (900px today) so blank pages have a visible canvas to draw
+   * on; the component editor sets it to the user-configured
+   * `componentCanvas[name].height` so the canvas reflects the
+   * component's design bounds. Both the Viewport's frame AND
+   * the root element's `min-height` style read from here, which
+   * keeps them in sync so the root fills the visible canvas
+   * (and clicks on empty canvas area still hit the root).
+   */
+  canvasMinHeight: number;
 
   /**
    * `@keyframes` blocks for the current page. Multiple elements can
@@ -273,6 +353,21 @@ type CanvasState = {
    * in the list. Replaced whole-hog on page load / external edit.
    */
   pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>;
+
+  /**
+   * Parsed element trees for every component definition in the
+   * project. The renderer uses this to render the subtree inside
+   * a `component-instance` element on the page. Keyed by
+   * PascalCase component name. Empty when the project has no
+   * components.
+   *
+   * Populated by `ProjectShell` after every change to
+   * `project.components` (project open, component create / edit /
+   * delete). Live updates here propagate to every instance on
+   * every page without any per-page work — the renderer reads
+   * from this map at render time.
+   */
+  componentTrees: Record<string, ComponentTree>;
 
   /**
    * One-shot canvas animation preview. When non-null, the matching
@@ -301,6 +396,59 @@ type CanvasState = {
   createText: (input: NewTextInput) => string;
   createImage: (input: NewImageInput) => string;
   createInput: (input: NewInputInput) => string;
+  /**
+   * Insert a component instance into the active page's element
+   * tree. Used by the sidebar drag-to-place flow. Returns the
+   * new element's canvas id (also reused as the hex part of the
+   * `data-scamp-instance-id`). No-op return when the parent is
+   * missing.
+   */
+  insertComponentInstance: (input: NewComponentInstanceInput) => string | null;
+  /**
+   * Replace an element-subtree on the active page with a
+   * component-instance pointing at `componentName`. Used by the
+   * "Create component" convert flow after the component files
+   * are written to disk: the subtree's elements are removed
+   * from the page, a new instance element is spliced into the
+   * subtree root's position in its parent's `childIds`, and
+   * `componentName` is recorded as the instance's reference.
+   * Returns the new instance's canvas id, or null when the
+   * subtree root doesn't exist or is the page root (which can't
+   * be replaced).
+   */
+  replaceSubtreeWithInstance: (
+    subtreeRootId: string,
+    componentName: string
+  ) => string | null;
+  /**
+   * One-way "detach from component". Replaces a `component-instance`
+   * element with a deep-cloned copy of the component's element
+   * tree, with fresh canvas ids for every node, current
+   * `propOverrides` baked into the matching text elements as
+   * literal text (clearing the `prop` field on those clones), and
+   * the cloned root taking the instance's x/y so the visual layout
+   * doesn't shift. Returns the new clone-root id, or null when the
+   * target isn't an instance / the component tree isn't loaded /
+   * the parent has gone missing.
+   *
+   * The component's import statement on the page TSX is NOT
+   * touched here — `generateCode.collectComponentImports` walks
+   * the post-detach element map at serialize time and naturally
+   * drops the import when no other instance of this component
+   * remains.
+   */
+  detachInstance: (instanceId: string) => string | null;
+  /**
+   * Rewrite every `component-instance` element in the active
+   * canvas whose `componentName === oldName` to use `newName`.
+   * Used by the component-rename flow to keep the in-memory
+   * elements map in step with the on-disk file rewrites without
+   * forcing a reload that would drop unsaved edits. Also clears
+   * `editingInstanceProp` if it targets a renamed instance —
+   * the inline edit-mode dialog state has no notion of
+   * componentName change.
+   */
+  renameComponentReferences: (oldName: string, newName: string) => void;
   duplicateElement: (id: string) => string | null;
   /** Snapshot the selected element subtree into the internal clipboard. */
   copyElement: (id: string) => void;
@@ -330,7 +478,57 @@ type CanvasState = {
   /** Move an element to a new parent / index. Cycle-protected. */
   reorderElement: (elementId: string, newParentId: string, newIndex: number) => void;
   setEditingElement: (id: string | null) => void;
+  /**
+   * Inline-edit-mode target for a component instance's per-prop
+   * text override. Distinct from `editingElementId` because the
+   * target isn't a real canvas element — it's a (instance, prop
+   * name) pair that resolves to a contentEditable rendered inside
+   * the component's expanded subtree. Null when no instance prop
+   * is being edited. The renderer reads this in
+   * `renderComponentSubtree` to decide which text node becomes
+   * contentEditable; the commit writes through
+   * `setPropOverride`.
+   */
+  editingInstanceProp: { instanceId: string; propName: string } | null;
+  setEditingInstanceProp: (
+    value: { instanceId: string; propName: string } | null
+  ) => void;
+  /**
+   * Write a per-instance text-prop override. Lands in the
+   * `propOverrides` map on the component-instance element keyed
+   * by `propName`. Empty string is a valid override (explicitly
+   * "render nothing"), distinct from absence which means "fall
+   * back to the component default". Commits a history entry so
+   * the change participates in undo/redo. No-op for non-instance
+   * elements.
+   */
+  setPropOverride: (instanceId: string, propName: string, value: string) => void;
+  /**
+   * Drop a per-instance text-prop override so the displayed value
+   * reverts to the component-side default. No-op when the override
+   * isn't set. Commits its own history entry.
+   */
+  clearPropOverride: (instanceId: string, propName: string) => void;
   setElementText: (id: string, text: string) => void;
+  /**
+   * Toggle a text element between "locked literal" and "prop".
+   * Locked → Prop: assigns the next unused default name (`prop1`,
+   * `prop2`, …) computed from the component's other text-prop
+   * elements. Prop → Locked: clears the `prop` field; the existing
+   * `text` continues to be the rendered literal. No-op for non-text
+   * elements. The toggle is component-only — callers should hide
+   * the UI when editing a page.
+   */
+  togglePropOnText: (id: string) => void;
+  /**
+   * Rename a text element's `prop`. No-op when the element has no
+   * `prop` set or is not a text element. Caller is responsible for
+   * validating the new name (JS identifier syntax + uniqueness) —
+   * the store accepts whatever it's given so the UI can decide
+   * whether to surface validation errors inline vs. block the
+   * commit entirely.
+   */
+  renamePropOnText: (id: string, nextName: string) => void;
   moveElement: (id: string, x: number, y: number) => void;
   resizeElement: (id: string, x: number, y: number, width: number, height: number) => void;
   patchElement: (id: string, patch: Partial<ScampElement>) => void;
@@ -368,6 +566,21 @@ type CanvasState = {
     keyframesBlocks?: ReadonlyArray<KeyframesBlock>,
     cssDuplicates?: Record<string, ReadonlyArray<string>>
   ) => void;
+  /**
+   * Switch the canvas into the component editor. Same signature
+   * shape as `loadPage` — the difference is the target type and
+   * the syncBridge's write-path resolution (component file pair,
+   * not page file pair). `activeComponent` becomes set, and
+   * `activePage` is cleared.
+   */
+  loadComponent: (
+    component: ActiveComponent,
+    elements: Record<string, ScampElement>,
+    source: PageSource,
+    customMediaBlocks?: ReadonlyArray<string>,
+    keyframesBlocks?: ReadonlyArray<KeyframesBlock>,
+    cssDuplicates?: Record<string, ReadonlyArray<string>>
+  ) => void;
   reloadElements: (
     elements: Record<string, ScampElement>,
     source: PageSource,
@@ -387,8 +600,19 @@ type CanvasState = {
   setProjectFormat: (format: ProjectFormat) => void;
   setProjectPath: (path: string) => void;
   setPageNames: (pageNames: ReadonlyArray<string>) => void;
+  /**
+   * Replace the cached component-tree map. Called by `ProjectShell`
+   * after every change to `project.components` so every instance
+   * on every page picks up the new content on the next render.
+   * Pass an empty `{}` to clear (e.g. when closing the project).
+   */
+  setComponentTrees: (trees: Record<string, ComponentTree>) => void;
+  /** Update the canvas-frame minimum height in logical pixels. */
+  setCanvasMinHeight: (value: number) => void;
   /** Set / clear the pending page-navigation request. */
   requestPageNavigation: (pageName: string | null) => void;
+  /** Set / clear the pending component-navigation request. */
+  requestComponentNavigation: (componentName: string | null) => void;
   /**
    * Apply an animation to an element. Routes through
    * `applyPatchWithAxisRouting` so the animation lands on the
@@ -570,6 +794,32 @@ const makeInput = (input: NewInputInput, id: string): ScampElement => ({
   attributes: { type: 'text' },
 });
 
+const makeComponentInstance = (
+  input: NewComponentInstanceInput,
+  id: string
+): ScampElement => ({
+  ...DEFAULT_RECT_STYLES,
+  id,
+  type: 'component-instance',
+  parentId: input.parentId,
+  childIds: [],
+  // The instance has no intrinsic size on the page tree — the
+  // rendered component's own root sets the box. Use `auto` on
+  // both axes so the generator emits no width/height, matching
+  // what `parseCode` produces for instances without a class block.
+  widthMode: 'auto',
+  heightMode: 'auto',
+  x: input.x,
+  y: input.y,
+  customProperties: {},
+  componentName: input.componentName,
+  // Use the canvas id as the hex tail of the `inst_*` identifier
+  // so `data-scamp-instance-id` is human-readable and easy to
+  // correlate with the canvas selection.
+  instanceId: `inst_${id}`,
+  propOverrides: {},
+});
+
 /**
  * When a new rectangle or text element is drawn inside a `<ul>` or
  * `<ol>`, default its tag to `<li>` so the output semantic is correct
@@ -736,8 +986,10 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   rootElementId: ROOT_ELEMENT_ID,
   selectedElementIds: [],
   editingElementId: null,
+  editingInstanceProp: null,
   activeTool: 'select',
   activePage: null,
+  activeComponent: null,
   pageSource: null,
   isLoading: false,
   lastLoadKind: null,
@@ -754,8 +1006,14 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   projectPath: '',
   pageNames: [],
   pendingPageNavigation: null,
+  pendingComponentNavigation: null,
   pageCustomMediaBlocks: [],
   pageKeyframesBlocks: [],
+  componentTrees: {},
+  // Default matches the page-editor canvas. ProjectShell
+  // overrides this when entering the component editor so the
+  // canvas reflects the per-component height.
+  canvasMinHeight: 900,
   previewAnimation: null,
   themeTokens: [],
   clipboard: null,
@@ -856,6 +1114,278 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     });
     commitElementsToHistory({ kind: 'add-input', elementIds: [id] });
     return id;
+  },
+
+  insertComponentInstance: (input) => {
+    const id = generateElementId();
+    let inserted = false;
+    set((state) => {
+      const parent = state.elements[input.parentId];
+      if (!parent) return state;
+      // Component instances render as their PascalCase JSX tag —
+      // not subject to the `<li>` auto-tag rule, so we don't run
+      // `tagForListChildContext` here.
+      const newInstance = makeComponentInstance(input, id);
+      inserted = true;
+      return {
+        elements: {
+          ...state.elements,
+          [id]: newInstance,
+          [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
+        },
+        selectedElementIds: [id],
+      };
+    });
+    if (!inserted) return null;
+    commitElementsToHistory({
+      kind: 'add-component-instance',
+      elementIds: [id],
+    });
+    return id;
+  },
+
+  replaceSubtreeWithInstance: (subtreeRootId, componentName) => {
+    const newId = generateElementId();
+    let replaced = false;
+    set((state) => {
+      const subtreeRoot = state.elements[subtreeRootId];
+      if (!subtreeRoot) return state;
+      // Page-root replacement isn't meaningful — the user can't
+      // convert the whole page into a component (no parent to
+      // splice the instance into).
+      if (subtreeRoot.parentId === null) return state;
+      const parent = state.elements[subtreeRoot.parentId];
+      if (!parent) return state;
+
+      // Collect every descendant id so we can drop them from
+      // the elements map in one pass. The subtree root's id is
+      // included for removal too.
+      const idsToRemove = new Set<string>();
+      const walk = (id: string): void => {
+        if (idsToRemove.has(id)) return;
+        idsToRemove.add(id);
+        const el = state.elements[id];
+        if (!el) return;
+        for (const childId of el.childIds) walk(childId);
+      };
+      walk(subtreeRootId);
+
+      // Build the new element map: every surviving element kept
+      // as-is, plus the new instance element. Position + sizing
+      // copied from the source subtree's root so the instance
+      // visually lands where the user converted from.
+      const nextElements: Record<string, ScampElement> = {};
+      for (const [id, el] of Object.entries(state.elements)) {
+        if (idsToRemove.has(id)) continue;
+        nextElements[id] = el;
+      }
+      const newInstance: ScampElement = makeComponentInstance(
+        {
+          parentId: parent.id,
+          componentName,
+          x: subtreeRoot.x,
+          y: subtreeRoot.y,
+        },
+        newId
+      );
+      nextElements[newId] = newInstance;
+      // Splice the new instance into the parent's childIds at
+      // the same index as the old subtree root so source order
+      // (for flex / grid layout) is preserved.
+      const idx = parent.childIds.indexOf(subtreeRootId);
+      const nextParentChildIds =
+        idx < 0
+          ? [...parent.childIds.filter((c) => c !== subtreeRootId), newId]
+          : [
+              ...parent.childIds.slice(0, idx),
+              newId,
+              ...parent.childIds.slice(idx + 1),
+            ];
+      nextElements[parent.id] = {
+        ...parent,
+        childIds: nextParentChildIds,
+      };
+
+      replaced = true;
+      return {
+        elements: nextElements,
+        selectedElementIds: [newId],
+      };
+    });
+    if (!replaced) return null;
+    commitElementsToHistory({
+      kind: 'convert-to-component',
+      elementIds: [newId],
+    });
+    return newId;
+  },
+
+  detachInstance: (instanceId) => {
+    let newRootId: string | null = null;
+    let componentNameForHistory: string | undefined;
+    set((state) => {
+      const instance = state.elements[instanceId];
+      if (!instance || instance.type !== 'component-instance') return state;
+      const componentName = instance.componentName;
+      if (!componentName) return state;
+      const tree = state.componentTrees[componentName];
+      if (!tree) return state;
+      const componentRoot = tree.elements[tree.rootId];
+      if (!componentRoot) return state;
+      if (instance.parentId === null) return state;
+      const parent = state.elements[instance.parentId];
+      if (!parent) return state;
+
+      // Walk the component tree in dependency-free order — collect
+      // every id first, then assign fresh ids, then rebuild the
+      // cloned elements with remapped parent/child references. Two
+      // passes keep us from caring about insertion order. Uses
+      // existing canvas ids in the destination map to avoid
+      // collision; rejects collisions via a guard set.
+      const idsToClone: string[] = [];
+      const visit = (id: string): void => {
+        const el = tree.elements[id];
+        if (!el) return;
+        idsToClone.push(id);
+        for (const child of el.childIds) visit(child);
+      };
+      visit(tree.rootId);
+
+      const idMap = new Map<string, string>();
+      const existing = new Set(Object.keys(state.elements));
+      for (const id of idsToClone) {
+        // Collision guard — generateElementId is 4 hex chars
+        // (~65k space), so 10s of clones in one project will hit
+        // duplicates eventually. Re-roll until unique within the
+        // page AND not already assigned to a sibling in this batch.
+        let next = generateElementId();
+        while (existing.has(next) || [...idMap.values()].includes(next)) {
+          next = generateElementId();
+        }
+        idMap.set(id, next);
+      }
+
+      const overrides = instance.propOverrides ?? {};
+      const overrideKeys = new Set(Object.keys(overrides));
+
+      const clonedElements: Record<string, ScampElement> = {};
+      for (const oldId of idsToClone) {
+        const source = tree.elements[oldId];
+        if (!source) continue;
+        const newId = idMap.get(oldId)!;
+        const newParentId =
+          oldId === tree.rootId
+            ? parent.id
+            : idMap.get(source.parentId ?? '') ?? null;
+        const newChildIds = source.childIds
+          .map((cid) => idMap.get(cid))
+          .filter((cid): cid is string => typeof cid === 'string');
+
+        // Bake prop overrides into the clone — the detached copy
+        // is just regular text now, no longer a parameter, so we
+        // drop the `prop` field and write the resolved value
+        // straight into `text`.
+        let textPatch: Pick<ScampElement, 'text' | 'prop'> | null = null;
+        if (
+          source.type === 'text' &&
+          typeof source.prop === 'string' &&
+          source.prop.length > 0
+        ) {
+          const propName = source.prop;
+          const resolved = overrideKeys.has(propName)
+            ? overrides[propName]
+            : source.text;
+          textPatch = { text: resolved, prop: undefined };
+        }
+
+        // The cloned root inherits the instance's on-page position
+        // so the detach is visually a no-op. Inner descendants keep
+        // their component-side x/y verbatim — they're positioned
+        // relative to the cloned root, same as inside the
+        // component editor.
+        const positionPatch =
+          oldId === tree.rootId ? { x: instance.x, y: instance.y } : {};
+
+        const clone: ScampElement = {
+          ...source,
+          ...textPatch,
+          ...positionPatch,
+          id: newId,
+          parentId: newParentId,
+          childIds: newChildIds,
+        };
+        clonedElements[newId] = clone;
+      }
+
+      // Drop the instance from the elements map; splice the
+      // clone root into the parent's childIds at the instance's
+      // position so flex / grid source order is preserved.
+      const { [instanceId]: _removed, ...survivors } = state.elements;
+      const idx = parent.childIds.indexOf(instanceId);
+      const cloneRootId = idMap.get(tree.rootId)!;
+      const nextParentChildIds =
+        idx < 0
+          ? [...parent.childIds.filter((c) => c !== instanceId), cloneRootId]
+          : [
+              ...parent.childIds.slice(0, idx),
+              cloneRootId,
+              ...parent.childIds.slice(idx + 1),
+            ];
+
+      newRootId = cloneRootId;
+      componentNameForHistory = componentName;
+      return {
+        elements: {
+          ...survivors,
+          ...clonedElements,
+          [parent.id]: { ...parent, childIds: nextParentChildIds },
+        },
+        selectedElementIds: [cloneRootId],
+      };
+    });
+    if (newRootId === null) return null;
+    commitElementsToHistory({
+      kind: 'detach-instance',
+      elementIds: [newRootId],
+      previousName: componentNameForHistory,
+    });
+    return newRootId;
+  },
+
+  renameComponentReferences: (oldName, newName) => {
+    if (oldName === newName) return;
+    const renamedIds: string[] = [];
+    set((state) => {
+      const next: Record<string, ScampElement> = {};
+      for (const [id, el] of Object.entries(state.elements)) {
+        if (el.type === 'component-instance' && el.componentName === oldName) {
+          renamedIds.push(id);
+          next[id] = { ...el, componentName: newName };
+        } else {
+          next[id] = el;
+        }
+      }
+      if (renamedIds.length === 0) return state;
+      // If the inline-edit target was on one of these instances,
+      // clear it. The prop NAME doesn't change on a component
+      // rename, but the rename UX involves dialog flow that
+      // shouldn't leave a contentEditable mid-edit.
+      const nextEditingInstanceProp =
+        state.editingInstanceProp &&
+        renamedIds.includes(state.editingInstanceProp.instanceId)
+          ? null
+          : state.editingInstanceProp;
+      return {
+        elements: next,
+        editingInstanceProp: nextEditingInstanceProp,
+      };
+    });
+    if (renamedIds.length === 0) return;
+    commitElementsToHistory({
+      kind: 'patch',
+      elementIds: renamedIds,
+      propertyKeys: ['componentName'],
+    });
   },
 
   deleteElement: (id) => {
@@ -1141,6 +1671,58 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
 
   setEditingElement: (id) => set({ editingElementId: id }),
 
+  setEditingInstanceProp: (value) => set({ editingInstanceProp: value }),
+
+  setPropOverride: (instanceId, propName, value) => {
+    let didChange = false;
+    set((state) => {
+      const el = state.elements[instanceId];
+      if (!el || el.type !== 'component-instance') return state;
+      const current = el.propOverrides ?? {};
+      if (current[propName] === value) return state;
+      const nextOverrides = { ...current, [propName]: value };
+      didChange = true;
+      return {
+        elements: {
+          ...state.elements,
+          [instanceId]: { ...el, propOverrides: nextOverrides },
+        },
+      };
+    });
+    if (didChange) {
+      commitElementsToHistory({
+        kind: 'patch',
+        elementIds: [instanceId],
+        propertyKeys: ['propOverrides'],
+      });
+    }
+  },
+
+  clearPropOverride: (instanceId, propName) => {
+    let didChange = false;
+    set((state) => {
+      const el = state.elements[instanceId];
+      if (!el || el.type !== 'component-instance') return state;
+      const current = el.propOverrides ?? {};
+      if (!(propName in current)) return state;
+      const { [propName]: _drop, ...rest } = current;
+      didChange = true;
+      return {
+        elements: {
+          ...state.elements,
+          [instanceId]: { ...el, propOverrides: rest },
+        },
+      };
+    });
+    if (didChange) {
+      commitElementsToHistory({
+        kind: 'patch',
+        elementIds: [instanceId],
+        propertyKeys: ['propOverrides'],
+      });
+    }
+  },
+
   setElementText: (id, text) => {
     set((state) => {
       const el = state.elements[id];
@@ -1154,6 +1736,67 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       elementIds: [id],
       propertyKeys: ['text'],
     });
+  },
+
+  togglePropOnText: (id) => {
+    let didChange = false;
+    set((state) => {
+      const el = state.elements[id];
+      if (!el || el.type !== 'text') return state;
+      if (el.prop !== undefined) {
+        // Prop → Locked: drop the field. Round-trips as a plain
+        // literal in the generated TSX. Phase 7 wires the
+        // lock-with-overrides warning; for now the toggle is silent.
+        const { prop: _drop, ...rest } = el;
+        const next = rest as typeof el;
+        didChange = true;
+        return { elements: { ...state.elements, [id]: next } };
+      }
+      // Locked → Prop: pick the lowest `prop<N>` not already in use
+      // by another text element in the same target. The set is built
+      // from ALL text elements (page or component) — components are
+      // the only target that emits the field, but reading without
+      // the activeComponent gate keeps the action's behaviour stable
+      // for tests that seed elements directly.
+      const used = new Set<string>();
+      for (const other of Object.values(state.elements)) {
+        if (other.type === 'text' && other.prop) used.add(other.prop);
+      }
+      let n = 1;
+      while (used.has(`prop${n}`)) n += 1;
+      const newProp = `prop${n}`;
+      didChange = true;
+      return {
+        elements: { ...state.elements, [id]: { ...el, prop: newProp } },
+      };
+    });
+    if (didChange) {
+      commitElementsToHistory({
+        kind: 'patch',
+        elementIds: [id],
+        propertyKeys: ['prop'],
+      });
+    }
+  },
+
+  renamePropOnText: (id, nextName) => {
+    let didChange = false;
+    set((state) => {
+      const el = state.elements[id];
+      if (!el || el.type !== 'text' || el.prop === undefined) return state;
+      if (el.prop === nextName) return state;
+      didChange = true;
+      return {
+        elements: { ...state.elements, [id]: { ...el, prop: nextName } },
+      };
+    });
+    if (didChange) {
+      commitElementsToHistory({
+        kind: 'patch',
+        elementIds: [id],
+        propertyKeys: ['prop'],
+      });
+    }
   },
 
   moveElement: (id, x, y) => {
@@ -1465,8 +2108,47 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     keyframesBlocks,
     cssDuplicates
   ) => {
-    set({
+    set((state) => ({
       activePage: page,
+      // Mutually exclusive with activeComponent — leaving the
+      // previous component reference in place while editing a
+      // page would confuse the sync bridge about which file pair
+      // to write back to.
+      activeComponent: null,
+      elements,
+      pageSource: source,
+      pageCustomMediaBlocks: customMediaBlocks ?? [],
+      pageKeyframesBlocks: keyframesBlocks ?? [],
+      cssDuplicates: cssDuplicates ?? {},
+      selectedElementIds: [],
+      isLoading: true,
+      lastLoadKind: 'initial',
+      // The Data tab is component-only — if the user was on it
+      // when navigating to a page, fall back to the UI tab so the
+      // panel doesn't surface an empty / non-applicable view.
+      panelMode: state.panelMode === 'data' ? 'ui' : state.panelMode,
+    }));
+    // Activate the page's history bucket. The per-page history stack
+    // persists across page switches; reactivating the same page id
+    // here is a no-op for an existing bucket.
+    useHistoryStore.getState().setActivePageId(page.tsxPath);
+  },
+
+  loadComponent: (
+    component,
+    elements,
+    source,
+    customMediaBlocks,
+    keyframesBlocks,
+    cssDuplicates
+  ) => {
+    set({
+      activeComponent: component,
+      // Same mutual-exclusivity rule as loadPage. We don't carry
+      // a "returnTo page" in store state for Phase 2 — the
+      // ProjectShell tracks the entry-point page in its own
+      // React state since that's a UI concern.
+      activePage: null,
       elements,
       pageSource: source,
       pageCustomMediaBlocks: customMediaBlocks ?? [],
@@ -1476,10 +2158,10 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       isLoading: true,
       lastLoadKind: 'initial',
     });
-    // Activate the page's history bucket. The per-page history stack
-    // persists across page switches; reactivating the same page id
-    // here is a no-op for an existing bucket.
-    useHistoryStore.getState().setActivePageId(page.tsxPath);
+    // Components get their own per-target history bucket keyed by
+    // their tsxPath — same shape as pages so the history slice
+    // doesn't need component-aware code.
+    useHistoryStore.getState().setActivePageId(component.tsxPath);
   },
 
   reloadElements: (
@@ -1533,8 +2215,15 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
 
   setProjectFormat: (projectFormat) => set({ projectFormat }),
   setPageNames: (pageNames) => set({ pageNames }),
+
+  setComponentTrees: (trees) => set({ componentTrees: trees }),
+
+  setCanvasMinHeight: (value) => set({ canvasMinHeight: value }),
   requestPageNavigation: (pendingPageNavigation) =>
     set({ pendingPageNavigation }),
+
+  requestComponentNavigation: (pendingComponentNavigation) =>
+    set({ pendingComponentNavigation }),
 
   setProjectPath: (projectPath) => set({ projectPath }),
 
@@ -1580,6 +2269,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       selectedElementIds: [],
       editingElementId: null,
       activePage: null,
+      activeComponent: null,
       pageSource: null,
       isLoading: false,
       // Drop the manual zoom too — we want a fresh project to start in

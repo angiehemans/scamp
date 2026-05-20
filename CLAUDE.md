@@ -24,6 +24,9 @@ See `prd-scamp-poc.md` for full product context.
 
 ## Code Standards
 
+### General:
+- Prefer writing clear code and use inline comments sparingly
+
 ### TypeScript
 
 - Strict mode is on — no exceptions
@@ -278,7 +281,6 @@ it('round-trips cleanly: generateCode → parseCode reproduces original state', 
 
 - Don't add dependencies without a good reason — keep the bundle lean
 - Don't add a dependency for something achievable in ~20 lines of TypeScript
-- Don't build WYSIWYG controls (color pickers, sliders, dropdowns) — that is post-POC scope
 - Don't put canvas or page state in React component state — it belongs in Zustand
 
 ---

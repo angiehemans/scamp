@@ -23,6 +23,7 @@ import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
 import {
   ensureThemeDefaultsIfNeeded,
+  readProjectComponents,
   readProjectLegacy,
   readProjectNextjs,
   refreshAgentMdIfNeeded,
@@ -54,11 +55,18 @@ const readProject = async (folderPath: string): Promise<ProjectData> => {
     format === 'nextjs'
       ? await readProjectNextjs(folderPath)
       : await readProjectLegacy(folderPath);
+  // Components require the Next.js layout (the `components/` folder
+  // sits at the project root alongside `app/`). Legacy projects
+  // return an empty list — see `docs/plans/2026-05-17-components.md`
+  // for the rationale.
+  const components =
+    format === 'nextjs' ? await readProjectComponents(folderPath) : [];
   return {
     path: folderPath,
     name: basename(folderPath),
     format,
     pages,
+    components,
   };
 };
 

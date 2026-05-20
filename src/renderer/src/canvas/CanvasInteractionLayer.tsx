@@ -1,4 +1,4 @@
-import { DragEvent, PointerEvent, RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { DragEvent, MouseEvent, PointerEvent, RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
@@ -739,6 +739,23 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     })();
   };
 
+  // Right-click on the canvas opens the element context menu. The layer
+  // sits above all canvas elements (z-index: 100), so element-level
+  // onContextMenu handlers never fire — without this, Electron suppresses
+  // the OS default menu and nothing visible happens. Hit-test under the
+  // cursor, select that element, then dispatch the same custom event the
+  // element-level handler would have, so `ElementContextMenu` renders.
+  const handleContextMenu = (e: MouseEvent<HTMLDivElement>): void => {
+    e.preventDefault();
+    const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+    selectElement(hitId);
+    window.dispatchEvent(
+      new CustomEvent('scamp:open-element-context-menu', {
+        detail: { x: e.clientX, y: e.clientY, elementId: hitId },
+      })
+    );
+  };
+
   const selectedEl = selectedElementId ? elements[selectedElementId] : null;
   const isEditing = editingElementId !== null;
 
@@ -753,6 +770,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >

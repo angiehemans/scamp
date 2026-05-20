@@ -1,0 +1,32 @@
+diff --git a/node_modules/@sentry/electron/esm/main/ipc.js b/node_modules/@sentry/electron/esm/main/ipc.js
+index 0000000..0000000 100644
+--- a/node_modules/@sentry/electron/esm/main/ipc.js
++++ b/node_modules/@sentry/electron/esm/main/ipc.js
+@@ -126,7 +126,10 @@ function handleScope(options, jsonScope) {
+     for (const attachment of sentScope.attachments || []) {
+         scope.addAttachment(attachment);
+     }
+-    const breadcrumb = sentScope.breadcrumbs.pop();
++    // Scamp patch: defensive `?? []`. Upstream 7.13.0 crashes
++    // when the renderer's scope payload omits `breadcrumbs`,
++    // which kills the renderer process. Track upstream fix.
++    const breadcrumb = (sentScope.breadcrumbs ?? []).pop();
+     if (breadcrumb) {
+         scope.addBreadcrumb(breadcrumb, options?.maxBreadcrumbs || 100);
+     }
+diff --git a/node_modules/@sentry/electron/main/ipc.js b/node_modules/@sentry/electron/main/ipc.js
+index 0000000..0000000 100644
+--- a/node_modules/@sentry/electron/main/ipc.js
++++ b/node_modules/@sentry/electron/main/ipc.js
+@@ -126,7 +126,10 @@ function handleScope(options, jsonScope) {
+     for (const attachment of sentScope.attachments || []) {
+         scope.addAttachment(attachment);
+     }
+-    const breadcrumb = sentScope.breadcrumbs.pop();
++    // Scamp patch: defensive `?? []`. Upstream 7.13.0 crashes
++    // when the renderer's scope payload omits `breadcrumbs`,
++    // which kills the renderer process. Track upstream fix.
++    const breadcrumb = (sentScope.breadcrumbs ?? []).pop();
+     if (breadcrumb) {
+         scope.addBreadcrumb(breadcrumb, options?.maxBreadcrumbs || 100);
+     }

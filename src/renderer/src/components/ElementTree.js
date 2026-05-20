@@ -28,6 +28,13 @@ const titleCaseFromSlug = (slug) => slug
 const labelFor = (el) => {
     if (el.id === ROOT_ELEMENT_ID)
         return 'Page';
+    if (el.type === 'component-instance') {
+        // Component name is the user-facing identity. The instance id
+        // (`inst_a1b2`) goes in the tooltip via `classNameFor` for
+        // disambiguation when the user has multiple instances of the
+        // same component on the page.
+        return el.componentName ?? 'Component';
+    }
     if (el.name)
         return titleCaseFromSlug(el.name);
     if (el.type === 'text') {
@@ -155,7 +162,11 @@ const Row = ({ element, depth, dragOver, setDragOver }) => {
                             inputRef.current?.focus();
                             inputRef.current?.select();
                         });
-                    }, children: [_jsx("span", { className: styles.icon, "aria-hidden": "true", children: element.type === 'text' ? 'T' : '▢' }), renaming ? (_jsx("input", { ref: inputRef, type: "text", className: styles.renameInput, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: () => {
+                    }, children: [_jsx("span", { className: styles.icon, "aria-hidden": "true", children: element.type === 'text'
+                                ? 'T'
+                                : element.type === 'component-instance'
+                                    ? '◆'
+                                    : '▢' }), renaming ? (_jsx("input", { ref: inputRef, type: "text", className: styles.renameInput, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: () => {
                                 const slug = slugifyName(draft);
                                 patchElement(element.id, {
                                     name: slug.length > 0 ? slug : undefined,

@@ -9,7 +9,7 @@ import { watchProject } from '../watcher';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
-import { ensureThemeDefaultsIfNeeded, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
+import { ensureThemeDefaultsIfNeeded, readProjectComponents, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
 export { detectProjectFormat };
 export { scaffoldLegacyProject, scaffoldNextjsProject };
@@ -29,11 +29,17 @@ const readProject = async (folderPath) => {
     const pages = format === 'nextjs'
         ? await readProjectNextjs(folderPath)
         : await readProjectLegacy(folderPath);
+    // Components require the Next.js layout (the `components/` folder
+    // sits at the project root alongside `app/`). Legacy projects
+    // return an empty list — see `docs/plans/2026-05-17-components.md`
+    // for the rationale.
+    const components = format === 'nextjs' ? await readProjectComponents(folderPath) : [];
     return {
         path: folderPath,
         name: basename(folderPath),
         format,
         pages,
+        components,
     };
 };
 const createProject = async (args) => {

@@ -19,6 +19,14 @@ import type {
   FileWriteArgs,
   FileWriteResult,
   OpenProjectArgs,
+  ComponentCreateArgs,
+  ComponentDeleteArgs,
+  ComponentFile,
+  ComponentReadArgs,
+  ComponentReadThumbnailArgs,
+  ComponentReadThumbnailResult,
+  ComponentWriteThumbnailArgs,
+  ComponentWriteThumbnailResult,
   PageCreateArgs,
   PageDeleteArgs,
   PageDuplicateArgs,
@@ -97,6 +105,25 @@ const api = {
 
   renamePage: (args: PageRenameArgs): Promise<PageFile> =>
     ipcRenderer.invoke(IPC.PageRename, args),
+
+  createComponent: (args: ComponentCreateArgs): Promise<ComponentFile> =>
+    ipcRenderer.invoke(IPC.ComponentCreate, args),
+
+  deleteComponent: (args: ComponentDeleteArgs): Promise<void> =>
+    ipcRenderer.invoke(IPC.ComponentDelete, args),
+
+  readComponent: (args: ComponentReadArgs): Promise<ComponentFile | null> =>
+    ipcRenderer.invoke(IPC.ComponentRead, args),
+
+  writeComponentThumbnail: (
+    args: ComponentWriteThumbnailArgs
+  ): Promise<ComponentWriteThumbnailResult> =>
+    ipcRenderer.invoke(IPC.ComponentWriteThumbnail, args),
+
+  readComponentThumbnail: (
+    args: ComponentReadThumbnailArgs
+  ): Promise<ComponentReadThumbnailResult> =>
+    ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
 
   getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
     ipcRenderer.invoke(IPC.RecentProjectsGet),

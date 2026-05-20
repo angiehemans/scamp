@@ -47,6 +47,7 @@ describe('scaffoldNextjsProject', () => {
             return entries.sort();
         };
         expect(await list('')).toEqual([
+            '.gitignore',
             'CLAUDE.md',
             'agent.md',
             'app',
@@ -174,6 +175,7 @@ describe('scaffoldLegacyProject', () => {
         await scaffoldLegacyProject(projectDir);
         const entries = (await fs.readdir(projectDir)).sort();
         expect(entries).toEqual([
+            '.gitignore',
             'CLAUDE.md',
             'agent.md',
             'home.module.css',

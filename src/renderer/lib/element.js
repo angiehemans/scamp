@@ -475,6 +475,16 @@ export const cloneElementSubtree = (elements, rootCloneId, newParentId, existing
             filters: old.filters.map((f) => ({ ...f })),
             backdropFilters: old.backdropFilters.map((f) => ({ ...f })),
             toggledOffGroups: [...old.toggledOffGroups],
+            // Component-instance clones get a fresh instance id and a copy
+            // of the prop overrides map. The instanceId IS the per-page
+            // identity — two instances of the same component need distinct
+            // ids or selection / overrides collide.
+            ...(old.type === 'component-instance'
+                ? {
+                    instanceId: `inst_${freshId()}`,
+                    propOverrides: { ...(old.propOverrides ?? {}) },
+                }
+                : {}),
             // Clear the name on clones so the duplicate gets a fresh default
             // class name. The user can rename it from the layers panel.
             name: undefined,

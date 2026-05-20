@@ -4,6 +4,7 @@ import { PanelModeToggle } from './PanelModeToggle';
 import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
+import { DataPanel } from './DataPanel';
 import styles from './PropertiesPanel.module.css';
 
 const SHORTCUTS: ReadonlyArray<{ keys: string; description: string }> = [
@@ -45,14 +46,24 @@ const ShortcutsTable = (): JSX.Element => (
 export const PropertiesPanel = (): JSX.Element => {
   const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
   const panelMode = useCanvasStore((s) => s.panelMode);
+  const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
 
-  if (!selectedId) {
+  // The Data tab is component-scoped: it shows the prop list for the
+  // whole component, not the selected element. So when the user is on
+  // it we render the panel chrome (header + mode toggle + DataPanel)
+  // even without a selection. UI / CSS still require a selection — they
+  // are per-element views.
+  const showDataWithoutSelection =
+    !selectedId && isComponentEditing && panelMode === 'data';
+
+  if (!selectedId && !showDataWithoutSelection) {
     return (
       <aside
         className={styles.panel}
         data-testid="properties-panel"
         data-panel-mode="empty"
       >
+        {isComponentEditing && <PanelModeToggle />}
         <ShortcutsTable />
       </aside>
     );
@@ -64,10 +75,16 @@ export const PropertiesPanel = (): JSX.Element => {
       data-testid="properties-panel"
       data-panel-mode={panelMode}
     >
-      <PanelHeader />
+      {selectedId && <PanelHeader />}
       <PanelModeToggle />
-      {panelMode === 'ui' && <StateSwitcher />}
-      {panelMode === 'ui' ? <UiPanel /> : <CssPanel />}
+      {selectedId && panelMode === 'ui' && <StateSwitcher />}
+      {panelMode === 'data' ? (
+        <DataPanel />
+      ) : panelMode === 'ui' ? (
+        <UiPanel />
+      ) : (
+        <CssPanel />
+      )}
     </aside>
   );
 };

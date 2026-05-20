@@ -657,9 +657,23 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
             });
         })();
     };
+    // Right-click on the canvas opens the element context menu. The layer
+    // sits above all canvas elements (z-index: 100), so element-level
+    // onContextMenu handlers never fire — without this, Electron suppresses
+    // the OS default menu and nothing visible happens. Hit-test under the
+    // cursor, select that element, then dispatch the same custom event the
+    // element-level handler would have, so `ElementContextMenu` renders.
+    const handleContextMenu = (e) => {
+        e.preventDefault();
+        const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+        selectElement(hitId);
+        window.dispatchEvent(new CustomEvent('scamp:open-element-context-menu', {
+            detail: { x: e.clientX, y: e.clientY, elementId: hitId },
+        }));
+    };
     const selectedEl = selectedElementId ? elements[selectedElementId] : null;
     const isEditing = editingElementId !== null;
-    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onDragOver: handleDragOver, onDrop: handleDrop, children: [draw && (_jsx(DrawPreview, { x: Math.min(draw.startX, draw.currentX) + draw.parentOffsetX, y: Math.min(draw.startY, draw.currentY) + draw.parentOffsetY, width: Math.abs(draw.currentX - draw.startX), height: Math.abs(draw.currentY - draw.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
+    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: handleDragOver, onDrop: handleDrop, children: [draw && (_jsx(DrawPreview, { x: Math.min(draw.startX, draw.currentX) + draw.parentOffsetX, y: Math.min(draw.startY, draw.currentY) + draw.parentOffsetY, width: Math.abs(draw.currentX - draw.startX), height: Math.abs(draw.currentY - draw.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
                     left: dropIndicator.rect.x,
                     top: dropIndicator.rect.y,
                     width: dropIndicator.rect.w,

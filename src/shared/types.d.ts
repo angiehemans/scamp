@@ -10,6 +10,26 @@ export type PageFile = {
     cssContent: string;
 };
 /**
+ * A reusable component definition. Lives at
+ * `components/[Name]/[Name].tsx` + `[Name].module.css` inside a
+ * Next.js-format project. Mirrors `PageFile`'s shape so the same
+ * canvas / parse / generate / sync primitives can edit it.
+ *
+ * `name` is the PascalCase folder name (also the component's
+ * React function name and the source-of-truth identifier
+ * referenced by every instance's JSX tag and `import` line on
+ * each page that uses it). Components are not supported in
+ * legacy-format projects — `ProjectData.components` is always
+ * an empty array there.
+ */
+export type ComponentFile = {
+    name: string;
+    tsxPath: string;
+    cssPath: string;
+    tsxContent: string;
+    cssContent: string;
+};
+/**
  * Two on-disk formats are supported:
  * - `legacy`: flat layout — `<page>.tsx` + `<page>.module.css` at the
  *   project root, assets in `assets/`, no `app/` folder.
@@ -28,6 +48,13 @@ export type ProjectData = {
     name: string;
     format: ProjectFormat;
     pages: PageFile[];
+    /**
+     * Reusable component definitions scanned from `components/` at
+     * project open. Always an empty array for legacy-format
+     * projects (the components feature requires the Next.js
+     * App Router layout).
+     */
+    components: ComponentFile[];
 };
 export type RecentProject = {
     name: string;
@@ -124,12 +151,49 @@ export type ProjectConfig = {
      * Desktop (the widest) is the base — it has no `@media` wrapper.
      */
     breakpoints: Breakpoint[];
+    /**
+     * Per-component canvas dimensions for the component editor.
+     * Keyed by PascalCase component name. Missing keys fall back
+     * to `DEFAULT_COMPONENT_CANVAS_SIZE` so a brand-new component
+     * gets a usable starting size without the user touching this
+     * map. Mutated by the canvas-size control + the bottom-right
+     * drag handle when the user resizes a component's canvas.
+     *
+     * Width / height are in logical pixels. Both are bounded by
+     * MIN/MAX_CANVAS_WIDTH for symmetry with the page canvas
+     * (height shares the same range — there's no reason a 4000px
+     * tall design is illegal).
+     *
+     * Page canvas size lives at the top level (`canvasWidth`) and
+     * grows vertically with content; only components have an
+     * explicit height because their visible bounds are part of the
+     * design intent.
+     */
+    componentCanvas?: Record<string, ComponentCanvasSize>;
+};
+export type ComponentCanvasSize = {
+    width: number;
+    height: number;
 };
 export declare const DEFAULT_BREAKPOINTS: Breakpoint[];
 export declare const DEFAULT_PROJECT_CONFIG: ProjectConfig;
 /** Canvas-width bounds used by both the panel control and the parser. */
 export declare const MIN_CANVAS_WIDTH = 100;
 export declare const MAX_CANVAS_WIDTH = 4000;
+/**
+ * Component canvases can be much smaller than page canvases — a
+ * button row at 240×40 is normal. Width and height share these
+ * bounds and apply only in the component editor.
+ */
+export declare const MIN_COMPONENT_CANVAS_DIM = 20;
+export declare const MAX_COMPONENT_CANVAS_DIM = 4000;
+/**
+ * Starting canvas size for a freshly-created component before the
+ * user resizes it. Wide enough to fit a typical card / button
+ * layout without feeling cramped; the user resizes via the drag
+ * handle or the panel inputs as soon as the design needs it.
+ */
+export declare const DEFAULT_COMPONENT_CANVAS_SIZE: ComponentCanvasSize;
 export type ProjectConfigReadArgs = {
     projectPath: string;
 };
@@ -229,6 +293,70 @@ export type PageRenameArgs = {
     projectPath: string;
     oldPageName: string;
     newPageName: string;
+};
+export type ComponentCreateArgs = {
+    projectPath: string;
+    /** PascalCase folder + component name. Caller is responsible for
+     *  slugifying user input before sending — main re-validates. */
+    componentName: string;
+    /**
+     * Optional initial TSX content. When omitted, the scaffold's
+     * default `<div data-scamp-id="root"/>` template is written.
+     * The convert-to-component flow passes pre-generated content
+     * built from the source page subtree so the new component
+     * captures the user's existing design as its initial body.
+     */
+    tsxContent?: string;
+    /**
+     * Optional initial CSS-module content. Paired with `tsxContent`
+     * for the convert-to-component flow. Omitted callers get the
+     * default blank `.root {}` block.
+     */
+    cssContent?: string;
+};
+export type ComponentDeleteArgs = {
+    projectPath: string;
+    componentName: string;
+};
+export type ComponentReadArgs = {
+    projectPath: string;
+    componentName: string;
+};
+/**
+ * Write a small canvas thumbnail next to the sidebar component
+ * row. The renderer passes a `data:image/png;base64,…` URL
+ * captured via `html-to-image`; main decodes + writes to
+ * `<projectPath>/.scamp/component-thumbs/<Name>.png`, creating
+ * the parent directory tree if missing. Thumbnail capture is
+ * best-effort: failures are surfaced via the return value but
+ * don't propagate to the save indicator since the underlying
+ * component save already succeeded.
+ */
+export type ComponentWriteThumbnailArgs = {
+    projectPath: string;
+    componentName: string;
+    /** `data:image/png;base64,…` URL captured client-side. */
+    dataUrl: string;
+};
+export type ComponentWriteThumbnailResult = {
+    ok: true;
+    thumbnailPath: string;
+} | {
+    ok: false;
+    error: string;
+};
+export type ComponentReadThumbnailArgs = {
+    projectPath: string;
+    componentName: string;
+};
+/**
+ * Returned as a base64 PNG string (no `data:` prefix). Renderer
+ * wraps it for `<img src>` rendering. Null when no thumbnail has
+ * been written for this component yet — sidebar then renders a
+ * placeholder.
+ */
+export type ComponentReadThumbnailResult = {
+    base64: string | null;
 };
 export type ProjectMigrateArgs = {
     projectPath: string;

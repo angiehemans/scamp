@@ -58,6 +58,27 @@ export const formatHistoryLabel = (entry, elements) => {
             return 'Added image';
         case 'add-input':
             return 'Added input';
+        case 'add-component-instance': {
+            // The element's `componentName` carries the human-readable
+            // identifier for the placed instance. Fall back to `firstName`
+            // (which becomes `inst_<hex>`) if for some reason the element
+            // has already been removed from the live map.
+            const live = firstId !== undefined ? elements[firstId] : undefined;
+            const label = live?.componentName ?? firstName;
+            return `Placed ${label}`;
+        }
+        case 'convert-to-component': {
+            const live = firstId !== undefined ? elements[firstId] : undefined;
+            const label = live?.componentName ?? firstName;
+            return `Converted to ${label}`;
+        }
+        case 'detach-instance': {
+            // After detach the live element is no longer a component-
+            // instance — it's the cloned root. previousName captures the
+            // component name from the dialog so the label reads
+            // "Detached Button".
+            return `Detached ${entry.previousName ?? 'instance'}`;
+        }
         case 'delete': {
             // After deletion the element is gone from the live map.
             // Prefer the captured previousName for a sensible label.

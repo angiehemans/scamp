@@ -14,6 +14,19 @@ export type NewTextInput = {
     y: number;
     text?: string;
 };
+/**
+ * Input shape for placing a component instance on the active
+ * page. `componentName` is the PascalCase name resolved from the
+ * sidebar drag source. Position is in canvas-local coordinates;
+ * sizing falls through to `auto` because the rendered component
+ * defines its own dimensions.
+ */
+export type NewComponentInstanceInput = {
+    parentId: string;
+    componentName: string;
+    x: number;
+    y: number;
+};
 export type NewImageInput = {
     parentId: string;
     x: number;
@@ -35,6 +48,36 @@ export type ActivePage = {
     tsxPath: string;
     cssPath: string;
 };
+/**
+ * The currently-open component definition, when the canvas is in
+ * the component editor (Phase 2 of the components feature).
+ * Structurally identical to `ActivePage` but kept as a separate
+ * type so call sites can document which kind of artifact they're
+ * editing. The invariant is that AT MOST ONE of `activePage` /
+ * `activeComponent` is non-null at any time — loadPage clears
+ * activeComponent and loadComponent clears activePage.
+ */
+export type ActiveComponent = {
+    name: string;
+    tsxPath: string;
+    cssPath: string;
+};
+/**
+ * A parsed component's element tree, cached on the canvas store
+ * so the renderer can render instance subtrees on pages without
+ * re-parsing every frame. One entry per component; the map lives
+ * at `canvasStore.componentTrees`, keyed by PascalCase
+ * component name.
+ *
+ * `elements` follows the same flat-map shape as the page's
+ * `elements` field — keyed by short canvas id, rooted at
+ * `rootId`. Renderers walk it the same way they walk the page's
+ * own element map.
+ */
+export type ComponentTree = {
+    elements: Record<string, ScampElement>;
+    rootId: string;
+};
 export type PageSource = {
     tsx: string;
     css: string;
@@ -49,13 +92,16 @@ export type BottomPanel = 'code' | 'terminal' | 'none';
 export type LeftSidebarTab = 'layers' | 'history';
 /**
  * Properties panel display mode. `'ui'` shows typed form controls grouped
- * by section; `'css'` shows the raw CSS editor. Both modes read the same
- * underlying element state, so flipping between them is lossless.
+ * by section; `'css'` shows the raw CSS editor; `'data'` shows the
+ * component-prop list (component editor only). `'ui'` and `'css'` read
+ * the same underlying element state, so flipping between them is
+ * lossless. `'data'` is a component-scoped view that ignores the per-
+ * element selection.
  *
  * Stored on the canvas store (not persisted to disk) so the user's choice
  * survives selection changes during a session.
  */
-export type PanelMode = 'ui' | 'css';
+export type PanelMode = 'ui' | 'css' | 'data';
 /**
  * Discrete zoom levels for the canvas. Pressing Cmd/Ctrl+= and Cmd/Ctrl+-
  * walks through this list. Cmd/Ctrl+0 clears the explicit zoom and falls
@@ -75,6 +121,14 @@ type CanvasState = {
     editingElementId: string | null;
     activeTool: Tool;
     activePage: ActivePage | null;
+    /**
+     * Active component sync — set when the canvas has entered the
+     * component editor. Mutually exclusive with `activePage`: setting
+     * one clears the other (see `loadPage` / `loadComponent`).
+     * The sync bridge reads whichever is non-null to decide which
+     * file pair to write back to.
+     */
+    activeComponent: ActiveComponent | null;
     pageSource: PageSource | null;
     isLoading: boolean;
     /**
@@ -185,12 +239,32 @@ type CanvasState = {
      */
     pendingPageNavigation: string | null;
     /**
+     * One-shot request to open a component in the component editor.
+     * The canvas's component-instance double-click handler sets this;
+     * `ProjectShell` consumes it via an effect (same shape as the
+     * page-navigation flow above), routes through its
+     * `openComponent` and clears the field.
+     */
+    pendingComponentNavigation: string | null;
+    /**
      * `@media` blocks the parser couldn't route to a known breakpoint
      * (min-width, prefers-color-scheme, custom max-widths…). Kept in
      * the store so `generateCode` can re-emit them untouched on every
      * write. Replaced whole-hog on page load / external edit.
      */
     pageCustomMediaBlocks: ReadonlyArray<string>;
+    /**
+     * Canvas-frame minimum height in logical pixels. The page
+     * editor sets this to the `EMPTY_FRAME_MIN_HEIGHT` constant
+     * (900px today) so blank pages have a visible canvas to draw
+     * on; the component editor sets it to the user-configured
+     * `componentCanvas[name].height` so the canvas reflects the
+     * component's design bounds. Both the Viewport's frame AND
+     * the root element's `min-height` style read from here, which
+     * keeps them in sync so the root fills the visible canvas
+     * (and clicks on empty canvas area still hit the root).
+     */
+    canvasMinHeight: number;
     /**
      * `@keyframes` blocks for the current page. Multiple elements can
      * reference the same keyframe name; the list lives at page level
@@ -199,6 +273,20 @@ type CanvasState = {
      * in the list. Replaced whole-hog on page load / external edit.
      */
     pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>;
+    /**
+     * Parsed element trees for every component definition in the
+     * project. The renderer uses this to render the subtree inside
+     * a `component-instance` element on the page. Keyed by
+     * PascalCase component name. Empty when the project has no
+     * components.
+     *
+     * Populated by `ProjectShell` after every change to
+     * `project.components` (project open, component create / edit /
+     * delete). Live updates here propagate to every instance on
+     * every page without any per-page work — the renderer reads
+     * from this map at render time.
+     */
+    componentTrees: Record<string, ComponentTree>;
     /**
      * One-shot canvas animation preview. When non-null, the matching
      * element re-renders with `key={key}` so React forces a remount
@@ -226,6 +314,56 @@ type CanvasState = {
     createText: (input: NewTextInput) => string;
     createImage: (input: NewImageInput) => string;
     createInput: (input: NewInputInput) => string;
+    /**
+     * Insert a component instance into the active page's element
+     * tree. Used by the sidebar drag-to-place flow. Returns the
+     * new element's canvas id (also reused as the hex part of the
+     * `data-scamp-instance-id`). No-op return when the parent is
+     * missing.
+     */
+    insertComponentInstance: (input: NewComponentInstanceInput) => string | null;
+    /**
+     * Replace an element-subtree on the active page with a
+     * component-instance pointing at `componentName`. Used by the
+     * "Create component" convert flow after the component files
+     * are written to disk: the subtree's elements are removed
+     * from the page, a new instance element is spliced into the
+     * subtree root's position in its parent's `childIds`, and
+     * `componentName` is recorded as the instance's reference.
+     * Returns the new instance's canvas id, or null when the
+     * subtree root doesn't exist or is the page root (which can't
+     * be replaced).
+     */
+    replaceSubtreeWithInstance: (subtreeRootId: string, componentName: string) => string | null;
+    /**
+     * One-way "detach from component". Replaces a `component-instance`
+     * element with a deep-cloned copy of the component's element
+     * tree, with fresh canvas ids for every node, current
+     * `propOverrides` baked into the matching text elements as
+     * literal text (clearing the `prop` field on those clones), and
+     * the cloned root taking the instance's x/y so the visual layout
+     * doesn't shift. Returns the new clone-root id, or null when the
+     * target isn't an instance / the component tree isn't loaded /
+     * the parent has gone missing.
+     *
+     * The component's import statement on the page TSX is NOT
+     * touched here — `generateCode.collectComponentImports` walks
+     * the post-detach element map at serialize time and naturally
+     * drops the import when no other instance of this component
+     * remains.
+     */
+    detachInstance: (instanceId: string) => string | null;
+    /**
+     * Rewrite every `component-instance` element in the active
+     * canvas whose `componentName === oldName` to use `newName`.
+     * Used by the component-rename flow to keep the in-memory
+     * elements map in step with the on-disk file rewrites without
+     * forcing a reload that would drop unsaved edits. Also clears
+     * `editingInstanceProp` if it targets a renamed instance —
+     * the inline edit-mode dialog state has no notion of
+     * componentName change.
+     */
+    renameComponentReferences: (oldName: string, newName: string) => void;
     duplicateElement: (id: string) => string | null;
     /** Snapshot the selected element subtree into the internal clipboard. */
     copyElement: (id: string) => void;
@@ -254,7 +392,61 @@ type CanvasState = {
     /** Move an element to a new parent / index. Cycle-protected. */
     reorderElement: (elementId: string, newParentId: string, newIndex: number) => void;
     setEditingElement: (id: string | null) => void;
+    /**
+     * Inline-edit-mode target for a component instance's per-prop
+     * text override. Distinct from `editingElementId` because the
+     * target isn't a real canvas element — it's a (instance, prop
+     * name) pair that resolves to a contentEditable rendered inside
+     * the component's expanded subtree. Null when no instance prop
+     * is being edited. The renderer reads this in
+     * `renderComponentSubtree` to decide which text node becomes
+     * contentEditable; the commit writes through
+     * `setPropOverride`.
+     */
+    editingInstanceProp: {
+        instanceId: string;
+        propName: string;
+    } | null;
+    setEditingInstanceProp: (value: {
+        instanceId: string;
+        propName: string;
+    } | null) => void;
+    /**
+     * Write a per-instance text-prop override. Lands in the
+     * `propOverrides` map on the component-instance element keyed
+     * by `propName`. Empty string is a valid override (explicitly
+     * "render nothing"), distinct from absence which means "fall
+     * back to the component default". Commits a history entry so
+     * the change participates in undo/redo. No-op for non-instance
+     * elements.
+     */
+    setPropOverride: (instanceId: string, propName: string, value: string) => void;
+    /**
+     * Drop a per-instance text-prop override so the displayed value
+     * reverts to the component-side default. No-op when the override
+     * isn't set. Commits its own history entry.
+     */
+    clearPropOverride: (instanceId: string, propName: string) => void;
     setElementText: (id: string, text: string) => void;
+    /**
+     * Toggle a text element between "locked literal" and "prop".
+     * Locked → Prop: assigns the next unused default name (`prop1`,
+     * `prop2`, …) computed from the component's other text-prop
+     * elements. Prop → Locked: clears the `prop` field; the existing
+     * `text` continues to be the rendered literal. No-op for non-text
+     * elements. The toggle is component-only — callers should hide
+     * the UI when editing a page.
+     */
+    togglePropOnText: (id: string) => void;
+    /**
+     * Rename a text element's `prop`. No-op when the element has no
+     * `prop` set or is not a text element. Caller is responsible for
+     * validating the new name (JS identifier syntax + uniqueness) —
+     * the store accepts whatever it's given so the UI can decide
+     * whether to surface validation errors inline vs. block the
+     * commit entirely.
+     */
+    renamePropOnText: (id: string, nextName: string) => void;
     moveElement: (id: string, x: number, y: number) => void;
     resizeElement: (id: string, x: number, y: number, width: number, height: number) => void;
     patchElement: (id: string, patch: Partial<ScampElement>) => void;
@@ -277,6 +469,14 @@ type CanvasState = {
      */
     resetElementFieldsAtState: (id: string, stateName: ElementStateName, fields: ReadonlyArray<keyof BreakpointOverride>) => void;
     loadPage: (page: ActivePage, elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
+    /**
+     * Switch the canvas into the component editor. Same signature
+     * shape as `loadPage` — the difference is the target type and
+     * the syncBridge's write-path resolution (component file pair,
+     * not page file pair). `activeComponent` becomes set, and
+     * `activePage` is cleared.
+     */
+    loadComponent: (component: ActiveComponent, elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
     reloadElements: (elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
     setPageSource: (source: PageSource) => void;
     setBottomPanel: (panel: BottomPanel) => void;
@@ -290,8 +490,19 @@ type CanvasState = {
     setProjectFormat: (format: ProjectFormat) => void;
     setProjectPath: (path: string) => void;
     setPageNames: (pageNames: ReadonlyArray<string>) => void;
+    /**
+     * Replace the cached component-tree map. Called by `ProjectShell`
+     * after every change to `project.components` so every instance
+     * on every page picks up the new content on the next render.
+     * Pass an empty `{}` to clear (e.g. when closing the project).
+     */
+    setComponentTrees: (trees: Record<string, ComponentTree>) => void;
+    /** Update the canvas-frame minimum height in logical pixels. */
+    setCanvasMinHeight: (value: number) => void;
     /** Set / clear the pending page-navigation request. */
     requestPageNavigation: (pageName: string | null) => void;
+    /** Set / clear the pending component-navigation request. */
+    requestComponentNavigation: (componentName: string | null) => void;
     /**
      * Apply an animation to an element. Routes through
      * `applyPatchWithAxisRouting` so the animation lands on the

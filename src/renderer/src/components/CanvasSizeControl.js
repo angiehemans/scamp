@@ -1,6 +1,6 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from 'react';
-import { DESKTOP_BREAKPOINT_ID, MAX_CANVAS_WIDTH, MIN_CANVAS_WIDTH, } from '@shared/types';
+import { DEFAULT_COMPONENT_CANVAS_SIZE, DESKTOP_BREAKPOINT_ID, MAX_CANVAS_WIDTH, MAX_COMPONENT_CANVAS_DIM, MIN_CANVAS_WIDTH, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
 import { clampCanvasWidth } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
 import { NumberInput } from './controls/NumberInput';
@@ -22,7 +22,7 @@ import styles from './CanvasSizeControl.module.css';
  *   - An overflow-hidden toggle (a viewport-frame preview helper,
  *     never written to CSS).
  */
-export const CanvasSizeControl = ({ config, onChange }) => {
+export const CanvasSizeControl = ({ config, onChange, componentName, }) => {
     const [open, setOpen] = useState(false);
     const wrapRef = useRef(null);
     const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
@@ -66,9 +66,55 @@ export const CanvasSizeControl = ({ config, onChange }) => {
         const match = config.breakpoints.find((b) => b.width === clamped);
         setActiveBreakpoint(match ? match.id : DESKTOP_BREAKPOINT_ID);
     };
+    // Component-mode helpers. Component canvases store both
+    // dimensions explicitly (vs. page canvases where height grows
+    // with content), so we compute the current size with a
+    // fallback to DEFAULT_COMPONENT_CANVAS_SIZE for components the
+    // user hasn't resized yet.
+    const componentSize = componentName
+        ? config.componentCanvas?.[componentName] ?? DEFAULT_COMPONENT_CANVAS_SIZE
+        : null;
+    const clampComponentDim = (n) => Math.round(Math.max(MIN_COMPONENT_CANVAS_DIM, Math.min(MAX_COMPONENT_CANVAS_DIM, n)));
+    const setComponentSize = (next) => {
+        if (!componentName)
+            return;
+        const clamped = {
+            width: clampComponentDim(next.width),
+            height: clampComponentDim(next.height),
+        };
+        onChange({
+            ...config,
+            componentCanvas: {
+                ...(config.componentCanvas ?? {}),
+                [componentName]: clamped,
+            },
+        });
+    };
     const activeBreakpoint = config.breakpoints.find((b) => b.id === activeBreakpointId);
-    const buttonLabel = activeBreakpoint
-        ? `${activeBreakpoint.label} · ${config.canvasWidth}`
-        : `${config.canvasWidth}px`;
-    return (_jsxs("div", { className: styles.wrap, ref: wrapRef, children: [_jsx(Tooltip, { label: "Canvas width \u00B7 active breakpoint", children: _jsxs("button", { className: styles.button, type: "button", onClick: () => setOpen((v) => !v), "aria-haspopup": "dialog", "aria-expanded": open, "data-testid": "canvas-size-button", "data-active-breakpoint": activeBreakpointId, children: [buttonLabel, _jsx("span", { className: styles.caret, "aria-hidden": "true", children: "\u25BE" })] }) }), open && (_jsxs("div", { className: styles.popover, role: "dialog", "data-testid": "canvas-size-popover", children: [_jsx("div", { className: styles.sectionLabel, children: "Breakpoint" }), _jsx("div", { className: styles.presetGrid, children: config.breakpoints.map((bp) => (_jsxs("button", { className: `${styles.presetButton} ${bp.id === activeBreakpointId ? styles.presetActive : ''}`, type: "button", onClick: () => selectBreakpoint(bp), children: [_jsx("span", { className: styles.presetName, children: bp.label }), _jsx("span", { className: styles.presetWidth, children: bp.width })] }, bp.id))) }), _jsx("div", { className: styles.sectionLabel, children: "Custom width" }), _jsx("div", { className: styles.customRow, children: _jsx(NumberInput, { value: config.canvasWidth, onChange: handleCustomChange, min: MIN_CANVAS_WIDTH, max: MAX_CANVAS_WIDTH, suffix: "px" }) }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasOverflowHidden, onChange: (e) => setOverflow(e.target.checked) }), _jsx("span", { children: "Overflow hidden" })] })] }))] }));
+    const buttonLabel = componentSize
+        ? `${componentSize.width} × ${componentSize.height}`
+        : activeBreakpoint
+            ? `${activeBreakpoint.label} · ${config.canvasWidth}`
+            : `${config.canvasWidth}px`;
+    return (_jsxs("div", { className: styles.wrap, ref: wrapRef, children: [_jsx(Tooltip, { label: "Canvas width \u00B7 active breakpoint", children: _jsxs("button", { className: styles.button, type: "button", onClick: () => setOpen((v) => !v), "aria-haspopup": "dialog", "aria-expanded": open, "data-testid": "canvas-size-button", "data-active-breakpoint": activeBreakpointId, children: [buttonLabel, _jsx("span", { className: styles.caret, "aria-hidden": "true", children: "\u25BE" })] }) }), open && (_jsx("div", { className: styles.popover, role: "dialog", "data-testid": "canvas-size-popover", children: componentSize ? (
+                // Component-mode popover: width + height inputs only.
+                // Breakpoint presets don't apply — components edit in
+                // isolation at one breakpoint (the page on which the
+                // instance lives is what carries the responsive
+                // cascade).
+                _jsxs(_Fragment, { children: [_jsx("div", { className: styles.sectionLabel, children: "Canvas size" }), _jsxs("div", { className: styles.customRow, children: [_jsx(NumberInput, { value: componentSize.width, onChange: (next) => {
+                                        if (next === undefined)
+                                            return;
+                                        setComponentSize({
+                                            width: next,
+                                            height: componentSize.height,
+                                        });
+                                    }, min: MIN_COMPONENT_CANVAS_DIM, max: MAX_COMPONENT_CANVAS_DIM, suffix: "W" }), _jsx(NumberInput, { value: componentSize.height, onChange: (next) => {
+                                        if (next === undefined)
+                                            return;
+                                        setComponentSize({
+                                            width: componentSize.width,
+                                            height: next,
+                                        });
+                                    }, min: MIN_COMPONENT_CANVAS_DIM, max: MAX_COMPONENT_CANVAS_DIM, suffix: "H" })] }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasOverflowHidden, onChange: (e) => setOverflow(e.target.checked) }), _jsx("span", { children: "Overflow hidden" })] })] })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.sectionLabel, children: "Breakpoint" }), _jsx("div", { className: styles.presetGrid, children: config.breakpoints.map((bp) => (_jsxs("button", { className: `${styles.presetButton} ${bp.id === activeBreakpointId ? styles.presetActive : ''}`, type: "button", onClick: () => selectBreakpoint(bp), children: [_jsx("span", { className: styles.presetName, children: bp.label }), _jsx("span", { className: styles.presetWidth, children: bp.width })] }, bp.id))) }), _jsx("div", { className: styles.sectionLabel, children: "Custom width" }), _jsx("div", { className: styles.customRow, children: _jsx(NumberInput, { value: config.canvasWidth, onChange: handleCustomChange, min: MIN_CANVAS_WIDTH, max: MAX_CANVAS_WIDTH, suffix: "px" }) }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasOverflowHidden, onChange: (e) => setOverflow(e.target.checked) }), _jsx("span", { children: "Overflow hidden" })] })] })) }))] }));
 };

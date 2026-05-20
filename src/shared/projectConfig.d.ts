@@ -1,4 +1,4 @@
-import type { Breakpoint, ProjectConfig } from './types';
+import type { Breakpoint, ComponentCanvasSize, ProjectConfig } from './types';
 /** Clamp a raw canvasWidth candidate to the supported range. */
 export declare const clampCanvasWidth: (value: unknown) => number;
 /**
@@ -8,6 +8,16 @@ export declare const clampCanvasWidth: (value: unknown) => number;
  * a valid base breakpoint to anchor to.
  */
 export declare const parseBreakpoints: (value: unknown) => Breakpoint[];
+/**
+ * Validate the `componentCanvas` map. Each value must be a
+ * `{ width, height }` pair with finite numbers in the
+ * `MIN_CANVAS_WIDTH`–`MAX_CANVAS_WIDTH` range; bad entries are
+ * dropped silently so a partially-broken map still opens. Returns
+ * undefined when the input is absent or fully invalid, so the
+ * field round-trips text-stable for projects that haven't used the
+ * feature.
+ */
+export declare const parseComponentCanvas: (value: unknown) => Record<string, ComponentCanvasSize> | undefined;
 /**
  * Parse a raw `scamp.config.json` string into a validated `ProjectConfig`.
  * Every missing or malformed field falls back to the default so a file

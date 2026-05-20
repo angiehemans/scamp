@@ -29,6 +29,11 @@ const api = {
     deletePage: (args) => ipcRenderer.invoke(IPC.PageDelete, args),
     duplicatePage: (args) => ipcRenderer.invoke(IPC.PageDuplicate, args),
     renamePage: (args) => ipcRenderer.invoke(IPC.PageRename, args),
+    createComponent: (args) => ipcRenderer.invoke(IPC.ComponentCreate, args),
+    deleteComponent: (args) => ipcRenderer.invoke(IPC.ComponentDelete, args),
+    readComponent: (args) => ipcRenderer.invoke(IPC.ComponentRead, args),
+    writeComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentWriteThumbnail, args),
+    readComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
     getRecentProjects: () => ipcRenderer.invoke(IPC.RecentProjectsGet),
     removeRecentProject: (path) => ipcRenderer.invoke(IPC.RecentProjectsRemove, { path }),
     // Settings

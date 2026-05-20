@@ -6,9 +6,8 @@ import { readProjectLegacy } from './projectScaffold';
 /**
  * Anything in the legacy project root that the migrator knows how to
  * place into the new layout. Files matching these names are MOVED;
- * unrecognised root-level files (e.g. README, .gitignore, agent
- * leftovers) are left in place — flagged in `unmovedFiles` for the
- * UI to surface.
+ * unrecognised root-level files (e.g. README, agent leftovers) are
+ * left in place — flagged in `unmovedFiles` for the UI to surface.
  */
 const RECOGNISED_ROOT_FILES = new Set([
     'agent.md',
@@ -16,6 +15,11 @@ const RECOGNISED_ROOT_FILES = new Set([
     'theme.css',
     // Per-project Scamp config stays at the project root.
     'scamp.config.json',
+    // Both legacy and nextjs scaffolds write a `.gitignore`. Back
+    // up the existing one before the new scaffold overlays — keeps
+    // any user customisations recoverable from the backup dir
+    // without leaking the file into `unmovedFiles`.
+    '.gitignore',
 ]);
 /**
  * Rewrite asset references from the legacy `./assets/...` form to the

@@ -5,6 +5,7 @@ import { PanelModeToggle } from './PanelModeToggle';
 import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
+import { DataPanel } from './DataPanel';
 import styles from './PropertiesPanel.module.css';
 const SHORTCUTS = [
     { keys: 'V', description: 'Select tool' },
@@ -29,8 +30,15 @@ const ShortcutsTable = () => (_jsxs("div", { className: styles.shortcutsWrap, ch
 export const PropertiesPanel = () => {
     const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
     const panelMode = useCanvasStore((s) => s.panelMode);
-    if (!selectedId) {
-        return (_jsx("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: _jsx(ShortcutsTable, {}) }));
+    const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
+    // The Data tab is component-scoped: it shows the prop list for the
+    // whole component, not the selected element. So when the user is on
+    // it we render the panel chrome (header + mode toggle + DataPanel)
+    // even without a selection. UI / CSS still require a selection — they
+    // are per-element views.
+    const showDataWithoutSelection = !selectedId && isComponentEditing && panelMode === 'data';
+    if (!selectedId && !showDataWithoutSelection) {
+        return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: [isComponentEditing && _jsx(PanelModeToggle, {}), _jsx(ShortcutsTable, {})] }));
     }
-    return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": panelMode, children: [_jsx(PanelHeader, {}), _jsx(PanelModeToggle, {}), panelMode === 'ui' && _jsx(StateSwitcher, {}), panelMode === 'ui' ? _jsx(UiPanel, {}) : _jsx(CssPanel, {})] }));
+    return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": panelMode, children: [selectedId && _jsx(PanelHeader, {}), _jsx(PanelModeToggle, {}), selectedId && panelMode === 'ui' && _jsx(StateSwitcher, {}), panelMode === 'data' ? (_jsx(DataPanel, {})) : panelMode === 'ui' ? (_jsx(UiPanel, {})) : (_jsx(CssPanel, {}))] }));
 };

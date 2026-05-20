@@ -74,17 +74,19 @@ export const App = (): JSX.Element => {
             });
             setProject((latest) => {
               if (!latest) return latest;
-              // Preserve the old page object references for any
-              // page whose content hasn't changed. ProjectShell's
-              // page-load useEffect uses `project.pages` as a
-              // dep; without this preservation, every chokidar
-              // event on any file would re-create the active
-              // page object and re-fire `loadPage`, racing with
-              // any in-flight debounced save and tripping the
-              // 2s ack watchdog.
-              const byName = new Map(latest.pages.map((p) => [p.name, p]));
+              // Preserve the old page / component object references
+              // for any artifact whose content hasn't changed.
+              // ProjectShell's load useEffects use `project.pages`
+              // and `project.components` as deps; without this
+              // preservation, every chokidar event on any file
+              // would re-create the active artifact object and
+              // re-fire its loader, racing with any in-flight
+              // debounced save and tripping the 2s ack watchdog.
+              const pagesByName = new Map(
+                latest.pages.map((p) => [p.name, p])
+              );
               const mergedPages = next.pages.map((np) => {
-                const old = byName.get(np.name);
+                const old = pagesByName.get(np.name);
                 if (
                   old &&
                   old.tsxContent === np.tsxContent &&
@@ -96,15 +98,40 @@ export const App = (): JSX.Element => {
                 }
                 return np;
               });
-              // Skip the state update entirely when the page-set
-              // and every page's content match — re-reads from
-              // the renderer's own page-save chokidar events
+              const componentsByName = new Map(
+                latest.components.map((c) => [c.name, c])
+              );
+              const mergedComponents = next.components.map((nc) => {
+                const old = componentsByName.get(nc.name);
+                if (
+                  old &&
+                  old.tsxContent === nc.tsxContent &&
+                  old.cssContent === nc.cssContent &&
+                  old.tsxPath === nc.tsxPath &&
+                  old.cssPath === nc.cssPath
+                ) {
+                  return old;
+                }
+                return nc;
+              });
+              // Skip the state update entirely when both lists
+              // round-trip to identical references — re-reads
+              // from the renderer's own writes (page or component)
               // hit this branch and never touch React state.
-              const same =
+              const samePages =
                 mergedPages.length === latest.pages.length &&
                 mergedPages.every((p, i) => p === latest.pages[i]);
-              if (same) return latest;
-              return { ...next, pages: mergedPages };
+              const sameComponents =
+                mergedComponents.length === latest.components.length &&
+                mergedComponents.every(
+                  (c, i) => c === latest.components[i]
+                );
+              if (samePages && sameComponents) return latest;
+              return {
+                ...next,
+                pages: mergedPages,
+                components: mergedComponents,
+              };
             });
           } catch {
             // Read failed — most likely the project folder was
@@ -179,7 +206,22 @@ export const App = (): JSX.Element => {
             setProject(null);
             setView('start');
           }}
-          onProjectChange={setProject}
+          onProjectChange={(next) => {
+            // ProjectShell's `onProjectChange` prop accepts a
+            // value OR a functional updater so multi-step
+            // handlers (convert-to-component, rename, etc.)
+            // can compose their updates without stomping each
+            // other. Bridge the type mismatch: our `setProject`
+            // is on a `ProjectData | null` state, while the
+            // prop assumes `ProjectData` is always present.
+            // Bail on a null state — the caller only fires when
+            // the user is inside a project.
+            if (typeof next === 'function') {
+              setProject((prev) => (prev ? next(prev) : prev));
+            } else {
+              setProject(next);
+            }
+          }}
         />
       </ErrorBoundary>
     );

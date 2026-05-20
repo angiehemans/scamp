@@ -1,4 +1,6 @@
 export declare const flushPendingPageWrite: () => void;
+export declare const armTargetSwapSuppression: () => void;
+export declare const disarmTargetSwapSuppression: () => void;
 /**
  * Commit a CSS panel patch through the save-status pipeline. The
  * CssPanel previously called `window.scamp.patchFile` directly; routing

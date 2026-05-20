@@ -49,7 +49,7 @@ export type BorderStyle = 'none' | 'solid' | 'dashed' | 'dotted';
 export type Position = 'auto' | 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky';
 export type FontWeight = 400 | 500 | 600 | 700;
 export type TextAlign = 'left' | 'center' | 'right';
-export type ElementType = 'rectangle' | 'text' | 'image' | 'input';
+export type ElementType = 'rectangle' | 'text' | 'image' | 'input' | 'component-instance';
 /**
  * One non-Scamp inline fragment between (or around) the element
  * children of a Scamp parent — either a loose text node or an
@@ -380,6 +380,18 @@ export type ScampElement = {
      */
     backgroundBlendMode: BlendMode;
     text?: string;
+    /**
+     * Component-side: when this text element lives inside a component
+     * (active edit target's `activeComponent !== null`), `prop` may be
+     * set to a JS identifier. The generator then emits `{propName}` in
+     * the JSX instead of the literal `text`, declares the prop on the
+     * function signature with `text` as the default, and adds the prop
+     * to the component's exported `[Name]Props` type. When absent, the
+     * text is a locked literal — rendered verbatim, not overridable
+     * from an instance. Has no meaning on page text elements; the panel
+     * hides the Prop / Locked toggle there.
+     */
+    prop?: string;
     fontFamily?: string;
     /**
      * Full CSS `font-size` value, e.g. `"16px"`, `"1rem"`, or a token
@@ -397,6 +409,44 @@ export type ScampElement = {
     letterSpacing?: string;
     src?: string;
     alt?: string;
+    /**
+     * The PascalCase component name. Matches the folder name under
+     * `components/` and the JSX tag emitted in the parent page's TSX.
+     * The page-level `import` statement is the authoritative
+     * resolution path; this field exists so the renderer / generator
+     * can look up the component without re-parsing the import block.
+     */
+    componentName?: string;
+    /**
+     * Stable per-page instance identifier emitted as
+     * `data-scamp-instance-id` on the JSX tag. Distinct from `id`
+     * (the canvas element id) so the instance can survive component
+     * renames and the page TSX carries an id separate from the
+     * `data-scamp-id`s on the elements INSIDE the component
+     * definition.
+     */
+    instanceId?: string;
+    /**
+     * Per-instance text-prop overrides. Map of `propName → override
+     * value`. Absent keys fall back to the default text declared
+     * inside the component (the text the prop-marked element was
+     * created with). An empty-string value is an explicit
+     * "render nothing" override, distinct from absence.
+     *
+     * Always present (possibly empty) when `type ===
+     * 'component-instance'`, absent otherwise.
+     */
+    propOverrides?: Record<string, string>;
+    /**
+     * Set when the parser sees a component-instance JSX tag that
+     * doesn't resolve to a component on disk — a deleted, renamed,
+     * or hand-broken reference. The element is parsed in so the
+     * file round-trips, but the renderer surfaces it as a labelled
+     * error placeholder rather than trying to draw the missing
+     * subtree. The project shell can scan `elements` for this flag
+     * to badge / banner pages that need attention.
+     */
+    missingComponent?: boolean;
     /**
      * Ordered list of box shadows applied to the element. Empty by
      * default. Emitted as a single `box-shadow: a, b, c` declaration

@@ -45,6 +45,15 @@ export type GenerateCodeArgs = {
      * Defaults to `pageName` for back-compat with legacy callers.
      */
     cssModuleImportName?: string;
+    /**
+     * `true` when emitting a component file (Phase 5 onwards), `false`
+     * (or undefined) for pages. Components emit `{propName}` in JSX
+     * for any text element with `prop` set, a destructure on the
+     * function signature, and a `type [Name]Props = { … }` declaration
+     * above the function. Pages keep the literal-text emission path
+     * since the prop concept doesn't apply there.
+     */
+    isComponent?: boolean;
 };
 export type GeneratedCode = {
     tsx: string;

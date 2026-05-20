@@ -78,15 +78,26 @@ describe('save status — pending writes tracker', () => {
         expect(result).toEqual({ suppressChanged: false });
         expect(sent).toEqual([{ writeId: 'patch-1', path: CSS }]);
     });
-    it('overwrites an earlier pending write when the same path re-registers', () => {
+    it('acks the earlier writeId when the same path re-registers, then acks the newer one on consume', () => {
+        // Real-world trigger: component rename. The syncBridge's
+        // debounced flush dispatches a tracked write (id-1), then the
+        // rename's own writeFile registers the same path under id-2
+        // before chokidar fires. Without the early ack, the renderer's
+        // tracker for id-1 waits 2s and surfaces a false "Save failed".
         const sent = [];
         const tracker = createPendingWriteTracker((p) => sent.push(p), 400);
         tracker.register(TSX, 'write-1', true);
         tracker.register(TSX, 'write-2', true);
-        // Only the newer writeId should ever surface.
+        // The first write should already be acked at this point — the
+        // re-register superseded it on disk so the prior tracker can
+        // safely transition out of its "saving" state.
+        expect(sent).toEqual([{ writeId: 'write-1', path: TSX }]);
         tracker.consume(TSX);
         vi.advanceTimersByTime(1000);
-        expect(sent).toEqual([{ writeId: 'write-2', path: TSX }]);
+        expect(sent).toEqual([
+            { writeId: 'write-1', path: TSX },
+            { writeId: 'write-2', path: TSX },
+        ]);
     });
     it('isolates concurrent writes keyed by different paths', () => {
         const sent = [];

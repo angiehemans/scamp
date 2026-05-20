@@ -83,6 +83,68 @@ describe('parseProjectConfig', () => {
             .canvasMigrationAcknowledged).toBeUndefined();
     });
 });
+describe('parseProjectConfig — componentCanvas', () => {
+    it('returns undefined componentCanvas when the field is absent', () => {
+        const config = parseProjectConfig(JSON.stringify({ canvasWidth: 800 }));
+        expect(config.componentCanvas).toBeUndefined();
+    });
+    it('parses a valid componentCanvas map', () => {
+        const config = parseProjectConfig(JSON.stringify({
+            componentCanvas: {
+                Button: { width: 240, height: 60 },
+                HeroCard: { width: 800, height: 600 },
+            },
+        }));
+        expect(config.componentCanvas).toEqual({
+            Button: { width: 240, height: 60 },
+            HeroCard: { width: 800, height: 600 },
+        });
+    });
+    it('clamps dimensions to MIN/MAX_COMPONENT_CANVAS_DIM', () => {
+        const config = parseProjectConfig(JSON.stringify({
+            componentCanvas: {
+                Tiny: { width: 10, height: 5 },
+                Huge: { width: 99999, height: 99999 },
+            },
+        }));
+        // Floor: 20 (smaller than the page-canvas 100 floor because
+        // components legitimately want sub-100 dimensions for things
+        // like icon buttons).
+        expect(config.componentCanvas?.Tiny).toEqual({ width: 20, height: 20 });
+        expect(config.componentCanvas?.Huge).toEqual({
+            width: 4000,
+            height: 4000,
+        });
+    });
+    it('drops malformed entries silently', () => {
+        const config = parseProjectConfig(JSON.stringify({
+            componentCanvas: {
+                Good: { width: 240, height: 60 },
+                NoHeight: { width: 240 },
+                NotANumber: { width: 'wide', height: 60 },
+                NotAnObject: 'foo',
+            },
+        }));
+        expect(config.componentCanvas).toEqual({
+            Good: { width: 240, height: 60 },
+        });
+    });
+    it('returns undefined when every entry is invalid', () => {
+        const config = parseProjectConfig(JSON.stringify({
+            componentCanvas: { Bad: { width: 'x', height: 'y' } },
+        }));
+        expect(config.componentCanvas).toBeUndefined();
+    });
+    it('round-trips through serialize → parse', () => {
+        const config = {
+            ...DEFAULT_PROJECT_CONFIG,
+            componentCanvas: {
+                Button: { width: 240, height: 60 },
+            },
+        };
+        expect(parseProjectConfig(serializeProjectConfig(config))).toEqual(config);
+    });
+});
 describe('serializeProjectConfig', () => {
     it('round-trips through parse back to the original object', () => {
         const config = { ...DEFAULT_PROJECT_CONFIG, artboardBackground: '#abcdef' };

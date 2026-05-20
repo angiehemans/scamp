@@ -33,6 +33,57 @@ const readPage = async (name, tsxPath, cssPath) => {
         return null;
     }
 };
+/**
+ * Read one component's TSX + CSS module pair into memory.
+ * Returns null when the pair is incomplete (one half missing) so
+ * callers can skip the broken component without crashing the
+ * project open. Same shape as `readPage`.
+ */
+const readComponent = async (name, tsxPath, cssPath) => {
+    try {
+        const [tsxContent, cssContent] = await Promise.all([
+            fs.readFile(tsxPath, 'utf-8'),
+            fs.readFile(cssPath, 'utf-8'),
+        ]);
+        return { name, tsxPath, cssPath, tsxContent, cssContent };
+    }
+    catch {
+        return null;
+    }
+};
+/**
+ * Scan a Next.js project's `components/` folder for reusable
+ * component definitions. Each component is one folder under
+ * `components/` containing `<Name>.tsx` + `<Name>.module.css`.
+ * Folders missing either half are skipped silently — same
+ * defensive read pattern as `readProjectNextjs` for pages.
+ *
+ * Legacy-format projects don't have components — callers should
+ * skip this and return `[]` instead.
+ */
+export const readProjectComponents = async (folderPath) => {
+    const componentsDir = join(folderPath, 'components');
+    let entries = [];
+    try {
+        entries = await fs.readdir(componentsDir, { withFileTypes: true });
+    }
+    catch {
+        // `components/` folder doesn't exist — fresh project that
+        // hasn't created any components yet, or a project from before
+        // this feature shipped. Both fine; return empty.
+        return [];
+    }
+    const components = [];
+    for (const entry of entries) {
+        if (!entry.isDirectory())
+            continue;
+        const name = entry.name;
+        const component = await readComponent(name, join(componentsDir, name, `${name}.tsx`), join(componentsDir, name, `${name}.module.css`));
+        if (component)
+            components.push(component);
+    }
+    return components;
+};
 export const readProjectLegacy = async (folderPath) => {
     const entries = await fs.readdir(folderPath);
     const tsxFiles = entries.filter((f) => f.endsWith('.tsx'));
@@ -80,6 +131,58 @@ export const readProjectNextjs = async (folderPath) => {
     return pages;
 };
 /**
+ * Default `.gitignore` content for scaffolded Next.js projects.
+ * Excludes Next's build artefacts, node_modules, environment
+ * files, AND Scamp's own `.scamp/` local-state folder (which
+ * holds the sidebar component thumbnails introduced in Phase 9).
+ */
+const NEXTJS_GITIGNORE = `# Dependencies
+node_modules
+
+# Next.js build output
+.next
+.swc
+out
+
+# Environment variables
+.env*.local
+
+# Scamp local state (component thumbnails, etc.)
+.scamp/
+`;
+/**
+ * Default `.gitignore` content for legacy-format projects. Same
+ * shape as the Next.js variant minus the build-artefact lines
+ * (those folders don't exist in the legacy layout).
+ */
+const LEGACY_GITIGNORE = `# Dependencies
+node_modules
+
+# Environment variables
+.env*.local
+
+# Scamp local state (component thumbnails, etc.)
+.scamp/
+`;
+/**
+ * Write `.gitignore` ONLY if the file doesn't already exist —
+ * projects opened from existing folders typically have their own
+ * (often customised). Clobbering would be a destructive surprise.
+ * New projects (the only callers today) reliably trigger this.
+ */
+const writeGitignoreIfMissing = async (projectPath, content) => {
+    const target = join(projectPath, '.gitignore');
+    try {
+        await fs.access(target);
+        // File exists — leave it alone.
+        return;
+    }
+    catch {
+        // Fall through to write.
+    }
+    await fs.writeFile(target, content, 'utf-8');
+};
+/**
  * Write the Next.js App Router scaffold into a freshly-created
  * project folder. Creates `app/` (with the home page, layout, and
  * `theme.css` co-located so `next dev` picks up the tokens),
@@ -102,6 +205,7 @@ export const scaffoldNextjsProject = async (projectPath, projectName) => {
     await fs.writeFile(join(appDir, 'page.tsx'), defaultPageTsx(componentName, 'home', 'page'), 'utf-8');
     await fs.writeFile(join(appDir, 'page.module.css'), DEFAULT_PAGE_CSS, 'utf-8');
     await fs.mkdir(join(projectPath, 'public', 'assets'), { recursive: true });
+    await writeGitignoreIfMissing(projectPath, NEXTJS_GITIGNORE);
 };
 /**
  * Refresh `app/layout.tsx` if it byte-matches a known legacy template.
@@ -210,4 +314,5 @@ export const scaffoldLegacyProject = async (projectPath) => {
     await fs.writeFile(join(projectPath, 'home.tsx'), defaultPageTsx(componentName, 'home'), 'utf-8');
     await fs.writeFile(join(projectPath, 'home.module.css'), DEFAULT_PAGE_CSS, 'utf-8');
     await fs.writeFile(join(projectPath, 'theme.css'), DEFAULT_THEME_CSS, 'utf-8');
+    await writeGitignoreIfMissing(projectPath, LEGACY_GITIGNORE);
 };

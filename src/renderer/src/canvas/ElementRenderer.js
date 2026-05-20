@@ -1,8 +1,9 @@
-import { jsx as _jsx } from "react/jsx-runtime";
+import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 import { createElement, useEffect, useRef, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
+import { DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, } from '@lib/parsers';
@@ -24,6 +25,32 @@ const VOID_TAGS = new Set([
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
     'link', 'meta', 'source', 'track', 'wbr',
 ]);
+/**
+ * Detect a brand-new component whose root has had no design applied
+ * yet — i.e. it still matches the `defaultComponentTsx` scaffold
+ * (single `<div data-scamp-id="root">` with empty `.root {}`). For
+ * that case we render a labelled placeholder on the page canvas so
+ * the user has something visible to double-click.
+ *
+ * A converted leaf element (e.g. a styled rectangle with no children)
+ * has childIds.length === 0 too, but its root carries non-default
+ * style fields — width, height, background, etc. — and renders fine
+ * as a real instance. So the check looks at visual style state too,
+ * not just structure.
+ */
+const isScaffoldRoot = (root) => {
+    return (root.childIds.length === 0 &&
+        root.inlineFragments.length === 0 &&
+        root.backgroundColor === DEFAULT_ROOT_STYLES.backgroundColor &&
+        root.widthMode === DEFAULT_ROOT_STYLES.widthMode &&
+        root.heightMode === DEFAULT_ROOT_STYLES.heightMode &&
+        root.borderWidth.every((v) => v === 0) &&
+        root.borderRadius.every((v) => v === 0) &&
+        root.padding.every((v) => v === 0) &&
+        root.boxShadows.length === 0 &&
+        root.opacity === DEFAULT_ROOT_STYLES.opacity &&
+        root.minHeight === DEFAULT_ROOT_STYLES.minHeight);
+};
 /**
  * A handful of tags we deliberately render with a different element on
  * the canvas than in the generated TSX. The canvas is a design surface,
@@ -79,8 +106,27 @@ const resolveTokenValue = (value, tokens) => {
     const found = tokens.find((t) => t.name === m[1]);
     return found ? found.value : value;
 };
-const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, projectFormat) => {
-    const isRoot = el.id === ROOT_ELEMENT_ID;
+const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, projectFormat, 
+// When true, the element is being rendered AS the inner subtree
+// of a component instance — not as the active page's own root.
+// Suppresses the canvas-frame affordances (the root min-height
+// floor) that only make sense in the page / component editor's
+// canvas view.
+isInstanceInner = false, 
+// The desired root min-height in logical pixels. Pages and
+// component-editor canvases pass their canvas height here so
+// the root element fills the visible canvas regardless of
+// content size. Defaults to the page-canvas constant so
+// instance-inner renders (which set isInstanceInner=true and
+// never hit this branch) don't accidentally pick up a stray
+// override.
+rootMinHeight = EMPTY_FRAME_MIN_HEIGHT) => {
+    // `isRoot` drives canvas-frame affordances (sticky min-height,
+    // dropping fixed height). Those only apply when the element is
+    // genuinely the active page's own root — not when the same id
+    // appears inside a component's parsed tree being rendered as an
+    // embedded subtree.
+    const isRoot = el.id === ROOT_ELEMENT_ID && !isInstanceInner;
     // Flex / grid children flow with the layout engine — drop
     // position/left/top so the browser places them. Matches what we
     // emit in generateCode.
@@ -195,7 +241,7 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
         // centering intent reads correctly on the canvas. NOT written to
         // the exported CSS — users who want centering in production still
         // need to set `min-height: 100vh` themselves.
-        minHeight: isRoot ? `${EMPTY_FRAME_MIN_HEIGHT}px` : undefined,
+        minHeight: isRoot ? `${rootMinHeight}px` : undefined,
         ...flexProps,
         // `background` lives in the background group; `border-radius`
         // is a sizing/shape concern that doesn't get a toggle.
@@ -371,6 +417,240 @@ const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, 
     }
     return { ...base, ...customStyle };
 };
+/**
+ * Render an element subtree that lives in a separate elements map
+ * (not the canvas store's page-elements). Used by the
+ * component-instance branch of `ElementRenderer` to render the
+ * subtree from `componentTrees[name].elements` — that map is a
+ * completely separate set of ids from the page's elements, so the
+ * normal `<ElementRenderer elementId={id} />` recursion (which
+ * reads from `state.elements`) wouldn't find them.
+ *
+ * No selection / edit / animation-preview affordances apply here —
+ * the inner DOM is read-only from the page's perspective. The
+ * outer `ElementRenderer` wrapper around the instance handles the
+ * selection outline + double-click-to-edit; everything inside
+ * has `pointer-events: none` so all clicks reach the wrapper.
+ *
+ * Component instances nested inside a component definition (slot
+ * composition) are explicitly out of scope per the components
+ * plan; we render them as a labelled placeholder.
+ */
+const renderComponentSubtree = (element, elementsMap, parentDisplay, parentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, 
+/**
+ * Threaded through every recursive call so the wrapper that
+ * tags prop-text knows which instance owns the value. The
+ * canvas hit-test and the prop-edit commit both key off this
+ * id — without it, two instances of the same component on one
+ * page would write into each other's overrides.
+ */
+instanceId, 
+/**
+ * The current edit target, if any. When the recursion reaches
+ * a text element whose `prop` matches AND whose owning instance
+ * matches `instanceId`, that node renders as a contentEditable
+ * span instead of a plain text node. Null when nothing is being
+ * edited, or when an edit on a different instance is in flight.
+ */
+editingProp, 
+/**
+ * Called when the user commits an edit (blur or Enter on the
+ * contentEditable). Caller is responsible for clearing
+ * `editingInstanceProp` after the commit.
+ */
+onCommitProp, 
+/**
+ * Called when the user enters edit mode on a prop-text (double-
+ * click) or exits via Escape. The canvas store's
+ * `setEditingInstanceProp` is the natural binding; the prop
+ * is wrapped here so the renderer doesn't have to pull it from
+ * the store at every node.
+ */
+onChangeEditingProp) => {
+    // Slot-style composition is deferred — instances inside instances
+    // render as a labelled placeholder rather than recursively
+    // expanding. Keeps the renderer simple and matches the
+    // userstory's out-of-scope list.
+    if (element.type === 'component-instance') {
+        return (_jsxs("div", { style: {
+                padding: '4px 8px',
+                background: 'rgba(99, 102, 241, 0.12)',
+                border: '1px dashed var(--accent, #6366f1)',
+                borderRadius: 4,
+                color: 'var(--text-secondary)',
+                fontSize: 12,
+            }, children: ["Nested ", element.componentName] }, element.id));
+    }
+    const style = elementToStyle(element, parentDisplay, parentDirection, tokens, projectDir, projectFormat, 
+    // Inner subtree: strip page-canvas-only affordances (the
+    // 900px EMPTY_FRAME_MIN_HEIGHT floor, the
+    // "root drops fixed height" behaviour) so the component's
+    // root renders at its real designed size, not as a
+    // full-canvas-sized white box.
+    true);
+    const storedTag = tagFor(element);
+    const tag = canvasRenderTag(storedTag);
+    const className = classNameFor(element);
+    const props = {
+        'data-scamp-id': className,
+        style,
+    };
+    // Forward agent-written attributes through the same per-tag deny
+    // list the page renderer uses (no href navigation, no form
+    // action, etc.).
+    if (element.attributes) {
+        const skip = CANVAS_SKIP_ATTRS_BY_TAG[storedTag] ?? new Set();
+        for (const [name, value] of Object.entries(element.attributes)) {
+            if (skip.has(name))
+                continue;
+            props[name] = value === '' ? true : value;
+        }
+    }
+    // <img> src/alt routing — same `scamp-asset://` rewrite as the
+    // page renderer so component-defined images load correctly on
+    // the canvas preview.
+    if (element.type === 'image' && storedTag === 'img') {
+        let resolvedSrc = element.src ?? '';
+        if (projectPath && resolvedSrc.startsWith('./')) {
+            const absPath = `${projectPath.replace(/\\/g, '/')}/${resolvedSrc.slice(2)}`;
+            resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
+        }
+        else if (projectPath &&
+            projectFormat === 'nextjs' &&
+            resolvedSrc.startsWith('/')) {
+            const absPath = `${projectPath.replace(/\\/g, '/')}/public${resolvedSrc}`;
+            resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
+        }
+        props['src'] = resolvedSrc;
+        props['alt'] = element.alt ?? '';
+    }
+    if (VOID_TAGS.has(tag)) {
+        return createElement(tag, { ...props, key: element.id });
+    }
+    const isText = element.type === 'text';
+    // Prop substitution: when a text element inside the component
+    // definition is declared as a prop, the on-page instance can
+    // override its text via `propOverrides[propName]`. Falling back
+    // to the literal `text` field keeps the canvas matching what the
+    // generator would emit (the destructure default) when no
+    // override is set.
+    const propName = isText && typeof element.prop === 'string' && element.prop.length > 0
+        ? element.prop
+        : null;
+    const overrideValue = propName !== null ? propOverrides[propName] : undefined;
+    const defaultText = isText && typeof element.text === 'string' ? element.text : undefined;
+    const textContent = overrideValue !== undefined ? overrideValue : defaultText;
+    const hasText = isText && typeof textContent === 'string' && textContent.length > 0;
+    const hasChildren = element.childIds.length > 0;
+    // Prop-text nodes get extra dressing: a stable hit-test attribute
+    // pair (`data-scamp-instance-id` + `data-scamp-prop`), pointer-
+    // events enabled (overriding the surrounding `pointer-events:
+    // none` shield on the instance wrapper), and a subtle tinted
+    // outline so users can spot the editable text at a glance. When
+    // the current edit target matches this prop, we render a
+    // contentEditable span instead of a plain text node.
+    const isEditingThisProp = propName !== null && editingProp === propName;
+    if (isText && propName !== null) {
+        props['data-scamp-instance-id'] = instanceId;
+        props['data-scamp-prop'] = propName;
+        const baseStyle = props['style'] ?? {};
+        props['style'] = {
+            ...baseStyle,
+            pointerEvents: 'auto',
+            outline: '1px dashed rgba(99, 102, 241, 0.45)',
+            outlineOffset: 1,
+            cursor: 'text',
+        };
+        props['onClick'] = (e) => {
+            // Single click on a prop-text still selects the instance —
+            // the surrounding wrapper would handle this if pointer-events
+            // were enabled on it, but the inner subtree blocks events,
+            // so we route manually. Without this, clicking the editable
+            // text would silently swallow the click and the user couldn't
+            // open the Data tab. Pull `selectElement` straight from the
+            // store — the function is stable across renders and getting
+            // it at click time avoids passing yet another callback down.
+            e.stopPropagation();
+            useCanvasStore.getState().selectElement(instanceId);
+        };
+        props['onDoubleClick'] = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (propName !== null)
+                onChangeEditingProp(propName);
+        };
+    }
+    // Locked text inside an instance: surface a tooltip via the
+    // native title attribute so a confused user gets a hint rather
+    // than silence. Cheap to add and matches the userstory.
+    if (isText && propName === null) {
+        props['title'] = 'Locked text — edit in the component definition.';
+    }
+    if (!hasChildren && !hasText && !isEditingThisProp) {
+        return createElement(tag, { ...props, key: element.id });
+    }
+    if (isEditingThisProp && propName !== null) {
+        const handleBlur = (e) => {
+            const next = e.currentTarget.textContent ?? '';
+            onCommitProp(propName, next);
+        };
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                onChangeEditingProp(null);
+            }
+            else if (e.key === 'Enter') {
+                // Enter commits — line breaks inside a prop value would
+                // need an explicit `\n` escape which the canvas isn't
+                // surfacing. Matches what the user expects from the per-
+                // instance text override.
+                e.preventDefault();
+                const next = e.currentTarget.textContent ?? '';
+                onCommitProp(propName, next);
+            }
+        };
+        return createElement(tag, {
+            ...props,
+            key: element.id,
+            contentEditable: true,
+            suppressContentEditableWarning: true,
+            spellCheck: false,
+            onBlur: handleBlur,
+            onKeyDown: handleKeyDown,
+            ref: (node) => {
+                // Focus + select-all on mount so the user can immediately
+                // overwrite the existing value. Defensive null check is
+                // for React StrictMode unmount/mount cycles.
+                if (!node)
+                    return;
+                node.focus({ preventScroll: true });
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                const sel = window.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+            },
+        }, textContent ?? '');
+    }
+    if (hasText && !hasChildren) {
+        return createElement(tag, { ...props, key: element.id }, textContent);
+    }
+    // Derive parent display / direction once so children's
+    // elementToStyle behaves correctly inside flex / grid parents.
+    const childParentDisplay = element.display === 'flex' || element.display === 'grid'
+        ? element.display
+        : 'none';
+    const childParentDirection = element.display === 'flex' ? element.flexDirection : undefined;
+    const children = element.childIds
+        .map((childId) => {
+        const child = elementsMap[childId];
+        if (!child)
+            return null;
+        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, editingProp, onCommitProp, onChangeEditingProp);
+    })
+        .filter((c) => c !== null);
+    return createElement(tag, { ...props, key: element.id }, children);
+};
 export const ElementRenderer = ({ elementId }) => {
     const rawElement = useCanvasStore((s) => s.elements[elementId]);
     const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
@@ -403,6 +683,13 @@ export const ElementRenderer = ({ elementId }) => {
     const parentDirection = parentResolved?.flexDirection;
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
+    // Canvas-frame min height — page editor uses
+    // EMPTY_FRAME_MIN_HEIGHT, component editor uses the
+    // user-configured `componentCanvas[name].height`. ProjectShell
+    // keeps this in sync with the active target. The root element
+    // uses it as its own min-height so the root fills the visible
+    // canvas regardless of content size.
+    const canvasMinHeight = useCanvasStore((s) => s.canvasMinHeight);
     // Canvas animation preview — set when the user clicks Play in the
     // AnimationSection. The matching element re-renders with a fresh
     // `key` so React forces a remount and the CSS animation plays
@@ -415,6 +702,27 @@ export const ElementRenderer = ({ elementId }) => {
     const setEditingElement = useCanvasStore((s) => s.setEditingElement);
     const setElementText = useCanvasStore((s) => s.setElementText);
     const selectElement = useCanvasStore((s) => s.selectElement);
+    // Component-tree lookup for `component-instance` elements. The
+    // selector is keyed by `componentName`, so a tree edit that
+    // doesn't change THIS instance's component name is a no-op
+    // re-render. When the element isn't an instance, the selector
+    // returns undefined and React skips the deeper subscription.
+    const componentTreeForInstance = useCanvasStore((s) => {
+        const rawEl = s.elements[elementId];
+        if (!rawEl || rawEl.type !== 'component-instance')
+            return undefined;
+        if (!rawEl.componentName)
+            return undefined;
+        return s.componentTrees[rawEl.componentName];
+    });
+    const requestComponentNavigation = useCanvasStore((s) => s.requestComponentNavigation);
+    // Phase 6: per-instance inline editing. The pair is non-null when
+    // a prop-text inside SOME instance is in contentEditable mode.
+    // The recursive subtree render compares the instance id to
+    // decide whether to render the contentEditable form.
+    const editingInstanceProp = useCanvasStore((s) => s.editingInstanceProp);
+    const setEditingInstanceProp = useCanvasStore((s) => s.setEditingInstanceProp);
+    const setPropOverride = useCanvasStore((s) => s.setPropOverride);
     // The ref is attached to the element's DOM node — for text elements
     // it's the contentEditable target during edit mode.
     const elementRef = useRef(null);
@@ -458,8 +766,9 @@ export const ElementRenderer = ({ elementId }) => {
         return null;
     const isText = element.type === 'text';
     const isImage = element.type === 'image';
+    const isComponentInstance = element.type === 'component-instance';
     const projectDir = projectPath ? projectPath.replace(/\\/g, '/') : null;
-    const baseStyle = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir, projectFormat);
+    const baseStyle = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir, projectFormat, false, canvasMinHeight);
     // When the canvas is previewing a non-default state for this
     // element, suppress transitions so the user sees the resolved end
     // state instantly rather than an animation halfway through.
@@ -485,6 +794,131 @@ export const ElementRenderer = ({ elementId }) => {
                 iterationCount: 1,
             }),
         };
+    }
+    // Component-instance render branch. Instances appear as a
+    // single selectable element on the page tree; the visible
+    // contents are the component definition's own element subtree,
+    // rendered from `componentTrees[name].elements`. We wrap the
+    // subtree in a positioned div that owns selection / double-
+    // click / context-menu, and apply `pointer-events: none` to
+    // the inner subtree so every click lands on the wrapper.
+    //
+    // Double-click navigates the canvas into the component editor
+    // for this instance's component (one-shot request consumed by
+    // `ProjectShell`'s `pendingComponentNavigation` effect).
+    if (isComponentInstance) {
+        const handleInstanceClick = (e) => {
+            e.stopPropagation();
+            selectElement(element.id);
+        };
+        const handleInstanceDoubleClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const name = element.componentName;
+            if (name)
+                requestComponentNavigation(name);
+        };
+        const handleInstanceContextMenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectElement(element.id);
+            window.dispatchEvent(new CustomEvent('scamp:open-element-context-menu', {
+                detail: { x: e.clientX, y: e.clientY, elementId: element.id },
+            }));
+        };
+        const wrapperProps = {
+            'data-element-id': element.id,
+            'data-scamp-instance-id': element.instanceId ?? '',
+            className: `${styles.element} ${isSelected ? styles.selected : ''}`.trim(),
+            style,
+            onClick: handleInstanceClick,
+            onDoubleClick: handleInstanceDoubleClick,
+            onContextMenu: handleInstanceContextMenu,
+        };
+        // Missing-component placeholder: the page TSX references a
+        // component name that doesn't resolve to an entry in
+        // `componentTrees`. Render a labelled box so the user can
+        // see the broken reference on the canvas.
+        if (!componentTreeForInstance) {
+            return (_jsxs("div", { ...wrapperProps, style: {
+                    ...style,
+                    padding: '8px 12px',
+                    background: 'rgba(220, 38, 38, 0.08)',
+                    border: '1px dashed #dc2626',
+                    borderRadius: 4,
+                    color: '#7f1d1d',
+                    fontSize: 12,
+                    fontFamily: 'var(--font-ui)',
+                }, children: ["Missing component: ", element.componentName ?? '(unnamed)'] }));
+        }
+        const root = componentTreeForInstance.elements[componentTreeForInstance.rootId];
+        // Brand-new components are scaffolded as `<div data-scamp-id=
+        // "root"></div>` with an empty `.root {}` CSS block. Parsed,
+        // that's a single root element with no children, no inline
+        // fragments, and only DEFAULT_ROOT_STYLES applied. Rendering
+        // that as-is produces a 100%-wide / 0-height invisible div
+        // which looks broken on the page canvas. Surface a clearly-
+        // labelled placeholder until the user actually designs the
+        // component. A converted leaf element is structurally
+        // childless too but carries non-default styling — `isScaffoldRoot`
+        // checks the style state so the placeholder doesn't swallow it.
+        const isEmptyComponent = root !== undefined && isScaffoldRoot(root);
+        // Inline prop-edit target — only honour it when it points at
+        // this instance. Two instances of the same component on one
+        // page would otherwise both believe they're being edited.
+        const editingPropForThis = editingInstanceProp && editingInstanceProp.instanceId === element.id
+            ? editingInstanceProp.propName
+            : null;
+        const handleCommitProp = (propName, value) => {
+            setPropOverride(element.id, propName, value);
+            setEditingInstanceProp(null);
+        };
+        const handleChangeEditingProp = (propName) => {
+            if (propName === null) {
+                setEditingInstanceProp(null);
+            }
+            else {
+                setEditingInstanceProp({ instanceId: element.id, propName });
+            }
+        };
+        const inner = root
+            ? renderComponentSubtree(root, componentTreeForInstance.elements, 
+            // Inner root renders as the topmost element of the
+            // component's own tree — its parent is whatever layout
+            // the WRAPPER lives in, which is what `parentDisplay` /
+            // `parentDirection` already describe. Pass them through
+            // so the component root respects the page's flex / grid
+            // context.
+            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp)
+            : null;
+        if (isEmptyComponent) {
+            return (_jsxs("div", { ...wrapperProps, style: {
+                    ...style,
+                    padding: '12px 16px',
+                    background: 'rgba(99, 102, 241, 0.08)',
+                    border: '1px dashed var(--accent, #6366f1)',
+                    borderRadius: 4,
+                    color: 'var(--text-secondary)',
+                    fontSize: 12,
+                    fontFamily: 'var(--font-ui)',
+                    minWidth: 80,
+                    minHeight: 32,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }, children: [element.componentName ?? 'Component', " (empty \u2014 double-click to edit)"] }));
+        }
+        // The inner wrapper is a real `display: block` div (NOT
+        // `display: contents`). `display: contents` makes the
+        // wrapper transparent to layout, so percentage widths inside
+        // the component leak up to the page root's containing block
+        // — a component whose root has `width: 100%` then expands to
+        // the full page canvas instead of hugging the instance
+        // wrapper. With a real block in place, the component's
+        // children resolve their percentage widths against the inner
+        // div, which is itself content-sized, so `100%` falls back
+        // to `auto` and the instance hugs its content as expected.
+        return (_jsx("div", { ...wrapperProps, children: _jsx("div", { style: { pointerEvents: 'none', display: 'block' }, "aria-hidden": "true", children: inner }) }));
     }
     // The actual HTML tag — uses the element's stored override if any,
     // otherwise the type's default (`p` for text, `div` for rect).

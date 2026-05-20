@@ -25,10 +25,27 @@ export declare const EMPTY_FRAME_MIN_HEIGHT = 900;
 type Props = {
     /** Viewport width in logical pixels, from scamp.config.json. */
     canvasWidth: number;
+    /**
+     * Optional explicit canvas height in logical pixels. When set,
+     * the frame uses this as a fixed height instead of growing with
+     * content (the page-canvas default). Used by the component
+     * editor where the canvas is bounded by design intent rather
+     * than content reach.
+     */
+    canvasHeight?: number;
     /** When true, the frame clips content that extends outside its width. */
     canvasOverflowHidden: boolean;
     /** The artboard scroll container, used for fit-to-width measurement. */
     scrollContainerRef: RefObject<HTMLElement | null>;
+    /**
+     * Resize callback for the bottom-right drag handle. When
+     * provided, the handle renders at the frame's BR corner;
+     * dragging emits running (width, height) updates. The caller
+     * (ProjectShell, for the component editor) writes the result
+     * back into `projectConfig.componentCanvas`. Page mode omits
+     * the prop so no handle renders.
+     */
+    onResize?: (width: number, height: number) => void;
 };
-export declare const Viewport: ({ canvasWidth, canvasOverflowHidden, scrollContainerRef, }: Props) => JSX.Element;
+export declare const Viewport: ({ canvasWidth, canvasHeight, canvasOverflowHidden, scrollContainerRef, onResize, }: Props) => JSX.Element;
 export {};

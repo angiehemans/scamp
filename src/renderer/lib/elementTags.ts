@@ -35,6 +35,12 @@ export type AttributeSpec =
  * `rect_` prefix.
  */
 export const TAG_OPTIONS: Record<ElementType, ReadonlyArray<TagOption>> = {
+  // Component instances render as the user-defined component's own
+  // PascalCase JSX tag — not configurable through the tag dropdown.
+  // The empty list signals "no tag picker for this element"; the
+  // Element section can detect it and surface the component
+  // identity instead.
+  'component-instance': [],
   rectangle: [
     { value: 'div', label: 'div' },
     { value: 'section', label: 'section' },
@@ -101,6 +107,12 @@ export const DEFAULT_TAG: Record<ElementType, string> = {
   text: 'p',
   image: 'img',
   input: 'input',
+  // Component instances render as their PascalCase component name
+  // (set from `componentName` on the element). This sentinel is
+  // never emitted directly — `tagFor` reads `componentName` for
+  // component-instance elements before falling back to the type
+  // default.
+  'component-instance': '',
 };
 
 const METHOD_OPTIONS: ReadonlyArray<TagOption> = [

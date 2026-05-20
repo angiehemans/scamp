@@ -4,6 +4,7 @@ import { IPC } from '@shared/ipcChannels';
 import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
+import { registerComponentIpc } from './ipc/component';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
 import { registerSettingsIpc, readSettingsSync } from './ipc/settings';
 import { registerProjectConfigIpc } from './ipc/projectConfig';
@@ -150,6 +151,7 @@ app.whenReady().then(() => {
     registerProjectIpc();
     registerFileIpc();
     registerPageIpc();
+    registerComponentIpc();
     registerRecentProjectsIpc();
     registerSettingsIpc();
     registerProjectConfigIpc();

@@ -35,3 +35,58 @@
 .frame[data-cursor='text'] {
   cursor: text;
 }
+
+/* Canvas resize handles. Visible only in component mode
+   (Viewport renders them only when its `onResize` prop is
+   provided). Sized in canvas-logical pixels — the frame is
+   `transform: scale`d, so 16px here renders at 16 * scale on
+   screen. That's the same visual size on a 0.5x-fit canvas as
+   a 1x-fit canvas, which feels right.
+
+   Four corner handles share the base style; per-corner classes
+   override only the offset properties + the resize cursor. */
+/* Canvas resize handles. Match the element selection-handle
+   style (`SelectionOverlay.module.css`) so the canvas reads as
+   "just another selected thing" — same 8×8 size, white fill,
+   accent border, half-overhang at each corner.
+
+   MUST sit above the CanvasInteractionLayer (z-index: 100) so
+   pointerdown lands on the handle, not the interaction layer.
+   Without that, the inside-of-frame half of each handle gets
+   its pointerdown eaten by the interaction layer and the
+   resize capture never establishes. */
+.canvasResizeHandle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--text-inverse);
+  border: 1px solid var(--accent);
+  z-index: 200;
+  touch-action: none;
+}
+
+/* Each corner sits half outside the frame (-4px offset), same as
+   the per-element selection handles. */
+.canvasResizeHandleTL {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+
+.canvasResizeHandleTR {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+
+.canvasResizeHandleBL {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+
+.canvasResizeHandleBR {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+}

@@ -17,6 +17,11 @@ export declare const IPC: {
     readonly PageDelete: "page:delete";
     readonly PageDuplicate: "page:duplicate";
     readonly PageRename: "page:rename";
+    readonly ComponentCreate: "component:create";
+    readonly ComponentDelete: "component:delete";
+    readonly ComponentRead: "component:read";
+    readonly ComponentWriteThumbnail: "component:writeThumbnail";
+    readonly ComponentReadThumbnail: "component:readThumbnail";
     readonly RecentProjectsGet: "recentProjects:get";
     readonly RecentProjectsRemove: "recentProjects:remove";
     readonly SettingsGet: "settings:get";

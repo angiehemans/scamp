@@ -1,4 +1,4 @@
-import { DEFAULT_BREAKPOINTS, DEFAULT_PROJECT_CONFIG, DESKTOP_BREAKPOINT_ID, MAX_CANVAS_WIDTH, MIN_CANVAS_WIDTH, } from './types';
+import { DEFAULT_BREAKPOINTS, DEFAULT_PROJECT_CONFIG, DESKTOP_BREAKPOINT_ID, MAX_CANVAS_WIDTH, MAX_COMPONENT_CANVAS_DIM, MIN_CANVAS_WIDTH, MIN_COMPONENT_CANVAS_DIM, } from './types';
 const isValidColor = (value) => typeof value === 'string' && value.length > 0 && !/[\n\r\t]/.test(value);
 /** Clamp a raw canvasWidth candidate to the supported range. */
 export const clampCanvasWidth = (value) => {
@@ -49,6 +49,37 @@ export const parseBreakpoints = (value) => {
     return result;
 };
 /**
+ * Validate the `componentCanvas` map. Each value must be a
+ * `{ width, height }` pair with finite numbers in the
+ * `MIN_CANVAS_WIDTH`–`MAX_CANVAS_WIDTH` range; bad entries are
+ * dropped silently so a partially-broken map still opens. Returns
+ * undefined when the input is absent or fully invalid, so the
+ * field round-trips text-stable for projects that haven't used the
+ * feature.
+ */
+export const parseComponentCanvas = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+    const out = {};
+    for (const [name, entry] of Object.entries(value)) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+            continue;
+        const o = entry;
+        const width = o['width'];
+        const height = o['height'];
+        if (typeof width !== 'number' || !Number.isFinite(width))
+            continue;
+        if (typeof height !== 'number' || !Number.isFinite(height))
+            continue;
+        out[name] = {
+            width: Math.round(Math.max(MIN_COMPONENT_CANVAS_DIM, Math.min(MAX_COMPONENT_CANVAS_DIM, width))),
+            height: Math.round(Math.max(MIN_COMPONENT_CANVAS_DIM, Math.min(MAX_COMPONENT_CANVAS_DIM, height))),
+        };
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+};
+/**
  * Parse a raw `scamp.config.json` string into a validated `ProjectConfig`.
  * Every missing or malformed field falls back to the default so a file
  * someone hand-edited to nonsense still opens, just without the bad
@@ -78,6 +109,7 @@ export const parseProjectConfig = (raw) => {
     const breakpoints = obj['breakpoints'] === undefined
         ? [...DEFAULT_BREAKPOINTS]
         : parseBreakpoints(obj['breakpoints']);
+    const componentCanvas = parseComponentCanvas(obj['componentCanvas']);
     return {
         artboardBackground: isValidColor(artboard)
             ? artboard
@@ -87,6 +119,7 @@ export const parseProjectConfig = (raw) => {
         breakpoints,
         ...(canvasMigrationAcknowledged ? { canvasMigrationAcknowledged: true } : {}),
         ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
+        ...(componentCanvas ? { componentCanvas } : {}),
     };
 };
 /** Serialize a `ProjectConfig` to its on-disk JSON form. */

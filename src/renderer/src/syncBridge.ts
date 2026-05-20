@@ -2,8 +2,13 @@ import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
 import { parseThemeFile } from '@lib/parseTheme';
 import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { captureAndPersistComponentThumbnail } from './lib/componentThumbnail';
 import { useFontsStore } from '@store/fontsSlice';
-import { useCanvasStore, type ActivePage } from '@store/canvasSlice';
+import {
+  useCanvasStore,
+  type ActiveComponent,
+  type ActivePage,
+} from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import type { ProjectFormat } from '@shared/types';
 import {
@@ -27,6 +32,61 @@ const cssModuleImportNameFor = (
 ): string => (format === 'nextjs' ? 'page' : pageName);
 
 /**
+ * Unified shape for "the thing the canvas is currently editing".
+ * Wraps either an active page or an active component so the
+ * save / load / route-by-path code paths don't have to special-case
+ * by kind every place. Each Phase 1+ feature that pivots on the
+ * kind reads `target.kind` for branching.
+ */
+type EditTarget = {
+  kind: 'page' | 'component';
+  name: string;
+  tsxPath: string;
+  cssPath: string;
+};
+
+const toEditTarget = (
+  page: ActivePage | null,
+  component: ActiveComponent | null
+): EditTarget | null => {
+  // activeComponent takes precedence — `loadComponent` clears
+  // `activePage` and vice versa, so this defensive ordering only
+  // matters during the in-flight setState batch where both may
+  // briefly be readable.
+  if (component) {
+    return {
+      kind: 'component',
+      name: component.name,
+      tsxPath: component.tsxPath,
+      cssPath: component.cssPath,
+    };
+  }
+  if (page) {
+    return {
+      kind: 'page',
+      name: page.name,
+      tsxPath: page.tsxPath,
+      cssPath: page.cssPath,
+    };
+  }
+  return null;
+};
+
+/**
+ * CSS-module import name for the active target. Pages route
+ * through `cssModuleImportNameFor` (which depends on project
+ * format); components always import their own
+ * `./<ComponentName>.module.css` regardless of project format.
+ */
+const importNameForTarget = (
+  target: EditTarget,
+  format: ProjectFormat
+): string => {
+  if (target.kind === 'component') return target.name;
+  return cssModuleImportNameFor(format, target.name);
+};
+
+/**
  * Safety net for the "save is confirmed" transition. The main-process
  * watcher already emits an ack on its own 400 ms expiry, so the bridge
  * should receive one event per write even on filesystems that skip
@@ -47,6 +107,46 @@ let pendingFlush: (() => void) | null = null;
 
 export const flushPendingPageWrite = (): void => {
   pendingFlush?.();
+};
+
+/**
+ * One-shot suppression for the next "active target changed → flush
+ * the OUTGOING target" write inside the canvas-store subscription.
+ *
+ * The default behaviour exists so that switching pages/components
+ * flushes any unsaved edit to the file the user just left. But for
+ * destructive multi-file operations like component rename or
+ * component delete, the outgoing target's file may have been
+ * removed from disk WHILE the React state is still mid-transition
+ * to the new identity. Writing to that path now would ENOENT and
+ * surface as a "Save failed" notification, even though the rename
+ * itself succeeded.
+ *
+ * The flag is consumed by the very next target-swap (the rename
+ * is the only operation that needs the suppression, and it always
+ * triggers exactly one swap). It auto-resets even if no swap
+ * happens, so a forgotten call to `armTargetSwapSuppression` can't
+ * silently mask future writes.
+ */
+let suppressNextTargetSwapWrite = false;
+let suppressTargetSwapTimer: ReturnType<typeof setTimeout> | null = null;
+const SUPPRESS_TARGET_SWAP_TTL_MS = 5000;
+
+export const armTargetSwapSuppression = (): void => {
+  suppressNextTargetSwapWrite = true;
+  if (suppressTargetSwapTimer !== null) clearTimeout(suppressTargetSwapTimer);
+  suppressTargetSwapTimer = setTimeout(() => {
+    suppressNextTargetSwapWrite = false;
+    suppressTargetSwapTimer = null;
+  }, SUPPRESS_TARGET_SWAP_TTL_MS);
+};
+
+export const disarmTargetSwapSuppression = (): void => {
+  suppressNextTargetSwapWrite = false;
+  if (suppressTargetSwapTimer !== null) {
+    clearTimeout(suppressTargetSwapTimer);
+    suppressTargetSwapTimer = null;
+  }
 };
 
 /**
@@ -299,20 +399,22 @@ export const initSyncBridge = (): (() => void) => {
   const writeIfDirty = (
     elements: Record<string, ScampElement>,
     rootElementId: string,
-    page: ActivePage
+    target: EditTarget
   ): void => {
     const store = useCanvasStore.getState();
     const code = generateCode({
       elements,
       rootId: rootElementId,
-      pageName: page.name,
+      // generateCode uses `pageName` for the function name AND the
+      // CSS-module import basename. For components the name IS the
+      // PascalCase component name, which generateCode passes through
+      // unchanged — both halves come out right.
+      pageName: target.name,
       breakpoints: store.breakpoints,
       customMediaBlocks: store.pageCustomMediaBlocks,
       pageKeyframesBlocks: store.pageKeyframesBlocks,
-      cssModuleImportName: cssModuleImportNameFor(
-        store.projectFormat,
-        page.name
-      ),
+      cssModuleImportName: importNameForTarget(target, store.projectFormat),
+      isComponent: target.kind === 'component',
     });
     if (code.tsx === lastSerializedTsx && code.css === lastSerializedCss) {
       // No-op dedupe: the debounce fired but the generated code matches
@@ -328,18 +430,39 @@ export const initSyncBridge = (): (() => void) => {
     useCanvasStore.getState().setPageSource({ tsx: code.tsx, css: code.css });
     dispatchPageWrite({
       kind: 'write',
-      tsxPath: page.tsxPath,
-      cssPath: page.cssPath,
+      tsxPath: target.tsxPath,
+      cssPath: target.cssPath,
       tsxContent: code.tsx,
       cssContent: code.css,
     });
+    // Phase 9: capture a sidebar thumbnail for component saves.
+    // Fire-and-forget — capture runs in the next microtask so the
+    // canvas DOM has finished painting the user's latest edit
+    // before `html-to-image` snapshots it. The helper internally
+    // throttles concurrent captures per component.
+    if (target.kind === 'component') {
+      const projectPath = store.projectPath;
+      if (projectPath) {
+        // Defer so React has finished committing the just-set
+        // pageSource (and any in-flight visual updates) before we
+        // rasterise the canvas. Without this, a capture taken
+        // mid-edit can occasionally render a half-applied state.
+        requestAnimationFrame(() => {
+          captureAndPersistComponentThumbnail({
+            projectPath,
+            componentName: target.name,
+          });
+        });
+      }
+    }
   };
 
   /** Flush a queued debounced write against the CURRENT store state. */
   const flushDebouncedWrite = (): void => {
     const state = useCanvasStore.getState();
-    if (!state.activePage) return;
-    writeIfDirty(state.elements, state.rootElementId, state.activePage);
+    const target = toEditTarget(state.activePage, state.activeComponent);
+    if (!target) return;
+    writeIfDirty(state.elements, state.rootElementId, target);
   };
 
   pendingFlush = (): void => {
@@ -356,25 +479,56 @@ export const initSyncBridge = (): (() => void) => {
 
   const unsubStore = useCanvasStore.subscribe((state, prev) => {
     try {
-      // Active page changed — flush any pending edit to the OUTGOING page
-      // BEFORE we drop the cache and start tracking the new page. Without
-      // this, edits made within the debounce window before a page switch
-      // would be silently lost.
-      if (state.activePage !== prev.activePage) {
+      // Detect target change against the STABLE underlying refs.
+      // `toEditTarget` returns a fresh object each call, so
+      // comparing its return values directly would always trip
+      // "target changed" and tank performance — every Zustand
+      // mutation (selection, hover, etc.) would flush, regen,
+      // and re-arm the debounce timer.
+      const targetChanged =
+        state.activePage !== prev.activePage ||
+        state.activeComponent !== prev.activeComponent;
+      const currentTarget = toEditTarget(
+        state.activePage,
+        state.activeComponent
+      );
+
+      // Active target changed (page → page, page → component, or
+      // component → page) — flush any pending edit to the OUTGOING
+      // target BEFORE we drop the cache and start tracking the new
+      // one. Without this, edits made within the debounce window
+      // before a target switch would be silently lost.
+      //
+      // Suppression: component rename arms `suppressNextTargetSwapWrite`
+      // before the file ops so this flush can't run against the OLD
+      // path after `deleteComponent` has removed it. The one-shot
+      // flag clears itself on consumption so subsequent swaps behave
+      // normally.
+      if (targetChanged) {
         cancelWriteTimer();
-        if (prev.activePage) {
-          writeIfDirty(prev.elements, prev.rootElementId, prev.activePage);
+        const consumeSuppress = suppressNextTargetSwapWrite;
+        suppressNextTargetSwapWrite = false;
+        if (suppressTargetSwapTimer !== null) {
+          clearTimeout(suppressTargetSwapTimer);
+          suppressTargetSwapTimer = null;
+        }
+        const prevTarget = toEditTarget(
+          prev.activePage,
+          prev.activeComponent
+        );
+        if (prevTarget && !consumeSuppress) {
+          writeIfDirty(prev.elements, prev.rootElementId, prevTarget);
         }
         lastSerializedTsx = null;
         lastSerializedCss = null;
       }
 
       // Nothing relevant changed.
-      if (state.elements === prev.elements && state.activePage === prev.activePage) {
+      if (state.elements === prev.elements && !targetChanged) {
         return;
       }
 
-      if (!state.activePage) return;
+      if (!currentTarget) return;
 
       // The change came from a load — refresh the write cache. For
       // initial page loads (`'initial'`), if the re-generated code
@@ -395,14 +549,15 @@ export const initSyncBridge = (): (() => void) => {
         const code = generateCode({
           elements: state.elements,
           rootId: state.rootElementId,
-          pageName: state.activePage.name,
+          pageName: currentTarget.name,
           breakpoints: state.breakpoints,
           customMediaBlocks: state.pageCustomMediaBlocks,
           pageKeyframesBlocks: state.pageKeyframesBlocks,
-          cssModuleImportName: cssModuleImportNameFor(
-            state.projectFormat,
-            state.activePage.name
+          cssModuleImportName: importNameForTarget(
+            currentTarget,
+            state.projectFormat
           ),
+          isComponent: currentTarget.kind === 'component',
         });
         const onDisk = state.pageSource;
         const isExternal = state.lastLoadKind === 'external';
@@ -412,11 +567,10 @@ export const initSyncBridge = (): (() => void) => {
           (code.tsx !== onDisk.tsx || code.css !== onDisk.css)
         ) {
           state.setPageSource({ tsx: code.tsx, css: code.css });
-          const page = state.activePage;
           void window.scamp
             .writeFile({
-              tsxPath: page.tsxPath,
-              cssPath: page.cssPath,
+              tsxPath: currentTarget.tsxPath,
+              cssPath: currentTarget.cssPath,
               tsxContent: code.tsx,
               cssContent: code.css,
             })
@@ -450,14 +604,15 @@ export const initSyncBridge = (): (() => void) => {
       const previewCode = generateCode({
         elements: state.elements,
         rootId: state.rootElementId,
-        pageName: state.activePage.name,
+        pageName: currentTarget.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: state.pageCustomMediaBlocks,
         pageKeyframesBlocks: state.pageKeyframesBlocks,
-        cssModuleImportName: cssModuleImportNameFor(
-          state.projectFormat,
-          state.activePage.name
+        cssModuleImportName: importNameForTarget(
+          currentTarget,
+          state.projectFormat
         ),
+        isComponent: currentTarget.kind === 'component',
       });
       state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
 
@@ -475,10 +630,11 @@ export const initSyncBridge = (): (() => void) => {
 
   const offFile = window.scamp.onFileChanged((payload) => {
     const state = useCanvasStore.getState();
-    if (!state.activePage) return;
+    const target = toEditTarget(state.activePage, state.activeComponent);
+    if (!target) return;
     if (
-      payload.path !== state.activePage.tsxPath &&
-      payload.path !== state.activePage.cssPath
+      payload.path !== target.tsxPath &&
+      payload.path !== target.cssPath
     ) {
       return;
     }
@@ -503,27 +659,27 @@ export const initSyncBridge = (): (() => void) => {
       // Skip the canvas reload when the parsed tree round-trips to the
       // same code — prevents flicker during agent edits that don't actually
       // change a canvas-mappable property.
-      const importName = cssModuleImportNameFor(
-        state.projectFormat,
-        state.activePage.name
-      );
+      const importName = importNameForTarget(target, state.projectFormat);
+      const isComponent = target.kind === 'component';
       const currentCode = generateCode({
         elements: state.elements,
         rootId: state.rootElementId,
-        pageName: state.activePage.name,
+        pageName: target.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: state.pageCustomMediaBlocks,
         pageKeyframesBlocks: state.pageKeyframesBlocks,
         cssModuleImportName: importName,
+        isComponent,
       });
       const nextCode = generateCode({
         elements: parsed.elements,
         rootId: parsed.rootId,
-        pageName: state.activePage.name,
+        pageName: target.name,
         breakpoints: state.breakpoints,
         customMediaBlocks: parsed.customMediaBlocks,
         pageKeyframesBlocks: parsed.keyframesBlocks,
         cssModuleImportName: importName,
+        isComponent,
       });
       if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
         return;

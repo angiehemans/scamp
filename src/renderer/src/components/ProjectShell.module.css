@@ -113,6 +113,77 @@
   color: var(--text-inverse);
 }
 
+/* Breadcrumb segments used in component-editor mode. The current
+   segment looks like the normal page badge (same background +
+   padding); back-links and separators sit inline so the whole
+   group reads as one rounded pill. */
+.canvasBreadcrumbLink {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.canvasBreadcrumbLink:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.canvasBreadcrumbCurrent {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.canvasBreadcrumbCurrent:hover {
+  color: var(--text-inverse);
+}
+
+/* Persistent banner shown above the canvas when the user is in
+   the component editor. Visually distinct from MigrationBanner
+   (yellow / warning) because this is an info / state indicator,
+   not a recoverable problem to dismiss. */
+.componentEditorBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--accent-muted, rgba(99, 102, 241, 0.12));
+  border-bottom: 1px solid var(--accent, #6366f1);
+  color: var(--text-primary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.componentEditorBanner strong {
+  font-weight: 600;
+}
+
+.componentEditorExit {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.componentEditorExit:hover {
+  background: var(--bg-hover);
+  color: var(--text-inverse);
+}
+
 .backButton {
   background: none;
   border: none;

@@ -8,8 +8,20 @@ export const createPendingWriteTracker = (send, expiryMs) => {
     const pending = new Map();
     const register = (path, writeId, suppressChanged) => {
         const existing = pending.get(path);
-        if (existing)
+        if (existing) {
+            // Two writes to the same path in quick succession (e.g. the
+            // syncBridge's debounced flush followed by an explicit
+            // rewrite during a component rename). The second write
+            // supersedes the first ON DISK — chokidar will only fire
+            // once for the final state — so we ack the previous writeId
+            // here. Without this, the renderer's tracker for the
+            // overwritten writeId waits for an ack that never arrives,
+            // its 2s watchdog fires, and the save-status indicator
+            // surfaces a false-positive "Save failed" even though the
+            // user's content landed correctly.
             clearTimeout(existing.timer);
+            send({ writeId: existing.writeId, path });
+        }
         const timer = setTimeout(() => {
             const entry = pending.get(path);
             pending.delete(path);

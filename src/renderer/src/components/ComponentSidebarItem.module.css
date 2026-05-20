@@ -1,0 +1,40 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.thumbnail {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  flex-shrink: 0;
+}
+
+.placeholder {
+  width: 28px;
+  height: 28px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(
+      135deg,
+      transparent 45%,
+      var(--border) 45%,
+      var(--border) 55%,
+      transparent 55%
+    );
+  flex-shrink: 0;
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
