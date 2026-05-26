@@ -46,16 +46,8 @@ export const createPendingWriteTracker = (
   ) => {
     const existing = pending.get(path);
     if (existing) {
-      // Two writes to the same path in quick succession (e.g. the
-      // syncBridge's debounced flush followed by an explicit
-      // rewrite during a component rename). The second write
-      // supersedes the first ON DISK — chokidar will only fire
-      // once for the final state — so we ack the previous writeId
-      // here. Without this, the renderer's tracker for the
-      // overwritten writeId waits for an ack that never arrives,
-      // its 2s watchdog fires, and the save-status indicator
-      // surfaces a false-positive "Save failed" even though the
-      // user's content landed correctly.
+      // Ack the superseded write so the renderer doesn't watchdog it.
+      // see docs/notes/components-sync.md
       clearTimeout(existing.timer);
       send({ writeId: existing.writeId, path });
     }

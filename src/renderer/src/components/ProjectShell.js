@@ -979,18 +979,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         window.addEventListener(CONVERT_TO_COMPONENT_EVENT, handler);
         return () => window.removeEventListener(CONVERT_TO_COMPONENT_EVENT, handler);
     }, []);
-    /**
-     * Run the convert-to-component flow: generate the component
-     * files from the source subtree, write them via the createComponent
-     * IPC, splice an instance into the page tree in place of the
-     * source subtree, and open the new component in the editor.
-     *
-     * Phase 4 is not fully atomic: if the file write succeeds but
-     * the page write (debounced through the sync bridge) later
-     * fails, the on-disk component exists but the page still
-     * references the old subtree. Phase 7 adds stage-and-swap
-     * semantics for that and the rename / lock-prop flows.
-     */
+    /** see docs/notes/components-multi-file-ops.md — Convert-to-component */
     const handleConvertToComponent = async (elementId, name) => {
         setConvertingComponent(true);
         setConvertError(null);
@@ -1006,22 +995,8 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                 tsxContent: generated.tsx,
                 cssContent: generated.css,
             });
-            // In-memory page mutation. The sync bridge debounces the
-            // page TSX write that follows — the file IS Scamp's
-            // own write, so the chokidar pending-write tracker
-            // suppresses the round-trip event.
             state.replaceSubtreeWithInstance(elementId, name);
-            // Use a functional updater so this update composes with
-            // `openComponent → persistActiveSource`'s follow-on
-            // setProject (which mirrors the page's new in-memory
-            // state). Without the functional form, the second call's
-            // closure-captured `project` would lack `created` and
-            // clobber this add — the user would briefly see the
-            // editor for a component that's no longer in the list,
-            // and the resulting useEffect-triggered reset would
-            // corrupt the on-disk page with the component's content
-            // (since stale `project.pages[home]` round-trips through
-            // a load).
+            // Functional updater composes with openComponent's follow-on setProject.
             onProjectChange?.((prev) => ({
                 ...prev,
                 components: [...prev.components, created],
@@ -1036,11 +1011,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             setConvertingComponent(false);
         }
     };
-    // Phase 7: lock-prop-with-overrides warning. When the user
-    // toggles a prop-text Prop → Locked in the Data tab, the panel
-    // dispatches REQUEST_LOCK_PROP_EVENT. We compute how many
-    // instances across all pages currently override that prop; if
-    // any do, surface a ConfirmDialog. If none do, lock silently.
+    // Lock-prop-with-overrides warning. see docs/notes/components-multi-file-ops.md
     const [lockPropRequest, setLockPropRequest] = useState(null);
     useEffect(() => {
         const handler = (e) => {
@@ -1050,10 +1021,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             const usages = findInstanceUsagesAcrossPages(project.pages, detail.componentName);
             const overriding = filterUsagesWithPropOverride(usages, detail.propName);
             if (overriding.length === 0) {
-                // No data at risk — commit immediately. The Data tab's
-                // SegmentedControl already showed the new state
-                // optimistically; running the store action now confirms
-                // it without a dialog flash.
                 useCanvasStore.getState().togglePropOnText(detail.elementId);
                 return;
             }
@@ -1072,14 +1039,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         useCanvasStore.getState().togglePropOnText(lockPropRequest.elementId);
         setLockPropRequest(null);
     };
-    // Phase 7: delete-prop-text-with-overrides warning. Captured by
-    // the keyboard delete handler when the selection contains at
-    // least one prop-text whose name is currently overridden on
-    // some page instance. Confirm → run the regular delete chain.
-    // Cancel → do nothing. No instance cleanup: the override keys
-    // become silently inert (the prop no longer exists, so the
-    // resolver falls back to nothing). Phase 8/9 has the cleaner
-    // detach path.
+    // Delete-prop-text warning when instances override it.
     const [deletePropTextRequest, setDeletePropTextRequest] = useState(null);
     const handleConfirmDeletePropText = () => {
         if (!deletePropTextRequest)
@@ -1092,10 +1052,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         }
         setDeletePropTextRequest(null);
     };
-    // Phase 8: detach-from-component flow. Right-click on an
-    // instance dispatches DETACH_INSTANCE_EVENT; the handler
-    // captures the target id + component name + override-count for
-    // the dialog. Confirm runs the store action.
+    // Detach-from-component flow. see docs/notes/components-multi-file-ops.md
     const [detachRequest, setDetachRequest] = useState(null);
     useEffect(() => {
         const handler = (e) => {
@@ -1141,29 +1098,12 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             impactByPage: groupUsagesByPage(usages),
         });
     };
-    /**
-     * Run the multi-file delete: rewrite every affected page so its
-     * instances of the named component are gone, then call the
-     * `component:delete` IPC to remove the folder, then update
-     * project state. Best-effort sequential — true atomicity (stage-
-     * and-swap with rollback) is deferred per the safety-first
-     * Phase 7 slice. A partial failure leaves the project in a
-     * state Scamp can recover from on next open (parser surfaces
-     * missing-component instances as labelled red placeholders).
-     */
+    /** see docs/notes/components-multi-file-ops.md — Delete-component */
     const handleConfirmDeleteComponent = async () => {
         if (!deletingComponent)
             return;
         const { componentName } = deletingComponent;
         setComponentDeleteBusy(true);
-        // Same suppression as rename: deleting a component that the
-        // user is currently editing transitions the active target
-        // (component → page) AFTER the on-disk folder has been
-        // removed. Without this, the default target-swap flush
-        // attempts to write to the deleted path → "Save failed". The
-        // one-shot flag is consumed on the next target swap; the TTL
-        // auto-clears if no swap happens (e.g. user wasn't inside
-        // the deleted component).
         armTargetSwapSuppression();
         try {
             const breakpoints = useCanvasStore.getState().breakpoints;
@@ -1172,10 +1112,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                 const parsed = parseCode(page.tsxContent, page.cssContent, {
                     breakpoints,
                 });
-                // Collect instance ids of the deleted component; delete
-                // them via the same store-shape pruning the store would
-                // do. We strip from the element map AND from every
-                // parent's childIds.
                 const toRemove = new Set();
                 for (const el of Object.values(parsed.elements)) {
                     if (el.type === 'component-instance' && el.componentName === componentName) {
@@ -1216,17 +1152,11 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                     cssContent: rewritten.css,
                 });
             }
-            // Folder removal — last so a partial page-write doesn't
-            // leave the page with dangling imports against a missing
-            // folder. (Imports still resolve to the on-disk file until
-            // this call completes.)
+            // Folder removal AFTER page rewrites so imports don't dangle.
             await window.scamp.deleteComponent({
                 projectPath: project.path,
                 componentName,
             });
-            // If the user was editing this component, drop them back
-            // to the entry page so the canvas doesn't try to render
-            // against a now-empty file pair.
             const wasEditingDeleted = activeComponent !== null && activeComponent.name === componentName;
             if (wasEditingDeleted) {
                 setActiveComponentState(null);
@@ -1239,14 +1169,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             setDeletingComponent(null);
         }
         catch (err) {
-            // Mid-delete failure: no target swap is going to land. Disarm
-            // the suppression so an unrelated swap later doesn't get its
-            // flush silently consumed.
             disarmTargetSwapSuppression();
-            // Surface the failure via the app log; leave the dialog
-            // open so the user can retry or cancel. ConfirmDialog
-            // doesn't have an inline-error slot — Phase 8/9 plumbs
-            // that in.
             const message = err instanceof Error ? err.message : String(err);
             useAppLogStore
                 .getState()
@@ -1256,18 +1179,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             setComponentDeleteBusy(false);
         }
     };
-    /**
-     * Phase 7.2: multi-file component rename. Flushes the active
-     * canvas to disk first so `project.pages[i].tsxContent` is the
-     * current truth, then rewrites the component file + every page
-     * that imports it, then deletes the old folder. Updates React
-     * state + canvas store afterward.
-     *
-     * Best-effort sequential per the safety-first scope. A failure
-     * mid-rewrite leaves a mix of old + new on disk; the parser's
-     * missing-component placeholders make this recoverable on
-     * next open. Phase 9+ adds true stage-and-swap atomicity.
-     */
+    /** see docs/notes/components-multi-file-ops.md — Rename-component */
     const handleRenameComponent = async (oldName, newName) => {
         if (oldName === newName) {
             setComponentEdit(null);
@@ -1275,38 +1187,17 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         }
         setRenamingComponent(true);
         setComponentEditError(null);
-        // The rename ends by transitioning the active target's
-        // identity (canvas-store `activeComponent` swap, via the
-        // load-component useEffect). The default swap behaviour
-        // flushes the OUTGOING target's content to its file — but
-        // the OUTGOING file path is the one we just deleted. Arm a
-        // one-shot suppression now so that swap is a no-op write-
-        // wise. The TTL inside syncBridge auto-clears the flag if
-        // for some reason no swap actually happens (e.g. user was
-        // on a different page, rename succeeded, no transition).
         armTargetSwapSuppression();
         try {
-            // Flush any pending debounced write so the active page's
-            // on-disk content matches the in-memory store. Then mirror
-            // pageSource back into project.* so the snapshot we iterate
-            // below is fresh.
             flushPendingPageWrite();
             persistActiveSource();
-            // Re-read project state via the change callback would be
-            // racy in a single tick, so we capture the latest values
-            // from React state (the closures already point at the
-            // current project ref).
             const breakpoints = useCanvasStore.getState().breakpoints;
-            // Find the source component file. If it's missing we can't
-            // proceed — bail with an inline error.
             const sourceComponent = project.components.find((c) => c.name === oldName);
             if (!sourceComponent) {
                 throw new Error(`Component "${oldName}" not found in project.`);
             }
-            // Rewrite the component's TSX/CSS with the new identifier.
             const newContent = rewriteComponentForRename(sourceComponent.tsxContent, sourceComponent.cssContent, oldName, newName, { breakpoints });
-            // Rewrite each page that references oldName. Skip pages
-            // that don't — they keep byte-stable on disk.
+            // Skip pages that don't reference oldName — keeps them byte-stable.
             const rewrittenPages = [];
             const unchangedPages = [];
             for (const page of project.pages) {
@@ -1322,14 +1213,12 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                     unchangedPages.push(page);
                 }
             }
-            // Write the new component (creates the new folder + files).
             const newComponentFile = await window.scamp.createComponent({
                 projectPath: project.path,
                 componentName: newName,
                 tsxContent: newContent.tsx,
                 cssContent: newContent.css,
             });
-            // Write each rewritten page.
             for (const entry of rewrittenPages) {
                 await window.scamp.writeFile({
                     tsxPath: entry.file.tsxPath,
@@ -1338,14 +1227,11 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                     cssContent: entry.css,
                 });
             }
-            // Finally drop the old folder. We do this AFTER all rewrites
-            // so a transient failure during page-write doesn't leave the
-            // page with a dangling import against a missing folder.
+            // Old folder removed last so page imports don't dangle.
             await window.scamp.deleteComponent({
                 projectPath: project.path,
                 componentName: oldName,
             });
-            // Update in-memory project state: components list + pages list.
             const nextComponents = project.components.map((c) => c.name === oldName ? newComponentFile : c);
             const nextPages = [
                 ...unchangedPages,
@@ -1355,8 +1241,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                     cssContent: e.css,
                 })),
             ];
-            // Preserve original page order so the sidebar doesn't
-            // visually reshuffle on rename.
+            // Preserve original page order so the sidebar doesn't reshuffle.
             const orderedPages = project.pages.map((p) => {
                 const rewritten = rewrittenPages.find((e) => e.file.name === p.name);
                 if (rewritten) {
@@ -1374,27 +1259,17 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                 components: nextComponents,
                 pages: orderedPages,
             });
-            // If the user was inside the renamed component's editor,
-            // re-point activeComponent to the new path. The sync
-            // bridge picks up the new tsxPath/cssPath from this on its
-            // next subscribe tick.
             if (activeComponent !== null && activeComponent.name === oldName) {
                 setActiveComponentState({
                     name: newName,
                     returnToPage: activeComponent.returnToPage,
                 });
             }
-            // The active page (if any) has its `componentName` fields
-            // updated in-memory so the canvas keeps rendering the right
-            // component while the user is still on this view.
+            // Keep active page's in-memory componentName fields consistent.
             useCanvasStore.getState().renameComponentReferences(oldName, newName);
             setComponentEdit(null);
         }
         catch (err) {
-            // Mid-rename failure: no target swap is going to land (we
-            // never updated React state). Disarm the suppression so an
-            // unrelated swap later in the session doesn't get its flush
-            // silently consumed.
             disarmTargetSwapSuppression();
             const message = err instanceof Error ? err.message : String(err);
             setComponentEditError(message);

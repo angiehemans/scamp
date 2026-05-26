@@ -6,31 +6,11 @@ import { SegmentedControl } from './controls/SegmentedControl';
 import styles from './DataPanel.module.css';
 import propStyles from './PropertiesPanel.module.css';
 
-/**
- * Component-only panel that lists every text descendant of the
- * component root with a Prop / Locked toggle and an inline rename
- * input for prop names. Renders inside `PropertiesPanel` when the
- * panel mode is `'data'`.
- *
- * "Data" here means "what gets parameterised when an instance is
- * placed on a page". Other style properties (colour, padding, etc.)
- * always belong to the component; only text content is per-instance
- * overridable. That's why this is a flat list of text elements
- * rather than a property editor.
- *
- * Page-side equivalent doesn't exist: this whole tab is hidden on
- * pages (see `PanelModeToggle`).
- */
+// Data tab: component-only prop/locked toggle + per-instance overrides.
+// see docs/notes/components-data-model.md
 const PROP_NAME_RE = /^[a-z][a-zA-Z0-9]*$/;
 
-/**
- * Phase 7 hook: when the user toggles a prop-text element from
- * Prop → Locked, DataPanel dispatches this event instead of
- * calling `togglePropOnText` directly. `ProjectShell` listens,
- * walks every page to find instances with an override for the
- * named prop, and either runs the toggle silently (no overrides
- * at risk) or surfaces a ConfirmDialog with the impact info.
- */
+/** Prop→Locked toggle dispatch; ProjectShell decides whether to warn. */
 export const REQUEST_LOCK_PROP_EVENT = 'scamp:request-lock-prop';
 export type RequestLockPropEventDetail = {
   elementId: string;
@@ -66,15 +46,6 @@ const TOGGLE_OPTIONS = [
   { value: 'prop' as const, label: 'Prop' },
 ];
 
-/**
- * Single row in the Data tab — text preview, Prop/Locked toggle,
- * and an inline rename input when Prop is active.
- *
- * Validation: the rename input only commits when the name is a
- * valid JS identifier (lowercased start) AND unique among the
- * other text elements' prop names. Invalid input surfaces inline
- * red text; the toggle stays operable.
- */
 const DataRow = ({
   row,
   otherPropNames,
@@ -84,18 +55,13 @@ const DataRow = ({
 }): JSX.Element => {
   const togglePropOnText = useCanvasStore((s) => s.togglePropOnText);
   const renamePropOnText = useCanvasStore((s) => s.renamePropOnText);
-  // Used to send the active component name with the
-  // lock-prop request — ProjectShell needs it to filter
-  // page-instance matches.
   const activeComponentName = useCanvasStore(
     (s) => s.activeComponent?.name ?? null
   );
   const [draftName, setDraftName] = useState(row.prop ?? '');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Reset the draft when the canonical prop name changes from
-  // outside (e.g. an undo, a file reload). Prevents the input from
-  // showing a stale or out-of-sync value.
+  // Resync draft when prop changes externally (undo, reload).
   useEffect(() => {
     setDraftName(row.prop ?? '');
   }, [row.prop]);
@@ -141,21 +107,12 @@ const DataRow = ({
         value={isProp ? 'prop' : 'locked'}
         options={TOGGLE_OPTIONS}
         onChange={(next) => {
-          // No-op when the requested value matches current state —
-          // avoids a history entry on accidental same-state clicks.
           if ((next === 'prop') === isProp) return;
-          // Locked → Prop: always safe. Just commit.
           if (next === 'prop') {
             togglePropOnText(row.id);
             return;
           }
-          // Prop → Locked: defer to ProjectShell so it can compute
-          // cross-page impact and (if instances would lose
-          // overrides) confirm before the toggle commits. When no
-          // active component is known we fall back to the silent
-          // toggle — that path shouldn't happen since Lock is only
-          // available inside a component editor, but the defensive
-          // fallback keeps the UI responsive if state desyncs.
+          // Prop → Locked may warn cross-page; defer to ProjectShell.
           if (!activeComponentName || !row.prop) {
             togglePropOnText(row.id);
             return;
@@ -193,11 +150,7 @@ const DataRow = ({
   );
 };
 
-/**
- * Component-editor view: list every text descendant of the
- * component root with the Prop/Locked toggle. Same shape as the
- * Phase 5 implementation.
- */
+/** Component-editor: list text descendants with prop/locked toggle. */
 const ComponentDataView = (): JSX.Element => {
   const elements = useCanvasStore((s) => s.elements);
   const rootElementId = useCanvasStore((s) => s.rootElementId);
@@ -292,10 +245,7 @@ const InstanceRow = ({
 }): JSX.Element => {
   const setPropOverride = useCanvasStore((s) => s.setPropOverride);
   const clearPropOverride = useCanvasStore((s) => s.clearPropOverride);
-  // Local draft tracks the in-flight edit so typing doesn't fight
-  // the upstream store update on every keystroke. We commit on blur
-  // — matches the inline canvas editor's behaviour and avoids a
-  // history entry per character.
+  // Draft committed on blur — avoids one history entry per keystroke.
   const initial = overrideValue ?? declaration.defaultText;
   const [draft, setDraft] = useState(initial);
   useEffect(() => {
@@ -336,12 +286,7 @@ const InstanceRow = ({
   );
 };
 
-/**
- * Instance-selected view: the user is on a page with a
- * component-instance selected. Show one row per declared prop of
- * that component, each bound to `propOverrides[name]` (or the
- * component-side default when no override is set).
- */
+/** Page-side: one row per declared prop of the selected instance. */
 const InstanceDataView = (): JSX.Element => {
   const instance = useCanvasStore((s) => {
     const selectedId = s.selectedElementIds[0];
@@ -404,11 +349,6 @@ const InstanceDataView = (): JSX.Element => {
   );
 };
 
-/**
- * Top-level Data tab. Branches between the component-editor view
- * (Phase 5: declare props) and the instance-selected-on-page view
- * (Phase 6: override per-instance values).
- */
 export const DataPanel = (): JSX.Element => {
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
   return isComponentEditing ? <ComponentDataView /> : <InstanceDataView />;

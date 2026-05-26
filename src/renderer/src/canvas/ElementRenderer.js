@@ -25,19 +25,7 @@ const VOID_TAGS = new Set([
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
     'link', 'meta', 'source', 'track', 'wbr',
 ]);
-/**
- * Detect a brand-new component whose root has had no design applied
- * yet — i.e. it still matches the `defaultComponentTsx` scaffold
- * (single `<div data-scamp-id="root">` with empty `.root {}`). For
- * that case we render a labelled placeholder on the page canvas so
- * the user has something visible to double-click.
- *
- * A converted leaf element (e.g. a styled rectangle with no children)
- * has childIds.length === 0 too, but its root carries non-default
- * style fields — width, height, background, etc. — and renders fine
- * as a real instance. So the check looks at visual style state too,
- * not just structure.
- */
+/** True iff root matches the blank-component scaffold (style-aware). see docs/notes/components-data-model.md */
 const isScaffoldRoot = (root) => {
     return (root.childIds.length === 0 &&
         root.inlineFragments.length === 0 &&
@@ -467,10 +455,7 @@ onCommitProp,
  * the store at every node.
  */
 onChangeEditingProp) => {
-    // Slot-style composition is deferred — instances inside instances
-    // render as a labelled placeholder rather than recursively
-    // expanding. Keeps the renderer simple and matches the
-    // userstory's out-of-scope list.
+    // Slot composition deferred: nested instances render as placeholders.
     if (element.type === 'component-instance') {
         return (_jsxs("div", { style: {
                 padding: '4px 8px',
@@ -528,12 +513,8 @@ onChangeEditingProp) => {
         return createElement(tag, { ...props, key: element.id });
     }
     const isText = element.type === 'text';
-    // Prop substitution: when a text element inside the component
-    // definition is declared as a prop, the on-page instance can
-    // override its text via `propOverrides[propName]`. Falling back
-    // to the literal `text` field keeps the canvas matching what the
-    // generator would emit (the destructure default) when no
-    // override is set.
+    // Substitute propOverride → literal default for prop-text.
+    // see docs/notes/components-data-model.md
     const propName = isText && typeof element.prop === 'string' && element.prop.length > 0
         ? element.prop
         : null;
@@ -542,13 +523,7 @@ onChangeEditingProp) => {
     const textContent = overrideValue !== undefined ? overrideValue : defaultText;
     const hasText = isText && typeof textContent === 'string' && textContent.length > 0;
     const hasChildren = element.childIds.length > 0;
-    // Prop-text nodes get extra dressing: a stable hit-test attribute
-    // pair (`data-scamp-instance-id` + `data-scamp-prop`), pointer-
-    // events enabled (overriding the surrounding `pointer-events:
-    // none` shield on the instance wrapper), and a subtle tinted
-    // outline so users can spot the editable text at a glance. When
-    // the current edit target matches this prop, we render a
-    // contentEditable span instead of a plain text node.
+    // Prop-text gets hit-test attrs + pointer-events:auto + tinted outline.
     const isEditingThisProp = propName !== null && editingProp === propName;
     if (isText && propName !== null) {
         props['data-scamp-instance-id'] = instanceId;
@@ -562,14 +537,7 @@ onChangeEditingProp) => {
             cursor: 'text',
         };
         props['onClick'] = (e) => {
-            // Single click on a prop-text still selects the instance —
-            // the surrounding wrapper would handle this if pointer-events
-            // were enabled on it, but the inner subtree blocks events,
-            // so we route manually. Without this, clicking the editable
-            // text would silently swallow the click and the user couldn't
-            // open the Data tab. Pull `selectElement` straight from the
-            // store — the function is stable across renders and getting
-            // it at click time avoids passing yet another callback down.
+            // Re-route to instance selection — inner subtree blocks bubbling.
             e.stopPropagation();
             useCanvasStore.getState().selectElement(instanceId);
         };
@@ -580,9 +548,7 @@ onChangeEditingProp) => {
                 onChangeEditingProp(propName);
         };
     }
-    // Locked text inside an instance: surface a tooltip via the
-    // native title attribute so a confused user gets a hint rather
-    // than silence. Cheap to add and matches the userstory.
+    // Locked text on an instance — hint via native tooltip.
     if (isText && propName === null) {
         props['title'] = 'Locked text — edit in the component definition.';
     }
@@ -600,10 +566,7 @@ onChangeEditingProp) => {
                 onChangeEditingProp(null);
             }
             else if (e.key === 'Enter') {
-                // Enter commits — line breaks inside a prop value would
-                // need an explicit `\n` escape which the canvas isn't
-                // surfacing. Matches what the user expects from the per-
-                // instance text override.
+                // Enter commits (line breaks need explicit \n escape, not surfaced).
                 e.preventDefault();
                 const next = e.currentTarget.textContent ?? '';
                 onCommitProp(propName, next);
@@ -618,9 +581,7 @@ onChangeEditingProp) => {
             onBlur: handleBlur,
             onKeyDown: handleKeyDown,
             ref: (node) => {
-                // Focus + select-all on mount so the user can immediately
-                // overwrite the existing value. Defensive null check is
-                // for React StrictMode unmount/mount cycles.
+                // Focus + select-all on mount.
                 if (!node)
                     return;
                 node.focus({ preventScroll: true });
@@ -835,10 +796,7 @@ export const ElementRenderer = ({ elementId }) => {
             onDoubleClick: handleInstanceDoubleClick,
             onContextMenu: handleInstanceContextMenu,
         };
-        // Missing-component placeholder: the page TSX references a
-        // component name that doesn't resolve to an entry in
-        // `componentTrees`. Render a labelled box so the user can
-        // see the broken reference on the canvas.
+        // Missing-component placeholder (componentName not in cache).
         if (!componentTreeForInstance) {
             return (_jsxs("div", { ...wrapperProps, style: {
                     ...style,
@@ -852,20 +810,8 @@ export const ElementRenderer = ({ elementId }) => {
                 }, children: ["Missing component: ", element.componentName ?? '(unnamed)'] }));
         }
         const root = componentTreeForInstance.elements[componentTreeForInstance.rootId];
-        // Brand-new components are scaffolded as `<div data-scamp-id=
-        // "root"></div>` with an empty `.root {}` CSS block. Parsed,
-        // that's a single root element with no children, no inline
-        // fragments, and only DEFAULT_ROOT_STYLES applied. Rendering
-        // that as-is produces a 100%-wide / 0-height invisible div
-        // which looks broken on the page canvas. Surface a clearly-
-        // labelled placeholder until the user actually designs the
-        // component. A converted leaf element is structurally
-        // childless too but carries non-default styling — `isScaffoldRoot`
-        // checks the style state so the placeholder doesn't swallow it.
         const isEmptyComponent = root !== undefined && isScaffoldRoot(root);
-        // Inline prop-edit target — only honour it when it points at
-        // this instance. Two instances of the same component on one
-        // page would otherwise both believe they're being edited.
+        // Only honour the edit target when it points at THIS instance.
         const editingPropForThis = editingInstanceProp && editingInstanceProp.instanceId === element.id
             ? editingInstanceProp.propName
             : null;
@@ -883,12 +829,7 @@ export const ElementRenderer = ({ elementId }) => {
         };
         const inner = root
             ? renderComponentSubtree(root, componentTreeForInstance.elements, 
-            // Inner root renders as the topmost element of the
-            // component's own tree — its parent is whatever layout
-            // the WRAPPER lives in, which is what `parentDisplay` /
-            // `parentDirection` already describe. Pass them through
-            // so the component root respects the page's flex / grid
-            // context.
+            // Pass page-side layout context so flex/grid still applies.
             parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp)
             : null;
         if (isEmptyComponent) {

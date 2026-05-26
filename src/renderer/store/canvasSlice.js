@@ -555,12 +555,7 @@ export const useCanvasStore = create()((set) => ({
             const parent = state.elements[instance.parentId];
             if (!parent)
                 return state;
-            // Walk the component tree in dependency-free order — collect
-            // every id first, then assign fresh ids, then rebuild the
-            // cloned elements with remapped parent/child references. Two
-            // passes keep us from caring about insertion order. Uses
-            // existing canvas ids in the destination map to avoid
-            // collision; rejects collisions via a guard set.
+            // Two-pass clone: collect ids, assign fresh ids, rebuild refs.
             const idsToClone = [];
             const visit = (id) => {
                 const el = tree.elements[id];
@@ -574,10 +569,7 @@ export const useCanvasStore = create()((set) => ({
             const idMap = new Map();
             const existing = new Set(Object.keys(state.elements));
             for (const id of idsToClone) {
-                // Collision guard — generateElementId is 4 hex chars
-                // (~65k space), so 10s of clones in one project will hit
-                // duplicates eventually. Re-roll until unique within the
-                // page AND not already assigned to a sibling in this batch.
+                // 4-hex ids collide eventually; reroll until unique.
                 let next = generateElementId();
                 while (existing.has(next) || [...idMap.values()].includes(next)) {
                     next = generateElementId();
@@ -598,10 +590,7 @@ export const useCanvasStore = create()((set) => ({
                 const newChildIds = source.childIds
                     .map((cid) => idMap.get(cid))
                     .filter((cid) => typeof cid === 'string');
-                // Bake prop overrides into the clone — the detached copy
-                // is just regular text now, no longer a parameter, so we
-                // drop the `prop` field and write the resolved value
-                // straight into `text`.
+                // Bake propOverride → literal text; drop the `prop` field.
                 let textPatch = null;
                 if (source.type === 'text' &&
                     typeof source.prop === 'string' &&
@@ -612,11 +601,7 @@ export const useCanvasStore = create()((set) => ({
                         : source.text;
                     textPatch = { text: resolved, prop: undefined };
                 }
-                // The cloned root inherits the instance's on-page position
-                // so the detach is visually a no-op. Inner descendants keep
-                // their component-side x/y verbatim — they're positioned
-                // relative to the cloned root, same as inside the
-                // component editor.
+                // Clone root inherits instance x/y so layout doesn't shift.
                 const positionPatch = oldId === tree.rootId ? { x: instance.x, y: instance.y } : {};
                 const clone = {
                     ...source,
@@ -678,10 +663,7 @@ export const useCanvasStore = create()((set) => ({
             }
             if (renamedIds.length === 0)
                 return state;
-            // If the inline-edit target was on one of these instances,
-            // clear it. The prop NAME doesn't change on a component
-            // rename, but the rename UX involves dialog flow that
-            // shouldn't leave a contentEditable mid-edit.
+            // Clear inline edit if it targeted a renamed instance.
             const nextEditingInstanceProp = state.editingInstanceProp &&
                 renamedIds.includes(state.editingInstanceProp.instanceId)
                 ? null
@@ -1041,20 +1023,11 @@ export const useCanvasStore = create()((set) => ({
             if (!el || el.type !== 'text')
                 return state;
             if (el.prop !== undefined) {
-                // Prop → Locked: drop the field. Round-trips as a plain
-                // literal in the generated TSX. Phase 7 wires the
-                // lock-with-overrides warning; for now the toggle is silent.
                 const { prop: _drop, ...rest } = el;
                 const next = rest;
                 didChange = true;
                 return { elements: { ...state.elements, [id]: next } };
             }
-            // Locked → Prop: pick the lowest `prop<N>` not already in use
-            // by another text element in the same target. The set is built
-            // from ALL text elements (page or component) — components are
-            // the only target that emits the field, but reading without
-            // the activeComponent gate keeps the action's behaviour stable
-            // for tests that seed elements directly.
             const used = new Set();
             for (const other of Object.values(state.elements)) {
                 if (other.type === 'text' && other.prop)
@@ -1395,14 +1368,9 @@ export const useCanvasStore = create()((set) => ({
             selectedElementIds: [],
             isLoading: true,
             lastLoadKind: 'initial',
-            // The Data tab is component-only — if the user was on it
-            // when navigating to a page, fall back to the UI tab so the
-            // panel doesn't surface an empty / non-applicable view.
+            // Data tab is component-only; fall back when leaving a component.
             panelMode: state.panelMode === 'data' ? 'ui' : state.panelMode,
         }));
-        // Activate the page's history bucket. The per-page history stack
-        // persists across page switches; reactivating the same page id
-        // here is a no-op for an existing bucket.
         useHistoryStore.getState().setActivePageId(page.tsxPath);
     },
     loadComponent: (component, elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => {

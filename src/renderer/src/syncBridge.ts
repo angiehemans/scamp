@@ -109,25 +109,7 @@ export const flushPendingPageWrite = (): void => {
   pendingFlush?.();
 };
 
-/**
- * One-shot suppression for the next "active target changed → flush
- * the OUTGOING target" write inside the canvas-store subscription.
- *
- * The default behaviour exists so that switching pages/components
- * flushes any unsaved edit to the file the user just left. But for
- * destructive multi-file operations like component rename or
- * component delete, the outgoing target's file may have been
- * removed from disk WHILE the React state is still mid-transition
- * to the new identity. Writing to that path now would ENOENT and
- * surface as a "Save failed" notification, even though the rename
- * itself succeeded.
- *
- * The flag is consumed by the very next target-swap (the rename
- * is the only operation that needs the suppression, and it always
- * triggers exactly one swap). It auto-resets even if no swap
- * happens, so a forgotten call to `armTargetSwapSuppression` can't
- * silently mask future writes.
- */
+// see docs/notes/components-sync.md — target-swap suppression
 let suppressNextTargetSwapWrite = false;
 let suppressTargetSwapTimer: ReturnType<typeof setTimeout> | null = null;
 const SUPPRESS_TARGET_SWAP_TTL_MS = 5000;
@@ -435,18 +417,12 @@ export const initSyncBridge = (): (() => void) => {
       tsxContent: code.tsx,
       cssContent: code.css,
     });
-    // Phase 9: capture a sidebar thumbnail for component saves.
-    // Fire-and-forget — capture runs in the next microtask so the
-    // canvas DOM has finished painting the user's latest edit
-    // before `html-to-image` snapshots it. The helper internally
-    // throttles concurrent captures per component.
+    // Sidebar thumbnail capture for component saves.
+    // see docs/notes/components-thumbnails.md
     if (target.kind === 'component') {
       const projectPath = store.projectPath;
       if (projectPath) {
-        // Defer so React has finished committing the just-set
-        // pageSource (and any in-flight visual updates) before we
-        // rasterise the canvas. Without this, a capture taken
-        // mid-edit can occasionally render a half-applied state.
+        // rAF so React commits the latest paint before we rasterise.
         requestAnimationFrame(() => {
           captureAndPersistComponentThumbnail({
             projectPath,
@@ -493,17 +469,8 @@ export const initSyncBridge = (): (() => void) => {
         state.activeComponent
       );
 
-      // Active target changed (page → page, page → component, or
-      // component → page) — flush any pending edit to the OUTGOING
-      // target BEFORE we drop the cache and start tracking the new
-      // one. Without this, edits made within the debounce window
-      // before a target switch would be silently lost.
-      //
-      // Suppression: component rename arms `suppressNextTargetSwapWrite`
-      // before the file ops so this flush can't run against the OLD
-      // path after `deleteComponent` has removed it. The one-shot
-      // flag clears itself on consumption so subsequent swaps behave
-      // normally.
+      // Target swap — flush outgoing, then transition.
+      // see docs/notes/components-sync.md
       if (targetChanged) {
         cancelWriteTimer();
         const consumeSuppress = suppressNextTargetSwapWrite;

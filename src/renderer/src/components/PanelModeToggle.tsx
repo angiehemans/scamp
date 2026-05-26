@@ -7,34 +7,19 @@ const PAGE_OPTIONS: ReadonlyArray<{ value: PanelMode; label: string }> = [
   { value: 'css', label: 'CSS' },
 ];
 
-// Component editor surfaces a third tab — see `PanelMode` for why.
 const COMPONENT_OPTIONS: ReadonlyArray<{ value: PanelMode; label: string }> = [
   { value: 'ui', label: 'Visual' },
   { value: 'css', label: 'CSS' },
   { value: 'data', label: 'Data' },
 ];
 
-/**
- * Top-of-panel toggle between the typed UI view and the raw CSS editor.
- * The selection lives in the canvas store as `panelMode` so it survives
- * selection changes and re-renders without being persisted to disk.
- *
- * The Data tab is conditional:
- *   - Component editor → always shown (the user defines props there).
- *   - Page editor with a component-instance selected → shown when the
- *     instance's component declares at least one prop (Phase 6).
- *   - Page editor with anything else selected → hidden.
- */
+/** Panel tabs. Data tab visible in component editor OR for prop-instance on page. */
 export const PanelModeToggle = (): JSX.Element => {
   const panelMode = useCanvasStore((s) => s.panelMode);
   const setPanelMode = useCanvasStore((s) => s.setPanelMode);
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
-  // Instance-side: the data tab shows up when the selected element is
-  // a component-instance whose definition contains a text-prop. We
-  // detect this by walking the component's element tree from the
-  // store's `componentTrees` cache.
   const hasInstancePropToShow = useCanvasStore((s) => {
-    if (s.activeComponent !== null) return false; // editor case handled above
+    if (s.activeComponent !== null) return false;
     const selectedId = s.selectedElementIds[0];
     if (!selectedId) return false;
     const el = s.elements[selectedId];

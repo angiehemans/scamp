@@ -22,12 +22,7 @@ const RECOGNISED_ROOT_FILES = new Set([
   'agent.md',
   'CLAUDE.md',
   'theme.css',
-  // Per-project Scamp config stays at the project root.
   'scamp.config.json',
-  // Both legacy and nextjs scaffolds write a `.gitignore`. Back
-  // up the existing one before the new scaffold overlays — keeps
-  // any user customisations recoverable from the backup dir
-  // without leaking the file into `unmovedFiles`.
   '.gitignore',
 ]);
 

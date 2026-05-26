@@ -126,12 +126,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
         if (!componentName)
             return;
         e.preventDefault();
-        // Cycle guard: dropping component A into the editor of A
-        // (or into B where B transitively contains A) would form an
-        // infinite render loop. Refuse before mutating state. The
-        // user gets an inline log entry rather than a silent fail;
-        // Phase 7's broader warning UX surfaces this more
-        // prominently.
+        // Cycle guard. see docs/notes/components-multi-file-ops.md
         const store = useCanvasStore.getState();
         const activeTargetName = store.activeComponent?.name ?? null;
         if (wouldCreateComponentCycle(store.componentTrees, activeTargetName, componentName)) {

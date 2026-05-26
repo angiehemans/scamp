@@ -26,6 +26,8 @@ See `prd-scamp-poc.md` for full product context.
 
 ### General:
 - Prefer writing clear code and use inline comments sparingly
+- If a comment would be more than ~2 lines, OR captures multi-file architectural context, move it to a new or existing file under `docs/notes/` and reference it inline (`// see docs/notes/<slug>.md`). Inline comments stay short and only encode local WHY (incidents, browser quirks, hidden invariants).
+- When you make a code change that affects an existing `docs/notes/` file, update the note in the same commit. Stale notes are worse than no notes.
 
 ### TypeScript
 

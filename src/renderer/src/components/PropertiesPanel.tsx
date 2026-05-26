@@ -48,11 +48,7 @@ export const PropertiesPanel = (): JSX.Element => {
   const panelMode = useCanvasStore((s) => s.panelMode);
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
 
-  // The Data tab is component-scoped: it shows the prop list for the
-  // whole component, not the selected element. So when the user is on
-  // it we render the panel chrome (header + mode toggle + DataPanel)
-  // even without a selection. UI / CSS still require a selection — they
-  // are per-element views.
+  // Data tab is component-scoped; render even without a selection.
   const showDataWithoutSelection =
     !selectedId && isComponentEditing && panelMode === 'data';
 

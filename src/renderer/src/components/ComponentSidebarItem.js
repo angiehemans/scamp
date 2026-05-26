@@ -3,16 +3,7 @@ import { useEffect, useState } from 'react';
 import { COMPONENT_THUMBNAIL_UPDATED_EVENT, } from '../lib/componentThumbnail';
 import styles from './ComponentSidebarItem.module.css';
 import projectStyles from './ProjectShell.module.css';
-/**
- * Phase 9 — one row of the components sidebar. Holds its own
- * thumbnail state so re-renders of the parent don't bounce the
- * image's loading lifecycle. On mount and on every
- * `scamp:component-thumbnail-updated` event for THIS component,
- * we re-fetch the on-disk PNG (the watcher ignores `.scamp/` so
- * the custom event is the canonical refresh signal). Components
- * that have never been edited / opened in the editor render a
- * placeholder dashed-box icon so the row layout stays consistent.
- */
+/** Sidebar row with thumbnail. see docs/notes/components-thumbnails.md */
 export const ComponentSidebarItem = ({ componentName, projectPath, isActive, onClick, onContextMenu, onDragStart, }) => {
     const [thumbnailUrl, setThumbnailUrl] = useState(null);
     useEffect(() => {

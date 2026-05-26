@@ -176,12 +176,7 @@ export const readProjectNextjs = async (
   return pages;
 };
 
-/**
- * Default `.gitignore` content for scaffolded Next.js projects.
- * Excludes Next's build artefacts, node_modules, environment
- * files, AND Scamp's own `.scamp/` local-state folder (which
- * holds the sidebar component thumbnails introduced in Phase 9).
- */
+// see docs/notes/components-thumbnails.md — `.scamp/` excluded.
 const NEXTJS_GITIGNORE = `# Dependencies
 node_modules
 
@@ -197,11 +192,6 @@ out
 .scamp/
 `;
 
-/**
- * Default `.gitignore` content for legacy-format projects. Same
- * shape as the Next.js variant minus the build-artefact lines
- * (those folders don't exist in the legacy layout).
- */
 const LEGACY_GITIGNORE = `# Dependencies
 node_modules
 
@@ -212,12 +202,7 @@ node_modules
 .scamp/
 `;
 
-/**
- * Write `.gitignore` ONLY if the file doesn't already exist —
- * projects opened from existing folders typically have their own
- * (often customised). Clobbering would be a destructive surprise.
- * New projects (the only callers today) reliably trigger this.
- */
+/** Write `.gitignore` only when missing — don't clobber user customisations. */
 const writeGitignoreIfMissing = async (
   projectPath: string,
   content: string
@@ -225,7 +210,6 @@ const writeGitignoreIfMissing = async (
   const target = join(projectPath, '.gitignore');
   try {
     await fs.access(target);
-    // File exists — leave it alone.
     return;
   } catch {
     // Fall through to write.

@@ -493,17 +493,7 @@ export type ScampElement = {
 
   // Text only
   text?: string;
-  /**
-   * Component-side: when this text element lives inside a component
-   * (active edit target's `activeComponent !== null`), `prop` may be
-   * set to a JS identifier. The generator then emits `{propName}` in
-   * the JSX instead of the literal `text`, declares the prop on the
-   * function signature with `text` as the default, and adds the prop
-   * to the component's exported `[Name]Props` type. When absent, the
-   * text is a locked literal — rendered verbatim, not overridable
-   * from an instance. Has no meaning on page text elements; the panel
-   * hides the Prop / Locked toggle there.
-   */
+  /** Component-side prop name (component editor only). see docs/notes/components-data-model.md */
   prop?: string;
   fontFamily?: string;
   /**
@@ -525,46 +515,13 @@ export type ScampElement = {
   src?: string;
   alt?: string;
 
-  // Component-instance only — populated when `type ===
-  // 'component-instance'`. See `docs/plans/2026-05-17-components.md`
-  // for the data-model rationale.
-  /**
-   * The PascalCase component name. Matches the folder name under
-   * `components/` and the JSX tag emitted in the parent page's TSX.
-   * The page-level `import` statement is the authoritative
-   * resolution path; this field exists so the renderer / generator
-   * can look up the component without re-parsing the import block.
-   */
+  // Component-instance only. see docs/notes/components-data-model.md
   componentName?: string;
-  /**
-   * Stable per-page instance identifier emitted as
-   * `data-scamp-instance-id` on the JSX tag. Distinct from `id`
-   * (the canvas element id) so the instance can survive component
-   * renames and the page TSX carries an id separate from the
-   * `data-scamp-id`s on the elements INSIDE the component
-   * definition.
-   */
+  /** Stable per-page id emitted as `data-scamp-instance-id`. */
   instanceId?: string;
-  /**
-   * Per-instance text-prop overrides. Map of `propName → override
-   * value`. Absent keys fall back to the default text declared
-   * inside the component (the text the prop-marked element was
-   * created with). An empty-string value is an explicit
-   * "render nothing" override, distinct from absence.
-   *
-   * Always present (possibly empty) when `type ===
-   * 'component-instance'`, absent otherwise.
-   */
+  /** Per-instance text-prop overrides; empty-string is explicit, not absence. */
   propOverrides?: Record<string, string>;
-  /**
-   * Set when the parser sees a component-instance JSX tag that
-   * doesn't resolve to a component on disk — a deleted, renamed,
-   * or hand-broken reference. The element is parsed in so the
-   * file round-trips, but the renderer surfaces it as a labelled
-   * error placeholder rather than trying to draw the missing
-   * subtree. The project shell can scan `elements` for this flag
-   * to badge / banner pages that need attention.
-   */
+  /** Parser saw an instance tag with no matching component on disk. */
   missingComponent?: boolean;
 
   /**

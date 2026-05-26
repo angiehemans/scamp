@@ -3,7 +3,11 @@ import * as os from 'os';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 
-import { createTestProject, type TestProject } from './project';
+import {
+  createTestProject,
+  type CreateTestProjectOptions,
+  type TestProject,
+} from './project';
 
 /**
  * Replace `dialog.showOpenDialog` in the main process so the next call
@@ -76,9 +80,21 @@ export type ScampFixtures = {
   window: Page;
 };
 
-export const test = base.extend<ScampFixtures>({
-  project: async ({}, use) => {
-    const project = await createTestProject();
+/**
+ * Test-level options. Specs override these via `test.use({...})` at
+ * the top of the file or per-describe block. Example:
+ *
+ *   test.use({ projectOptions: { format: 'nextjs', components: [...] } });
+ */
+export type ScampOptions = {
+  projectOptions: CreateTestProjectOptions;
+};
+
+export const test = base.extend<ScampFixtures & ScampOptions>({
+  projectOptions: [{}, { option: true }],
+
+  project: async ({ projectOptions }, use) => {
+    const project = await createTestProject(projectOptions);
     try {
       await use(project);
     } finally {
@@ -126,6 +142,18 @@ export const test = base.extend<ScampFixtures>({
   window: async ({ app }, use) => {
     const window = await app.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+    // Dismiss the first-launch Sentry opt-in prompt so specs can see
+    // the project canvas straight away. The prompt mounts before any
+    // project view and would otherwise block every selector.
+    const optOut = window.getByRole('button', { name: /^No thanks$/i });
+    try {
+      await optOut.waitFor({ state: 'visible', timeout: 2_000 });
+      await optOut.click();
+    } catch {
+      // Prompt wasn't shown this run — settings already wrote a
+      // decision, or the IPC hasn't resolved yet. Either way, nothing
+      // to do.
+    }
     await use(window);
   },
 });

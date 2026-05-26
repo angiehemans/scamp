@@ -167,14 +167,7 @@ export const readComponent = async (
   }
 };
 
-/**
- * Phase 9 — Components sidebar thumbnail. The renderer captures
- * the component canvas via `html-to-image`, base64-encodes it,
- * and ships the data URL here. We decode and write to a
- * `.scamp/component-thumbs/` directory inside the project,
- * creating the parent tree on first write. The scaffolded
- * `.gitignore` excludes `.scamp/` so the file stays local.
- */
+// Sidebar thumbnail storage. see docs/notes/components-thumbnails.md
 const thumbnailPathFor = (
   projectPath: string,
   componentName: string
@@ -232,10 +225,6 @@ export const readComponentThumbnail = async (
     const buf = await fs.readFile(file);
     return { base64: buf.toString('base64') };
   } catch {
-    // Missing / unreadable thumbnails fall back to the sidebar
-    // placeholder. We intentionally collapse all read errors to
-    // null rather than surfacing them — a permissions issue would
-    // be reported elsewhere when the component itself is read.
     return { base64: null };
   }
 };
