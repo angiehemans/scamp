@@ -21,10 +21,11 @@ test.describe('color picker: tokens tab', () => {
     );
     await waitForSaved(window);
 
-    // Open the color picker. The swatch button has no accessible
-    // name (Tooltip wraps it without adding aria-label) — find it as
-    // the first button in the Background section.
-    await panelSection(window, 'Background').locator('button').first().click();
+    // Open the color picker via the swatch button.
+    await panelSection(window, 'Background')
+      .getByRole('button', { name: 'Pick color' })
+      .first()
+      .click();
 
     // Switch to the Tokens tab and click the first swatch.
     await window.getByRole('button', { name: 'Tokens', exact: true }).click();

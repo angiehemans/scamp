@@ -138,6 +138,8 @@ export const formatHistoryLabel = (
     }
     case 'external-edit':
       return 'External edit detected';
+    case 'load':
+      return 'Initial state';
   }
 };
 

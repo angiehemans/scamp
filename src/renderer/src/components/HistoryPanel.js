@@ -31,15 +31,22 @@ export const HistoryPanel = () => {
         return () => clearInterval(id);
     }, []);
     const now = Date.now();
-    if (history.entries.length === 0) {
+    // The `'load'` entry is a synthetic baseline that lets `Cmd+Z`
+    // return to the file's loaded state — not a user action. Skip it
+    // when deciding whether the panel is empty AND when rendering.
+    const userEntries = history.entries
+        .map((entry, idx) => ({ entry, idx }))
+        .filter(({ entry }) => entry.kind !== 'load');
+    if (userEntries.length === 0) {
         return (_jsx("div", { className: styles.panel, children: _jsx("p", { className: styles.empty, children: "No changes made in this session" }) }));
     }
     // Render newest-first (the spec's mock has most-recent at top).
     // `display` is reversed; index in the underlying array is preserved
     // so `jumpToHistory` receives the canonical index.
     const indices = [];
-    for (let i = history.entries.length - 1; i >= 0; i -= 1)
-        indices.push(i);
+    for (let i = userEntries.length - 1; i >= 0; i -= 1) {
+        indices.push(userEntries[i].idx);
+    }
     return (_jsx("div", { className: styles.panel, children: _jsx("ul", { className: styles.list, children: indices.map((idx, displayIdx) => {
                 const entry = history.entries[idx];
                 const isCurrent = idx === history.cursor;

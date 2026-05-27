@@ -280,7 +280,7 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
         seenDisplays.add(resolvedColor);
         projectSwatches.push({ value: c, display: resolvedColor, label: c });
     }
-    return (_jsxs("div", { className: `${styles.colorInputRow} ${styles.colorInputRowSwatch}`, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatch, onClick: popover.toggle, children: _jsx("span", { className: styles.colorSwatchInner, style: { background: resolved } }) }) }), _jsx("input", { type: "text", className: styles.colorText, value: displayValue, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
+    return (_jsxs("div", { className: `${styles.colorInputRow} ${styles.colorInputRowSwatch}`, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatch, "aria-label": "Pick color", onClick: popover.toggle, children: _jsx("span", { className: styles.colorSwatchInner, style: { background: resolved } }) }) }), _jsx("input", { type: "text", className: styles.colorText, value: displayValue, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
                     if (e.key === 'Enter')
                         e.currentTarget.blur();
                 } }), _jsx("div", { className: styles.colorPickerWrap, children: popover.open && popover.position && (_jsxs("div", { ref: popover.popoverRef, className: `${styles.colorPopover} ${styles.colorPopoverColorful}`, style: {

@@ -414,6 +414,7 @@ export const ColorInput = ({
           ref={popover.triggerRef}
           type="button"
           className={styles.colorSwatch}
+          aria-label="Pick color"
           onClick={popover.toggle}
         >
           <span

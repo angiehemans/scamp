@@ -13,6 +13,7 @@ export type HistoryActionKind =
   | 'add-component-instance'
   | 'convert-to-component'
   | 'detach-instance'
+  | 'load'
   | 'delete'
   | 'move'
   | 'resize'

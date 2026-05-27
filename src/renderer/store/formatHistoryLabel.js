@@ -124,6 +124,8 @@ export const formatHistoryLabel = (entry, elements) => {
         }
         case 'external-edit':
             return 'External edit detected';
+        case 'load':
+            return 'Initial state';
     }
 };
 /**

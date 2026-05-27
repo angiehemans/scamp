@@ -70,6 +70,15 @@ type HistoryState = {
      */
     commitHistory: (input: HistoryCommitInput, snapshot: Record<string, ScampElement>) => void;
     /**
+     * Seed the active page's bucket with a single `'load'` entry
+     * (the freshly-loaded elements snapshot). No-op if the bucket
+     * already has entries — page-switch back to a previously-loaded
+     * page must NOT clobber existing history. This is what makes
+     * `Cmd+Z` after a single draw able to return to the loaded
+     * state instead of bottoming out at "nothing to undo".
+     */
+    commitInitialIfEmpty: (snapshot: Record<string, ScampElement>) => void;
+    /**
      * Restore the active page's snapshot at `targetIndex` and move
      * the cursor there. No-op when out of range.
      */

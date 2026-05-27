@@ -9,7 +9,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 
-import { stubOpenDialog } from '../fixtures/app';
+import { dismissSentryPrompt, stubOpenDialog } from '../fixtures/app';
 
 /**
  * App-level settings live on the Start Screen, so this spec launches
@@ -52,6 +52,7 @@ const test = base.extend<AppFixtures>({
   window: async ({ app }, use) => {
     const window = await app.firstWindow();
     await window.waitForLoadState('domcontentloaded');
+    await dismissSentryPrompt(window);
     await use(window);
   },
 });

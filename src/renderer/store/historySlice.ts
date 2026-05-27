@@ -86,6 +86,15 @@ type HistoryState = {
     snapshot: Record<string, ScampElement>
   ) => void;
   /**
+   * Seed the active page's bucket with a single `'load'` entry
+   * (the freshly-loaded elements snapshot). No-op if the bucket
+   * already has entries — page-switch back to a previously-loaded
+   * page must NOT clobber existing history. This is what makes
+   * `Cmd+Z` after a single draw able to return to the loaded
+   * state instead of bottoming out at "nothing to undo".
+   */
+  commitInitialIfEmpty: (snapshot: Record<string, ScampElement>) => void;
+  /**
    * Restore the active page's snapshot at `targetIndex` and move
    * the cursor there. No-op when out of range.
    */
@@ -292,6 +301,27 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       },
     });
     state.restoreSnapshot?.(entry.snapshot);
+  },
+
+  commitInitialIfEmpty: (snapshot) => {
+    const state = get();
+    const pageId = state.activePageId;
+    if (pageId === null) return;
+    const page = state.perPage[pageId];
+    if (page && page.entries.length > 0) return;
+    const entry: HistoryEntry = {
+      id: nextEntryId(),
+      timestamp: Date.now(),
+      kind: 'load',
+      elementIds: [],
+      snapshot,
+    };
+    set({
+      perPage: {
+        ...state.perPage,
+        [pageId]: { entries: [entry], cursor: 0 },
+      },
+    });
   },
 
   undo: () => {

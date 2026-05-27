@@ -68,6 +68,24 @@ export const writeFixtureImage = async (dir: string, name = 'pixel.png'): Promis
 const MAIN_ENTRY = path.resolve(__dirname, '../../../out/main/index.js');
 
 /**
+ * Dismiss the first-launch Sentry crash-reporting prompt if it's
+ * showing. The prompt mounts before any project / start-screen view
+ * and would otherwise block every selector. Specs that build their
+ * own `window` fixture (e.g. `settings/app-settings.spec.ts`) should
+ * call this from inside their fixture so the prompt doesn't leak.
+ */
+export const dismissSentryPrompt = async (window: Page): Promise<void> => {
+  const optOut = window.getByRole('button', { name: /^No thanks$/i });
+  try {
+    await optOut.waitFor({ state: 'visible', timeout: 2_000 });
+    await optOut.click();
+  } catch {
+    // Not shown this run — already resolved, or IPC hasn't resolved
+    // yet. Either way, nothing to do.
+  }
+};
+
+/**
  * Isolated `userData` dir per spec so recent-projects history and app
  * settings don't bleed between tests or into the real profile.
  */
@@ -142,18 +160,7 @@ export const test = base.extend<ScampFixtures & ScampOptions>({
   window: async ({ app }, use) => {
     const window = await app.firstWindow();
     await window.waitForLoadState('domcontentloaded');
-    // Dismiss the first-launch Sentry opt-in prompt so specs can see
-    // the project canvas straight away. The prompt mounts before any
-    // project view and would otherwise block every selector.
-    const optOut = window.getByRole('button', { name: /^No thanks$/i });
-    try {
-      await optOut.waitFor({ state: 'visible', timeout: 2_000 });
-      await optOut.click();
-    } catch {
-      // Prompt wasn't shown this run — settings already wrote a
-      // decision, or the IPC hasn't resolved yet. Either way, nothing
-      // to do.
-    }
+    await dismissSentryPrompt(window);
     await use(window);
   },
 });

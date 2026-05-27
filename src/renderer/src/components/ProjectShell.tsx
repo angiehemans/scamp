@@ -857,10 +857,16 @@ export const ProjectShell = ({
         projectPath: project.path,
         pageName: name,
       });
-      onProjectChange?.({
-        ...project,
-        pages: [...project.pages, newPage],
-      });
+      // Mirror the outgoing page's in-memory state into project.pages
+      // BEFORE switching. Without this, returning later via the sidebar
+      // re-parses the page from a stale tsxContent (the snapshot
+      // captured at project open) and any edits since then disappear.
+      flushPendingPageWrite();
+      persistActiveSource();
+      onProjectChange?.((prev) => ({
+        ...prev,
+        pages: [...prev.pages, newPage],
+      }));
       setActivePageName(newPage.name);
       resetPageEdit();
     } catch (e) {

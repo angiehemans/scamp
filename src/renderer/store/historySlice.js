@@ -164,6 +164,28 @@ export const useHistoryStore = create((set, get) => ({
         });
         state.restoreSnapshot?.(entry.snapshot);
     },
+    commitInitialIfEmpty: (snapshot) => {
+        const state = get();
+        const pageId = state.activePageId;
+        if (pageId === null)
+            return;
+        const page = state.perPage[pageId];
+        if (page && page.entries.length > 0)
+            return;
+        const entry = {
+            id: nextEntryId(),
+            timestamp: Date.now(),
+            kind: 'load',
+            elementIds: [],
+            snapshot,
+        };
+        set({
+            perPage: {
+                ...state.perPage,
+                [pageId]: { entries: [entry], cursor: 0 },
+            },
+        });
+    },
     undo: () => {
         const state = get();
         const pageId = state.activePageId;

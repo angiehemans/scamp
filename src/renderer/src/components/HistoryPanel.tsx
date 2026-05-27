@@ -40,7 +40,14 @@ export const HistoryPanel = (): JSX.Element => {
   }, []);
   const now = Date.now();
 
-  if (history.entries.length === 0) {
+  // The `'load'` entry is a synthetic baseline that lets `Cmd+Z`
+  // return to the file's loaded state — not a user action. Skip it
+  // when deciding whether the panel is empty AND when rendering.
+  const userEntries = history.entries
+    .map((entry, idx) => ({ entry, idx }))
+    .filter(({ entry }) => entry.kind !== 'load');
+
+  if (userEntries.length === 0) {
     return (
       <div className={styles.panel}>
         <p className={styles.empty}>No changes made in this session</p>
@@ -52,7 +59,9 @@ export const HistoryPanel = (): JSX.Element => {
   // `display` is reversed; index in the underlying array is preserved
   // so `jumpToHistory` receives the canonical index.
   const indices: number[] = [];
-  for (let i = history.entries.length - 1; i >= 0; i -= 1) indices.push(i);
+  for (let i = userEntries.length - 1; i >= 0; i -= 1) {
+    indices.push(userEntries[i]!.idx);
+  }
 
   return (
     <div className={styles.panel}>

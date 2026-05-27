@@ -2028,6 +2028,8 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
       panelMode: state.panelMode === 'data' ? 'ui' : state.panelMode,
     }));
     useHistoryStore.getState().setActivePageId(page.tsxPath);
+    // Seed the history bucket so Cmd+Z can return to this state.
+    useHistoryStore.getState().commitInitialIfEmpty(elements);
   },
 
   loadComponent: (
@@ -2058,6 +2060,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
     // their tsxPath — same shape as pages so the history slice
     // doesn't need component-aware code.
     useHistoryStore.getState().setActivePageId(component.tsxPath);
+    useHistoryStore.getState().commitInitialIfEmpty(elements);
   },
 
   reloadElements: (

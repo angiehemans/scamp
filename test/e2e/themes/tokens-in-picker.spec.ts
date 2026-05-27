@@ -11,7 +11,10 @@ test.describe('themes: tokens surface in the color picker', () => {
     await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 220, y: 180 });
     await waitForSaved(window);
 
-    await panelSection(window, 'Background').locator('button').first().click();
+    await panelSection(window, 'Background')
+      .getByRole('button', { name: 'Pick color' })
+      .first()
+      .click();
     await window.getByRole('button', { name: 'Tokens', exact: true }).click();
 
     for (const name of [
