@@ -5,6 +5,7 @@ import { dirname, basename, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { patchClassBlock } from '@shared/patchClass';
 import { cancelPendingWrite, registerPendingWrite } from '../watcher';
+import { checkWriteConflict } from './fileConflict';
 /**
  * Atomic write: write to a sibling .tmp file then rename. Prevents readers
  * (chokidar / external editors) from seeing a half-written file.
@@ -19,6 +20,10 @@ const atomicWrite = async (path, content) => {
     await fs.rename(tmp, path);
 };
 const handleWrite = async (args) => {
+    const conflict = await checkWriteConflict(args);
+    if (conflict) {
+        return { ok: false, conflict };
+    }
     const writeId = randomUUID();
     // Page writes suppress `file:changed` — the renderer generated the
     // content itself and re-parsing it would just cause flicker. The
@@ -30,13 +35,11 @@ const handleWrite = async (args) => {
         await atomicWrite(args.cssPath, args.cssContent);
     }
     catch (err) {
-        // Don't leak pending acks — the renderer drives its error state
-        // from the IPC rejection instead.
         cancelPendingWrite(args.tsxPath);
         cancelPendingWrite(args.cssPath);
         throw err;
     }
-    return { writeId };
+    return { ok: true, writeId };
 };
 /**
  * Patch a single class block in a CSS module file via postcss. The rest

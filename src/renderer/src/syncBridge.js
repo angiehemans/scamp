@@ -172,12 +172,7 @@ const registerPendingSave = (writeId, attempt, expected) => {
     pendingSaves.set(writeId, entry);
     maybeConfirm(writeId);
 };
-/**
- * Dispatch a page write and wire its IPC result + ack correlation
- * into the save-status state machine. Both writeIfDirty (debounced)
- * and retryLastSave go through here so the tracking is consistent.
- */
-const dispatchPageWrite = (attempt) => {
+const dispatchPageWrite = (attempt, onConflict) => {
     useSaveStatusStore.getState().markSaving(attempt);
     lastDispatchedAttempt = attempt;
     const expected = new Set([attempt.tsxPath, attempt.cssPath]);
@@ -187,9 +182,23 @@ const dispatchPageWrite = (attempt) => {
         cssPath: attempt.cssPath,
         tsxContent: attempt.tsxContent,
         cssContent: attempt.cssContent,
+        ...(attempt.expectedTsxContent !== undefined
+            ? { expectedTsxContent: attempt.expectedTsxContent }
+            : {}),
+        ...(attempt.expectedCssContent !== undefined
+            ? { expectedCssContent: attempt.expectedCssContent }
+            : {}),
     })
-        .then(({ writeId }) => {
-        registerPendingSave(writeId, attempt, expected);
+        .then((result) => {
+        if (result.ok) {
+            registerPendingSave(result.writeId, attempt, expected);
+            return;
+        }
+        // Conflict: an external editor wrote between our last sync
+        // and this dispatch. Drop the pending save state and hand
+        // the actual content off to the caller's resync handler.
+        useSaveStatusStore.getState().markClean();
+        onConflict?.(result.conflict);
     })
         .catch((err) => {
         const message = err instanceof Error ? err.message : String(err);
@@ -281,6 +290,38 @@ export const initSyncBridge = () => {
         useCanvasStore.setState({ elements: snapshot });
     });
     /**
+     * Resync the canvas to a competing on-disk version when main
+     * rejects our write with a conflict. See docs/known-issues.md —
+     * "Concurrent-write race". Adopts the actual disk content as
+     * the new synced state, parses + reloads elements so the canvas
+     * reflects the external editor's view, and surfaces a one-line
+     * app-log message so the user knows their pending edit was
+     * dropped in favour of the external version.
+     */
+    const onWriteConflict = (target, conflict) => {
+        lastSerializedTsx = conflict.actualTsxContent;
+        lastSerializedCss = conflict.actualCssContent;
+        const store = useCanvasStore.getState();
+        store.setPageSource({
+            tsx: conflict.actualTsxContent,
+            css: conflict.actualCssContent,
+        });
+        try {
+            const parsed = parseCode(conflict.actualTsxContent, conflict.actualCssContent, { breakpoints: store.breakpoints });
+            store.reloadElements(parsed.elements, { tsx: conflict.actualTsxContent, css: conflict.actualCssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
+        }
+        catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            useAppLogStore
+                .getState()
+                .log('warn', `External edit on ${target.name}.tsx couldn't be parsed: ${message}`);
+            return;
+        }
+        useAppLogStore
+            .getState()
+            .log('warn', `${target.name} was edited outside Scamp; reloaded to that version. Your in-flight edit was dropped.`);
+    };
+    /**
      * Generate code for the given (elements, rootId, page) tuple and write
      * it to disk if it differs from the last-written cache. Pure with
      * respect to its arguments — used by the debounced flush, the page-
@@ -311,6 +352,11 @@ export const initSyncBridge = () => {
             useSaveStatusStore.getState().markClean();
             return;
         }
+        // Capture the OLD lastSerialized for the conflict check —
+        // that's what we believe is currently on disk. Then advance to
+        // the new content so subsequent dedupes work.
+        const expectedTsx = lastSerializedTsx;
+        const expectedCss = lastSerializedCss;
         lastSerializedTsx = code.tsx;
         lastSerializedCss = code.css;
         // Mirror the just-written content into the store so the bottom code
@@ -322,7 +368,13 @@ export const initSyncBridge = () => {
             cssPath: target.cssPath,
             tsxContent: code.tsx,
             cssContent: code.css,
-        });
+            ...(expectedTsx !== null && expectedCss !== null
+                ? {
+                    expectedTsxContent: expectedTsx,
+                    expectedCssContent: expectedCss,
+                }
+                : {}),
+        }, (conflict) => onWriteConflict(target, conflict));
         // Sidebar thumbnail capture for component saves.
         // see docs/notes/components-thumbnails.md
         if (target.kind === 'component') {
@@ -489,6 +541,16 @@ export const initSyncBridge = () => {
         }
         if (payload.tsxContent === null || payload.cssContent === null)
             return;
+        // Late-echo guard: if the incoming payload byte-matches what
+        // we last wrote, this is chokidar replaying our own save past
+        // the main-side pending-write expiry. Ignore it — re-parsing
+        // would either no-op (best case) or clobber an in-memory edit
+        // the user made since the save (worst case).
+        // see docs/known-issues.md — "late-chokidar echo race".
+        if (payload.tsxContent === lastSerializedTsx &&
+            payload.cssContent === lastSerializedCss) {
+            return;
+        }
         // External editors (Claude Code, vim, etc.) can trigger chokidar
         // mid-write — the file content may be truncated or malformed. Guard
         // the entire parse → diff → reload pipeline so a transient bad read

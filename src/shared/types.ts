@@ -275,6 +275,19 @@ export type FileWriteArgs = {
   cssPath: string;
   tsxContent: string;
   cssContent: string;
+  /**
+   * Optimistic concurrency: when both `expected*` fields are
+   * present, main reads the current disk content and refuses the
+   * write if either path's content has drifted since the renderer
+   * last serialized. Used by the syncBridge's debounced flush to
+   * avoid clobbering an external agent's edit that landed between
+   * the previous save and this one. See docs/known-issues.md
+   * "Concurrent-write race". Callers that don't care about
+   * conflicts (export, scaffolds, migrate) omit both and main
+   * skips the pre-write read.
+   */
+  expectedTsxContent?: string;
+  expectedCssContent?: string;
 };
 
 export type FilePatchArgs = {
@@ -310,9 +323,16 @@ export type FileWriteAckPayload = {
   path: string;
 };
 
-export type FileWriteResult = {
-  writeId: string;
-};
+export type FileWriteResult =
+  | { ok: true; writeId: string }
+  | {
+      ok: false;
+      conflict: {
+        /** Disk content at the moment main rejected the write. */
+        actualTsxContent: string;
+        actualCssContent: string;
+      };
+    };
 
 export type FilePatchResult = {
   writeId: string;

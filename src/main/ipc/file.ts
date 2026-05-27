@@ -11,6 +11,7 @@ import type {
 } from '@shared/types';
 import { patchClassBlock } from '@shared/patchClass';
 import { cancelPendingWrite, registerPendingWrite } from '../watcher';
+import { checkWriteConflict } from './fileConflict';
 
 /**
  * Atomic write: write to a sibling .tmp file then rename. Prevents readers
@@ -27,6 +28,11 @@ const atomicWrite = async (path: string, content: string): Promise<void> => {
 };
 
 const handleWrite = async (args: FileWriteArgs): Promise<FileWriteResult> => {
+  const conflict = await checkWriteConflict(args);
+  if (conflict) {
+    return { ok: false, conflict };
+  }
+
   const writeId = randomUUID();
   // Page writes suppress `file:changed` — the renderer generated the
   // content itself and re-parsing it would just cause flicker. The
@@ -37,13 +43,11 @@ const handleWrite = async (args: FileWriteArgs): Promise<FileWriteResult> => {
     await atomicWrite(args.tsxPath, args.tsxContent);
     await atomicWrite(args.cssPath, args.cssContent);
   } catch (err) {
-    // Don't leak pending acks — the renderer drives its error state
-    // from the IPC rejection instead.
     cancelPendingWrite(args.tsxPath);
     cancelPendingWrite(args.cssPath);
     throw err;
   }
-  return { writeId };
+  return { ok: true, writeId };
 };
 
 /**

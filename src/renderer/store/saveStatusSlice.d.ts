@@ -9,6 +9,9 @@ export type LastWriteAttempt = {
     cssPath: string;
     tsxContent: string;
     cssContent: string;
+    /** Optimistic-concurrency guard; see file:write conflict path. */
+    expectedTsxContent?: string;
+    expectedCssContent?: string;
 } | {
     kind: 'patch';
     cssPath: string;

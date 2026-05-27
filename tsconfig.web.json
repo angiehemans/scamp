@@ -27,6 +27,7 @@
     "src/shared/**/*",
     "test/**/*",
     "src/main/ipc/componentOps.ts",
+    "src/main/ipc/fileConflict.ts",
     "src/main/ipc/imageOps.ts",
     "src/main/ipc/pageOps.ts",
     "src/main/ipc/pageRename.ts",
