@@ -61,6 +61,12 @@ export const CssPanel = (): JSX.Element => {
     return s.elements[el.parentId] ?? null;
   });
   const activePage = useCanvasStore((s) => s.activePage);
+  const activeComponent = useCanvasStore((s) => s.activeComponent);
+  // The active edit target's CSS file. Pages live at activePage.cssPath;
+  // components at activeComponent.cssPath. Mutually exclusive — exactly
+  // one is non-null when the panel is mounted.
+  const activeCssPath =
+    activePage?.cssPath ?? activeComponent?.cssPath ?? null;
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
   const breakpoints = useCanvasStore((s) => s.breakpoints);
@@ -154,10 +160,10 @@ export const CssPanel = (): JSX.Element => {
       dirtyRef.current = false;
       setError(null);
 
-      if (element && activePage) {
+      if (element && activeCssPath) {
         editTargetRef.current = {
           className: classNameFor(element),
-          cssPath: activePage.cssPath,
+          cssPath: activeCssPath,
           ...(activeBreakpoint && !isDesktop
             ? { media: { maxWidth: activeBreakpoint.width } }
             : {}),
@@ -173,10 +179,10 @@ export const CssPanel = (): JSX.Element => {
     if (!dirtyRef.current) {
       setDraft(editorBody);
     }
-    if (element && activePage) {
+    if (element && activeCssPath) {
       editTargetRef.current = {
         className: classNameFor(element),
-        cssPath: activePage.cssPath,
+        cssPath: activeCssPath,
         ...(activeBreakpoint && !isDesktop
           ? { media: { maxWidth: activeBreakpoint.width } }
           : {}),
