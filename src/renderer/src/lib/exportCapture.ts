@@ -50,9 +50,10 @@ const isChromeNode = (node: Node): boolean => {
  * duration of the capture we remove that class from every element
  * in the subtree, then restore it afterwards.
  *
- * Same pattern is used for the dashed `textEditing` outline, in
- * case a user manages to fire an export while a text element is
- * mid-edit.
+ * Same pattern is used for the dashed `textEditing` outline (in
+ * case a user fires an export mid-edit) and the dashed
+ * `propEditAffordance` outline that marks editable prop-text on a
+ * selected component instance.
  */
 const withChromeClassesHidden = async <T>(
   node: HTMLElement,
@@ -61,6 +62,7 @@ const withChromeClassesHidden = async <T>(
   const chromeClassNames = [
     elementStyles.selected,
     elementStyles.textEditing,
+    elementStyles.propEditAffordance,
   ].filter((c): c is string => typeof c === 'string' && c.length > 0);
   if (chromeClassNames.length === 0) return fn();
 

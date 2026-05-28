@@ -80,51 +80,14 @@ test.describe('components: inline-edit of prop text on an instance', () => {
         // show on the prop-text.
         outline = await propText.evaluate((el) => globalThis.getComputedStyle(el).outlineStyle);
         expect(outline).toBe('dashed');
-        // Double-click on the canvas chrome at the prop-text's center.
-        // The chrome layer's `handleDoubleClick` walks
-        // `propTextHitTest` and dispatches `setEditingInstanceProp`.
+        // Double-click on the canvas at the prop-text's center. The
+        // chrome layer's `handleDoubleClick` walks `propTextHitTest`
+        // and dispatches `setEditingInstanceProp`, which re-renders the
+        // prop-text as a contenteditable target.
         const box = await propText.boundingBox();
         if (!box)
             throw new Error('prop-text has no bounding box');
-        const x = box.x + box.width / 2;
-        const y = box.y + box.height / 2;
-        // DEBUG: dump elementsFromPoint so we can see whether propText
-        // is actually first in the stack at this point.
-        const stack = await window.evaluate(([clientX, clientY]) => document
-            .elementsFromPoint(clientX, clientY)
-            .slice(0, 8)
-            .map((node) => {
-            if (!(node instanceof HTMLElement))
-                return '(not html)';
-            const tag = node.tagName.toLowerCase();
-            const id = node.dataset['elementId'] ?? '';
-            const propName = node.dataset['scampProp'] ?? '';
-            const instance = node.dataset['scampInstanceId'] ?? '';
-            return `${tag}[el=${id}][prop=${propName}][inst=${instance}]`;
-        }), [x, y]);
-        const allMatches = await window.evaluate(() => Array.from(document.querySelectorAll('[data-scamp-prop="title"]')).map((n) => {
-            const tag = n.tagName.toLowerCase();
-            const r = n.getBoundingClientRect();
-            return `${tag} @ ${Math.round(r.x)},${Math.round(r.y)} ${Math.round(r.width)}x${Math.round(r.height)}`;
-        }));
-        console.log('matches:', allMatches);
-        console.log('propText box:', box);
-        console.log('elementsFromPoint:', stack);
-        // Also try with offset 5px inside the box (in case center hits a gap).
-        const stack2 = await window.evaluate(([clientX, clientY]) => document
-            .elementsFromPoint(clientX, clientY)
-            .slice(0, 8)
-            .map((node) => {
-            if (!(node instanceof HTMLElement))
-                return '(not html)';
-            const tag = node.tagName.toLowerCase();
-            const id = node.dataset['elementId'] ?? '';
-            const propName = node.dataset['scampProp'] ?? '';
-            const instance = node.dataset['scampInstanceId'] ?? '';
-            return `${tag}[el=${id}][prop=${propName}][inst=${instance}]`;
-        }), [box.x + 5, box.y + 5]);
-        console.log('elementsFromPoint(off):', stack2);
-        await window.mouse.dblclick(x, y);
+        await window.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
         await expect(propText).toHaveAttribute('contenteditable', 'true');
     });
 });

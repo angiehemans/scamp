@@ -603,21 +603,22 @@ const renderComponentSubtree = (
   // surfaces it for `propTextHitTest`. The dashed edit affordance
   // only shows once the owning instance is selected — otherwise a
   // page full of instances would be noisy with outlines around
-  // every editable string.
+  // every editable string. The affordance lives on a CSS-module
+  // class so PNG / SVG export can strip it the same way it strips
+  // `.selected`.
   const isEditingThisProp = propName !== null && editingProp === propName;
   if (isText && propName !== null) {
     props['data-scamp-instance-id'] = instanceId;
     props['data-scamp-prop'] = propName;
     const baseStyle = (props['style'] as Record<string, unknown>) ?? {};
-    props['style'] = instanceSelected
-      ? {
-          ...baseStyle,
-          pointerEvents: 'auto',
-          outline: '1px dashed rgba(99, 102, 241, 0.45)',
-          outlineOffset: 1,
-          cursor: 'text',
-        }
-      : { ...baseStyle, pointerEvents: 'auto' };
+    props['style'] = { ...baseStyle, pointerEvents: 'auto' };
+    if (instanceSelected) {
+      const existing =
+        typeof props['className'] === 'string' ? props['className'] : '';
+      props['className'] = existing
+        ? `${existing} ${styles.propEditAffordance}`
+        : styles.propEditAffordance;
+    }
   }
   // Locked text on an instance — hint via native tooltip.
   if (isText && propName === null) {

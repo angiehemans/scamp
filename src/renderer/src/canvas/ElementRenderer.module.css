@@ -46,6 +46,18 @@
   cursor: text;
 }
 
+/* Editable-prop affordance on a component instance. Applied to
+ * each prop-text node ONLY while the owning instance is selected
+ * (see `renderComponentSubtree`). PNG / SVG export strips this
+ * class so the dashed outline doesn't bake into the exported asset.
+ * (`!important` mirrors `.textEditing` so `all: unset` on form tags
+ * doesn't drop the indicator.) */
+.propEditAffordance {
+  outline: 1px dashed rgba(99, 102, 241, 0.45) !important;
+  outline-offset: 1px !important;
+  cursor: text;
+}
+
 /* "Visibility: None" — the designer has set display:none. On the
  * canvas we still render the element so it stays selectable, but we
  * dim it and lay a diagonal stripe over it so it reads as hidden. The
