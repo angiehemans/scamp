@@ -496,7 +496,14 @@ const renderComponentSubtree = (
    * is wrapped here so the renderer doesn't have to pull it from
    * the store at every node.
    */
-  onChangeEditingProp: (propName: string | null) => void
+  onChangeEditingProp: (propName: string | null) => void,
+  /**
+   * True when the owning instance is the current selection. Prop-text
+   * only shows its dashed edit affordance while the instance is
+   * selected — otherwise the page is noisy with outlines around every
+   * editable string on every instance.
+   */
+  instanceSelected: boolean
 ): JSX.Element | null => {
   // Slot composition deferred: nested instances render as placeholders.
   if (element.type === 'component-instance') {
@@ -591,29 +598,26 @@ const renderComponentSubtree = (
     isText && typeof textContent === 'string' && textContent.length > 0;
   const hasChildren = element.childIds.length > 0;
 
-  // Prop-text gets hit-test attrs + pointer-events:auto + tinted outline.
+  // Prop-text always carries the hit-test attrs and overrides the
+  // inner wrapper's `pointer-events: none` so `elementsFromPoint`
+  // surfaces it for `propTextHitTest`. The dashed edit affordance
+  // only shows once the owning instance is selected — otherwise a
+  // page full of instances would be noisy with outlines around
+  // every editable string.
   const isEditingThisProp = propName !== null && editingProp === propName;
   if (isText && propName !== null) {
     props['data-scamp-instance-id'] = instanceId;
     props['data-scamp-prop'] = propName;
     const baseStyle = (props['style'] as Record<string, unknown>) ?? {};
-    props['style'] = {
-      ...baseStyle,
-      pointerEvents: 'auto',
-      outline: '1px dashed rgba(99, 102, 241, 0.45)',
-      outlineOffset: 1,
-      cursor: 'text',
-    };
-    props['onClick'] = (e: import('react').MouseEvent<HTMLElement>) => {
-      // Re-route to instance selection — inner subtree blocks bubbling.
-      e.stopPropagation();
-      useCanvasStore.getState().selectElement(instanceId);
-    };
-    props['onDoubleClick'] = (e: import('react').MouseEvent<HTMLElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (propName !== null) onChangeEditingProp(propName);
-    };
+    props['style'] = instanceSelected
+      ? {
+          ...baseStyle,
+          pointerEvents: 'auto',
+          outline: '1px dashed rgba(99, 102, 241, 0.45)',
+          outlineOffset: 1,
+          cursor: 'text',
+        }
+      : { ...baseStyle, pointerEvents: 'auto' };
   }
   // Locked text on an instance — hint via native tooltip.
   if (isText && propName === null) {
@@ -695,7 +699,8 @@ const renderComponentSubtree = (
         instanceId,
         editingProp,
         onCommitProp,
-        onChangeEditingProp
+        onChangeEditingProp,
+        instanceSelected
       );
     })
     .filter((c): c is JSX.Element => c !== null);
@@ -967,7 +972,8 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
           element.id,
           editingPropForThis,
           handleCommitProp,
-          handleChangeEditingProp
+          handleChangeEditingProp,
+          isSelected
         )
       : null;
     if (isEmptyComponent) {

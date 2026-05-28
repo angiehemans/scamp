@@ -40,6 +40,28 @@ const hitTest = (clientX, clientY) => {
     }
     return null;
 };
+/**
+ * Look for a prop-text span under the cursor. Prop-text on a component
+ * instance carries `data-scamp-instance-id` + `data-scamp-prop`
+ * (set in ElementRenderer's `renderComponentSubtree`). We only surface
+ * a hit if we see those before we walk through the instance's
+ * `data-element-id` wrapper — otherwise a deeper match would jump out
+ * of the instance we actually clicked.
+ */
+const propTextHitTest = (clientX, clientY) => {
+    const candidates = document.elementsFromPoint(clientX, clientY);
+    for (const node of candidates) {
+        if (!(node instanceof HTMLElement))
+            continue;
+        const instanceId = node.dataset['scampInstanceId'];
+        const propName = node.dataset['scampProp'];
+        if (instanceId && propName)
+            return { instanceId, propName };
+        if (node.dataset['elementId'])
+            return null;
+    }
+    return null;
+};
 const isResizeHandle = (clientX, clientY) => {
     const candidates = document.elementsFromPoint(clientX, clientY);
     for (const node of candidates) {
@@ -78,6 +100,12 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const selectedElementId = selectedElementIds[0] ?? null;
     const isSingleSelection = selectedElementIds.length === 1;
     const editingElementId = useCanvasStore((s) => s.editingElementId);
+    // Prop-text inline editing on a component instance. While this is
+    // non-null we drop the chrome layer's `pointer-events` so the
+    // contentEditable target can receive clicks (cursor positioning,
+    // text selection) without the layer eating them first.
+    const editingInstanceProp = useCanvasStore((s) => s.editingInstanceProp);
+    const setEditingInstanceProp = useCanvasStore((s) => s.setEditingInstanceProp);
     const selectElement = useCanvasStore((s) => s.selectElement);
     const toggleSelectElement = useCanvasStore((s) => s.toggleSelectElement);
     const setTool = useCanvasStore((s) => s.setTool);
@@ -599,6 +627,17 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
         }
     };
     const handleDoubleClick = (e) => {
+        // Prop-text on a component instance — enter inline edit on
+        // that prop. We check this BEFORE the regular text-element path
+        // so prop-text on a `<p>` tag hits the per-instance flow rather
+        // than the page-level `setEditingElement`.
+        const propHit = propTextHitTest(e.clientX, e.clientY);
+        if (propHit) {
+            e.preventDefault();
+            selectElement(propHit.instanceId);
+            setEditingInstanceProp(propHit);
+            return;
+        }
         const hitId = hitTest(e.clientX, e.clientY);
         if (!hitId || hitId === ROOT_ELEMENT_ID)
             return;
@@ -672,7 +711,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
         }));
     };
     const selectedEl = selectedElementId ? elements[selectedElementId] : null;
-    const isEditing = editingElementId !== null;
+    const isEditing = editingElementId !== null || editingInstanceProp !== null;
     return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: handleDragOver, onDrop: handleDrop, children: [draw && (_jsx(DrawPreview, { x: Math.min(draw.startX, draw.currentX) + draw.parentOffsetX, y: Math.min(draw.startY, draw.currentY) + draw.parentOffsetY, width: Math.abs(draw.currentX - draw.startX), height: Math.abs(draw.currentY - draw.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
                     left: dropIndicator.rect.x,
                     top: dropIndicator.rect.y,

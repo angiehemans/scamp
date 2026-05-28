@@ -19,6 +19,12 @@ test.describe('components: CSS panel inside the component editor', () => {
         await setPanelMode(window, 'CSS');
         const editor = propertiesPanel(window).locator('.cm-content').first();
         await editor.click();
+        // Land cursor at end-of-content + new line so the appended
+        // declaration doesn't splice into an existing line and break
+        // the CSS parser. (Autocomplete + mid-line insertion was the
+        // source of the original flake.)
+        await window.keyboard.press('Control+End');
+        await window.keyboard.press('Enter');
         await window.keyboard.type('letter-spacing: 4px;');
         await window.keyboard.press('Control+s');
         await waitForSaved(window);
@@ -33,9 +39,14 @@ test.describe('components: CSS panel inside the component editor', () => {
         await setPanelMode(window, 'CSS');
         const editor = propertiesPanel(window).locator('.cm-content').first();
         await editor.click();
+        await window.keyboard.press('Control+End');
+        await window.keyboard.press('Enter');
         await window.keyboard.type('word-spacing: 2px;');
-        // Blur path: click somewhere neutral outside the editor.
-        await pageRoot(window).click();
+        // Blur path: click the sidebar (canvas chrome would intercept
+        // clicks on the page root, even on the empty whitespace).
+        await window
+            .getByRole('button', { name: /Add Component/i })
+            .click({ trial: false, force: false });
         await waitForSaved(window);
         const { css } = await project.readComponent('Card');
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*word-spacing:\\s*2px`, 's'));

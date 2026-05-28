@@ -454,7 +454,14 @@ onCommitProp,
  * is wrapped here so the renderer doesn't have to pull it from
  * the store at every node.
  */
-onChangeEditingProp) => {
+onChangeEditingProp, 
+/**
+ * True when the owning instance is the current selection. Prop-text
+ * only shows its dashed edit affordance while the instance is
+ * selected — otherwise the page is noisy with outlines around every
+ * editable string on every instance.
+ */
+instanceSelected) => {
     // Slot composition deferred: nested instances render as placeholders.
     if (element.type === 'component-instance') {
         return (_jsxs("div", { style: {
@@ -523,30 +530,26 @@ onChangeEditingProp) => {
     const textContent = overrideValue !== undefined ? overrideValue : defaultText;
     const hasText = isText && typeof textContent === 'string' && textContent.length > 0;
     const hasChildren = element.childIds.length > 0;
-    // Prop-text gets hit-test attrs + pointer-events:auto + tinted outline.
+    // Prop-text always carries the hit-test attrs and overrides the
+    // inner wrapper's `pointer-events: none` so `elementsFromPoint`
+    // surfaces it for `propTextHitTest`. The dashed edit affordance
+    // only shows once the owning instance is selected — otherwise a
+    // page full of instances would be noisy with outlines around
+    // every editable string.
     const isEditingThisProp = propName !== null && editingProp === propName;
     if (isText && propName !== null) {
         props['data-scamp-instance-id'] = instanceId;
         props['data-scamp-prop'] = propName;
         const baseStyle = props['style'] ?? {};
-        props['style'] = {
-            ...baseStyle,
-            pointerEvents: 'auto',
-            outline: '1px dashed rgba(99, 102, 241, 0.45)',
-            outlineOffset: 1,
-            cursor: 'text',
-        };
-        props['onClick'] = (e) => {
-            // Re-route to instance selection — inner subtree blocks bubbling.
-            e.stopPropagation();
-            useCanvasStore.getState().selectElement(instanceId);
-        };
-        props['onDoubleClick'] = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (propName !== null)
-                onChangeEditingProp(propName);
-        };
+        props['style'] = instanceSelected
+            ? {
+                ...baseStyle,
+                pointerEvents: 'auto',
+                outline: '1px dashed rgba(99, 102, 241, 0.45)',
+                outlineOffset: 1,
+                cursor: 'text',
+            }
+            : { ...baseStyle, pointerEvents: 'auto' };
     }
     // Locked text on an instance — hint via native tooltip.
     if (isText && propName === null) {
@@ -607,7 +610,7 @@ onChangeEditingProp) => {
         const child = elementsMap[childId];
         if (!child)
             return null;
-        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, editingProp, onCommitProp, onChangeEditingProp);
+        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, editingProp, onCommitProp, onChangeEditingProp, instanceSelected);
     })
         .filter((c) => c !== null);
     return createElement(tag, { ...props, key: element.id }, children);
@@ -830,7 +833,7 @@ export const ElementRenderer = ({ elementId }) => {
         const inner = root
             ? renderComponentSubtree(root, componentTreeForInstance.elements, 
             // Pass page-side layout context so flex/grid still applies.
-            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp)
+            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected)
             : null;
         if (isEmptyComponent) {
             return (_jsxs("div", { ...wrapperProps, style: {
