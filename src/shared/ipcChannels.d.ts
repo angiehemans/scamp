@@ -49,6 +49,7 @@ export declare const IPC: {
     readonly TerminalKill: "terminal:kill";
     readonly TerminalData: "terminal:data";
     readonly TerminalExit: "terminal:exit";
+    readonly TerminalForegroundProcess: "terminal:foregroundProcess";
     readonly ExportChooseSavePath: "export:chooseSavePath";
     readonly ExportPng: "export:png";
     readonly ExportSvg: "export:svg";

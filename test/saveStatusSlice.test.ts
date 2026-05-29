@@ -24,7 +24,11 @@ const store = (): ReturnType<typeof useSaveStatusStore.getState> =>
 
 describe('saveStatusSlice', () => {
   beforeEach(() => {
-    useSaveStatusStore.setState({ state: { kind: 'saved' } });
+    useSaveStatusStore.setState({
+      state: { kind: 'saved' },
+      toast: null,
+      pauseStartedAt: null,
+    });
   });
 
   describe('happy path', () => {
@@ -136,6 +140,156 @@ describe('saveStatusSlice', () => {
         message: 'parse failed',
         lastAttempt: attempt,
       });
+    });
+  });
+
+  describe('markPaused', () => {
+    it('transitions saved → paused with the reason', () => {
+      store().markPaused('external-edit');
+      expect(store().state).toEqual({
+        kind: 'paused',
+        reason: 'external-edit',
+      });
+    });
+
+    it('transitions unsaved → paused', () => {
+      store().markUnsaved();
+      store().markPaused('agent-terminal');
+      expect(store().state.kind).toBe('paused');
+    });
+
+    it('does not stomp saving / error / diverged / reloaded-from-disk', () => {
+      const attempt = makeWriteAttempt();
+      store().markSaving(attempt);
+      store().markPaused('external-edit');
+      expect(store().state.kind).toBe('saving');
+
+      store().markError('boom', attempt);
+      store().markPaused('external-edit');
+      expect(store().state.kind).toBe('error');
+
+      useSaveStatusStore.setState({
+        state: { kind: 'diverged', lastAttempt: attempt },
+      });
+      store().markPaused('external-edit');
+      expect(store().state.kind).toBe('diverged');
+
+      useSaveStatusStore.setState({
+        state: { kind: 'reloaded-from-disk', file: 'home.tsx' },
+      });
+      store().markPaused('external-edit');
+      expect(store().state.kind).toBe('reloaded-from-disk');
+    });
+
+    it('idempotent for the same reason; refreshes when reason changes', () => {
+      store().markPaused('external-edit');
+      const before = store().state;
+      store().markPaused('external-edit');
+      expect(store().state).toBe(before);
+
+      store().markPaused('agent-terminal');
+      expect(store().state).toEqual({
+        kind: 'paused',
+        reason: 'agent-terminal',
+      });
+    });
+
+    it('captures pauseStartedAt on entry; preserves across reason flips', () => {
+      const before = Date.now();
+      store().markPaused('external-edit');
+      const started = store().pauseStartedAt;
+      expect(started).not.toBeNull();
+      expect(started!).toBeGreaterThanOrEqual(before);
+
+      // Reason flips don't reset the timestamp — the diverged
+      // popover needs to keep filtering history from the original
+      // pause moment, not whichever sub-signal is most recent.
+      store().markPaused('agent-terminal');
+      expect(store().pauseStartedAt).toBe(started);
+    });
+  });
+
+  describe('markResumed', () => {
+    it('paused → saved when the canvas matches disk; clears pauseStartedAt', () => {
+      store().markPaused('external-edit');
+      expect(store().pauseStartedAt).not.toBeNull();
+      store().markResumed(null);
+      expect(store().state).toEqual({ kind: 'saved' });
+      expect(store().pauseStartedAt).toBeNull();
+    });
+
+    it('paused → diverged when canvas state differs from disk; keeps pauseStartedAt', () => {
+      const attempt = makeWriteAttempt();
+      store().markPaused('external-edit');
+      const started = store().pauseStartedAt;
+      store().markResumed(attempt);
+      expect(store().state).toEqual({ kind: 'diverged', lastAttempt: attempt });
+      // Diverged popover filters history from this moment.
+      expect(store().pauseStartedAt).toBe(started);
+    });
+
+    it('is a no-op when not paused', () => {
+      store().markUnsaved();
+      store().markResumed(null);
+      expect(store().state).toEqual({ kind: 'unsaved' });
+    });
+  });
+
+  describe('toast', () => {
+    it('starts null; showToast sets a unique id + message', () => {
+      expect(store().toast).toBeNull();
+      store().showToast('first');
+      const first = store().toast;
+      expect(first?.message).toBe('first');
+      store().showToast('second');
+      const second = store().toast;
+      expect(second?.message).toBe('second');
+      expect(second?.id).not.toBe(first?.id);
+    });
+
+    it('dismissToast clears only when id matches', () => {
+      store().showToast('first');
+      const id = store().toast?.id ?? -1;
+      store().dismissToast(999);
+      expect(store().toast?.message).toBe('first');
+      store().dismissToast(id);
+      expect(store().toast).toBeNull();
+    });
+
+    it('toast lifecycle is independent of state transitions', () => {
+      store().showToast('hello');
+      store().markUnsaved();
+      expect(store().toast?.message).toBe('hello');
+      const attempt = makeWriteAttempt();
+      store().markSaving(attempt);
+      store().markConfirmed();
+      expect(store().toast?.message).toBe('hello');
+    });
+  });
+
+  describe('markReloadedFromDisk', () => {
+    it('overrides any prior state — disk drift is terminal', () => {
+      const attempt = makeWriteAttempt();
+      store().markSaving(attempt);
+      store().markReloadedFromDisk('home.tsx');
+      expect(store().state).toEqual({
+        kind: 'reloaded-from-disk',
+        file: 'home.tsx',
+      });
+    });
+
+    it('clears on a subsequent successful save cycle', () => {
+      store().markReloadedFromDisk('home.tsx');
+      store().markUnsaved();
+      // markUnsaved is a no-op on terminal states by design — error
+      // already worked that way; reloaded-from-disk follows the same
+      // rule so the user sees it until they take a fresh action.
+      expect(store().state.kind).toBe('reloaded-from-disk');
+
+      const attempt = makeWriteAttempt();
+      store().markSaving(attempt);
+      store().markConfirmed();
+      expect(store().state).toEqual({ kind: 'saved' });
     });
   });
 });

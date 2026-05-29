@@ -243,8 +243,8 @@ export type FileWriteArgs = {
      * write if either path's content has drifted since the renderer
      * last serialized. Used by the syncBridge's debounced flush to
      * avoid clobbering an external agent's edit that landed between
-     * the previous save and this one. See docs/known-issues.md
-     * "Concurrent-write race". Callers that don't care about
+     * the previous save and this one. See
+     * docs/notes/agent-coexistence.md. Callers that don't care about
      * conflicts (export, scaffolds, migrate) omit both and main
      * skips the pre-write read.
      */
@@ -489,6 +489,23 @@ export type TerminalDataPayload = {
 export type TerminalExitPayload = {
     id: string;
     exitCode: number;
+};
+/**
+ * Foreground-process status for a pty. Emitted by the main-side
+ * poller whenever the pty's foreground command changes.
+ *
+ *   - `processName: null` — pty is at a shell prompt (idle). The
+ *     foreground process is the shell itself.
+ *   - `processName: 'claude' | 'aider' | …` — a non-shell command
+ *     is currently in the foreground; an agent is presumed running.
+ *
+ * The renderer's `terminalActivitySlice` maintains a per-terminal
+ * map and a derived `anyAgentActive` selector. The sync bridge
+ * subscribes to that selector and pauses when any pty is busy.
+ */
+export type TerminalForegroundProcessPayload = {
+    id: string;
+    processName: string | null;
 };
 /**
  * Returned by `test:getBootstrap`. Off in normal usage; only populated

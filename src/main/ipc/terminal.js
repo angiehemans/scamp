@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import { IPC } from '@shared/ipcChannels';
+import { readForeground, shellBaseName, supportsForegroundDetection, } from './terminalForeground';
 // In dev we allow more concurrent ptys than the user can actually open
 // from the UI (MAX_TABS = 3). HMR re-mounts TerminalView without always
 // running its cleanup, so orphaned ptys stack up across reloads until
@@ -10,6 +11,13 @@ import { IPC } from '@shared/ipcChannels';
 const MAX_TERMINALS = process.env['NODE_ENV'] === 'development' ? 12 : 3;
 const terminals = new Map();
 let nextId = 1;
+/**
+ * Poll cadence for the foreground-process detector. 500ms keeps
+ * the latency between "user types `claude`" and "Scamp shows
+ * Paused" well under a second without bothering the OS. The
+ * polling does one or two cheap /proc reads per terminal per tick.
+ */
+const FOREGROUND_POLL_MS = 500;
 const defaultShell = () => {
     if (process.platform === 'win32') {
         return process.env['COMSPEC'] ?? 'cmd.exe';
@@ -44,6 +52,9 @@ const createTerminal = (args) => {
         win.webContents.send(IPC.TerminalData, payload);
     });
     proc.onExit(({ exitCode }) => {
+        const term = terminals.get(id);
+        if (term?.foregroundTimer)
+            clearInterval(term.foregroundTimer);
         const win = findWindow();
         terminals.delete(id);
         if (!win)
@@ -51,8 +62,41 @@ const createTerminal = (args) => {
         const payload = { id, exitCode };
         win.webContents.send(IPC.TerminalExit, payload);
     });
-    terminals.set(id, { id, proc });
+    const term = { id, proc, foregroundTimer: null, lastForeground: null };
+    terminals.set(id, term);
+    startForegroundPolling(term);
     return { id };
+};
+/**
+ * Begin polling this pty's foreground command. Emits an IPC event
+ * each time the value changes (idle → busy → idle). Skipped on
+ * platforms that don't expose the necessary syscalls (Phase 4.4).
+ */
+const startForegroundPolling = (term) => {
+    if (!supportsForegroundDetection())
+        return;
+    const baseName = shellBaseName(defaultShell());
+    const tick = async () => {
+        // The process may have exited between ticks.
+        if (!terminals.has(term.id))
+            return;
+        const next = await readForeground(term.proc.pid, baseName);
+        if (next === term.lastForeground)
+            return;
+        term.lastForeground = next;
+        const win = findWindow();
+        if (!win)
+            return;
+        const payload = {
+            id: term.id,
+            processName: next,
+        };
+        win.webContents.send(IPC.TerminalForegroundProcess, payload);
+    };
+    // Kick off one immediate read so the renderer doesn't wait the
+    // full poll interval for the initial value.
+    void tick();
+    term.foregroundTimer = setInterval(() => void tick(), FOREGROUND_POLL_MS);
 };
 const writeTerminal = (args) => {
     const term = terminals.get(args.id);
@@ -75,6 +119,8 @@ const killTerminal = (args) => {
     const term = terminals.get(args.id);
     if (!term)
         return;
+    if (term.foregroundTimer)
+        clearInterval(term.foregroundTimer);
     try {
         term.proc.kill();
     }
@@ -129,6 +175,10 @@ const killAndWait = (term) => new Promise((resolve) => {
  */
 export const disposeAllTerminals = async () => {
     const all = Array.from(terminals.values());
+    for (const term of all) {
+        if (term.foregroundTimer)
+            clearInterval(term.foregroundTimer);
+    }
     terminals.clear();
     await Promise.all(all.map(killAndWait));
 };

@@ -45,6 +45,7 @@ import type {
   TerminalCreateResult,
   TerminalDataPayload,
   TerminalExitPayload,
+  TerminalForegroundProcessPayload,
   TerminalKillArgs,
   TerminalResizeArgs,
   TerminalWriteArgs,
@@ -230,6 +231,18 @@ const api = {
     const listener = (_e: IpcRendererEvent, payload: TerminalExitPayload): void => handler(payload);
     ipcRenderer.on(IPC.TerminalExit, listener);
     return () => ipcRenderer.removeListener(IPC.TerminalExit, listener);
+  },
+
+  onTerminalForegroundProcess: (
+    handler: (payload: TerminalForegroundProcessPayload) => void
+  ): (() => void) => {
+    const listener = (
+      _e: IpcRendererEvent,
+      payload: TerminalForegroundProcessPayload
+    ): void => handler(payload);
+    ipcRenderer.on(IPC.TerminalForegroundProcess, listener);
+    return () =>
+      ipcRenderer.removeListener(IPC.TerminalForegroundProcess, listener);
   },
 
   // E2E test bootstrap. Returns { e2e: false, autoOpenProjectPath: null }

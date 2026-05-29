@@ -54,6 +54,41 @@ const prettyFamily = (raw) => {
         name = name.slice(0, colonIdx);
     return name.trim();
 };
+/**
+ * Drop a single family from a Google Fonts URL.
+ *
+ *   - Returns the rewritten URL when other families remain.
+ *   - Returns `null` when the removed family was the last one, so
+ *     the caller knows to drop the URL entry entirely.
+ *   - Returns the input unchanged when the URL can't be parsed or
+ *     the family isn't found — the safe default so a bug doesn't
+ *     wipe the user's theme.
+ *
+ * Matches families by their display name (the result of
+ * `prettyFamily`), not by the raw `family=...:wght@...` segment, so
+ * the caller can pass the same string we show in the UI.
+ */
+export const removeFamilyFromUrl = (url, family) => {
+    let parsed;
+    try {
+        parsed = new URL(url);
+    }
+    catch {
+        return url;
+    }
+    const all = parsed.searchParams.getAll('family');
+    if (all.length === 0)
+        return url;
+    const kept = all.filter((raw) => prettyFamily(raw) !== family);
+    if (kept.length === all.length)
+        return url;
+    if (kept.length === 0)
+        return null;
+    parsed.searchParams.delete('family');
+    for (const raw of kept)
+        parsed.searchParams.append('family', raw);
+    return parsed.toString();
+};
 export const parseGoogleFontsEmbed = (raw) => {
     if (typeof raw !== 'string' || raw.trim().length === 0) {
         return { ok: false, error: 'Paste a Google Fonts embed link or <link> snippet.' };

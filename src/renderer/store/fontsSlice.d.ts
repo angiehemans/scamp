@@ -29,8 +29,17 @@ type FontsState = {
      * slice itself.
      */
     projectFonts: ReadonlyArray<string>;
-    /** Raw Google Fonts `@import` URLs the project tracks. */
+    /** Raw `@import` URLs (Google Fonts or Adobe Fonts) the project tracks. */
     projectFontUrls: ReadonlyArray<string>;
+    /**
+     * Cache of family names resolved per stored URL. Google Fonts URLs
+     * encode their families in `?family=` params and are resolved
+     * synchronously at add time; Adobe Fonts kit URLs are opaque, so
+     * we fetch the kit's CSS and cache the result here keyed by URL.
+     * On project re-open the resolver re-fetches Adobe entries (the
+     * network can change) and overwrites stale cache entries.
+     */
+    kitFamilies: Record<string, ReadonlyArray<string>>;
     loadSystemFonts: () => Promise<void>;
     /**
      * Re-run the local-font enumeration regardless of whether the
@@ -43,6 +52,9 @@ type FontsState = {
         families: ReadonlyArray<string>;
         urls: ReadonlyArray<string>;
     }) => void;
+    /** Record a kit's resolved family list. Used by the Adobe Fonts
+     *  resolver after a successful fetch. */
+    setKitFamilies: (url: string, families: ReadonlyArray<string>) => void;
 };
 export declare const useFontsStore: import("zustand").UseBoundStore<import("zustand").StoreApi<FontsState>>;
 /**

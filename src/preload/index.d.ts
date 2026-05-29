@@ -1,4 +1,4 @@
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -73,6 +73,7 @@ declare const api: {
     killTerminal: (args: TerminalKillArgs) => Promise<void>;
     onTerminalData: (handler: (payload: TerminalDataPayload) => void) => (() => void);
     onTerminalExit: (handler: (payload: TerminalExitPayload) => void) => (() => void);
+    onTerminalForegroundProcess: (handler: (payload: TerminalForegroundProcessPayload) => void) => (() => void);
     getTestBootstrap: () => Promise<TestBootstrap>;
 };
 export type ScampApi = typeof api;

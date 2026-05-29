@@ -10,7 +10,7 @@ import { parseCode } from '@lib/parseCode';
 import { generateCode } from '@lib/generateCode';
 import { armTargetSwapSuppression, disarmTargetSwapSuppression, flushPendingPageWrite, } from '../syncBridge';
 import { parseThemeFile } from '@lib/parseTheme';
-import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { applyThemeFonts } from '../lib/applyThemeFonts';
 import { useFontsStore } from '@store/fontsSlice';
 import { clampToParent } from '@lib/bounds';
 import { Viewport } from '../canvas/Viewport';
@@ -26,6 +26,7 @@ import { CanvasSizeControl } from './CanvasSizeControl';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { SaveStatusToast } from './SaveStatusToast';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
@@ -278,16 +279,10 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             const content = await window.scamp.readTheme({ projectPath: project.path });
             const parsed = parseThemeFile(content);
             useCanvasStore.getState().setThemeTokens(parsed.tokens);
-            // Derive family names from the import URLs — re-parsing the URL
-            // is cheap and keeps the URL as the single source of truth.
-            const families = parsed.fontImportUrls.flatMap((url) => {
-                const result = parseGoogleFontsEmbed(url);
-                return result.ok ? result.value.families : [];
-            });
-            useFontsStore.getState().setProjectFonts({
-                families,
-                urls: parsed.fontImportUrls,
-            });
+            // `applyThemeFonts` derives Google families synchronously from
+            // each URL, surfaces any cached Adobe kit families, then kicks
+            // off background fetches to refresh Adobe kits from the network.
+            applyThemeFonts(parsed.fontImportUrls);
         };
         void loadTheme();
         return () => {
@@ -1319,7 +1314,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                             ? 'Open this project in a real browser preview window (⌘P)'
                             : projectFormatForPreview === 'legacy'
                                 ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
-                                : 'Open a page to enable preview.', children: _jsxs("button", { className: styles.toggleButton, onClick: openPreview, type: "button", disabled: !canPreview, "data-testid": "preview-button", children: [_jsx(IconPlayerPlay, { size: 14, className: styles.toggleButtonIcon }), "Preview"] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+                                : 'Open a page to enable preview.', children: _jsxs("button", { className: styles.toggleButton, onClick: openPreview, type: "button", disabled: !canPreview, "data-testid": "preview-button", children: [_jsx(IconPlayerPlay, { size: 14, className: styles.toggleButtonIcon }), "Preview"] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.

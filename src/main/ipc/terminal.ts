@@ -6,10 +6,16 @@ import type {
   TerminalCreateResult,
   TerminalDataPayload,
   TerminalExitPayload,
+  TerminalForegroundProcessPayload,
   TerminalKillArgs,
   TerminalResizeArgs,
   TerminalWriteArgs,
 } from '@shared/types';
+import {
+  readForeground,
+  shellBaseName,
+  supportsForegroundDetection,
+} from './terminalForeground';
 
 // In dev we allow more concurrent ptys than the user can actually open
 // from the UI (MAX_TABS = 3). HMR re-mounts TerminalView without always
@@ -22,10 +28,24 @@ const MAX_TERMINALS = process.env['NODE_ENV'] === 'development' ? 12 : 3;
 type Term = {
   id: string;
   proc: pty.IPty;
+  /** Polling timer for the foreground-process detection. Null when
+   *  detection isn't supported on the current OS (Phase 4.4). */
+  foregroundTimer: ReturnType<typeof setInterval> | null;
+  /** Last reported foreground command name, used to debounce IPC
+   *  events. Only emit when the state actually changes. */
+  lastForeground: string | null;
 };
 
 const terminals = new Map<string, Term>();
 let nextId = 1;
+
+/**
+ * Poll cadence for the foreground-process detector. 500ms keeps
+ * the latency between "user types `claude`" and "Scamp shows
+ * Paused" well under a second without bothering the OS. The
+ * polling does one or two cheap /proc reads per terminal per tick.
+ */
+const FOREGROUND_POLL_MS = 500;
 
 const defaultShell = (): string => {
   if (process.platform === 'win32') {
@@ -68,6 +88,8 @@ const createTerminal = (args: TerminalCreateArgs): TerminalCreateResult => {
   });
 
   proc.onExit(({ exitCode }) => {
+    const term = terminals.get(id);
+    if (term?.foregroundTimer) clearInterval(term.foregroundTimer);
     const win = findWindow();
     terminals.delete(id);
     if (!win) return;
@@ -75,8 +97,38 @@ const createTerminal = (args: TerminalCreateArgs): TerminalCreateResult => {
     win.webContents.send(IPC.TerminalExit, payload);
   });
 
-  terminals.set(id, { id, proc });
+  const term: Term = { id, proc, foregroundTimer: null, lastForeground: null };
+  terminals.set(id, term);
+  startForegroundPolling(term);
   return { id };
+};
+
+/**
+ * Begin polling this pty's foreground command. Emits an IPC event
+ * each time the value changes (idle → busy → idle). Skipped on
+ * platforms that don't expose the necessary syscalls (Phase 4.4).
+ */
+const startForegroundPolling = (term: Term): void => {
+  if (!supportsForegroundDetection()) return;
+  const baseName = shellBaseName(defaultShell());
+  const tick = async (): Promise<void> => {
+    // The process may have exited between ticks.
+    if (!terminals.has(term.id)) return;
+    const next = await readForeground(term.proc.pid, baseName);
+    if (next === term.lastForeground) return;
+    term.lastForeground = next;
+    const win = findWindow();
+    if (!win) return;
+    const payload: TerminalForegroundProcessPayload = {
+      id: term.id,
+      processName: next,
+    };
+    win.webContents.send(IPC.TerminalForegroundProcess, payload);
+  };
+  // Kick off one immediate read so the renderer doesn't wait the
+  // full poll interval for the initial value.
+  void tick();
+  term.foregroundTimer = setInterval(() => void tick(), FOREGROUND_POLL_MS);
 };
 
 const writeTerminal = (args: TerminalWriteArgs): void => {
@@ -98,6 +150,7 @@ const resizeTerminal = (args: TerminalResizeArgs): void => {
 const killTerminal = (args: TerminalKillArgs): void => {
   const term = terminals.get(args.id);
   if (!term) return;
+  if (term.foregroundTimer) clearInterval(term.foregroundTimer);
   try {
     term.proc.kill();
   } catch {
@@ -155,6 +208,9 @@ const killAndWait = (term: Term): Promise<void> =>
  */
 export const disposeAllTerminals = async (): Promise<void> => {
   const all = Array.from(terminals.values());
+  for (const term of all) {
+    if (term.foregroundTimer) clearInterval(term.foregroundTimer);
+  }
   terminals.clear();
   await Promise.all(all.map(killAndWait));
 };

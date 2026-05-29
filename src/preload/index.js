@@ -94,6 +94,11 @@ const api = {
         ipcRenderer.on(IPC.TerminalExit, listener);
         return () => ipcRenderer.removeListener(IPC.TerminalExit, listener);
     },
+    onTerminalForegroundProcess: (handler) => {
+        const listener = (_e, payload) => handler(payload);
+        ipcRenderer.on(IPC.TerminalForegroundProcess, listener);
+        return () => ipcRenderer.removeListener(IPC.TerminalForegroundProcess, listener);
+    },
     // E2E test bootstrap. Returns { e2e: false, autoOpenProjectPath: null }
     // in normal use; only populated when the main process was launched
     // with SCAMP_E2E=1.

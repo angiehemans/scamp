@@ -73,6 +73,12 @@ export const IPC = {
     TerminalKill: 'terminal:kill',
     TerminalData: 'terminal:data',
     TerminalExit: 'terminal:exit',
+    // Phase 4: foreground-process change for a pty. Fired by the
+    // main-side poller when the pty's foreground command transitions
+    // between the user's shell (idle prompt) and a child process
+    // (agent activity). The renderer uses this to flip the sync
+    // engine into pause + show the appropriate status pill.
+    TerminalForegroundProcess: 'terminal:foregroundProcess',
     // Export (page or element)
     ExportChooseSavePath: 'export:chooseSavePath',
     ExportPng: 'export:png',

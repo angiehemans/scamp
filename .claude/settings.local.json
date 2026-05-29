@@ -6,7 +6,9 @@
       "Bash(npx vitest *)",
       "Bash(npx tsc *)",
       "Bash(npm install *)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Read(//home/angie-hemans/Documents/camp-files/portfolio-site/**)",
+      "Read(//home/angie-hemans/Documents/camp-files/portfolio-site/app/**)"
     ]
   }
 }

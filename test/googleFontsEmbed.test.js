@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { parseGoogleFontsEmbed, removeFamilyFromUrl, } from '@lib/googleFontsEmbed';
 describe('parseGoogleFontsEmbed', () => {
     it('parses a <link> tag', () => {
         const input = '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet">';
@@ -83,5 +83,51 @@ describe('parseGoogleFontsEmbed', () => {
     it('tolerates surrounding whitespace', () => {
         const result = parseGoogleFontsEmbed('   https://fonts.googleapis.com/css2?family=Inter  ');
         expect(result.ok).toBe(true);
+    });
+});
+describe('removeFamilyFromUrl', () => {
+    it('rewrites a multi-family URL by dropping one family', () => {
+        const url = 'https://fonts.googleapis.com/css2?family=Inter&family=Playfair+Display&display=swap';
+        const result = removeFamilyFromUrl(url, 'Inter');
+        expect(result).not.toBeNull();
+        const reparsed = parseGoogleFontsEmbed(result);
+        expect(reparsed.ok).toBe(true);
+        if (reparsed.ok) {
+            expect(reparsed.value.families).toEqual(['Playfair Display']);
+        }
+    });
+    it('preserves weight axis specs on the family that stays', () => {
+        const url = 'https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Roboto:wght@300..900&display=swap';
+        const result = removeFamilyFromUrl(url, 'Inter');
+        expect(result).not.toBeNull();
+        expect(result).toContain('family=Roboto%3Awght%40300..900');
+        expect(result).not.toContain('family=Inter');
+    });
+    it('preserves non-family query params', () => {
+        const url = 'https://fonts.googleapis.com/css2?family=Inter&family=Roboto&display=swap&subset=latin';
+        const result = removeFamilyFromUrl(url, 'Inter');
+        expect(result).toContain('display=swap');
+        expect(result).toContain('subset=latin');
+    });
+    it('returns null when the removed family was the only one', () => {
+        const url = 'https://fonts.googleapis.com/css2?family=Inter&display=swap';
+        expect(removeFamilyFromUrl(url, 'Inter')).toBeNull();
+    });
+    it('returns the input unchanged when the family is not present', () => {
+        const url = 'https://fonts.googleapis.com/css2?family=Inter&display=swap';
+        expect(removeFamilyFromUrl(url, 'Roboto')).toBe(url);
+    });
+    it('returns the input unchanged when the URL is malformed', () => {
+        expect(removeFamilyFromUrl('not a url', 'Inter')).toBe('not a url');
+    });
+    it('matches families by display name, not raw segment', () => {
+        const url = 'https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400..700&family=Roboto';
+        const result = removeFamilyFromUrl(url, 'Inter Tight');
+        expect(result).not.toBeNull();
+        const reparsed = parseGoogleFontsEmbed(result);
+        expect(reparsed.ok).toBe(true);
+        if (reparsed.ok) {
+            expect(reparsed.value.families).toEqual(['Roboto']);
+        }
     });
 });

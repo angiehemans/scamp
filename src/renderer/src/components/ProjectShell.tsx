@@ -32,7 +32,7 @@ import {
   flushPendingPageWrite,
 } from '../syncBridge';
 import { parseThemeFile } from '@lib/parseTheme';
-import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { applyThemeFonts } from '../lib/applyThemeFonts';
 import { useFontsStore } from '@store/fontsSlice';
 import { clampToParent } from '@lib/bounds';
 import { Viewport } from '../canvas/Viewport';
@@ -48,6 +48,7 @@ import { CanvasSizeControl } from './CanvasSizeControl';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
+import { SaveStatusToast } from './SaveStatusToast';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
@@ -374,16 +375,10 @@ export const ProjectShell = ({
       const content = await window.scamp.readTheme({ projectPath: project.path });
       const parsed = parseThemeFile(content);
       useCanvasStore.getState().setThemeTokens(parsed.tokens);
-      // Derive family names from the import URLs — re-parsing the URL
-      // is cheap and keeps the URL as the single source of truth.
-      const families = parsed.fontImportUrls.flatMap((url) => {
-        const result = parseGoogleFontsEmbed(url);
-        return result.ok ? result.value.families : [];
-      });
-      useFontsStore.getState().setProjectFonts({
-        families,
-        urls: parsed.fontImportUrls,
-      });
+      // `applyThemeFonts` derives Google families synchronously from
+      // each URL, surfaces any cached Adobe kit families, then kicks
+      // off background fetches to refresh Adobe kits from the network.
+      applyThemeFonts(parsed.fontImportUrls);
     };
     void loadTheme();
     return () => {
@@ -1590,6 +1585,7 @@ export const ProjectShell = ({
         <SaveStatusIndicator />
         <span className={styles.projectName}>{project.name}</span>
       </header>
+      <SaveStatusToast />
       {showMigrationBanner && (
         <MigrationBanner onDismiss={handleDismissMigrationBanner} />
       )}

@@ -2,34 +2,81 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useMemo, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useFontsStore } from '@store/fontsSlice';
-import { parseGoogleFontsEmbed } from '@lib/googleFontsEmbed';
+import { removeFamilyFromUrl } from '@lib/googleFontsEmbed';
+import { parseFontEmbed } from '@lib/fontEmbed';
+import { fetchAdobeKitFamilies } from '@lib/adobeFontsFetch';
 import { serializeThemeFile } from '@lib/parseTheme';
+import { unionFamiliesFromUrls } from '../../lib/applyThemeFonts';
 import styles from './FontsSection.module.css';
-/**
- * Fonts panel inside Project Settings. Users paste a Google Fonts
- * embed link and we persist the `@import` URL in `theme.css` — the
- * one project-level design-asset file. Removing an entry strips the
- * corresponding import.
- */
+const providerLabel = (row) => {
+    switch (row.kind) {
+        case 'google-family':
+            return 'Google';
+        case 'adobe-family':
+            return 'Adobe';
+        case 'unrecognized':
+            return '';
+    }
+};
+const removeTooltip = (row) => {
+    switch (row.kind) {
+        case 'google-family':
+            return 'Remove this family';
+        case 'adobe-family':
+            return 'Remove kit (removes every family in this Adobe Fonts kit)';
+        case 'unrecognized':
+            return 'Remove this entry';
+    }
+};
 export const FontsSection = ({ projectPath }) => {
     const projectFontUrls = useFontsStore((s) => s.projectFontUrls);
+    const kitFamilies = useFontsStore((s) => s.kitFamilies);
     const setProjectFonts = useFontsStore((s) => s.setProjectFonts);
+    const setKitFamilies = useFontsStore((s) => s.setKitFamilies);
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const [draft, setDraft] = useState('');
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
-    // Decode each stored URL back to display family names. Invalid URLs
-    // (e.g. a user hand-edited theme.css with a non-Google @import) show
-    // with an empty family list so they're still removable via the UI.
+    // Flatten the stored URL list into one row per family. Each URL
+    // contributes 0..n rows depending on how many families resolve.
+    // Resolution policy:
+    //   - Google: families come from the URL parser, synchronously.
+    //   - Adobe: families come from the in-store `kitFamilies` cache,
+    //            populated on add and refreshed on project open.
+    //            If the cache is empty (resolver failed), surface an
+    //            `unrecognized` row so the user can remove the URL.
+    //   - Neither: an unrecognized row.
     const rows = useMemo(() => {
-        return projectFontUrls.map((url) => {
-            const parsed = parseGoogleFontsEmbed(url);
-            return {
-                url,
-                families: parsed.ok ? parsed.value.families : [],
-            };
-        });
-    }, [projectFontUrls]);
+        const out = [];
+        for (const url of projectFontUrls) {
+            const parsed = parseFontEmbed(url);
+            if (!parsed.ok) {
+                out.push({ kind: 'unrecognized', sourceUrl: url });
+                continue;
+            }
+            if (parsed.provider === 'google') {
+                for (const family of parsed.families) {
+                    out.push({ kind: 'google-family', family, sourceUrl: url });
+                }
+            }
+            else {
+                const cached = kitFamilies[url];
+                if (!cached || cached.length === 0) {
+                    out.push({ kind: 'unrecognized', sourceUrl: url });
+                    continue;
+                }
+                for (const family of cached) {
+                    out.push({
+                        kind: 'adobe-family',
+                        family,
+                        sourceUrl: url,
+                        kitId: parsed.kitId,
+                    });
+                }
+            }
+        }
+        return out;
+    }, [projectFontUrls, kitFamilies]);
     const writeTheme = async (urls) => {
         const content = serializeThemeFile({
             tokens: [...themeTokens],
@@ -38,25 +85,38 @@ export const FontsSection = ({ projectPath }) => {
         await window.scamp.writeTheme({ projectPath, content });
     };
     const handleAdd = async () => {
-        const parsed = parseGoogleFontsEmbed(draft);
+        const parsed = parseFontEmbed(draft);
         if (!parsed.ok) {
             setError(parsed.error);
             return;
         }
-        if (projectFontUrls.includes(parsed.value.url)) {
+        if (projectFontUrls.includes(parsed.url)) {
             setError('That font is already added.');
             return;
         }
         setError(null);
         setBusy(true);
         try {
-            const nextUrls = [...projectFontUrls, parsed.value.url];
-            // Optimistically update the store so the picker reflects the
-            // new families before chokidar re-fires on the write.
-            const allFamilies = nextUrls.flatMap((u) => {
-                const r = parseGoogleFontsEmbed(u);
-                return r.ok ? r.value.families : [];
-            });
+            if (parsed.provider === 'google') {
+                const nextUrls = [...projectFontUrls, parsed.url];
+                const allFamilies = unionFamiliesFromUrls(nextUrls, kitFamilies);
+                setProjectFonts({ families: allFamilies, urls: nextUrls });
+                await writeTheme(nextUrls);
+                setDraft('');
+                return;
+            }
+            // Adobe kit — fetch the CSS to discover families before we
+            // commit anything. On fetch failure we surface the error inline
+            // and don't touch the store or theme.css.
+            const fetched = await fetchAdobeKitFamilies(parsed.url);
+            if (!fetched.ok) {
+                setError(fetched.error);
+                return;
+            }
+            const nextUrls = [...projectFontUrls, parsed.url];
+            const nextKit = { ...kitFamilies, [parsed.url]: fetched.families };
+            setKitFamilies(parsed.url, fetched.families);
+            const allFamilies = unionFamiliesFromUrls(nextUrls, nextKit);
             setProjectFonts({ families: allFamilies, urls: nextUrls });
             await writeTheme(nextUrls);
             setDraft('');
@@ -68,15 +128,31 @@ export const FontsSection = ({ projectPath }) => {
             setBusy(false);
         }
     };
-    const handleRemove = async (url) => {
+    const handleRemove = async (row) => {
         setBusy(true);
         setError(null);
         try {
-            const nextUrls = projectFontUrls.filter((u) => u !== url);
-            const allFamilies = nextUrls.flatMap((u) => {
-                const r = parseGoogleFontsEmbed(u);
-                return r.ok ? r.value.families : [];
-            });
+            let nextUrls;
+            if (row.kind === 'unrecognized' || row.kind === 'adobe-family') {
+                // Adobe kit removal is atomic — drop the entire URL. Same
+                // for unrecognized entries (no family-level structure to
+                // preserve).
+                nextUrls = projectFontUrls.filter((u) => u !== row.sourceUrl);
+            }
+            else {
+                // Google: rewrite the URL with that family dropped.
+                const rewritten = removeFamilyFromUrl(row.sourceUrl, row.family);
+                if (rewritten === null) {
+                    nextUrls = projectFontUrls.filter((u) => u !== row.sourceUrl);
+                }
+                else {
+                    nextUrls = projectFontUrls.map((u) => u === row.sourceUrl ? rewritten : u);
+                }
+            }
+            // After mutating URLs, recompute the union family list using
+            // the (unchanged) kit cache — entries for now-orphaned URLs
+            // are pruned by `setProjectFonts` itself.
+            const allFamilies = unionFamiliesFromUrls(nextUrls, kitFamilies);
             setProjectFonts({ families: allFamilies, urls: nextUrls });
             await writeTheme(nextUrls);
         }
@@ -87,7 +163,7 @@ export const FontsSection = ({ projectPath }) => {
             setBusy(false);
         }
     };
-    return (_jsxs("div", { className: styles.wrap, children: [_jsxs("div", { className: styles.pasteRow, children: [_jsx("input", { type: "text", className: styles.pasteInput, placeholder: 'Paste a Google Fonts embed link or <link> snippet', value: draft, onChange: (e) => {
+    return (_jsxs("div", { className: styles.wrap, children: [_jsxs("div", { className: styles.pasteRow, children: [_jsx("input", { type: "text", className: styles.pasteInput, placeholder: "Paste a Google Fonts or Adobe Fonts embed link", value: draft, onChange: (e) => {
                             setDraft(e.target.value);
                             if (error)
                                 setError(null);
@@ -96,7 +172,13 @@ export const FontsSection = ({ projectPath }) => {
                                 e.preventDefault();
                                 void handleAdd();
                             }
-                        }, spellCheck: false, autoCapitalize: "off", autoCorrect: "off" }), _jsx("button", { type: "button", className: styles.addButton, onClick: () => void handleAdd(), disabled: busy || draft.trim().length === 0, children: "Add" })] }), error && _jsx("div", { className: styles.error, children: error }), _jsxs("div", { className: styles.help, children: ["Fonts you add here are saved in ", _jsx("code", { children: "theme.css" }), " in your project folder. Import that file in your production build to use the fonts outside Scamp."] }), rows.length === 0 ? (_jsx("div", { className: styles.empty, children: "No project fonts yet." })) : (_jsx("div", { className: styles.list, children: rows.map((row) => (_jsxs("div", { className: styles.listItem, children: [_jsxs("div", { className: styles.listItemBody, children: [_jsx("div", { className: styles.listItemFamilies, children: row.families.length > 0
-                                        ? row.families.join(', ')
-                                        : '(unrecognized URL)' }), _jsx("div", { className: styles.listItemUrl, children: row.url })] }), _jsx("button", { type: "button", className: styles.removeButton, onClick: () => void handleRemove(row.url), disabled: busy, children: "Remove" })] }, row.url))) }))] }));
+                        }, spellCheck: false, autoCapitalize: "off", autoCorrect: "off" }), _jsx("button", { type: "button", className: styles.addButton, onClick: () => void handleAdd(), disabled: busy || draft.trim().length === 0, children: busy ? 'Adding…' : 'Add' })] }), error && _jsx("div", { className: styles.error, children: error }), _jsxs("div", { className: styles.help, children: ["Fonts you add here are saved in ", _jsx("code", { children: "theme.css" }), " in your project folder. Import that file in your production build to use the fonts outside Scamp."] }), rows.length === 0 ? (_jsx("div", { className: styles.empty, children: "No project fonts yet." })) : (_jsx("div", { className: styles.list, children: rows.map((row, i) => {
+                    const key = row.kind === 'unrecognized'
+                        ? `unrecognized::${row.sourceUrl}::${i}`
+                        : `${row.kind}::${row.sourceUrl}::${row.family}`;
+                    const label = providerLabel(row);
+                    return (_jsxs("div", { className: styles.listItem, children: [_jsxs("div", { className: styles.listItemBody, children: [_jsx("div", { className: styles.listItemFamilies, children: row.kind === 'unrecognized'
+                                            ? '(unrecognized URL)'
+                                            : row.family }), row.kind === 'unrecognized' && (_jsx("div", { className: styles.listItemUrl, children: row.sourceUrl }))] }), label && (_jsx("span", { className: styles.providerTag, "data-provider": label.toLowerCase(), children: label })), _jsx("button", { type: "button", className: styles.removeButton, onClick: () => void handleRemove(row), disabled: busy, title: removeTooltip(row), children: "Remove" })] }, key));
+                }) }))] }));
 };

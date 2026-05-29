@@ -1,4 +1,17 @@
 export declare const flushPendingPageWrite: () => void;
+export declare const resumeFromPause: () => void;
+/**
+ * Phase 5.2 — force-write the canvas's current state to disk,
+ * overwriting whatever the external editor wrote. Called from the
+ * diverged-state popover's `Save canvas` button.
+ */
+export declare const saveDivergedCanvas: () => void;
+/**
+ * Phase 5.2 — abandon the canvas's in-memory state and reload from
+ * disk. Called from the diverged-state popover's `Discard canvas`
+ * button.
+ */
+export declare const discardDivergedCanvas: () => void;
 export declare const armTargetSwapSuppression: () => void;
 export declare const disarmTargetSwapSuppression: () => void;
 /**

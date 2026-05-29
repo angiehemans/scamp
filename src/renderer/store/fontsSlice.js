@@ -17,11 +17,29 @@ export const useFontsStore = create((set, get) => ({
     systemFontsLoaded: false,
     projectFonts: [],
     projectFontUrls: [],
+    kitFamilies: {},
     setProjectFonts: ({ families, urls }) => {
-        set({
-            projectFonts: [...families],
-            projectFontUrls: [...urls],
+        set((state) => {
+            // Drop cache entries whose URL is no longer present. Stale
+            // entries are harmless but accumulating them across sessions
+            // would let an old project's kits leak into a new one.
+            const nextKitFamilies = {};
+            const wanted = new Set(urls);
+            for (const [url, fams] of Object.entries(state.kitFamilies)) {
+                if (wanted.has(url))
+                    nextKitFamilies[url] = fams;
+            }
+            return {
+                projectFonts: [...families],
+                projectFontUrls: [...urls],
+                kitFamilies: nextKitFamilies,
+            };
         });
+    },
+    setKitFamilies: (url, families) => {
+        set((state) => ({
+            kitFamilies: { ...state.kitFamilies, [url]: [...families] },
+        }));
     },
     loadSystemFonts: async () => {
         // Guard against double-load — `App.tsx` fires this on mount; a

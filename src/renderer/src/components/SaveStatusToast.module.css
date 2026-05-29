@@ -1,0 +1,67 @@
+/* Positioned just below the toolbar, centered horizontally. Stays
+ * narrow so it doesn't obscure the canvas. Z-index sits above
+ * canvas chrome but below modal dialogs. */
+.toast {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 480px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  animation: slideDown 180ms ease-out;
+}
+
+.glyph {
+  color: var(--status-warn);
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+}
+
+.dismiss {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+.dismiss:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

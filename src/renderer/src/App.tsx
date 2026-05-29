@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { SentryOptInPrompt } from './components/SentryOptInPrompt';
 import { initSyncBridge } from './syncBridge';
 import { useFontsStore } from '@store/fontsSlice';
+import { useTerminalActivityStore } from '@store/terminalActivitySlice';
 import type { ProjectData } from '@shared/types';
 
 type View = 'start' | 'project' | 'settings';
@@ -54,6 +55,25 @@ export const App = (): JSX.Element => {
 
   useEffect(() => {
     return initSyncBridge();
+  }, []);
+
+  // Phase 4.2: keep the terminal-activity slice in sync with main's
+  // pty foreground-process events. The sync bridge subscribes to
+  // this slice and pauses canvas writes when an agent is detected
+  // running in any of Scamp's integrated terminals.
+  useEffect(() => {
+    const offForeground = window.scamp.onTerminalForegroundProcess(
+      ({ id, processName }) => {
+        useTerminalActivityStore.getState().setForeground(id, processName);
+      }
+    );
+    const offExit = window.scamp.onTerminalExit(({ id }) => {
+      useTerminalActivityStore.getState().removeTerminal(id);
+    });
+    return () => {
+      offForeground();
+      offExit();
+    };
   }, []);
 
   // When the file watcher reports that a page-file appeared or

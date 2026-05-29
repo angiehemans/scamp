@@ -49,8 +49,17 @@ type FontsState = {
    * slice itself.
    */
   projectFonts: ReadonlyArray<string>;
-  /** Raw Google Fonts `@import` URLs the project tracks. */
+  /** Raw `@import` URLs (Google Fonts or Adobe Fonts) the project tracks. */
   projectFontUrls: ReadonlyArray<string>;
+  /**
+   * Cache of family names resolved per stored URL. Google Fonts URLs
+   * encode their families in `?family=` params and are resolved
+   * synchronously at add time; Adobe Fonts kit URLs are opaque, so
+   * we fetch the kit's CSS and cache the result here keyed by URL.
+   * On project re-open the resolver re-fetches Adobe entries (the
+   * network can change) and overwrites stale cache entries.
+   */
+  kitFamilies: Record<string, ReadonlyArray<string>>;
   loadSystemFonts: () => Promise<void>;
   /**
    * Re-run the local-font enumeration regardless of whether the
@@ -63,6 +72,9 @@ type FontsState = {
     families: ReadonlyArray<string>;
     urls: ReadonlyArray<string>;
   }) => void;
+  /** Record a kit's resolved family list. Used by the Adobe Fonts
+   *  resolver after a successful fetch. */
+  setKitFamilies: (url: string, families: ReadonlyArray<string>) => void;
 };
 
 export const useFontsStore = create<FontsState>((set, get) => ({
@@ -70,11 +82,28 @@ export const useFontsStore = create<FontsState>((set, get) => ({
   systemFontsLoaded: false,
   projectFonts: [],
   projectFontUrls: [],
+  kitFamilies: {},
   setProjectFonts: ({ families, urls }) => {
-    set({
-      projectFonts: [...families],
-      projectFontUrls: [...urls],
+    set((state) => {
+      // Drop cache entries whose URL is no longer present. Stale
+      // entries are harmless but accumulating them across sessions
+      // would let an old project's kits leak into a new one.
+      const nextKitFamilies: Record<string, ReadonlyArray<string>> = {};
+      const wanted = new Set(urls);
+      for (const [url, fams] of Object.entries(state.kitFamilies)) {
+        if (wanted.has(url)) nextKitFamilies[url] = fams;
+      }
+      return {
+        projectFonts: [...families],
+        projectFontUrls: [...urls],
+        kitFamilies: nextKitFamilies,
+      };
     });
+  },
+  setKitFamilies: (url, families) => {
+    set((state) => ({
+      kitFamilies: { ...state.kitFamilies, [url]: [...families] },
+    }));
   },
   loadSystemFonts: async () => {
     // Guard against double-load — `App.tsx` fires this on mount; a

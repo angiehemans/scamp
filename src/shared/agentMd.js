@@ -66,6 +66,34 @@ files. Anything you write here is parsed and re-rendered on the canvas.
 | Comments and blank lines inside CSS class blocks | Preserved on round-trips so long as the class block isn't being rewritten by a canvas edit. |
 | Loose text fragments and unclassed JSX (\`<br>\`, \`<strong>\`, raw text) inside a Scamp element | Preserved in source order in the TSX and rendered. NOT manipulable from the canvas — they appear as a "Raw" group in the layers panel. |
 
+## Editing alongside Scamp (safe to do)
+
+Scamp's bidirectional sync is designed for an agent and the canvas
+to coexist. When you (or any external editor — Claude Code, vim, an
+IDE) write to a project file while Scamp is open, Scamp pauses its
+own canvas-driven writes until your edits settle. You don't need to
+close Scamp to make a change.
+
+Concretely:
+
+- The moment Scamp's file watcher sees an external write, the sync
+  engine enters a paused state. The toolbar indicator turns blue
+  and reads "Paused."
+- Subsequent writes from the same agent (typical: 2-5 in a row as
+  the agent iterates) extend the pause window. Scamp waits until
+  ~2.5s after the last external write before resuming.
+- If the user kept editing the canvas during the pause, Scamp shows
+  a "Diverged" state when the pause clears. The user picks Save
+  canvas (force overwrite disk) or Discard canvas (reload from
+  disk). The agent's writes are NEVER silently overwritten.
+- If Scamp's integrated terminal hosts the agent process (Linux /
+  macOS), Scamp also pauses as soon as the agent process starts —
+  even before the first write — so the first write never races.
+
+What this means for the agent: write naturally, save when you're
+done with a logical change, and don't worry about Scamp's canvas
+state. Scamp will catch up.
+
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
@@ -585,7 +613,9 @@ round-trips verbatim but isn't editable from the panel.
 The project includes a \`theme.css\` file with five sections:
 
 1. **Font imports** — optional \`@import url(...)\` lines at the top
-   referencing Google Fonts. Scamp's Fonts panel manages these.
+   referencing Google Fonts (\`fonts.googleapis.com\`) or Adobe Fonts
+   kits (\`use.typekit.net/<kit-id>.css\`). Scamp's Fonts panel
+   manages these.
 2. **Design tokens** — CSS custom properties inside \`:root\`. Includes
    a \`--font-sans\` stack used as the page-wide default font.
 3. **Box-sizing reset** — a universal \`*, *::before, *::after { box-sizing: border-box; }\`
@@ -1007,6 +1037,34 @@ Scamp without any reorganisation.
 | A \`@media\` block with \`min-width\`, non-pixel units, or a width that doesn't match a project breakpoint | Preserved verbatim at the bottom of the file but not interpreted by the canvas. |
 | Comments and blank lines inside CSS class blocks | Preserved on round-trips so long as the class block isn't being rewritten by a canvas edit. |
 | Loose text fragments and unclassed JSX (\`<br>\`, \`<strong>\`, raw text) inside a Scamp element | Preserved in source order in the TSX and rendered. NOT manipulable from the canvas — they appear as a "Raw" group in the layers panel. |
+
+## Editing alongside Scamp (safe to do)
+
+Scamp's bidirectional sync is designed for an agent and the canvas
+to coexist. When you (or any external editor — Claude Code, vim, an
+IDE) write to a project file while Scamp is open, Scamp pauses its
+own canvas-driven writes until your edits settle. You don't need to
+close Scamp to make a change.
+
+Concretely:
+
+- The moment Scamp's file watcher sees an external write, the sync
+  engine enters a paused state. The toolbar indicator turns blue
+  and reads "Paused."
+- Subsequent writes from the same agent (typical: 2-5 in a row as
+  the agent iterates) extend the pause window. Scamp waits until
+  ~2.5s after the last external write before resuming.
+- If the user kept editing the canvas during the pause, Scamp shows
+  a "Diverged" state when the pause clears. The user picks Save
+  canvas (force overwrite disk) or Discard canvas (reload from
+  disk). The agent's writes are NEVER silently overwritten.
+- If Scamp's integrated terminal hosts the agent process (Linux /
+  macOS), Scamp also pauses as soon as the agent process starts —
+  even before the first write — so the first write never races.
+
+What this means for the agent: write naturally, save when you're
+done with a logical change, and don't worry about Scamp's canvas
+state. Scamp will catch up.
 
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element.
@@ -1553,7 +1611,9 @@ round-trips verbatim but isn't editable from the panel.
 The project includes an \`app/theme.css\` file with two sections:
 
 1. **Font imports** — optional \`@import url(...)\` lines at the top
-   referencing Google Fonts. Scamp's Fonts panel manages these.
+   referencing Google Fonts (\`fonts.googleapis.com\`) or Adobe Fonts
+   kits (\`use.typekit.net/<kit-id>.css\`). Scamp's Fonts panel
+   manages these.
 2. **Design tokens** — CSS custom properties inside \`:root\`.
 
 \`\`\`css

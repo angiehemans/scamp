@@ -11,7 +11,7 @@ import { promises as fs } from 'fs';
  * that don't care (export, scaffolds, migrate) pass them as
  * undefined; this short-circuits to `null` immediately.
  *
- * see docs/known-issues.md — "Concurrent-write race".
+ * see docs/notes/agent-coexistence.md — concurrent-write race.
  */
 
 /** Read a path that may not exist; missing → empty string. */

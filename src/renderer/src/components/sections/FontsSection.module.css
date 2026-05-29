@@ -72,7 +72,7 @@
 
 .listItem {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
   padding: 10px 12px;
   background: var(--bg-surface);
@@ -88,7 +88,6 @@
 .listItemFamilies {
   font-size: 13px;
   color: var(--text-primary);
-  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -118,4 +117,20 @@
 .removeButton:hover {
   color: var(--status-error);
   border-color: var(--status-error);
+}
+
+/* Provider tag — small label next to each row clarifying which
+ * service the family comes from. Helps when a family with the same
+ * name exists on both providers, and when debugging removal that
+ * doesn't behave as expected (Adobe kits are atomic). */
+.providerTag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
 }
