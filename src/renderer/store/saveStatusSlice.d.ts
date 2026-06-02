@@ -47,11 +47,14 @@ export type SaveState = {
      */
     kind: 'paused';
     /**
-     * Which project file most recently triggered the pause. The
-     * indicator names it in the popover so the user knows which
-     * external editor activity Scamp is deferring to.
+     * Which signal is keeping the bridge paused:
+     *   - `external-edit` — chokidar saw a project file change.
+     *   - `agent-terminal` — auto-detected agent in an integrated terminal.
+     *   - `manual` — user clicked the "Pause sync" toolbar button.
+     * The indicator's popover differentiates the three so the user
+     * knows what to do (wait for the agent / click resume / etc.).
      */
-    reason: 'external-edit' | 'agent-terminal';
+    reason: 'external-edit' | 'agent-terminal' | 'manual';
 } | {
     /**
      * Sync engine is back online but the canvas's in-memory state
@@ -115,11 +118,12 @@ type SaveStatusState = {
     markClean: () => void;
     /**
      * Sync engine deferring writes because something external is
-     * editing project files. Idempotent — repeated calls just refresh
-     * the reason. Only transitions from `saved` / `unsaved` (we don't
-     * stomp `saving` / `error` / existing `paused`).
+     * editing project files (or the user manually paused). Idempotent
+     * — repeated calls just refresh the reason. Only transitions from
+     * `saved` / `unsaved` (we don't stomp `saving` / `error` /
+     * existing `paused`).
      */
-    markPaused: (reason: 'external-edit' | 'agent-terminal') => void;
+    markPaused: (reason: 'external-edit' | 'agent-terminal' | 'manual') => void;
     /**
      * Pause cleared. If the canvas's in-memory state differs from disk,
      * transition to `diverged` (carrying the attempt for a `Save canvas`

@@ -1,3 +1,4 @@
+import { spaceTupleEquals } from './spaceValue';
 /**
  * Per-tag overrides for properties whose browser UA-stylesheet
  * default differs from Scamp's universal `[0, 0, 0, 0]`. Without
@@ -25,9 +26,7 @@ export const TAG_PADDING_DEFAULTS = {
     ol: [0, 0, 0, 40],
     dd: [0, 0, 0, 40],
 };
-export const ZERO_PADDING = [
-    0, 0, 0, 0,
-];
+export const ZERO_PADDING = [0, 0, 0, 0];
 /**
  * Effective padding default for an element of `tag`. Tags absent
  * from the override map use the universal `[0, 0, 0, 0]`.
@@ -37,5 +36,6 @@ export const getTagDefaultPadding = (tag) => {
         return ZERO_PADDING;
     return TAG_PADDING_DEFAULTS[tag] ?? ZERO_PADDING;
 };
-/** Byte-equality on the four-tuple. */
-export const paddingEquals = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+/** Byte-equality on the four-tuple. Delegates to `spaceTupleEquals`
+ *  so token-form values compare structurally. */
+export const paddingEquals = (a, b) => spaceTupleEquals(a, b);

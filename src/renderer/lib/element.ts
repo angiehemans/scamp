@@ -4,6 +4,8 @@
  * operate on a flat `Record<string, ScampElement>` keyed by id.
  */
 
+import type { SpaceValue, SpaceTuple } from './spaceValue';
+
 export type WidthMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 
@@ -417,20 +419,23 @@ export type ScampElement = {
   // Layout (as container)
   display: DisplayMode;
   flexDirection: FlexDirection;
-  gap: number;
+  /** Stored as either px (number) or a `var(--token)` reference.
+   *  See `spaceValue.ts` for the union shape and helpers. */
+  gap: SpaceValue;
   alignItems: AlignItems;
   justifyContent: JustifyContent;
 
   /**
    * Grid-only container fields. Free-text template strings (so
    * `repeat(3, 1fr)`, `auto-fill`, `minmax(...)`, etc. round-trip
-   * unmolested) and per-axis gaps in pixels. `justifyItems` is grid-
-   * only — flex uses `justifyContent` for the same axis.
+   * unmolested) and per-axis gaps. Per-axis gaps share the `SpaceValue`
+   * shape — px or `var(--token)`. `justifyItems` is grid-only — flex
+   * uses `justifyContent` for the same axis.
    */
   gridTemplateColumns: string;
   gridTemplateRows: string;
-  columnGap: number;
-  rowGap: number;
+  columnGap: SpaceValue;
+  rowGap: SpaceValue;
   justifyItems: GridSelfAlign;
 
   /**
@@ -443,8 +448,10 @@ export type ScampElement = {
   alignSelf: GridSelfAlign;
   justifySelf: GridSelfAlign;
 
-  padding: [number, number, number, number];
-  margin: [number, number, number, number];
+  /** Per-side `[top, right, bottom, left]`. Each side is a
+   *  `SpaceValue` — px or `var(--token)`. See `spaceValue.ts`. */
+  padding: SpaceTuple;
+  margin: SpaceTuple;
 
   /**
    * Optional CSS `min-height` as a free-form string (so `100vh`,
@@ -459,8 +466,11 @@ export type ScampElement = {
 
   // Appearance
   backgroundColor: string;
-  borderRadius: [number, number, number, number];
-  borderWidth: [number, number, number, number];
+  /** Corner radii `[TL, TR, BR, BL]`. Each is a `SpaceValue`. */
+  borderRadius: SpaceTuple;
+  /** Per-side border widths `[top, right, bottom, left]`. Each is
+   *  a `SpaceValue`. */
+  borderWidth: SpaceTuple;
   borderStyle: BorderStyle;
   borderColor: string;
 

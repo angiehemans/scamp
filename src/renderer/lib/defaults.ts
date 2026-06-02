@@ -1,4 +1,5 @@
 import type { BoxShadowDef, FilterDef, PropertyGroup } from './element';
+import type { SpaceTuple } from './spaceValue';
 
 /**
  * Default style values applied to every newly-created rectangle.
@@ -23,15 +24,15 @@ export const DEFAULT_RECT_STYLES = {
   gridRow: '',
   alignSelf: 'stretch' as const,
   justifySelf: 'stretch' as const,
-  padding: [0, 0, 0, 0] as [number, number, number, number],
-  margin: [0, 0, 0, 0] as [number, number, number, number],
+  padding: [0, 0, 0, 0] as SpaceTuple,
+  margin: [0, 0, 0, 0] as SpaceTuple,
   widthMode: 'fixed' as const,
   widthValue: 100,
   heightMode: 'fixed' as const,
   heightValue: 100,
   backgroundColor: 'transparent',
-  borderRadius: [0, 0, 0, 0] as [number, number, number, number],
-  borderWidth: [0, 0, 0, 0] as [number, number, number, number],
+  borderRadius: [0, 0, 0, 0] as SpaceTuple,
+  borderWidth: [0, 0, 0, 0] as SpaceTuple,
   borderStyle: 'none' as const,
   borderColor: '#000000',
   opacity: 1,
@@ -89,8 +90,8 @@ export const DEFAULT_ROOT_STYLES = {
   gridRow: '',
   alignSelf: 'stretch' as const,
   justifySelf: 'stretch' as const,
-  padding: [0, 0, 0, 0] as [number, number, number, number],
-  margin: [0, 0, 0, 0] as [number, number, number, number],
+  padding: [0, 0, 0, 0] as SpaceTuple,
+  margin: [0, 0, 0, 0] as SpaceTuple,
   widthMode: 'stretch' as const,
   widthValue: 1440,
   heightMode: 'auto' as const,
@@ -104,8 +105,8 @@ export const DEFAULT_ROOT_STYLES = {
    */
   minHeight: '100vh' as string,
   backgroundColor: '#ffffff',
-  borderRadius: [0, 0, 0, 0] as [number, number, number, number],
-  borderWidth: [0, 0, 0, 0] as [number, number, number, number],
+  borderRadius: [0, 0, 0, 0] as SpaceTuple,
+  borderWidth: [0, 0, 0, 0] as SpaceTuple,
   borderStyle: 'none' as const,
   borderColor: '#000000',
   opacity: 1,

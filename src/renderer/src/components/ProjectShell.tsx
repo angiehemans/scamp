@@ -49,6 +49,7 @@ import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { SaveStatusToast } from './SaveStatusToast';
+import { useTerminalActivityStore } from '@store/terminalActivitySlice';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
@@ -385,6 +386,9 @@ export const ProjectShell = ({
       // Clear when the project unmounts so a stale project's fonts
       // don't linger in the picker.
       useFontsStore.getState().setProjectFonts({ families: [], urls: [] });
+      // Reset the user's sync intent so a manual pause or override
+      // from one project doesn't bleed into the next.
+      useTerminalActivityStore.getState().setUserIntent('auto');
     };
   }, [project.path]);
 
@@ -540,8 +544,27 @@ export const ProjectShell = ({
     void window.scamp.openPreview({
       projectPath: projectPathForPreview,
       pageName: activePageName,
+      pageNames: project.pages.map((p) => p.name),
     });
-  }, [canPreview, projectPathForPreview, activePageName]);
+  }, [canPreview, projectPathForPreview, activePageName, project.pages]);
+
+  // Push page-list updates to an already-open preview window so the
+  // URL-bar dropdown stays current as the user adds / renames /
+  // deletes pages in the canvas. No-op when preview isn't open —
+  // main bails on a missing window for this project.
+  useEffect(() => {
+    if (!canPreview || activePageName === null) return;
+    void window.scamp.updatePreview({
+      projectPath: projectPathForPreview,
+      pageName: activePageName,
+      pageNames: project.pages.map((p) => p.name),
+    });
+  }, [
+    canPreview,
+    projectPathForPreview,
+    activePageName,
+    project.pages,
+  ]);
 
   // Global keyboard shortcuts. We deliberately read store state inside the
   // handler (rather than via React state captured in deps) so the listener

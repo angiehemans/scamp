@@ -75,6 +75,14 @@ export const IPC = {
   PreviewGetStatus: 'preview:getStatus',
   PreviewStatusChanged: 'preview:statusChanged',
   PreviewNavigate: 'preview:navigate',
+  /**
+   * Renderer → main: push an updated page list / active page to an
+   * already-open preview window. No-op when no preview is open for
+   * the project (won't spawn one). Used so the dropdown stays
+   * accurate when the user creates / renames / deletes a page in the
+   * canvas while preview is open.
+   */
+  PreviewUpdate: 'preview:update',
   PreviewRestart: 'preview:restart',
 
   // Terminal (renderer ↔ main)

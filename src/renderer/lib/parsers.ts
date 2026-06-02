@@ -14,6 +14,7 @@ import type {
   TransitionDef,
   WidthMode,
 } from './element';
+import { tokenSpaceValue, type SpaceTuple, type SpaceValue } from './spaceValue';
 
 /**
  * Parse a `123px` (or bare number) into an integer. Returns 0 for empty
@@ -378,18 +379,23 @@ export const formatTransitionShorthand = (
 // The classic `parsePx` / `parsePaddingShorthand` / `parseBorderRadiusShorthand`
 // helpers return 0 / [0,0,0,0] for any input they can't interpret, which
 // is convenient for typed canvas state but lossy when an agent has
-// written something Scamp doesn't model — `padding: var(--space-4)`,
-// `border-radius: 50%`, `padding: 16px var(--inline)`, etc.
+// written something Scamp doesn't model — `padding: 50%`,
+// `border-radius: 1.5em`, `padding: 16px auto`, etc.
 //
 // These refusable variants return `null` instead so the cssPropertyMap
 // can detect "Scamp can't reduce this to typed fields" and fall through
 // to `customProperties` with the raw declaration intact. The original
 // helpers stay put for callers that need a non-null number.
+//
+// `var(--token)` references ARE accepted — they round-trip through
+// the typed shape as `{ kind: 'token', ref: 'var(--name)' }` rather
+// than falling to customProperties. See `spaceValue.ts`.
 
 /**
  * Like `parsePx` but returns `null` for non-px tokens (so callers can
- * preserve `var()`, `%`, `rem`, etc. by falling through to
- * customProperties).
+ * preserve `%`, `rem`, `em`, `auto`, etc. by falling through to
+ * customProperties). Plain numbers (no unit), bare zero, and `Npx`
+ * all parse to a number.
  */
 export const parsePxOrNull = (raw: string): number | null => {
   if (typeof raw !== 'string') return null;
@@ -401,49 +407,88 @@ export const parsePxOrNull = (raw: string): number | null => {
 };
 
 /**
- * Refusable variant of `parsePaddingShorthand`. Returns `null` if any
- * token is non-px (`var()`, `%`, `rem`, `auto`, …) so the caller can
- * preserve the declaration verbatim.
+ * Match a `var(--name)` or `var(--name, fallback)` reference. Returns
+ * the full source string (including the `var(` wrapper and any
+ * fallback) so the generator can round-trip it byte-for-byte. Anything
+ * else returns `null`.
+ *
+ * We accept fallbacks because they're valid CSS and agents do write
+ * them occasionally. The fallback is preserved verbatim — Scamp
+ * doesn't try to resolve or split it.
+ */
+const VAR_TOKEN_RE = /^var\(\s*--[A-Za-z_][\w-]*(?:\s*,[^)]*)?\)$/;
+
+export const parseVarTokenOrNull = (raw: string): string | null => {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  if (!VAR_TOKEN_RE.test(trimmed)) return null;
+  return trimmed;
+};
+
+/**
+ * Parse a single spacing token — either px (returns `number`) or
+ * `var(--name)` (returns the token discriminated form). Anything
+ * else returns `null` so the caller can refuse the whole shorthand.
+ */
+export const parseSpaceValueOrNull = (raw: string): SpaceValue | null => {
+  const px = parsePxOrNull(raw);
+  if (px !== null) return px;
+  const ref = parseVarTokenOrNull(raw);
+  if (ref !== null) return tokenSpaceValue(ref);
+  return null;
+};
+
+/**
+ * Refusable variant of `parsePaddingShorthand` that returns a
+ * `SpaceTuple` (each side is px or `var()`). Returns `null` if any
+ * token isn't accepted by `parseSpaceValueOrNull` — keeping declarations
+ * with `%`, `rem`, `auto`, etc. flowing into customProperties.
+ *
+ * Tokens are split on whitespace OUTSIDE parens so values like
+ * `var(--a, 16px) var(--b)` parse correctly without splitting the
+ * fallback's internal comma-space.
  */
 export const parsePaddingShorthandOrNull = (
   raw: string
-): [number, number, number, number] | null => {
+): SpaceTuple | null => {
   if (typeof raw !== 'string') return null;
-  const tokens = raw.trim().split(/\s+/).filter((t) => t.length > 0);
+  const tokens = tokenizeBorder(raw.trim());
   if (tokens.length === 0) return null;
-  const v: number[] = [];
+  const v: SpaceValue[] = [];
   for (const tok of tokens) {
-    const n = parsePxOrNull(tok);
-    if (n === null) return null;
-    v.push(n);
+    const s = parseSpaceValueOrNull(tok);
+    if (s === null) return null;
+    v.push(s);
   }
   if (v.length === 1) {
-    const [a] = v as [number];
+    const [a] = v as [SpaceValue];
     return [a, a, a, a];
   }
   if (v.length === 2) {
-    const [a, b] = v as [number, number];
+    const [a, b] = v as [SpaceValue, SpaceValue];
     return [a, b, a, b];
   }
   if (v.length === 3) {
-    const [a, b, c] = v as [number, number, number];
+    const [a, b, c] = v as [SpaceValue, SpaceValue, SpaceValue];
     return [a, b, c, b];
   }
   if (v.length === 4) {
-    const [a, b, c, d] = v as [number, number, number, number];
+    const [a, b, c, d] = v as [SpaceValue, SpaceValue, SpaceValue, SpaceValue];
     return [a, b, c, d];
   }
   return null;
 };
 
 /**
- * Refusable variant of `parseBorderRadiusShorthand`. Anything other
- * than 1–4 px tokens (e.g. `50%`, `var()`) → returns null so the raw
- * declaration round-trips via customProperties.
+ * Refusable variant of `parseBorderRadiusShorthand`. 1-4 px or var()
+ * tokens are accepted; anything else (`50%`, `1.5em`, the elliptical
+ * slash form) returns null so the raw declaration round-trips via
+ * customProperties.
  */
 export const parseBorderRadiusShorthandOrNull = (
   raw: string
-): [number, number, number, number] | null => {
+): SpaceTuple | null => {
   if (typeof raw !== 'string') return null;
   // Reject elliptical-corner shorthand entirely so the slash form
   // round-trips verbatim instead of being silently truncated.

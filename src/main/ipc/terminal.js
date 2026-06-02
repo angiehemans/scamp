@@ -73,9 +73,14 @@ const createTerminal = (args) => {
  * platforms that don't expose the necessary syscalls (Phase 4.4).
  */
 const startForegroundPolling = (term) => {
-    if (!supportsForegroundDetection())
+    if (!supportsForegroundDetection()) {
+        // eslint-disable-next-line no-console
+        console.log(`[terminal] foreground detection unsupported on ${process.platform} — sync auto-pause disabled for this pty.`);
         return;
+    }
     const baseName = shellBaseName(defaultShell());
+    // eslint-disable-next-line no-console
+    console.log(`[terminal ${term.id}] starting foreground polling (shell pid=${term.proc.pid}, baseName=${baseName})`);
     const tick = async () => {
         // The process may have exited between ticks.
         if (!terminals.has(term.id))
@@ -84,6 +89,8 @@ const startForegroundPolling = (term) => {
         if (next === term.lastForeground)
             return;
         term.lastForeground = next;
+        // eslint-disable-next-line no-console
+        console.log(`[terminal ${term.id}] foreground changed → ${next ?? '(idle shell)'}`);
         const win = findWindow();
         if (!win)
             return;

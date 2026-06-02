@@ -34,8 +34,15 @@ describe('cssToScampProperty', () => {
     it('refuses elliptical-corner shorthand (preserved via customProperties)', () => {
       expect(apply('border-radius', '10px / 20px')).toBeNull();
     });
-    it('refuses var()-based values', () => {
-      expect(apply('border-radius', 'var(--radius-md)')).toBeNull();
+    it('accepts var()-based values into a token-form tuple', () => {
+      expect(apply('border-radius', 'var(--radius-md)')).toEqual({
+        borderRadius: [
+          { kind: 'token', ref: 'var(--radius-md)' },
+          { kind: 'token', ref: 'var(--radius-md)' },
+          { kind: 'token', ref: 'var(--radius-md)' },
+          { kind: 'token', ref: 'var(--radius-md)' },
+        ],
+      });
     });
   });
 
@@ -75,8 +82,14 @@ describe('cssToScampProperty', () => {
     it('parses px', () => {
       expect(apply('gap', '16px')).toEqual({ gap: 16 });
     });
-    it('refuses var()-based values', () => {
-      expect(apply('gap', 'var(--space-3)')).toBeNull();
+    it('accepts var()-based values as a token-form SpaceValue', () => {
+      expect(apply('gap', 'var(--space-3)')).toEqual({
+        gap: { kind: 'token', ref: 'var(--space-3)' },
+      });
+    });
+    it('still refuses unsupported units (rem, %, etc.)', () => {
+      expect(apply('gap', '1rem')).toBeNull();
+      expect(apply('gap', '50%')).toBeNull();
     });
   });
 
@@ -224,8 +237,15 @@ describe('cssToScampProperty', () => {
     it('refuses unsupported border-style values', () => {
       expect(apply('border-style', 'double')).toBeNull();
     });
-    it('refuses var()-based border-width', () => {
-      expect(apply('border-width', 'var(--border-thin)')).toBeNull();
+    it('accepts var()-based border-width into a token-form tuple', () => {
+      expect(apply('border-width', 'var(--border-thin)')).toEqual({
+        borderWidth: [
+          { kind: 'token', ref: 'var(--border-thin)' },
+          { kind: 'token', ref: 'var(--border-thin)' },
+          { kind: 'token', ref: 'var(--border-thin)' },
+          { kind: 'token', ref: 'var(--border-thin)' },
+        ],
+      });
     });
   });
 
@@ -409,12 +429,38 @@ describe('cssToScampProperty', () => {
     it('parses 4-value shorthand', () => {
       expect(apply('padding', '1px 2px 3px 4px')).toEqual({ padding: [1, 2, 3, 4] });
     });
-    it('refuses var()-based values (preserved via customProperties)', () => {
-      expect(apply('padding', 'var(--space-3)')).toBeNull();
-      expect(apply('padding', 'var(--space-3) var(--space-5)')).toBeNull();
+    it('accepts var()-based values into a token-form tuple', () => {
+      const ref = (r: string) => ({ kind: 'token' as const, ref: r });
+      expect(apply('padding', 'var(--space-3)')).toEqual({
+        padding: [
+          ref('var(--space-3)'),
+          ref('var(--space-3)'),
+          ref('var(--space-3)'),
+          ref('var(--space-3)'),
+        ],
+      });
+      expect(apply('padding', 'var(--space-3) var(--space-5)')).toEqual({
+        padding: [
+          ref('var(--space-3)'),
+          ref('var(--space-5)'),
+          ref('var(--space-3)'),
+          ref('var(--space-5)'),
+        ],
+      });
     });
-    it('refuses mixed px + var() shorthand', () => {
-      expect(apply('padding', '16px var(--inline-pad)')).toBeNull();
+    it('accepts mixed px + var() shorthand', () => {
+      expect(apply('padding', '16px var(--inline-pad)')).toEqual({
+        padding: [
+          16,
+          { kind: 'token', ref: 'var(--inline-pad)' },
+          16,
+          { kind: 'token', ref: 'var(--inline-pad)' },
+        ],
+      });
+    });
+    it('still refuses non-px non-var units (rem, %, auto)', () => {
+      expect(apply('padding', '1rem')).toBeNull();
+      expect(apply('padding', '50%')).toBeNull();
     });
   });
 
@@ -434,8 +480,15 @@ describe('cssToScampProperty', () => {
     it('refuses empty input', () => {
       expect(apply('margin', '')).toBeNull();
     });
-    it('refuses var()-based values', () => {
-      expect(apply('margin', 'var(--space-2)')).toBeNull();
+    it('accepts var()-based values into a token-form tuple', () => {
+      expect(apply('margin', 'var(--space-2)')).toEqual({
+        margin: [
+          { kind: 'token', ref: 'var(--space-2)' },
+          { kind: 'token', ref: 'var(--space-2)' },
+          { kind: 'token', ref: 'var(--space-2)' },
+          { kind: 'token', ref: 'var(--space-2)' },
+        ],
+      });
     });
   });
 

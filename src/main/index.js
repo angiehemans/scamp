@@ -13,7 +13,7 @@ import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
 import { registerExportIpc } from './ipc/export';
 import { registerPreviewIpc } from './ipc/preview';
-import { closeAllPreviewWindows, closePreviewWindow, openPreviewWindow, } from './previewWindow';
+import { closeAllPreviewWindows, closePreviewWindow, openPreviewWindow, updatePreviewWindow, } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher } from './watcher';
 import { initSentryIfOptedIn, setSentryEnabled } from './sentry';
@@ -162,6 +162,7 @@ app.whenReady().then(() => {
     registerPreviewIpc({
         open: openPreviewWindow,
         close: closePreviewWindow,
+        update: updatePreviewWindow,
     });
     registerTestIpc();
     // Sentry opt-in toggle — called from the renderer when the

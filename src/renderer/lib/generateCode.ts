@@ -12,6 +12,12 @@ import {
   type StateOverride,
 } from './element';
 import {
+  formatSpaceShorthand,
+  formatSpaceValue,
+  isZeroSpaceTuple,
+  spaceValueEquals,
+} from './spaceValue';
+import {
   formatAnimationShorthand,
   formatBoxShadowShorthand,
   formatFilterList,
@@ -472,7 +478,16 @@ const generateTsx = (
  */
 export const elementDeclarationLines = (
   el: ScampElement,
-  parent?: ScampElement | null
+  parent?: ScampElement | null,
+  /**
+   * When true, this element has at least one descendant that will
+   * be `position: absolute` and would otherwise escape to a remote
+   * ancestor's positioning context (or all the way to `.root`).
+   * We emit `position: relative` here so the descendant anchors
+   * locally — even when `el.position === 'auto'` would normally
+   * emit nothing. See `computeElementsNeedingPositioningContext`.
+   */
+  mustEstablishPositioningContext: boolean = false
 ): string[] => {
   const lines: string[] = [];
   // Buffer for declarations routed into toggled-off group comment
@@ -572,11 +587,11 @@ export const elementDeclarationLines = (
       if (el.gridTemplateRows.trim().length > 0) {
         lines.push(`grid-template-rows: ${el.gridTemplateRows};`);
       }
-      if (el.columnGap !== BASE.columnGap) {
-        lines.push(`column-gap: ${el.columnGap}px;`);
+      if (!spaceValueEquals(el.columnGap, BASE.columnGap)) {
+        lines.push(`column-gap: ${formatSpaceValue(el.columnGap)};`);
       }
-      if (el.rowGap !== BASE.rowGap) {
-        lines.push(`row-gap: ${el.rowGap}px;`);
+      if (!spaceValueEquals(el.rowGap, BASE.rowGap)) {
+        lines.push(`row-gap: ${formatSpaceValue(el.rowGap)};`);
       }
       if (el.alignItems !== BASE.alignItems) {
         lines.push(`align-items: ${el.alignItems};`);
@@ -591,8 +606,8 @@ export const elementDeclarationLines = (
       if (el.flexDirection !== BASE.flexDirection) {
         lines.push(`flex-direction: ${el.flexDirection};`);
       }
-      if (el.gap !== BASE.gap) {
-        lines.push(`gap: ${el.gap}px;`);
+      if (!spaceValueEquals(el.gap, BASE.gap)) {
+        lines.push(`gap: ${formatSpaceValue(el.gap)};`);
       }
       if (el.alignItems !== BASE.alignItems) {
         lines.push(`align-items: ${el.alignItems};`);
@@ -630,18 +645,18 @@ export const elementDeclarationLines = (
   // re-renders with the browser's 40px back in place.
   const tagPaddingDefault = getTagDefaultPadding(tagFor(el));
   if (!paddingEquals(el.padding, tagPaddingDefault)) {
-    const [pt, pr, pb, pl] = el.padding;
-    lines.push(`padding: ${pt}px ${pr}px ${pb}px ${pl}px;`);
+    lines.push(`padding: ${formatSpaceShorthand(el.padding)};`);
   }
 
   // Margin — skipped on root because the page frame doesn't sit inside
   // another box on disk, and an exported `.root { margin: ... }` would
   // collide with the user's body/app-shell layout.
-  if (!isRoot) {
-    const [mt, mr, mb, ml] = el.margin;
-    if (mt || mr || mb || ml) {
-      lines.push(`margin: ${mt}px ${mr}px ${mb}px ${ml}px;`);
-    }
+  //
+  // Skip emission when every side is plain-px zero. Token-form sides
+  // always emit even when they happen to be `var(--space-0)` — the
+  // user wrote that intentionally and we must round-trip it.
+  if (!isRoot && !isZeroSpaceTuple(el.margin)) {
+    lines.push(`margin: ${formatSpaceShorthand(el.margin)};`);
   }
 
   // Appearance — togglable groups route through `emit(group, …)`
@@ -650,16 +665,15 @@ export const elementDeclarationLines = (
   if (el.backgroundColor !== BASE.backgroundColor) {
     emit('background', `background: ${el.backgroundColor};`);
   }
-  const [tl, tr, br, bl] = el.borderRadius;
-  if (tl || tr || br || bl) {
-    emit('border', `border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
+  if (!isZeroSpaceTuple(el.borderRadius)) {
+    emit('border', `border-radius: ${formatSpaceShorthand(el.borderRadius)};`);
   }
-  const [bwt, bwr, bwb, bwl] = el.borderWidth;
-  const hasBorder = bwt || bwr || bwb || bwl ||
+  const hasBorder =
+    !isZeroSpaceTuple(el.borderWidth) ||
     el.borderStyle !== BASE.borderStyle ||
     el.borderColor !== BASE.borderColor;
   if (hasBorder) {
-    emit('border', `border-width: ${bwt}px ${bwr}px ${bwb}px ${bwl}px;`);
+    emit('border', `border-width: ${formatSpaceShorthand(el.borderWidth)};`);
     emit('border', `border-style: ${el.borderStyle};`);
     emit('border', `border-color: ${el.borderColor};`);
   }
@@ -746,6 +760,19 @@ export const elementDeclarationLines = (
       lines.push(`position: relative;`);
     } else if (!inLayoutParent) {
       lines.push(`position: absolute;`);
+      lines.push(`left: ${el.x}px;`);
+      lines.push(`top: ${el.y}px;`);
+    } else if (mustEstablishPositioningContext) {
+      // Element is laid out by its flex/grid parent (so it doesn't
+      // need its own position keyword for placement) BUT it contains
+      // absolute descendants that would otherwise escape to a
+      // remote ancestor. Establish a positioning context here.
+      //
+      // Emit the same `left`/`top` triple the explicit `relative`
+      // branch below does so round-trips stay text-stable: on parse,
+      // `el.position` flips from `'auto'` to `'relative'`, and every
+      // subsequent save lands byte-identical via the explicit branch.
+      lines.push(`position: relative;`);
       lines.push(`left: ${el.x}px;`);
       lines.push(`top: ${el.y}px;`);
     }
@@ -906,7 +933,7 @@ export const breakpointOverrideLines = (
     lines.push(`flex-direction: ${override.flexDirection};`);
   }
   if (has('gap') && override.gap !== undefined) {
-    lines.push(`gap: ${override.gap}px;`);
+    lines.push(`gap: ${formatSpaceValue(override.gap)};`);
   }
   if (has('alignItems') && override.alignItems) {
     lines.push(`align-items: ${override.alignItems};`);
@@ -928,10 +955,10 @@ export const breakpointOverrideLines = (
     lines.push(`grid-template-rows: ${v.length > 0 ? v : 'none'};`);
   }
   if (has('columnGap') && override.columnGap !== undefined) {
-    lines.push(`column-gap: ${override.columnGap}px;`);
+    lines.push(`column-gap: ${formatSpaceValue(override.columnGap)};`);
   }
   if (has('rowGap') && override.rowGap !== undefined) {
-    lines.push(`row-gap: ${override.rowGap}px;`);
+    lines.push(`row-gap: ${formatSpaceValue(override.rowGap)};`);
   }
   if (has('justifyItems') && override.justifyItems) {
     lines.push(`justify-items: ${override.justifyItems};`);
@@ -954,24 +981,20 @@ export const breakpointOverrideLines = (
   }
 
   if (has('padding') && override.padding) {
-    const [t, r, b, l] = override.padding;
-    lines.push(`padding: ${t}px ${r}px ${b}px ${l}px;`);
+    lines.push(`padding: ${formatSpaceShorthand(override.padding)};`);
   }
   if (has('margin') && override.margin) {
-    const [t, r, b, l] = override.margin;
-    lines.push(`margin: ${t}px ${r}px ${b}px ${l}px;`);
+    lines.push(`margin: ${formatSpaceShorthand(override.margin)};`);
   }
 
   if (has('backgroundColor') && override.backgroundColor !== undefined) {
     emit('background', `background: ${override.backgroundColor};`);
   }
   if (has('borderRadius') && override.borderRadius) {
-    const [tl, tr, br, bl] = override.borderRadius;
-    emit('border', `border-radius: ${tl}px ${tr}px ${br}px ${bl}px;`);
+    emit('border', `border-radius: ${formatSpaceShorthand(override.borderRadius)};`);
   }
   if (has('borderWidth') && override.borderWidth) {
-    const [t, r, b, l] = override.borderWidth;
-    emit('border', `border-width: ${t}px ${r}px ${b}px ${l}px;`);
+    emit('border', `border-width: ${formatSpaceShorthand(override.borderWidth)};`);
   }
   if (has('borderStyle') && override.borderStyle) {
     emit('border', `border-style: ${override.borderStyle};`);
@@ -1186,7 +1209,8 @@ const stateBlockFor = (
  */
 const elementCssChunks = (
   el: ScampElement,
-  parent: ScampElement | null
+  parent: ScampElement | null,
+  mustEstablishPositioningContext: boolean = false
 ): string[] => {
   // Component instances don't own a class block — their visual
   // styles live inside the component definition's own
@@ -1197,7 +1221,11 @@ const elementCssChunks = (
 
   const chunks: string[] = [];
 
-  const baseLines = elementDeclarationLines(el, parent);
+  const baseLines = elementDeclarationLines(
+    el,
+    parent,
+    mustEstablishPositioningContext
+  );
   const baseBody = baseLines.map((line) => line.length === 0 ? "" : `  ${line}`).join('\n');
   chunks.push(`.${classNameFor(el)} {\n${baseBody}\n}`);
 
@@ -1225,6 +1253,50 @@ const elementCssChunks = (
   return chunks;
 };
 
+/**
+ * Collect the set of element IDs that need to establish a positioning
+ * context (`position: relative` or similar) so their absolute-positioned
+ * descendants anchor locally instead of escaping to a remote ancestor.
+ *
+ * An element needs a positioning context iff at least one of its direct
+ * children will resolve to `position: absolute` in the output. A child
+ * resolves to absolute when:
+ *
+ *   - `child.position === 'absolute'` (explicit), OR
+ *   - `child.position === 'auto'` AND the parent isn't a flex/grid
+ *     container (the generator's own auto rule — non-layout-parent
+ *     auto children get absolute + left/top emitted).
+ *
+ * Root is always emitted with `position: relative` anyway, so it's
+ * excluded — caller's existing branch handles it.
+ *
+ * See agent.md "Editability — prefer typed properties" / Scamp's
+ * fallback positioning rules.
+ */
+const computeElementsNeedingPositioningContext = (
+  elements: Record<string, ScampElement>,
+  rootId: string
+): Set<string> => {
+  const needs = new Set<string>();
+  for (const el of Object.values(elements)) {
+    if (el.id === rootId) continue;
+    if (el.childIds.length === 0) continue;
+    const isLayoutParent = el.display === 'flex' || el.display === 'grid';
+    for (const childId of el.childIds) {
+      const child = elements[childId];
+      if (!child) continue;
+      const childResolvesAbsolute =
+        child.position === 'absolute' ||
+        (child.position === 'auto' && !isLayoutParent);
+      if (childResolvesAbsolute) {
+        needs.add(el.id);
+        break;
+      }
+    }
+  }
+  return needs;
+};
+
 const generateCss = (
   elements: Record<string, ScampElement>,
   rootId: string,
@@ -1233,12 +1305,16 @@ const generateCss = (
   pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>
 ): string => {
   const ordered = collectElementsDfs(elements, rootId);
+  const positioningContextIds = computeElementsNeedingPositioningContext(
+    elements,
+    rootId
+  );
 
   // Per-element chunks — each chunk is base + state blocks + raw
   // pseudo-class blocks, in DFS order.
   const elementBlocks = ordered.flatMap((el) => {
     const parent = el.parentId ? elements[el.parentId] ?? null : null;
-    return elementCssChunks(el, parent);
+    return elementCssChunks(el, parent, positioningContextIds.has(el.id));
   });
 
   // @keyframes blocks — emitted after per-element chunks but before

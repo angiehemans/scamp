@@ -1,69 +1,111 @@
 import { PrefixSuffixInput } from './PrefixSuffixInput';
-
-type FourSideValue = [number, number, number, number];
+import {
+  formatSpaceShorthand,
+  formatSpaceValue,
+  spaceTupleEquals,
+  spaceValueEquals,
+  type SpaceTuple,
+  type SpaceValue,
+} from '@lib/spaceValue';
 
 type Props = {
-  value: FourSideValue;
-  onChange: (next: FourSideValue) => void;
-  /** Minimum allowed per-side value (inclusive). */
+  value: SpaceTuple;
+  onChange: (next: SpaceTuple) => void;
+  /** Minimum allowed per-side numeric value (inclusive). Tokens
+   *  bypass this — they're emitted verbatim. */
   min?: number;
-  /** Inline prefix label shown inside the input (e.g. "P", "M", "W"). */
+  /** Inline prefix label shown inside the input (e.g. "P", "M"). */
   prefix?: string;
   /** Tooltip shown on hover. */
   title?: string;
 };
 
 /**
- * Parse a CSS-style shorthand string into a [top, right, bottom, left] tuple.
- * Accepts 1, 2, 3, or 4 values separated by spaces or commas.
- * Returns null if the input is invalid.
+ * Tokenise a shorthand string, respecting parens so values like
+ * `var(--a, 16px) 8` split into two tokens rather than four.
+ */
+const tokenize = (raw: string): string[] => {
+  const tokens: string[] = [];
+  let current = '';
+  let depth = 0;
+  for (const ch of raw) {
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth -= 1;
+    if (/[\s,]/.test(ch) && depth === 0) {
+      if (current.length > 0) tokens.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  if (current.length > 0) tokens.push(current);
+  return tokens;
+};
+
+const VAR_RE = /^var\(\s*--[A-Za-z_][\w-]*(?:\s*,[^)]*)?\)$/;
+
+const parseToken = (raw: string, min: number): SpaceValue | null => {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  if (VAR_RE.test(trimmed)) {
+    return { kind: 'token', ref: trimmed };
+  }
+  // Strip a trailing "px" if present, otherwise treat as a bare number.
+  const numeric = trimmed.replace(/px$/i, '');
+  const n = Number(numeric);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(min, Math.round(n));
+};
+
+/**
+ * Parse a CSS-style shorthand into a `SpaceTuple`. Accepts 1, 2, 3,
+ * or 4 tokens. Each token may be a plain number (clamped to `min`),
+ * an `Npx` value, or a `var(--name)` reference. Mixed forms are
+ * allowed (`16 var(--space-md)`). Returns `null` for any unparseable
+ * input so callers can revert on blur.
  */
 const parseShorthand = (
   raw: string,
   min: number
-): FourSideValue | null => {
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) return null;
-  const tokens = trimmed.split(/[\s,]+/).filter((t) => t.length > 0);
+): SpaceTuple | null => {
+  const tokens = tokenize(raw.trim());
   if (tokens.length === 0 || tokens.length > 4) return null;
 
-  const nums: number[] = [];
-  for (const token of tokens) {
-    const n = Number(token);
-    if (!Number.isFinite(n)) return null;
-    nums.push(Math.max(min, Math.round(n)));
+  const values: SpaceValue[] = [];
+  for (const t of tokens) {
+    const v = parseToken(t, min);
+    if (v === null) return null;
+    values.push(v);
   }
 
-  if (nums.length === 1) {
-    const [a] = nums as [number];
+  if (values.length === 1) {
+    const [a] = values as [SpaceValue];
     return [a, a, a, a];
   }
-  if (nums.length === 2) {
-    const [a, b] = nums as [number, number];
+  if (values.length === 2) {
+    const [a, b] = values as [SpaceValue, SpaceValue];
     return [a, b, a, b];
   }
-  if (nums.length === 3) {
-    const [a, b, c] = nums as [number, number, number];
+  if (values.length === 3) {
+    const [a, b, c] = values as [SpaceValue, SpaceValue, SpaceValue];
     return [a, b, c, b];
   }
-  const [a, b, c, d] = nums as [number, number, number, number];
+  const [a, b, c, d] = values as [SpaceValue, SpaceValue, SpaceValue, SpaceValue];
   return [a, b, c, d];
 };
 
-/** Format a tuple as a shorthand string, collapsing when sides match. */
-const toShorthand = (v: FourSideValue): string => {
-  const [t, r, b, l] = v;
-  if (t === r && r === b && b === l) return String(t);
-  if (t === b && r === l) return `${t} ${r}`;
-  return `${t} ${r} ${b} ${l}`;
+/** Increment a single side. Tokens stay tokens — arrows are a numeric
+ *  affordance, not a token-replace gesture. */
+const bumpSide = (v: SpaceValue, delta: number, min: number): SpaceValue => {
+  if (typeof v !== 'number') return v;
+  return Math.max(min, v + delta);
 };
-
-const tupleEq = (a: FourSideValue, b: FourSideValue): boolean =>
-  a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
 
 /**
  * A single text input for editing a [top, right, bottom, left] tuple using
- * CSS shorthand notation. Accepts 1–4 values separated by spaces or commas.
+ * CSS shorthand notation. Accepts 1–4 values separated by spaces or
+ * commas. Each value can be a plain number, `Npx`, or a `var(--name)`
+ * reference. Numbers and tokens can be mixed across sides.
  *
  * Invalid input reverts on blur via the PrefixSuffixInput value sync.
  */
@@ -77,28 +119,34 @@ export const FourSideInput = ({
   const handleCommit = (draft: string): void => {
     const parsed = parseShorthand(draft, min);
     if (!parsed) return;
-    if (!tupleEq(parsed, value)) onChange(parsed);
+    if (!spaceTupleEquals(parsed, value)) onChange(parsed);
   };
 
   const handleArrow = (draft: string, direction: 1 | -1, shift: boolean): void => {
     const delta = (shift ? 10 : 1) * direction;
     const base = parseShorthand(draft, min) ?? value;
-    const next: FourSideValue = [
-      Math.max(min, base[0] + delta),
-      Math.max(min, base[1] + delta),
-      Math.max(min, base[2] + delta),
-      Math.max(min, base[3] + delta),
+    const next: SpaceTuple = [
+      bumpSide(base[0], delta, min),
+      bumpSide(base[1], delta, min),
+      bumpSide(base[2], delta, min),
+      bumpSide(base[3], delta, min),
     ];
-    if (!tupleEq(next, value)) onChange(next);
+    if (!spaceTupleEquals(next, value)) onChange(next);
   };
 
-  const allEqual = value[0] === value[1] && value[1] === value[2] && value[2] === value[3];
+  const allEqual =
+    spaceValueEquals(value[0], value[1]) &&
+    spaceValueEquals(value[1], value[2]) &&
+    spaceValueEquals(value[2], value[3]);
   const tooltip =
-    title ?? (!allEqual ? `T:${value[0]} R:${value[1]} B:${value[2]} L:${value[3]}` : undefined);
+    title ??
+    (!allEqual
+      ? `T:${formatSpaceValue(value[0])} R:${formatSpaceValue(value[1])} B:${formatSpaceValue(value[2])} L:${formatSpaceValue(value[3])}`
+      : undefined);
 
   return (
     <PrefixSuffixInput
-      value={toShorthand(value)}
+      value={formatSpaceShorthand(value)}
       onCommit={handleCommit}
       onArrow={handleArrow}
       prefix={prefix}

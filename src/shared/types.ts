@@ -473,6 +473,13 @@ export type PreviewOpenArgs = {
   /** Page name to navigate the preview to on open (e.g. `"home"` →
    *  `/`, `"about"` → `/about`). */
   pageName: string;
+  /**
+   * Full list of page names in the project. Surfaced as a dropdown
+   * in the preview window's URL bar so the user can jump between
+   * pages without going back to the main window. Order matches the
+   * canvas sidebar (alphabetical with `home` first).
+   */
+  pageNames: ReadonlyArray<string>;
 };
 
 export type PreviewStopArgs = {
@@ -503,10 +510,14 @@ export type PreviewStatusChangedPayload = {
  * Pushed from main to the preview-window renderer when the parent
  * (canvas) wants the preview to navigate to a specific page —
  * triggered by Cmd+P on a different page than the preview is
- * currently showing.
+ * currently showing — or when the project's page list changes
+ * (page added / renamed / deleted in the canvas) so the dropdown
+ * stays accurate. The renderer treats `pageName === current` as a
+ * no-op for navigation but still picks up an updated `pageNames`.
  */
 export type PreviewNavigatePayload = {
   pageName: string;
+  pageNames: ReadonlyArray<string>;
 };
 
 // Terminal IPC payloads

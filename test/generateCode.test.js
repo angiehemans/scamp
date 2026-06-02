@@ -162,9 +162,14 @@ describe('generateCode — flex parent', () => {
             }),
         };
         const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-        // a1b2 is a flex item — no position
+        // a1b2 is itself a flex item under the flex root (so it doesn't
+        // need its own position keyword for placement), BUT its child
+        // c3d4 lives inside a non-flex parent and will resolve to
+        // `position: absolute`. a1b2 must establish a positioning context
+        // so c3d4 anchors locally instead of escaping to .root.
+        // See positioningContext.test.ts for the dedicated coverage.
         const aBlock = extractBlock(css, '.rect_a1b2');
-        expect(aBlock).not.toContain('position:');
+        expect(aBlock).toContain('position: relative;');
         // c3d4's parent (a1b2) is NOT flex, so c3d4 keeps absolute positioning
         const cBlock = extractBlock(css, '.rect_c3d4');
         expect(cBlock).toContain('position: absolute;');

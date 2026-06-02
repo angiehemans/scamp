@@ -17,11 +17,19 @@ type Props = {
   canGoBack: boolean;
   canGoForward: boolean;
   viewportWidth: ViewportWidth;
+  /** Currently-displayed page name. Selected in the URL-bar
+   *  dropdown so the user can jump between pages without leaving
+   *  the preview window. */
+  pageName: string;
+  /** Every page in the project, in canvas-sidebar order. */
+  pageNames: ReadonlyArray<string>;
   onBack: () => void;
   onForward: () => void;
   onReload: () => void;
   onOpenDevTools: () => void;
   onViewportChange: (width: ViewportWidth) => void;
+  /** Navigate the preview to a different page in the same project. */
+  onPageChange: (pageName: string) => void;
 };
 
 const STATUS_LABEL: Record<DevServerStatus['kind'], string> = {
@@ -52,11 +60,14 @@ export const PreviewToolbar = ({
   canGoBack,
   canGoForward,
   viewportWidth,
+  pageName,
+  pageNames,
   onBack,
   onForward,
   onReload,
   onOpenDevTools,
   onViewportChange,
+  onPageChange,
 }: Props): JSX.Element => {
   const [copied, setCopied] = useState(false);
   const [customDraft, setCustomDraft] = useState('');
@@ -113,6 +124,21 @@ export const PreviewToolbar = ({
       </div>
 
       <div className={styles.urlGroup}>
+        {pageNames.length > 1 && (
+          <select
+            className={styles.pageSelect}
+            value={pageName}
+            onChange={(e) => onPageChange(e.target.value)}
+            title="Jump to another page in the project"
+            aria-label="Page"
+          >
+            {pageNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        )}
         <span className={styles.urlBar} title={url}>
           {url || '—'}
         </span>

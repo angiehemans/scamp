@@ -67,7 +67,8 @@ describe('breakpointOverrideLines', () => {
   it('emits padding shorthand when padding is in the override', () => {
     const el = makeRect({ id: 'a1b2' });
     const lines = breakpointOverrideLines({ padding: [12, 12, 12, 12] }, el);
-    expect(lines).toEqual(['padding: 12px 12px 12px 12px;']);
+    // Shorthand collapses when all four sides are equal (1-value form).
+    expect(lines).toEqual(['padding: 12px;']);
   });
 
   it('does NOT emit fields absent from the override, even if they equal defaults', () => {
@@ -107,7 +108,8 @@ describe('breakpointOverrideLines', () => {
       el
     );
     expect(lines).toEqual([
-      'padding: 8px 8px 8px 8px;',
+      // Collapsed to 1-value form since all four sides are equal.
+      'padding: 8px;',
       'box-shadow: 0 2px 4px rgba(0,0,0,0.1);',
     ]);
   });

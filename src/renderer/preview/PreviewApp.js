@@ -13,6 +13,9 @@ export const PreviewApp = () => {
     const [status, setStatus] = useState({ kind: 'idle' });
     const [projectPath, setProjectPath] = useState('');
     const [pageName, setPageName] = useState('home');
+    const [pageNames, setPageNames] = useState([
+        'home',
+    ]);
     const [currentUrl, setCurrentUrl] = useState('');
     const [canGoBack, setCanGoBack] = useState(false);
     const [canGoForward, setCanGoForward] = useState(false);
@@ -59,6 +62,10 @@ export const PreviewApp = () => {
             return;
         const off = previewApi.onNavigate((payload) => {
             setPageName(payload.pageName);
+            // The parent always sends the full list — update it here so
+            // adds / renames / deletes from the canvas land in the dropdown
+            // without a separate IPC channel.
+            setPageNames(payload.pageNames);
         });
         return off;
     }, [previewApi]);
@@ -157,7 +164,7 @@ export const PreviewApp = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         node.openDevTools();
     };
-    return (_jsxs("div", { className: styles.app, children: [_jsx(PreviewToolbar, { url: currentUrl, statusKind: status.kind, canGoBack: canGoBack, canGoForward: canGoForward, viewportWidth: viewportWidth, onBack: handleBack, onForward: handleForward, onReload: handleReload, onOpenDevTools: handleOpenDevTools, onViewportChange: setViewportWidth }), _jsx("main", { className: styles.body, children: status.kind === 'ready' ? (_jsx("div", { className: styles.viewportFrame, style: { width: viewportCss(viewportWidth) }, children: _jsx("webview", { 
+    return (_jsxs("div", { className: styles.app, children: [_jsx(PreviewToolbar, { url: currentUrl, statusKind: status.kind, canGoBack: canGoBack, canGoForward: canGoForward, viewportWidth: viewportWidth, pageName: pageName, pageNames: pageNames, onBack: handleBack, onForward: handleForward, onReload: handleReload, onOpenDevTools: handleOpenDevTools, onViewportChange: setViewportWidth, onPageChange: setPageName }), _jsx("main", { className: styles.body, children: status.kind === 'ready' ? (_jsx("div", { className: styles.viewportFrame, style: { width: viewportCss(viewportWidth) }, children: _jsx("webview", { 
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         ref: webviewRef, className: styles.webview, partition: `persist:scamp-preview-${encodeURIComponent(projectPath)}`, ...{ allowpopups: '' } }) })) : (_jsx(StatusView, { status: status, projectPath: projectPath })) })] }));
 };

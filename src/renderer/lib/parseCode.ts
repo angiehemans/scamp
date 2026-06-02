@@ -20,7 +20,7 @@ import {
   canonicalizeGroupList,
   isPropertyGroup,
 } from './propertyGroups';
-import { parseAnimationShorthand, parsePx } from './parsers';
+import { parseAnimationShorthand, parsePx, parseSpaceValueOrNull } from './parsers';
 import { matchesPreset } from './keyframesMatch';
 import {
   DEFAULT_BREAKPOINTS,
@@ -1124,23 +1124,43 @@ const applyDeclarationsAsOverride = (
       continue;
     }
     if (prop === 'margin-top') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = override.margin ?? [0, 0, 0, 0];
-      override = { ...override, margin: [parsePx(value), m[1], m[2], m[3]] };
+      override = { ...override, margin: [sv, m[1], m[2], m[3]] };
       continue;
     }
     if (prop === 'margin-right') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = override.margin ?? [0, 0, 0, 0];
-      override = { ...override, margin: [m[0], parsePx(value), m[2], m[3]] };
+      override = { ...override, margin: [m[0], sv, m[2], m[3]] };
       continue;
     }
     if (prop === 'margin-bottom') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = override.margin ?? [0, 0, 0, 0];
-      override = { ...override, margin: [m[0], m[1], parsePx(value), m[3]] };
+      override = { ...override, margin: [m[0], m[1], sv, m[3]] };
       continue;
     }
     if (prop === 'margin-left') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = override.margin ?? [0, 0, 0, 0];
-      override = { ...override, margin: [m[0], m[1], m[2], parsePx(value)] };
+      override = { ...override, margin: [m[0], m[1], m[2], sv] };
       continue;
     }
     if (isMappedProperty(prop)) {
@@ -1309,24 +1329,47 @@ const applyDeclarations = (
     }
     // Per-side margin longhands write into a single tuple slot. Handled
     // inline because mapper deltas can't express tuple updates.
+    // `parseSpaceValueOrNull` accepts px and `var(--token)`; anything
+    // else (rem, %, auto) falls through to customProperties so it
+    // round-trips verbatim.
     if (prop === 'margin-top') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = element.margin;
-      element = { ...element, margin: [parsePx(value), m[1], m[2], m[3]] };
+      element = { ...element, margin: [sv, m[1], m[2], m[3]] };
       continue;
     }
     if (prop === 'margin-right') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = element.margin;
-      element = { ...element, margin: [m[0], parsePx(value), m[2], m[3]] };
+      element = { ...element, margin: [m[0], sv, m[2], m[3]] };
       continue;
     }
     if (prop === 'margin-bottom') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = element.margin;
-      element = { ...element, margin: [m[0], m[1], parsePx(value), m[3]] };
+      element = { ...element, margin: [m[0], m[1], sv, m[3]] };
       continue;
     }
     if (prop === 'margin-left') {
+      const sv = parseSpaceValueOrNull(value);
+      if (sv === null) {
+        customProperties[prop] = value;
+        continue;
+      }
       const m = element.margin;
-      element = { ...element, margin: [m[0], m[1], m[2], parsePx(value)] };
+      element = { ...element, margin: [m[0], m[1], m[2], sv] };
       continue;
     }
     // Animation is parsed into a typed field on the element. The

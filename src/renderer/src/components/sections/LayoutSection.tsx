@@ -17,6 +17,7 @@ import type {
   JustifyContent,
   ScampElement,
 } from '@lib/element';
+import { spaceValueNumberOrZero } from '@lib/spaceValue';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -230,7 +231,7 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
             <NumberInput
               prefix="Gap"
               title="Gap between flex children"
-              value={element.gap}
+              value={spaceValueNumberOrZero(element.gap)}
               onChange={(value) => patchElement(elementId, { gap: value ?? 0 })}
               min={0}
             />
@@ -265,7 +266,7 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
             <NumberInput
               prefix="C-gap"
               title="column-gap"
-              value={element.columnGap}
+              value={spaceValueNumberOrZero(element.columnGap)}
               onChange={(value) =>
                 patchElement(elementId, { columnGap: value ?? 0 })
               }
@@ -274,7 +275,7 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
             <NumberInput
               prefix="R-gap"
               title="row-gap"
-              value={element.rowGap}
+              value={spaceValueNumberOrZero(element.rowGap)}
               onChange={(value) => patchElement(elementId, { rowGap: value ?? 0 })}
               min={0}
             />

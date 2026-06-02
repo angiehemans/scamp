@@ -5,6 +5,7 @@ import { previewStyle } from '../controls/livePreview';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FourSideInput } from '../controls/FourSideInput';
 import type { BorderStyle } from '@lib/element';
+import { isZeroSpaceTuple } from '@lib/spaceValue';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -29,11 +30,13 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
 
   // Hide the eye when no border is set AND no rounded corners.
   // Border radius lives in the same group, so a rounded-but-
-  // un-bordered element still has something to toggle.
+  // un-bordered element still has something to toggle. Token-form
+  // sides (e.g. `var(--space-md)`) always count as "set" — they're
+  // an authored value the user wants visible in the file.
   const hasBorderContent =
     element.borderStyle !== 'none' ||
-    element.borderWidth.some((w) => w > 0) ||
-    element.borderRadius.some((r) => r > 0);
+    !isZeroSpaceTuple(element.borderWidth) ||
+    !isZeroSpaceTuple(element.borderRadius);
   const effectiveGroupToggle =
     hasBorderContent || !groupToggle.isOn ? groupToggle : undefined;
 

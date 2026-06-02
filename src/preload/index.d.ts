@@ -19,6 +19,13 @@ declare const api: {
         windowId: number;
     }>;
     /**
+     * Push an updated active page + page list to an already-open
+     * preview window. No-op if no preview is open for the project
+     * (won't spawn one). Used so the URL-bar dropdown stays accurate
+     * when the user adds / renames / deletes a page in the canvas.
+     */
+    updatePreview: (args: PreviewOpenArgs) => Promise<void>;
+    /**
      * Close the preview window AND stop its dev server for a project.
      * Called when the user closes the project — preview shouldn't
      * outlive the project that's editing it.

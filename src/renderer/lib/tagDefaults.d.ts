@@ -1,3 +1,4 @@
+import { type SpaceTuple } from './spaceValue';
 /**
  * Per-tag overrides for properties whose browser UA-stylesheet
  * default differs from Scamp's universal `[0, 0, 0, 0]`. Without
@@ -20,12 +21,13 @@
  *     em-aware fix is the right path when this becomes a
  *     felt problem.
  */
-export declare const TAG_PADDING_DEFAULTS: Record<string, readonly [number, number, number, number]>;
-export declare const ZERO_PADDING: readonly [number, number, number, number];
+export declare const TAG_PADDING_DEFAULTS: Record<string, SpaceTuple>;
+export declare const ZERO_PADDING: SpaceTuple;
 /**
  * Effective padding default for an element of `tag`. Tags absent
  * from the override map use the universal `[0, 0, 0, 0]`.
  */
-export declare const getTagDefaultPadding: (tag: string | undefined) => readonly [number, number, number, number];
-/** Byte-equality on the four-tuple. */
-export declare const paddingEquals: (a: readonly [number, number, number, number], b: readonly [number, number, number, number]) => boolean;
+export declare const getTagDefaultPadding: (tag: string | undefined) => SpaceTuple;
+/** Byte-equality on the four-tuple. Delegates to `spaceTupleEquals`
+ *  so token-form values compare structurally. */
+export declare const paddingEquals: (a: SpaceTuple, b: SpaceTuple) => boolean;

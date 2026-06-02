@@ -469,7 +469,8 @@ describe('parseCode + generateCode — UA padding defaults for list tags', () =>
     });
     // The generator must emit `padding: 0` since `<ul>`'s default
     // is [0,0,0,40] and the parsed value is [0,0,0,0].
-    expect(regen.css).toContain('padding: 0px 0px 0px 0px;');
+    // Collapsed to 1-value form since all four sides equal.
+    expect(regen.css).toContain('padding: 0px;');
     const reparsed = parseCode(regen.tsx, regen.css);
     expect(reparsed.elements['a001']?.padding).toEqual([0, 0, 0, 0]);
   });

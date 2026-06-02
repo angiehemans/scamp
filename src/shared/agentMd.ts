@@ -45,8 +45,22 @@ files. Anything you write here is parsed and re-rendered on the canvas.
   CSS save → wait → TSX save.
 - Every Scamp element is a JSX node with both \`data-scamp-id="…"\` AND
   \`className={styles.…}\` matching the same string.
+- The \`_XXXX\` suffix is real hex (\`0-9 a-f\`), e.g. \`_a1b2\`. Not
+  \`_n001\`, not \`_s002\`, not your own counter.
+- Before referencing a token, check it exists in \`theme.css\`. Add
+  missing tokens to \`theme.css\` first; never inline raw hex / rgba
+  in module CSS.
+- Prefer typed property values (px / rem, single \`font-size\` +
+  breakpoint overrides) over \`clamp()\`, \`ch\`, or \`flex\` shorthand
+  — those render fine but lock the user out of Scamp's panel
+  controls. See "Editability — prefer typed properties."
 - One CSS class = one rule block. No combined selectors, no nested
   \`@media\`.
+- **Use flexbox for layout.** \`display: flex\` + \`flex-direction\` +
+  \`gap\` is the default container pattern. Reach for grid only when
+  you genuinely need a 2D template, and for absolute positioning
+  only for overlays / fixed nav / decorative pseudo-elements. Never
+  use absolute positioning as your primary layout strategy.
 - If a class block already has rules in CSS, Scamp will leave it
   alone. Scamp only auto-creates EMPTY blocks for classes that
   appear in the TSX but aren't in the CSS yet.
@@ -267,7 +281,12 @@ a clear semantic role. Rules:
 
 - The prefix is lowercase, words separated by underscores.
 - Only alphanumeric characters and underscores (no hyphens, no spaces).
-- The last \`_XXXX\` segment is always the 4-char hex id — never change it.
+- The last \`_XXXX\` segment is always a 4-character hex id — digits
+  \`0-9\` and lowercase letters \`a-f\` only. Never \`g-z\`, never
+  uppercase, never an incrementing counter. Never change an
+  existing id.
+  - ✅ \`_a1b2\`, \`_c3d4\`, \`_ff12\`, \`_e5f6\`, \`_b001\`, \`_c101\`
+  - ❌ \`_n001\` (\`n\` not hex), \`_h003\`, \`_s002\`, \`_w005\`, \`_x004\`
 - If the prefix is \`rect\` or \`text\`, scamp treats it as unnamed and
   infers the element type from the prefix. Any other prefix is a custom
   name, and scamp infers the type from the HTML tag instead.
@@ -376,7 +395,61 @@ each one in its own classed element with a \`data-scamp-id\` and a
 matching CSS class.
 
 ## CSS conventions
+
+### Layout: flex first, always
+
+**Use flexbox for layout unless the user explicitly asks for
+something else.** This is the single most important layout rule in
+Scamp. The canvas, the panel controls, and the round-trip parser are
+all built around flex as the default container model.
+
+- A container with multiple children should set
+  \`display: flex\` on the parent. Pick \`flex-direction\` (row /
+  column), \`gap\`, \`align-items\`, and \`justify-content\` to lay them
+  out. Don't reach for grid or absolute positioning first.
+- **CSS grid is allowed**, but reserve it for the specific cases
+  flex can't express cleanly: 2D grids with both row AND column
+  alignment constraints (e.g. a 4×3 photo grid), or templates with
+  named areas. A simple two-column "image left, text right" layout
+  is flex, not grid.
+- **Absolute positioning is for special cases only** — overlays,
+  toasts, fixed nav bars, decorative pseudo-elements (\`::before\` /
+  \`::after\` badges). Never use \`position: absolute\` as your
+  primary layout strategy for siblings inside a container; that's
+  what flex is for. A row of cards is flex; an overlay on top of an
+  image is absolute.
+- **No \`float\`, no table layout, no inline-block hacks.** Flex (or
+  grid when justified) covers every modern layout need.
+- Flex parents render correctly on the Scamp canvas AND are
+  editable from the panel's Layout control. Grid and absolute
+  layouts still render but expose fewer controls to the user.
+
+When in doubt: \`display: flex\` plus \`flex-direction\` plus \`gap\`.
+
+### Other CSS rules
+
 - One property per line.
+- **Every declaration ends with a semicolon, including the last one
+  in a block.** Browsers tolerate a missing trailing semicolon but
+  Scamp's parser doesn't always — and worse, missing semicolons
+  between declarations turn the whole block into one malformed
+  declaration that the browser silently drops. Especially watch
+  this in \`::before\` / \`::after\` rules, which are easy to write
+  by hand without semis:
+  \`\`\`css
+  /* ❌ wrong — entire block fails to parse, no bullet renders */
+  .item::before {
+    content: "—"
+    position: absolute
+    left: 0
+  }
+  /* ✅ correct */
+  .item::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+  }
+  \`\`\`
 - Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
 - The page root is a regular rectangle in Scamp — it defaults to
   \`width: 100%\`, \`min-height: 100vh\`, and \`position: relative\` so the
@@ -394,13 +467,15 @@ matching CSS class.
   - \`width: auto\` / \`height: auto\` (or simply omitting the
     declaration) leaves the dimension up to normal CSS layout.
   - Pixel values (\`width: 320px\`) are explicit fixed sizes.
-- For free-form (non-flex) container layouts, scamp positions children
-  with \`position: absolute; left: Xpx; top: Ypx;\`. You can override
-  with any other \`position\` value (\`fixed\`, \`sticky\`, \`relative\`,
-  \`static\`) — Scamp respects what you wrote.
 - Inside a flex parent, the flex layout engine takes over and
   positional declarations on the child are ignored. Same applies to
   grid children inside a grid container.
+- For free-form containers (no flex / no grid), Scamp falls back to
+  positioning children with \`position: absolute; left: Xpx; top: Ypx;\`.
+  This is the FALLBACK, not the default — prefer flex (see Layout
+  above). When you DO need absolute positioning (overlays, fixed
+  nav), Scamp respects whatever \`position\` value you wrote
+  (\`fixed\`, \`sticky\`, \`relative\`, \`absolute\`, \`static\`).
 - **New text elements take their default font from the theme.** When
   you create a text element, set \`font-family: var(--font-sans);\` on
   its class so it inherits the project's default font. If the
@@ -444,6 +519,101 @@ that container — useful when you want a multiply-blended card
 that doesn't bleed onto the page background. Scamp doesn't model
 \`isolation\` as a typed field; it round-trips verbatim via
 \`customProperties\` and renders natively on the canvas.
+
+### Editability — prefer typed properties
+
+Properties NOT in the typed-fields list above render correctly on
+the canvas but the user can't adjust them from the panel — they'd
+have to drop into code. Reach for the typed form when you have a
+choice so the design stays tweakable from the canvas.
+
+**Typography — avoid \`clamp()\`. Use a base value + named
+breakpoint overrides.** Scamp's font-size control reads a single
+number. \`clamp(min, preferred, max)\` is stored as a raw string and
+the panel can't dial it. For responsive type, pick the desktop size
+as the base and override at smaller widths (default Scamp
+breakpoints: 768, 390):
+
+\`\`\`css
+.hero_title_a1b2 {
+  font-size: 5.5rem;
+}
+
+@media (max-width: 768px) {
+  .hero_title_a1b2 {
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .hero_title_a1b2 {
+    font-size: 2.5rem;
+  }
+}
+\`\`\`
+
+**Sizing — stick to px, rem, %, and Scamp's special modes.** Scamp's
+size parser types \`Npx\`, percentages, \`auto\`, \`fit-content\`, and
+the special \`100%\` / \`100vh\` modes. Other units — \`ch\`, \`em\`,
+arbitrary \`vh\` / \`vw\` — are stored as raw values; the panel shows
+the leading number but loses the unit when the user edits it. For
+"limit a paragraph to ~52 characters of body text," write
+\`max-width: 32rem\` instead of \`max-width: 52ch\`.
+
+**Padding, margin, gap, border-radius, border-width — tokens are
+first-class.** Scamp's shorthand parsers for these properties accept
+plain px values AND \`var(--token)\` references, including mixed
+forms across sides (\`padding: 16px var(--space-md) 16px var(--space-md)\`).
+The panel's spacing controls round-trip both forms; tokens emit
+verbatim into the saved CSS.
+
+Other CSS units in these properties (\`rem\`, \`em\`, \`%\`, \`auto\`,
+\`vh\`, \`vw\`, \`calc(...)\`) still fall into the passthrough bucket
+and aren't editable from the panel — they render correctly but the
+typed controls go blank. Stick to px or \`var(--token)\` if you want
+the user to be able to tweak the value on canvas.
+
+**Flex children — layout lives on the parent, not on each child.**
+The typed-properties list covers parent-side flex (\`display\`,
+\`flex-direction\`, \`gap\`, \`align-items\`, \`justify-content\`). It
+does NOT include \`flex\`, \`flex-grow\`, \`flex-shrink\`,
+\`flex-basis\`, or \`align-self\` on the child. Per-child flex
+declarations work in the browser but are invisible to the panel.
+
+- ❌ \`flex: 1 1 200px;\` on every card — preserved verbatim, not editable.
+- ✅ Parent: \`display: flex; flex-wrap: wrap; gap: var(--space-md);\`.
+  Children: \`width: 320px;\` (or whatever fixed width). The parent's
+  wrap + gap handles the responsive break, and the user can drag
+  card widths on canvas.
+
+For "stretch this child to fill the row," the parent's default
+\`align-items: stretch\` already does it — no per-child override.
+
+**Vendor prefixes.** When a property needs a vendor prefix for
+browser support (\`-webkit-backdrop-filter\` for Safari, etc.), write
+both lines so the design renders on every browser:
+
+\`\`\`css
+.nav_a1b2 {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+\`\`\`
+
+Scamp round-trips prefixed declarations verbatim through
+\`customProperties\`.
+
+**Lists — be explicit about markers.** \`<ul>\` / \`<ol>\` inherit
+browser-default bullets. The reset block zeros their margin but not
+\`list-style\`. Decide which you want and write it down:
+
+- Keep markers: \`list-style: disc;\` (or \`decimal\` for \`<ol>\`) on
+  the \`<ul>\` class. Explicit beats relying on browser defaults.
+- Drop markers: \`list-style: none;\` on the \`<ul>\` class, then
+  style each bullet on its own \`<li>\` class (padding +
+  background-image, or an inline \`<svg>\` child). **Avoid \`> li::before\`
+  compound selectors** — they render in the browser but aren't
+  panel-editable, so the user can't tweak the bullet from the canvas.
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
@@ -696,7 +866,35 @@ same in CSS so both surfaces match. Editing or extending the rules
 is fine, but **do not delete the sentinel comment** — Scamp uses it
 to detect the block on project open and avoid reinserting a duplicate.
 
-Do not modify \`theme.css\` unless the user asks for design system updates.
+**Reference only tokens that already exist in \`theme.css\`.** A
+\`var(--…)\` reference to an undeclared token resolves to the
+property's *initial* value — e.g. \`padding: var(--space-md)\`
+becomes \`0\`, \`background: var(--color-card-bg)\` becomes transparent,
+\`max-width: var(--max-width)\` becomes \`none\`. The layout collapses
+and the page looks broken on the canvas.
+
+**Before writing any module CSS, read \`theme.css\` and note what
+tokens exist.** A fresh project only ships \`--color-primary\`,
+\`--color-text\`, and \`--font-sans\` — most real layouts need more
+(spacing scale, surface / border / accent colors, max-width, etc.).
+
+**When you need a token that doesn't exist yet, add it to
+\`theme.css\` first, then reference it.** Adding tokens is fine and
+expected. What's NOT OK:
+
+- Referencing a token that isn't declared anywhere.
+- Inlining raw hex / rgba / hsl literals in module CSS to skip the
+  theme step. Use a token for any color or scale value, even
+  one-off ones. Genuine single-use literals (a brand mark's exact
+  hex, a specific illustration tint) can stay literal — flag with
+  a comment when you do.
+
+Example: a layout needs accent shadows. Add
+\`--shadow-card: 0 16px 40px rgba(0, 0, 0, 0.08);\` to \`theme.css\`,
+then write \`box-shadow: var(--shadow-card);\` in the module file.
+
+Do NOT change or remove existing token values without the user
+asking — that's a design-system overhaul, not a layout edit.
 
 ## Project config
 
@@ -1034,8 +1232,22 @@ Scamp without any reorganisation.
   CSS save → wait → TSX save.
 - Every Scamp element is a JSX node with both \`data-scamp-id="…"\` AND
   \`className={styles.…}\` matching the same string.
+- The \`_XXXX\` suffix is real hex (\`0-9 a-f\`), e.g. \`_a1b2\`. Not
+  \`_n001\`, not \`_s002\`, not your own counter.
+- Before referencing a token, check it exists in \`theme.css\`. Add
+  missing tokens to \`theme.css\` first; never inline raw hex / rgba
+  in module CSS.
+- Prefer typed property values (px / rem, single \`font-size\` +
+  breakpoint overrides) over \`clamp()\`, \`ch\`, or \`flex\` shorthand
+  — those render fine but lock the user out of Scamp's panel
+  controls. See "Editability — prefer typed properties."
 - One CSS class = one rule block. No combined selectors, no nested
   \`@media\`.
+- **Use flexbox for layout.** \`display: flex\` + \`flex-direction\` +
+  \`gap\` is the default container pattern. Reach for grid only when
+  you genuinely need a 2D template, and for absolute positioning
+  only for overlays / fixed nav / decorative pseudo-elements. Never
+  use absolute positioning as your primary layout strategy.
 - If a class block already has rules in CSS, Scamp will leave it
   alone. Scamp only auto-creates EMPTY blocks for classes that
   appear in the TSX but aren't in the CSS yet.
@@ -1271,7 +1483,12 @@ a clear semantic role. Rules:
 
 - The prefix is lowercase, words separated by underscores.
 - Only alphanumeric characters and underscores (no hyphens, no spaces).
-- The last \`_XXXX\` segment is always the 4-char hex id — never change it.
+- The last \`_XXXX\` segment is always a 4-character hex id — digits
+  \`0-9\` and lowercase letters \`a-f\` only. Never \`g-z\`, never
+  uppercase, never an incrementing counter. Never change an
+  existing id.
+  - ✅ \`_a1b2\`, \`_c3d4\`, \`_ff12\`, \`_e5f6\`, \`_b001\`, \`_c101\`
+  - ❌ \`_n001\` (\`n\` not hex), \`_h003\`, \`_s002\`, \`_w005\`, \`_x004\`
 - If the prefix is \`rect\` or \`text\`, scamp treats it as unnamed and
   infers the element type from the prefix. Any other prefix is a custom
   name, and scamp infers the type from the HTML tag instead.
@@ -1391,7 +1608,61 @@ the leading-slash form. Do not delete files from \`public/assets/\`
 unless the user asks.
 
 ## CSS conventions
+
+### Layout: flex first, always
+
+**Use flexbox for layout unless the user explicitly asks for
+something else.** This is the single most important layout rule in
+Scamp. The canvas, the panel controls, and the round-trip parser are
+all built around flex as the default container model.
+
+- A container with multiple children should set
+  \`display: flex\` on the parent. Pick \`flex-direction\` (row /
+  column), \`gap\`, \`align-items\`, and \`justify-content\` to lay them
+  out. Don't reach for grid or absolute positioning first.
+- **CSS grid is allowed**, but reserve it for the specific cases
+  flex can't express cleanly: 2D grids with both row AND column
+  alignment constraints (e.g. a 4×3 photo grid), or templates with
+  named areas. A simple two-column "image left, text right" layout
+  is flex, not grid.
+- **Absolute positioning is for special cases only** — overlays,
+  toasts, fixed nav bars, decorative pseudo-elements (\`::before\` /
+  \`::after\` badges). Never use \`position: absolute\` as your
+  primary layout strategy for siblings inside a container; that's
+  what flex is for. A row of cards is flex; an overlay on top of an
+  image is absolute.
+- **No \`float\`, no table layout, no inline-block hacks.** Flex (or
+  grid when justified) covers every modern layout need.
+- Flex parents render correctly on the Scamp canvas AND are
+  editable from the panel's Layout control. Grid and absolute
+  layouts still render but expose fewer controls to the user.
+
+When in doubt: \`display: flex\` plus \`flex-direction\` plus \`gap\`.
+
+### Other CSS rules
+
 - One property per line.
+- **Every declaration ends with a semicolon, including the last one
+  in a block.** Browsers tolerate a missing trailing semicolon but
+  Scamp's parser doesn't always — and worse, missing semicolons
+  between declarations turn the whole block into one malformed
+  declaration that the browser silently drops. Especially watch
+  this in \`::before\` / \`::after\` rules, which are easy to write
+  by hand without semis:
+  \`\`\`css
+  /* ❌ wrong — entire block fails to parse, no bullet renders */
+  .item::before {
+    content: "—"
+    position: absolute
+    left: 0
+  }
+  /* ✅ correct */
+  .item::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+  }
+  \`\`\`
 - Shorthand is fine (\`border: 1px solid #ccc\`, \`padding: 16px 24px\`).
 - The page root is a regular rectangle in Scamp — it defaults to
   \`width: 100%\`, \`min-height: 100vh\`, and \`position: relative\` so the
@@ -1409,13 +1680,15 @@ unless the user asks.
   - \`width: auto\` / \`height: auto\` (or simply omitting the
     declaration) leaves the dimension up to normal CSS layout.
   - Pixel values (\`width: 320px\`) are explicit fixed sizes.
-- For free-form (non-flex) container layouts, scamp positions children
-  with \`position: absolute; left: Xpx; top: Ypx;\`. You can override
-  with any other \`position\` value (\`fixed\`, \`sticky\`, \`relative\`,
-  \`static\`) — Scamp respects what you wrote.
 - Inside a flex parent, the flex layout engine takes over and
   positional declarations on the child are ignored. Same applies to
   grid children inside a grid container.
+- For free-form containers (no flex / no grid), Scamp falls back to
+  positioning children with \`position: absolute; left: Xpx; top: Ypx;\`.
+  This is the FALLBACK, not the default — prefer flex (see Layout
+  above). When you DO need absolute positioning (overlays, fixed
+  nav), Scamp respects whatever \`position\` value you wrote
+  (\`fixed\`, \`sticky\`, \`relative\`, \`absolute\`, \`static\`).
 - **New text elements take their default font from the theme.** When
   you create a text element, set \`font-family: var(--font-sans);\` on
   its class so it inherits the project's default font. If the
@@ -1459,6 +1732,101 @@ that container — useful when you want a multiply-blended card
 that doesn't bleed onto the page background. Scamp doesn't model
 \`isolation\` as a typed field; it round-trips verbatim via
 \`customProperties\` and renders natively on the canvas.
+
+### Editability — prefer typed properties
+
+Properties NOT in the typed-fields list above render correctly on
+the canvas but the user can't adjust them from the panel — they'd
+have to drop into code. Reach for the typed form when you have a
+choice so the design stays tweakable from the canvas.
+
+**Typography — avoid \`clamp()\`. Use a base value + named
+breakpoint overrides.** Scamp's font-size control reads a single
+number. \`clamp(min, preferred, max)\` is stored as a raw string and
+the panel can't dial it. For responsive type, pick the desktop size
+as the base and override at smaller widths (default Scamp
+breakpoints: 768, 390):
+
+\`\`\`css
+.hero_title_a1b2 {
+  font-size: 5.5rem;
+}
+
+@media (max-width: 768px) {
+  .hero_title_a1b2 {
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .hero_title_a1b2 {
+    font-size: 2.5rem;
+  }
+}
+\`\`\`
+
+**Sizing — stick to px, rem, %, and Scamp's special modes.** Scamp's
+size parser types \`Npx\`, percentages, \`auto\`, \`fit-content\`, and
+the special \`100%\` / \`100vh\` modes. Other units — \`ch\`, \`em\`,
+arbitrary \`vh\` / \`vw\` — are stored as raw values; the panel shows
+the leading number but loses the unit when the user edits it. For
+"limit a paragraph to ~52 characters of body text," write
+\`max-width: 32rem\` instead of \`max-width: 52ch\`.
+
+**Padding, margin, gap, border-radius, border-width — tokens are
+first-class.** Scamp's shorthand parsers for these properties accept
+plain px values AND \`var(--token)\` references, including mixed
+forms across sides (\`padding: 16px var(--space-md) 16px var(--space-md)\`).
+The panel's spacing controls round-trip both forms; tokens emit
+verbatim into the saved CSS.
+
+Other CSS units in these properties (\`rem\`, \`em\`, \`%\`, \`auto\`,
+\`vh\`, \`vw\`, \`calc(...)\`) still fall into the passthrough bucket
+and aren't editable from the panel — they render correctly but the
+typed controls go blank. Stick to px or \`var(--token)\` if you want
+the user to be able to tweak the value on canvas.
+
+**Flex children — layout lives on the parent, not on each child.**
+The typed-properties list covers parent-side flex (\`display\`,
+\`flex-direction\`, \`gap\`, \`align-items\`, \`justify-content\`). It
+does NOT include \`flex\`, \`flex-grow\`, \`flex-shrink\`,
+\`flex-basis\`, or \`align-self\` on the child. Per-child flex
+declarations work in the browser but are invisible to the panel.
+
+- ❌ \`flex: 1 1 200px;\` on every card — preserved verbatim, not editable.
+- ✅ Parent: \`display: flex; flex-wrap: wrap; gap: var(--space-md);\`.
+  Children: \`width: 320px;\` (or whatever fixed width). The parent's
+  wrap + gap handles the responsive break, and the user can drag
+  card widths on canvas.
+
+For "stretch this child to fill the row," the parent's default
+\`align-items: stretch\` already does it — no per-child override.
+
+**Vendor prefixes.** When a property needs a vendor prefix for
+browser support (\`-webkit-backdrop-filter\` for Safari, etc.), write
+both lines so the design renders on every browser:
+
+\`\`\`css
+.nav_a1b2 {
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+\`\`\`
+
+Scamp round-trips prefixed declarations verbatim through
+\`customProperties\`.
+
+**Lists — be explicit about markers.** \`<ul>\` / \`<ol>\` inherit
+browser-default bullets. The reset block zeros their margin but not
+\`list-style\`. Decide which you want and write it down:
+
+- Keep markers: \`list-style: disc;\` (or \`decimal\` for \`<ol>\`) on
+  the \`<ul>\` class. Explicit beats relying on browser defaults.
+- Drop markers: \`list-style: none;\` on the \`<ul>\` class, then
+  style each bullet on its own \`<li>\` class (padding +
+  background-image, or an inline \`<svg>\` child). **Avoid \`> li::before\`
+  compound selectors** — they render in the browser but aren't
+  panel-editable, so the user can't tweak the bullet from the canvas.
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
@@ -1658,8 +2026,35 @@ including inside shorthands:
 }
 \`\`\`
 
-Do not modify \`app/theme.css\` unless the user asks for design-system
-updates.
+**Reference only tokens that already exist in \`app/theme.css\`.** A
+\`var(--…)\` reference to an undeclared token resolves to the
+property's *initial* value — e.g. \`padding: var(--space-md)\`
+becomes \`0\`, \`background: var(--color-card-bg)\` becomes transparent,
+\`max-width: var(--max-width)\` becomes \`none\`. The layout collapses
+and the page looks broken on the canvas.
+
+**Before writing any module CSS, read \`app/theme.css\` and note what
+tokens exist.** A fresh project only ships \`--color-primary\`,
+\`--color-text\`, and \`--font-sans\` — most real layouts need more
+(spacing scale, surface / border / accent colors, max-width, etc.).
+
+**When you need a token that doesn't exist yet, add it to
+\`app/theme.css\` first, then reference it.** Adding tokens is fine
+and expected. What's NOT OK:
+
+- Referencing a token that isn't declared anywhere.
+- Inlining raw hex / rgba / hsl literals in module CSS to skip the
+  theme step. Use a token for any color or scale value, even
+  one-off ones. Genuine single-use literals (a brand mark's exact
+  hex, a specific illustration tint) can stay literal — flag with
+  a comment when you do.
+
+Example: a layout needs accent shadows. Add
+\`--shadow-card: 0 16px 40px rgba(0, 0, 0, 0.08);\` to \`app/theme.css\`,
+then write \`box-shadow: var(--shadow-card);\` in the module file.
+
+Do NOT change or remove existing token values without the user
+asking — that's a design-system overhaul, not a layout edit.
 
 ## Project config
 

@@ -18,6 +18,7 @@ import {
   closeAllPreviewWindows,
   closePreviewWindow,
   openPreviewWindow,
+  updatePreviewWindow,
 } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher } from './watcher';
@@ -184,6 +185,7 @@ app.whenReady().then(() => {
   registerPreviewIpc({
     open: openPreviewWindow,
     close: closePreviewWindow,
+    update: updatePreviewWindow,
   });
   registerTestIpc();
 

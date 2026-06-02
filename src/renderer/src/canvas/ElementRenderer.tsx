@@ -26,6 +26,12 @@ import {
 import { customPropsToStyle } from '@lib/customProps';
 import { CUSTOM_PROP_TO_GROUP } from '@lib/propertyGroups';
 import { getTagDefaultPadding, paddingEquals } from '@lib/tagDefaults';
+import {
+  formatSpaceShorthand,
+  formatSpaceValue,
+  isZeroSpaceTuple,
+  isZeroSpaceValue,
+} from '@lib/spaceValue';
 import type { ThemeToken } from '@shared/types';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
@@ -280,22 +286,25 @@ const elementToStyle = (
     background: isOff('background')
       ? undefined
       : resolveTokenColor(el.backgroundColor, tokens),
-    borderRadius: `${el.borderRadius[0]}px ${el.borderRadius[1]}px ${el.borderRadius[2]}px ${el.borderRadius[3]}px`,
+    borderRadius: formatSpaceShorthand(el.borderRadius),
     boxSizing: 'border-box',
     // Reset browser-default margins on semantic text tags (h1, p, etc.)
     // so the canvas position matches the stored coordinates.
     margin: 0,
   };
-  const [bwt, bwr, bwb, bwl] = el.borderWidth;
-  if (!isOff('border') && el.borderStyle !== 'none' && (bwt || bwr || bwb || bwl)) {
-    base.borderWidth = `${bwt}px ${bwr}px ${bwb}px ${bwl}px`;
+  if (
+    !isOff('border') &&
+    el.borderStyle !== 'none' &&
+    !isZeroSpaceTuple(el.borderWidth)
+  ) {
+    base.borderWidth = formatSpaceShorthand(el.borderWidth);
     base.borderStyle = el.borderStyle;
     base.borderColor = resolveTokenColor(el.borderColor, tokens);
   }
   if (el.display === 'flex') {
     base.display = 'flex';
     base.flexDirection = el.flexDirection;
-    base.gap = el.gap;
+    base.gap = formatSpaceValue(el.gap);
     base.alignItems = el.alignItems;
     base.justifyContent = el.justifyContent;
   } else if (el.display === 'grid') {
@@ -306,8 +315,8 @@ const elementToStyle = (
     if (el.gridTemplateRows.length > 0) {
       base.gridTemplateRows = el.gridTemplateRows;
     }
-    if (el.columnGap > 0) base.columnGap = el.columnGap;
-    if (el.rowGap > 0) base.rowGap = el.rowGap;
+    if (!isZeroSpaceValue(el.columnGap)) base.columnGap = formatSpaceValue(el.columnGap);
+    if (!isZeroSpaceValue(el.rowGap)) base.rowGap = formatSpaceValue(el.rowGap);
     base.alignItems = el.alignItems;
     base.justifyItems = el.justifyItems;
   }
@@ -331,12 +340,10 @@ const elementToStyle = (
   // 0 and matches the generated CSS file.
   const tagPaddingDefault = getTagDefaultPadding(tagFor(el));
   if (!paddingEquals(el.padding, tagPaddingDefault)) {
-    const [pt, pr, pb, pl] = el.padding;
-    base.padding = `${pt}px ${pr}px ${pb}px ${pl}px`;
+    base.padding = formatSpaceShorthand(el.padding);
   }
-  const [mt, mr, mb, ml] = el.margin;
-  if (mt || mr || mb || ml) {
-    base.margin = `${mt}px ${mr}px ${mb}px ${ml}px`;
+  if (!isZeroSpaceTuple(el.margin)) {
+    base.margin = formatSpaceShorthand(el.margin);
   }
   if (el.type === 'text' && !isOff('typography')) {
     if (el.fontFamily !== undefined)

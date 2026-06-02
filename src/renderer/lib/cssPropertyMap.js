@@ -1,4 +1,4 @@
-import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parseFilterList, parsePaddingShorthandOrNull, parsePxOrNull, parseSizeValue, parseTransitionShorthand, } from './parsers';
+import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parseFilterList, parsePaddingShorthandOrNull, parseSizeValue, parseSpaceValueOrNull, parseTransitionShorthand, } from './parsers';
 import { isBlendMode } from './blendModes';
 const POSITIONS = new Set([
     'static',
@@ -67,10 +67,10 @@ export const cssToScampProperty = {
         return null;
     },
     gap: (v) => {
-        const px = parsePxOrNull(v);
-        if (px === null)
+        const sv = parseSpaceValueOrNull(v);
+        if (sv === null)
             return null;
-        return { gap: px };
+        return { gap: sv };
     },
     'align-items': (v) => {
         if (v === 'flex-start' || v === 'center' || v === 'flex-end' || v === 'stretch') {
@@ -245,16 +245,16 @@ export const cssToScampProperty = {
         return { gridTemplateRows: trimmed === 'none' ? '' : trimmed };
     },
     'column-gap': (v) => {
-        const px = parsePxOrNull(v);
-        if (px === null)
+        const sv = parseSpaceValueOrNull(v);
+        if (sv === null)
             return null;
-        return { columnGap: px };
+        return { columnGap: sv };
     },
     'row-gap': (v) => {
-        const px = parsePxOrNull(v);
-        if (px === null)
+        const sv = parseSpaceValueOrNull(v);
+        if (sv === null)
             return null;
-        return { rowGap: px };
+        return { rowGap: sv };
     },
     'justify-items': (v) => {
         if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {

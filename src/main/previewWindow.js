@@ -63,11 +63,26 @@ const wireStatus = (win, projectPath) => {
  * Open or reuse the preview window for a project. Returns the
  * BrowserWindow for the IPC layer to surface its `id` to callers.
  */
-export const openPreviewWindow = async (projectPath, pageName) => {
+/**
+ * Update the active page + page list on an EXISTING preview window
+ * without creating one. Called by the parent renderer when the
+ * project's page list changes (page added / renamed / deleted) so
+ * the URL-bar dropdown stays accurate. No-op when no preview window
+ * is open for the project — we don't want this to silently spawn
+ * a new preview just because pages shifted.
+ */
+export const updatePreviewWindow = (projectPath, pageName, pageNames) => {
+    const existing = previewWindows.get(projectPath);
+    if (!existing || existing.isDestroyed())
+        return;
+    const payload = { pageName, pageNames };
+    existing.webContents.send(IPC.PreviewNavigate, payload);
+};
+export const openPreviewWindow = async (projectPath, pageName, pageNames) => {
     const existing = previewWindows.get(projectPath);
     if (existing && !existing.isDestroyed()) {
         existing.focus();
-        const payload = { pageName };
+        const payload = { pageName, pageNames };
         existing.webContents.send(IPC.PreviewNavigate, payload);
         return { id: existing.id };
     }
@@ -116,9 +131,13 @@ export const openPreviewWindow = async (projectPath, pageName) => {
     });
     win.once('ready-to-show', () => {
         win.show();
-        // Pass the initial pageName once the renderer is up so it knows
-        // which route to navigate to when the server reaches `ready`.
-        win.webContents.send(IPC.PreviewNavigate, { pageName });
+        // Pass the initial pageName + full page list once the renderer
+        // is up so it knows which route to navigate to when the server
+        // reaches `ready` AND can populate the URL-bar page dropdown.
+        win.webContents.send(IPC.PreviewNavigate, {
+            pageName,
+            pageNames,
+        });
     });
     await loadPreviewWindow(win, projectPath);
     return { id: win.id };

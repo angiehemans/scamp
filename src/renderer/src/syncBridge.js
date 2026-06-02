@@ -4,7 +4,7 @@ import { parseThemeFile } from '@lib/parseTheme';
 import { applyThemeFonts } from './lib/applyThemeFonts';
 import { externalEditTracker } from './lib/externalEditTracker';
 import { createQuietWindow } from './lib/quietWindow';
-import { selectAnyAgentActive, useTerminalActivityStore, } from '@store/terminalActivitySlice';
+import { selectAnyAgentActive, selectPauseReason, useTerminalActivityStore, } from '@store/terminalActivitySlice';
 import { captureAndPersistComponentThumbnail } from './lib/componentThumbnail';
 import { useCanvasStore, } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
@@ -356,7 +356,17 @@ export const initSyncBridge = () => {
      * app-log message so the user knows their pending edit was
      * dropped in favour of the external version.
      */
-    const onWriteConflict = (target, conflict) => {
+    /**
+     * `silent: true` is set by the initial-load canonical migration —
+     * see `writeIfDirty`'s `silent` option below. The reload still
+     * happens (we adopt disk content), but we suppress the
+     * `reloaded-from-disk` indicator and the "your in-flight edit was
+     * dropped" app-log line, because the user had NO in-flight edit:
+     * the write was Scamp's own format-canonicalisation, not a user
+     * action. Showing the warning there frightens users when an agent
+     * was racing the project open.
+     */
+    const onWriteConflict = (target, conflict, silent = false) => {
         const store = useCanvasStore.getState();
         // The write was kicked off against `target`, but the user may
         // have navigated away in the meantime. Reloading the store's
@@ -397,6 +407,14 @@ export const initSyncBridge = () => {
         // the indicator shows it until the next successful save cycle
         // (markSaving will transition out). The app-log line stays as a
         // secondary audit trail.
+        //
+        // Silent mode (initial-load canonical migration): adopt disk
+        // content but transition straight back to `saved`. The user had
+        // no in-flight edit — surfacing "Reloaded" here is misleading.
+        if (silent) {
+            useSaveStatusStore.setState({ state: { kind: 'saved' }, toast: null });
+            return;
+        }
         useSaveStatusStore.getState().markReloadedFromDisk(target.name);
         useAppLogStore
             .getState()
@@ -418,7 +436,13 @@ export const initSyncBridge = () => {
      * silent file corruption on every navigation between pages with
      * different custom CSS.
      */
-    const writeIfDirty = (elements, rootElementId, target, customMediaBlocks, pageKeyframesBlocks) => {
+    /**
+     * `silent` is set by the canonical-migration call site (initial
+     * load). It propagates through to `onWriteConflict` so a conflict
+     * adopts disk without flashing the "Reloaded" indicator — the user
+     * hasn't made an edit yet, so the standard conflict UX is wrong here.
+     */
+    const writeIfDirty = (elements, rootElementId, target, customMediaBlocks, pageKeyframesBlocks, silent = false) => {
         // Phase 1.1: bail when chokidar is mid-event for this target.
         // `lastSerialized` is stale until the chokidar handler finishes
         // its reload; dispatching now would race the agent's edit. The
@@ -442,14 +466,17 @@ export const initSyncBridge = () => {
             // the burst. Subsequent aborts inside the same window are silent.
             return;
         }
-        // Phase 4.3: pause when any pty has a non-shell foreground
-        // process. Catches the case where the user just started Claude
-        // (or another agent) but the agent hasn't written a file yet —
-        // we want to be paused BEFORE the first write lands so the
-        // first write isn't the one that races.
-        if (selectAnyAgentActive(useTerminalActivityStore.getState())) {
-            useSaveStatusStore.getState().markPaused('agent-terminal');
-            return;
+        // Phase 4.3: pause when an agent is running. Either auto-detected
+        // (a non-shell foreground process in any integrated terminal) OR
+        // user-engaged (manual pause toggle). The reason carries through
+        // so the indicator popover shows the right copy.
+        {
+            const activity = useTerminalActivityStore.getState();
+            if (selectAnyAgentActive(activity)) {
+                const reason = selectPauseReason(activity) ?? 'agent-terminal';
+                useSaveStatusStore.getState().markPaused(reason);
+                return;
+            }
         }
         const store = useCanvasStore.getState();
         const code = generateCode({
@@ -495,7 +522,7 @@ export const initSyncBridge = () => {
                     expectedCssContent: expectedCss,
                 }
                 : {}),
-        }, (conflict) => onWriteConflict(target, conflict));
+        }, (conflict) => onWriteConflict(target, conflict, silent));
         // Sidebar thumbnail capture for component saves.
         // see docs/notes/components-thumbnails.md
         if (target.kind === 'component') {
@@ -547,11 +574,15 @@ export const initSyncBridge = () => {
         // (resumeFromPauseImpl clears the quiet window and we land here;
         // but the agent flag is checked separately and the user's
         // explicit override should win even mid-burst).
-        if (selectAnyAgentActive(useTerminalActivityStore.getState())) {
-            // Refresh the indicator's reason — quiet may have expired but
-            // the agent is still busy.
-            useSaveStatusStore.getState().markPaused('agent-terminal');
-            return;
+        {
+            const activity = useTerminalActivityStore.getState();
+            if (selectAnyAgentActive(activity)) {
+                // Refresh the indicator's reason — quiet may have expired
+                // but an agent (auto or manual) is still keeping us paused.
+                const reason = selectPauseReason(activity) ?? 'agent-terminal';
+                useSaveStatusStore.getState().markPaused(reason);
+                return;
+            }
         }
         const state = useCanvasStore.getState();
         const target = toEditTarget(state.activePage, state.activeComponent);
@@ -717,7 +748,8 @@ export const initSyncBridge = () => {
         prevAgentActive = nextAgentActive;
         if (nextAgentActive) {
             cancelWriteTimer();
-            useSaveStatusStore.getState().markPaused('agent-terminal');
+            const reason = selectPauseReason(s) ?? 'agent-terminal';
+            useSaveStatusStore.getState().markPaused(reason);
             return;
         }
         // Agent just went idle. If the chokidar quiet window is also
@@ -812,7 +844,13 @@ export const initSyncBridge = () => {
                 // disk is the source of truth and round-tripping through
                 // generateCode could clobber preserved formatting / customProps.
                 if (!isExternal && onDisk) {
-                    writeIfDirty(state.elements, state.rootElementId, currentTarget, state.pageCustomMediaBlocks, state.pageKeyframesBlocks);
+                    // silent=true: this is Scamp's own canonical migration of
+                    // whatever just landed on disk, not a user edit. If an
+                    // agent races us during a project open and the optimistic-
+                    // concurrency check rejects, we adopt disk silently rather
+                    // than scaring the user with "Reloaded — your edit was
+                    // dropped" (they made no edit).
+                    writeIfDirty(state.elements, state.rootElementId, currentTarget, state.pageCustomMediaBlocks, state.pageKeyframesBlocks, true);
                 }
                 // Defer clearing the flag so any in-flight subscribers also see it.
                 queueMicrotask(() => {

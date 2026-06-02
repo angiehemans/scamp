@@ -1,7 +1,8 @@
 type PreviewWindowApi = {
-    open: (projectPath: string, pageName: string) => Promise<{
+    open: (projectPath: string, pageName: string, pageNames: ReadonlyArray<string>) => Promise<{
         id: number;
     }>;
+    update: (projectPath: string, pageName: string, pageNames: ReadonlyArray<string>) => void;
     close: (projectPath: string) => void;
 };
 /**

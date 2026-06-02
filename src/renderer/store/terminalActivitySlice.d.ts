@@ -15,19 +15,53 @@
  * `anyAgentActive` is derived (via the `selectAnyAgentActive`
  * selector) — true iff at least one entry has a non-null value.
  */
+/**
+ * What the user has decided about sync, overriding auto-detection
+ * if they want to. Project switch resets to `'auto'` so a manual
+ * choice doesn't bleed across sessions.
+ *
+ *   - `'auto'`     — follow auto-detection (default). Bridge pauses
+ *                    when an agent is detected in any integrated
+ *                    terminal; resumes when the foreground clears.
+ *   - `'paused'`   — user explicitly engaged Pause. Bridge stays
+ *                    paused regardless of detection.
+ *   - `'resumed'`  — user explicitly clicked Resume from a paused
+ *                    state. Bridge stays resumed regardless of
+ *                    detection. The user has acknowledged the
+ *                    agent and chosen to override; subsequent
+ *                    agent activity won't re-pause until they
+ *                    click Pause again or switch projects.
+ */
+export type UserSyncIntent = 'auto' | 'paused' | 'resumed';
 type TerminalActivityState = {
     foregroundByTerminal: Record<string, string | null>;
+    userIntent: UserSyncIntent;
     /** Set or clear the foreground process for a pty. Removes the entry
      *  entirely when the pty exits to avoid stale keys. */
     setForeground: (terminalId: string, processName: string | null) => void;
     /** Forget about a terminal entirely (called on `onTerminalExit`). */
     removeTerminal: (terminalId: string) => void;
+    /** Update the user's explicit sync intent. The save-indicator
+     *  dropdown calls this. */
+    setUserIntent: (intent: UserSyncIntent) => void;
 };
 export declare const useTerminalActivityStore: import("zustand").UseBoundStore<import("zustand").StoreApi<TerminalActivityState>>;
 /**
- * True iff any tracked terminal has a non-null foreground process
- * (i.e. anything other than the user's shell). Used by the sync
- * bridge to enter the agent-terminal pause state.
+ * True iff the bridge should be paused. Layered:
+ *
+ *   1. If the user explicitly chose `'paused'` → paused.
+ *   2. If the user explicitly chose `'resumed'` → never paused, even
+ *      if an agent is detected. The user has acknowledged the agent
+ *      and elected to override.
+ *   3. Otherwise (auto), pause iff at least one tracked terminal has
+ *      a non-null foreground process.
  */
 export declare const selectAnyAgentActive: (state: TerminalActivityState) => boolean;
+/**
+ * Why the bridge should be paused, if it should. Returns `null` when
+ * the bridge should be running. The bridge passes this to
+ * `markPaused(reason)` so the indicator's popover can tell the user
+ * what's going on.
+ */
+export declare const selectPauseReason: (state: TerminalActivityState) => "manual" | "agent-terminal" | null;
 export {};

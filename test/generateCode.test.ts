@@ -172,9 +172,14 @@ describe('generateCode — flex parent', () => {
       }),
     };
     const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    // a1b2 is a flex item — no position
+    // a1b2 is itself a flex item under the flex root (so it doesn't
+    // need its own position keyword for placement), BUT its child
+    // c3d4 lives inside a non-flex parent and will resolve to
+    // `position: absolute`. a1b2 must establish a positioning context
+    // so c3d4 anchors locally instead of escaping to .root.
+    // See positioningContext.test.ts for the dedicated coverage.
     const aBlock = extractBlock(css, '.rect_a1b2');
-    expect(aBlock).not.toContain('position:');
+    expect(aBlock).toContain('position: relative;');
     // c3d4's parent (a1b2) is NOT flex, so c3d4 keeps absolute positioning
     const cBlock = extractBlock(css, '.rect_c3d4');
     expect(cBlock).toContain('position: absolute;');
@@ -284,7 +289,7 @@ describe('generateCode — CSS', () => {
     expect(block).toContain('gap: 24px;');
     expect(block).toContain('align-items: center;');
     expect(block).toContain('justify-content: space-between;');
-    expect(block).toContain('padding: 16px 16px 16px 16px;');
+    expect(block).toContain('padding: 16px;');
     expect(block).toContain('background: #0f0f0f;');
   });
 
@@ -356,8 +361,8 @@ describe('generateCode — CSS', () => {
     expect(block).toContain('width: 320px;');
     expect(block).toContain('height: 240px;');
     expect(block).toContain('background: #f0f0f0;');
-    expect(block).toContain('border-radius: 8px 8px 8px 8px;');
-    expect(block).toContain('border-width: 1px 1px 1px 1px;');
+    expect(block).toContain('border-radius: 8px;');
+    expect(block).toContain('border-width: 1px;');
     expect(block).toContain('border-style: solid;');
     expect(block).toContain('border-color: #cccccc;');
   });
@@ -470,7 +475,8 @@ describe('generateCode — CSS', () => {
       c3d4: makeRect({ id: 'c3d4' }),
     };
     const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(extractBlock(css, '.rect_a1b2')).toContain('margin: 8px 16px 8px 16px;');
+    // Collapses to 2-value form (vertical/horizontal symmetry).
+    expect(extractBlock(css, '.rect_a1b2')).toContain('margin: 8px 16px;');
     expect(extractBlock(css, '.rect_c3d4')).not.toContain('margin:');
   });
 

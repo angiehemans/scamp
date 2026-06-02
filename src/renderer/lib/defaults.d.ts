@@ -1,4 +1,5 @@
 import type { BoxShadowDef, FilterDef, PropertyGroup } from './element';
+import type { SpaceTuple } from './spaceValue';
 /**
  * Default style values applied to every newly-created rectangle.
  *
@@ -22,15 +23,15 @@ export declare const DEFAULT_RECT_STYLES: {
     gridRow: string;
     alignSelf: "stretch";
     justifySelf: "stretch";
-    padding: [number, number, number, number];
-    margin: [number, number, number, number];
+    padding: SpaceTuple;
+    margin: SpaceTuple;
     widthMode: "fixed";
     widthValue: number;
     heightMode: "fixed";
     heightValue: number;
     backgroundColor: string;
-    borderRadius: [number, number, number, number];
-    borderWidth: [number, number, number, number];
+    borderRadius: SpaceTuple;
+    borderWidth: SpaceTuple;
     borderStyle: "none";
     borderColor: string;
     opacity: number;
@@ -91,8 +92,8 @@ export declare const DEFAULT_ROOT_STYLES: {
     gridRow: string;
     alignSelf: "stretch";
     justifySelf: "stretch";
-    padding: [number, number, number, number];
-    margin: [number, number, number, number];
+    padding: SpaceTuple;
+    margin: SpaceTuple;
     widthMode: "stretch";
     widthValue: number;
     heightMode: "auto";
@@ -106,8 +107,8 @@ export declare const DEFAULT_ROOT_STYLES: {
      */
     minHeight: string;
     backgroundColor: string;
-    borderRadius: [number, number, number, number];
-    borderWidth: [number, number, number, number];
+    borderRadius: SpaceTuple;
+    borderWidth: SpaceTuple;
     borderStyle: "none";
     borderColor: string;
     opacity: number;

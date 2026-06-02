@@ -211,6 +211,18 @@
   cursor: not-allowed;
 }
 
+/* Subtle separator between the state-specific copy and the
+ * always-present Pause/Resume control inside the popover. */
+.popoverDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 10px -12px;
+}
+
+.popoverActions:last-child {
+  margin-bottom: 0;
+}
+
 /* Diff preview inside the diverged-state popover. Lists the canvas
  * edits that happened during the pause so the user can decide
  * between Save canvas and Discard canvas with a clear picture. */

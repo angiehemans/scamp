@@ -14,7 +14,16 @@ import {
 } from '../devServer/devServerManager';
 
 type PreviewWindowApi = {
-  open: (projectPath: string, pageName: string) => Promise<{ id: number }>;
+  open: (
+    projectPath: string,
+    pageName: string,
+    pageNames: ReadonlyArray<string>
+  ) => Promise<{ id: number }>;
+  update: (
+    projectPath: string,
+    pageName: string,
+    pageNames: ReadonlyArray<string>
+  ) => void;
   close: (projectPath: string) => void;
 };
 
@@ -31,13 +40,23 @@ export const registerPreviewIpc = (windowApi: PreviewWindowApi): void => {
     // renderer will subscribe to status changes via the IPC channel
     // PreviewStatusChanged; we kick the dev server in parallel so
     // the install / start work begins as soon as possible.
-    const win = await windowApi.open(args.projectPath, args.pageName);
+    const win = await windowApi.open(
+      args.projectPath,
+      args.pageName,
+      args.pageNames
+    );
     void ensureDevServer(args.projectPath);
     return { windowId: win.id };
   });
 
   ipcMain.handle(IPC.PreviewStop, async (_e, args: PreviewStopArgs) => {
     await stopDevServer(args.projectPath);
+  });
+
+  ipcMain.handle(IPC.PreviewUpdate, (_e, args: PreviewOpenArgs) => {
+    // Update an existing preview window's active page + dropdown
+    // list. No-op when no preview window is open for the project.
+    windowApi.update(args.projectPath, args.pageName, args.pageNames);
   });
 
   /**

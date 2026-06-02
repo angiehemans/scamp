@@ -76,7 +76,16 @@ export declare const tagFor: (el: ScampElement) => string;
  * Exported so the properties panel can render what would be written to
  * disk for the selected element without having to re-implement the rules.
  */
-export declare const elementDeclarationLines: (el: ScampElement, parent?: ScampElement | null) => string[];
+export declare const elementDeclarationLines: (el: ScampElement, parent?: ScampElement | null, 
+/**
+ * When true, this element has at least one descendant that will
+ * be `position: absolute` and would otherwise escape to a remote
+ * ancestor's positioning context (or all the way to `.root`).
+ * We emit `position: relative` here so the descendant anchors
+ * locally — even when `el.position === 'auto'` would normally
+ * emit nothing. See `computeElementsNeedingPositioningContext`.
+ */
+mustEstablishPositioningContext?: boolean) => string[];
 /**
  * Emit CSS declarations for a single breakpoint override. Unlike
  * `elementDeclarationLines` (which skips values equal to defaults),

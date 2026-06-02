@@ -1,4 +1,5 @@
 import type { BorderStyle, BoxShadowDef, ElementAnimation, FilterDef, HeightMode, TransitionDef, WidthMode } from './element';
+import { type SpaceTuple, type SpaceValue } from './spaceValue';
 /**
  * Parse a `123px` (or bare number) into an integer. Returns 0 for empty
  * or unparseable input — keeps callers from having to special-case missing
@@ -84,22 +85,36 @@ export declare const formatTransitionTime: (ms: number) => string;
 export declare const formatTransitionShorthand: (transitions: ReadonlyArray<TransitionDef>) => string;
 /**
  * Like `parsePx` but returns `null` for non-px tokens (so callers can
- * preserve `var()`, `%`, `rem`, etc. by falling through to
- * customProperties).
+ * preserve `%`, `rem`, `em`, `auto`, etc. by falling through to
+ * customProperties). Plain numbers (no unit), bare zero, and `Npx`
+ * all parse to a number.
  */
 export declare const parsePxOrNull: (raw: string) => number | null;
+export declare const parseVarTokenOrNull: (raw: string) => string | null;
 /**
- * Refusable variant of `parsePaddingShorthand`. Returns `null` if any
- * token is non-px (`var()`, `%`, `rem`, `auto`, …) so the caller can
- * preserve the declaration verbatim.
+ * Parse a single spacing token — either px (returns `number`) or
+ * `var(--name)` (returns the token discriminated form). Anything
+ * else returns `null` so the caller can refuse the whole shorthand.
  */
-export declare const parsePaddingShorthandOrNull: (raw: string) => [number, number, number, number] | null;
+export declare const parseSpaceValueOrNull: (raw: string) => SpaceValue | null;
 /**
- * Refusable variant of `parseBorderRadiusShorthand`. Anything other
- * than 1–4 px tokens (e.g. `50%`, `var()`) → returns null so the raw
- * declaration round-trips via customProperties.
+ * Refusable variant of `parsePaddingShorthand` that returns a
+ * `SpaceTuple` (each side is px or `var()`). Returns `null` if any
+ * token isn't accepted by `parseSpaceValueOrNull` — keeping declarations
+ * with `%`, `rem`, `auto`, etc. flowing into customProperties.
+ *
+ * Tokens are split on whitespace OUTSIDE parens so values like
+ * `var(--a, 16px) var(--b)` parse correctly without splitting the
+ * fallback's internal comma-space.
  */
-export declare const parseBorderRadiusShorthandOrNull: (raw: string) => [number, number, number, number] | null;
+export declare const parsePaddingShorthandOrNull: (raw: string) => SpaceTuple | null;
+/**
+ * Refusable variant of `parseBorderRadiusShorthand`. 1-4 px or var()
+ * tokens are accepted; anything else (`50%`, `1.5em`, the elliptical
+ * slash form) returns null so the raw declaration round-trips via
+ * customProperties.
+ */
+export declare const parseBorderRadiusShorthandOrNull: (raw: string) => SpaceTuple | null;
 /**
  * Parse a single CSS `animation` shorthand value (one animation, no
  * commas) into an `ElementAnimation`. Returns null when no name can

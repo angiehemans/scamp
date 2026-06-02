@@ -6,6 +6,7 @@ import {
   parsePaddingShorthandOrNull,
   parsePxOrNull,
   parseSizeValue,
+  parseSpaceValueOrNull,
   parseTransitionShorthand,
 } from './parsers';
 import { isBlendMode } from './blendModes';
@@ -92,9 +93,9 @@ export const cssToScampProperty: Record<string, Mapper> = {
     return null;
   },
   gap: (v) => {
-    const px = parsePxOrNull(v);
-    if (px === null) return null;
-    return { gap: px };
+    const sv = parseSpaceValueOrNull(v);
+    if (sv === null) return null;
+    return { gap: sv };
   },
   'align-items': (v) => {
     if (v === 'flex-start' || v === 'center' || v === 'flex-end' || v === 'stretch') {
@@ -259,14 +260,14 @@ export const cssToScampProperty: Record<string, Mapper> = {
     return { gridTemplateRows: trimmed === 'none' ? '' : trimmed };
   },
   'column-gap': (v) => {
-    const px = parsePxOrNull(v);
-    if (px === null) return null;
-    return { columnGap: px };
+    const sv = parseSpaceValueOrNull(v);
+    if (sv === null) return null;
+    return { columnGap: sv };
   },
   'row-gap': (v) => {
-    const px = parsePxOrNull(v);
-    if (px === null) return null;
-    return { rowGap: px };
+    const sv = parseSpaceValueOrNull(v);
+    if (sv === null) return null;
+    return { rowGap: sv };
   },
   'justify-items': (v) => {
     if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {

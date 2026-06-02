@@ -119,8 +119,13 @@ describe('cloneElementSubtree', () => {
         };
         const result = cloneElementSubtree(elements, 'a1b2', ROOT_ELEMENT_ID, new Set(['root', 'a1b2']), seq(['c0c0']));
         const clone = result.cloned['c0c0'];
-        // Mutating the clone must not affect the original.
-        clone.padding[0] = 99;
+        // The cloned tuple must be a fresh array (different reference)
+        // so swapping it on the clone can't affect the original — the
+        // tuple itself is readonly in the type system, but cloneElement
+        // still needs to give callers a distinct array. We verify
+        // identity, then mutate the clone's customProperties (which IS
+        // mutable) to confirm independence end-to-end.
+        expect(clone.padding).not.toBe(elements['a1b2'].padding);
         clone.customProperties['transform'] = 'rotate(2deg)';
         expect(elements['a1b2'].padding[0]).toBe(4);
         expect(elements['a1b2'].customProperties['transform']).toBeUndefined();

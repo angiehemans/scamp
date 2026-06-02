@@ -18,6 +18,9 @@ export const PreviewApp = (): JSX.Element => {
   const [status, setStatus] = useState<DevServerStatus>({ kind: 'idle' });
   const [projectPath, setProjectPath] = useState<string>('');
   const [pageName, setPageName] = useState<string>('home');
+  const [pageNames, setPageNames] = useState<ReadonlyArray<string>>([
+    'home',
+  ]);
   const [currentUrl, setCurrentUrl] = useState<string>('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
@@ -63,6 +66,10 @@ export const PreviewApp = (): JSX.Element => {
     if (!previewApi) return;
     const off = previewApi.onNavigate((payload) => {
       setPageName(payload.pageName);
+      // The parent always sends the full list — update it here so
+      // adds / renames / deletes from the canvas land in the dropdown
+      // without a separate IPC channel.
+      setPageNames(payload.pageNames);
     });
     return off;
   }, [previewApi]);
@@ -180,11 +187,14 @@ export const PreviewApp = (): JSX.Element => {
         canGoBack={canGoBack}
         canGoForward={canGoForward}
         viewportWidth={viewportWidth}
+        pageName={pageName}
+        pageNames={pageNames}
         onBack={handleBack}
         onForward={handleForward}
         onReload={handleReload}
         onOpenDevTools={handleOpenDevTools}
         onViewportChange={setViewportWidth}
+        onPageChange={setPageName}
       />
       <main className={styles.body}>
         {status.kind === 'ready' ? (
