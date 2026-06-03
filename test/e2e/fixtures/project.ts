@@ -305,10 +305,20 @@ export const createTestProject = async (
   };
 
   const componentExists = async (componentName: string): Promise<boolean> => {
-    const { tsxPath } = componentFilesFor(componentName);
+    // macOS APFS is case-insensitive by default, so `fs.access` on
+    // `components/button/button.tsx` resolves to `components/Button/Button.tsx`
+    // and returns true even though no `button` folder exists. List the
+    // parent directories and string-compare so the check matches exactly
+    // on Linux CI and macOS dev machines.
     try {
-      await fs.access(tsxPath);
-      return true;
+      const componentsDirEntries = await fs.readdir(
+        path.join(dir, 'components')
+      );
+      if (!componentsDirEntries.includes(componentName)) return false;
+      const componentDirEntries = await fs.readdir(
+        path.join(dir, 'components', componentName)
+      );
+      return componentDirEntries.includes(`${componentName}.tsx`);
     } catch {
       return false;
     }

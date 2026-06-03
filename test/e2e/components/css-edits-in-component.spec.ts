@@ -35,10 +35,16 @@ test.describe('components: CSS panel inside the component editor', () => {
     // declaration doesn't splice into an existing line and break
     // the CSS parser. (Autocomplete + mid-line insertion was the
     // source of the original flake.)
-    await window.keyboard.press('Control+End');
+    //
+    // ControlOrMeta — CodeMirror's `Mod-End` binding maps to
+    // Cmd+End on macOS and Ctrl+End on Linux. Sending a literal
+    // `Control+End` on macOS is a no-op, and the typed text
+    // splices into wherever `editor.click()` left the cursor
+    // (mid-line, between `:` and `;` of an existing declaration).
+    await window.keyboard.press('ControlOrMeta+End');
     await window.keyboard.press('Enter');
     await window.keyboard.type('letter-spacing: 4px;');
-    await window.keyboard.press('Control+s');
+    await window.keyboard.press('ControlOrMeta+s');
     await waitForSaved(window);
 
     const { css } = await project.readComponent('Card');
@@ -65,7 +71,9 @@ test.describe('components: CSS panel inside the component editor', () => {
     await setPanelMode(window, 'CSS');
     const editor = propertiesPanel(window).locator('.cm-content').first();
     await editor.click();
-    await window.keyboard.press('Control+End');
+    // ControlOrMeta+End — see Cmd+S test above for the macOS-vs-Linux
+    // CodeMirror keymap rationale.
+    await window.keyboard.press('ControlOrMeta+End');
     await window.keyboard.press('Enter');
     await window.keyboard.type('word-spacing: 2px;');
 

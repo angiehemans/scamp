@@ -1,6 +1,5 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { DEFAULT_PAGE_CSS } from '@shared/agentMd';
 /**
  * Folder + binding identifier for a Scamp component. Must be
  * PascalCase: the folder name, the TSX filename, the React
@@ -33,20 +32,28 @@ const pathExists = async (p) => {
     }
 };
 /**
- * The default starter TSX written for a brand-new blank
- * component. A single empty root `<div>` styled by
- * `<Name>.module.css`'s `.root` block, ready for the user to
- * draw inside. The function name + folder name + CSS-module
- * import all agree so a rename later only has to flip the three
- * matched strings.
+ * Default starter content for a brand-new blank component. The
+ * shape mirrors what `generateCode` emits for an empty root so
+ * a parse → regen round-trip is text-stable: the renderer's
+ * canonical-migration write doesn't fire after `loadComponent`,
+ * which kept the `lastSerialized` cache in sync with the
+ * chokidar `add` event for the freshly-written file. Without
+ * that, the next chokidar event's echo guard missed and the
+ * handler reloaded the empty tree on top of any rect the user
+ * had just drawn. see docs/notes/component-scaffold-roundtrip.md
  */
 const defaultComponentTsx = (componentName) => `import styles from './${componentName}.module.css';
 
 export default function ${componentName}() {
   return (
-    <div data-scamp-id="root" className={styles.root}>
-    </div>
+    <div data-scamp-id="root" className={styles.root} />
   );
+}
+`;
+const DEFAULT_COMPONENT_CSS = `.root {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
 }
 `;
 /**
@@ -77,9 +84,9 @@ export const createComponent = async (args, format) => {
     // Initial content: the convert-to-component flow passes
     // pre-generated TSX + CSS that captures the source subtree's
     // design. A plain-add flow leaves both undefined, falling back
-    // to the blank scaffold (single `root` div, empty CSS).
+    // to the canonical blank scaffold.
     const tsxContent = args.tsxContent ?? defaultComponentTsx(args.componentName);
-    const cssContent = args.cssContent ?? DEFAULT_PAGE_CSS;
+    const cssContent = args.cssContent ?? DEFAULT_COMPONENT_CSS;
     await fs.writeFile(tsxPath, tsxContent, 'utf-8');
     await fs.writeFile(cssPath, cssContent, 'utf-8');
     return {

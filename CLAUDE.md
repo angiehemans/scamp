@@ -19,6 +19,8 @@ See `prd-scamp-poc.md` for full product context.
 - **Never use `console.log` for debugging** — use the logger utility or remove before committing
 - **Never hardcode IPC channel name strings** — always use constants from `src/shared/ipcChannels.ts`
 - **Never read from disk in the renderer** — all file operations go through IPC
+- **Never assume a case-sensitive filesystem.** Linux CI is case-sensitive; macOS APFS (the default for dev machines) is case-insensitive, so `fs.access("components/button/button.tsx")` resolves to the `Button` folder. Use directory listings + string comparison when a check depends on exact casing, and design code/tests to behave the same on both platforms.
+- **In Playwright tests, use `ControlOrMeta+` not `Control+`** for keyboard shortcuts that should be cross-platform. CodeMirror's `Mod-*` bindings (and most macOS-aware app shortcuts) map to `Cmd` on macOS and `Ctrl` on Linux. A literal `Control+End` is a no-op on macOS and the next `keyboard.type` splices into wherever `editor.click()` left the cursor — usually mid-line, producing CSS the parser then rejects.
 
 ---
 

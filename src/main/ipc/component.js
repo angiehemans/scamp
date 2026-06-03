@@ -1,7 +1,9 @@
+import { randomUUID } from 'crypto';
 import { ipcMain } from 'electron';
 import { IPC } from '@shared/ipcChannels';
+import { cancelPendingWrite, registerPendingWrite } from '../watcher';
 import { getProjectFormat } from './projectFormatCache';
-import { createComponent, deleteComponent, readComponent, readComponentThumbnail, writeComponentThumbnail, } from './componentOps';
+import { componentPathsFor, createComponent, deleteComponent, readComponent, readComponentThumbnail, writeComponentThumbnail, } from './componentOps';
 /**
  * Wire up the Phase 1 component IPC channels. Mirror of
  * `registerPageIpc` — every handler resolves the project format
@@ -14,7 +16,26 @@ import { createComponent, deleteComponent, readComponent, readComponentThumbnail
 export const registerComponentIpc = () => {
     ipcMain.handle(IPC.ComponentCreate, async (_e, args) => {
         const format = await getProjectFormat(args.projectPath);
-        return createComponent(args, format);
+        // Suppress the chokidar `add` broadcast for both files: the
+        // renderer's `loadComponent` already has the content via this
+        // IPC's return value, so a `file:changed` round-trip would
+        // only race the user's first interaction. Without this, the
+        // syncBridge echo guard misses (its `lastSerialized` cache
+        // trails the chokidar event) and the chokidar handler
+        // reloads on top of any rect the user has just drawn.
+        // see docs/notes/component-scaffold-roundtrip.md
+        const { tsxPath, cssPath } = componentPathsFor(args.projectPath, args.componentName);
+        const writeId = randomUUID();
+        registerPendingWrite(tsxPath, writeId, true);
+        registerPendingWrite(cssPath, writeId, true);
+        try {
+            return await createComponent(args, format);
+        }
+        catch (err) {
+            cancelPendingWrite(tsxPath);
+            cancelPendingWrite(cssPath);
+            throw err;
+        }
     });
     ipcMain.handle(IPC.ComponentDelete, async (_e, args) => {
         const format = await getProjectFormat(args.projectPath);
