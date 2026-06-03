@@ -14,6 +14,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Element Naming](element-naming.md) — Rename elements and how names map to CSS classes
 - [Grouping](grouping.md) — Group and ungroup elements into flex containers
 - [Grid Layout](grid-layout.md) — CSS Grid containers, columns, rows, and grid-item placement
+- [Components](components.md) — Reusable components across pages, the component editor, the Data tab, and per-instance text overrides
 - [Element States](element-states.md) — Hover, active, and focus styles via the State Switcher
 - [Transitions](transitions.md) — Smooth state changes via the Transitions section
 - [Animations](animations.md) — Preset keyframe animations with full timing controls

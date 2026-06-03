@@ -48,6 +48,18 @@
   font-size: 11px;
 }
 
+.resources {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.resources .linkButton {
+  font-size: 12px;
+}
+
 .footerLabel {
   font-weight: 600;
   text-transform: uppercase;

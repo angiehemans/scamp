@@ -193,6 +193,49 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
 
         <div className={styles.sidebarSpacer} />
 
+        <div className={styles.resources}>
+          <span className={styles.footerLabel}>Resources</span>
+          <button
+            className={styles.linkButton}
+            onClick={() =>
+              window.open(
+                'https://discord.com/invite/VhA3uBT4t',
+                '_blank',
+                'noopener,noreferrer'
+              )
+            }
+            type="button"
+          >
+            Discord community
+          </button>
+          <button
+            className={styles.linkButton}
+            onClick={() =>
+              window.open(
+                'https://scampdesign.app/docs',
+                '_blank',
+                'noopener,noreferrer'
+              )
+            }
+            type="button"
+          >
+            Documentation
+          </button>
+          <button
+            className={styles.linkButton}
+            onClick={() =>
+              window.open(
+                'https://scampdesign.app/changelog',
+                '_blank',
+                'noopener,noreferrer'
+              )
+            }
+            type="button"
+          >
+            Changelog
+          </button>
+        </div>
+
         <button
           className={styles.linkButton}
           onClick={onOpenSettings}

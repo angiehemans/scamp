@@ -28,11 +28,36 @@ The collapsible **Element** section at the top lets you change the HTML tag used
 
 - Toggle between **Block** and **Flex** display.
 - For flex containers: **Direction** (row/column), **Align**, **Justify**, and **Gap**.
+- The **Gap** input (and **C-gap** / **R-gap** in Grid mode) shows a
+  token icon on the right — see [Spacing Tokens](#spacing-tokens) below.
 
 ### Spacing
 
 - **P** (padding) and **M** (margin) inputs.
 - Supports shorthand input: type `10` for uniform, `10 20` for vertical/horizontal, or `10 20 30 40` for top/right/bottom/left.
+- The right edge of each input has a token icon — see [Spacing Tokens](#spacing-tokens) below.
+
+#### Spacing tokens
+
+Every length-typed control in the panel — Padding, Margin, Gap,
+C-gap, R-gap, Border width, Border radius — exposes a small token
+icon on the inside-right of the input. Click it for a dropdown of
+every length token declared in `theme.css` (`--space-md: 16px;`,
+`--gutter: 1rem;`, etc.).
+
+- Picking a token on a 4-side field (padding, margin, border-width,
+  border-radius) applies the token to all four sides.
+- Picking a token on a single-value field (gap, column-gap, row-gap)
+  replaces the value.
+- The icon highlights in the accent color when any side currently
+  holds a `var(--…)` reference, so token-bound fields are visible at
+  a glance.
+- You can still type mixed forms directly — `16 var(--space-md)`
+  on padding gives you a px top/bottom and a token left/right.
+- The dropdown shows an empty state with a **+ Add token** action
+  when the project has no length tokens declared yet.
+
+See [Themes](themes.md) for the full token model.
 
 ### Background
 
@@ -43,6 +68,8 @@ The collapsible **Element** section at the top lets you change the HTML tag used
 
 - **Color** swatch, **Style** selector (solid, dashed, etc.), **W** (width), **R** (border-radius).
 - Supports shorthand input for radius (e.g. `10 20 10 20`).
+- **W** and **R** both carry the spacing token picker — see
+  [Spacing tokens](#spacing-tokens) above.
 
 ### Shadow
 

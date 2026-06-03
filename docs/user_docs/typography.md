@@ -9,15 +9,20 @@ Press **T** to activate the text tool, then click and drag on the [canvas](canva
 ## Font Controls
 
 - **Font Family** -- A searchable picker that includes Google Fonts and web-safe system fonts. Fonts are loaded from Google Fonts via CDN, so you need an internet connection for non-system fonts.
-- **Font Size** -- Numeric input in pixels.
+- **Font Size** -- Numeric input in pixels. A token icon on the
+  right opens a picker of length tokens declared in `theme.css`
+  (`--font-size-body`, `--text-lg`, etc.) — see [Themes](themes.md).
 - **Font Weight** -- Select from available weights for the chosen font family.
 - **Text Color** -- Opens the [Color Picker](color-picker.md).
 
 ## Alignment and Spacing
 
 - **Text Align** -- Three icon buttons: **L** (left), **C** (center), **R** (right).
-- **Line Height** -- Numeric input controlling the spacing between lines.
-- **Letter Spacing** -- Numeric input for spacing between characters.
+- **Line Height** -- Numeric input. The token-picker icon offers
+  any bare-number tokens declared in `theme.css` (e.g.
+  `--line-height-body: 1.5;`).
+- **Letter Spacing** -- Numeric input for spacing between
+  characters. Shares the length-token picker with font-size.
 
 ## HTML Tag Selector
 
