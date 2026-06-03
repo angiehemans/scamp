@@ -338,6 +338,17 @@ export const initSyncBridge = () => {
     let writeTimer = null;
     let lastSerializedTsx = null;
     let lastSerializedCss = null;
+    /**
+     * Set when a canvas edit lands while the quiet window is open
+     * (its `writeIfDirty` gets deferred). `reconcileAfterQuiet`
+     * consults this to decide whether to flush the pending canvas
+     * change after the window expires, or to leave disk alone (the
+     * canvas state's regen differs from disk only because of
+     * non-round-tripping user-typed CSS — clobbering disk would lose
+     * the user's intent). Cleared on chokidar event (start of quiet
+     * window) and after `reconcileAfterQuiet` runs.
+     */
+    let canvasChangedDuringQuiet = false;
     // Register the snapshot-restore callback so the history slice can
     // apply a saved elements map when the user navigates (undo /
     // redo / click an entry in the panel). The callback writes
@@ -412,7 +423,11 @@ export const initSyncBridge = () => {
         // content but transition straight back to `saved`. The user had
         // no in-flight edit — surfacing "Reloaded" here is misleading.
         if (silent) {
-            useSaveStatusStore.setState({ state: { kind: 'saved' }, toast: null });
+            useSaveStatusStore.setState({
+                state: { kind: 'saved' },
+                toast: null,
+                dirtyDuringSave: false,
+            });
             return;
         }
         useSaveStatusStore.getState().markReloadedFromDisk(target.name);
@@ -605,15 +620,27 @@ export const initSyncBridge = () => {
             useSaveStatusStore.getState().markResumed(null);
             return;
         }
-        const attempt = {
-            kind: 'write',
-            tsxPath: target.tsxPath,
-            cssPath: target.cssPath,
-            tsxContent: code.tsx,
-            cssContent: code.css,
-            // expected* deliberately omitted — see comment above.
-        };
-        useSaveStatusStore.getState().markResumed(attempt);
+        // Canvas state differs from what's on disk. Two interpretations:
+        //
+        //   (a) The user made a canvas edit during the quiet window —
+        //       it was deferred by `writeIfDirty`'s quietWindow guard
+        //       and is now waiting to be flushed.
+        //   (b) The user typed CSS directly into the file (or via the
+        //       raw-CSS panel) that doesn't round-trip cleanly through
+        //       Scamp's typed model (e.g. `letter-spacing` on a rect —
+        //       parseCode stores it on the element, generateCode drops
+        //       it because the typed emitter is text-only). Canvas
+        //       state regenerates to a different string than what's on
+        //       disk, but the on-disk version is the user's intent.
+        //
+        // We tell these apart by remembering whether `state.elements`
+        // changed during the quiet window. If yes (a) → flush.
+        // If no (b) → leave disk alone, just resume.
+        if (canvasChangedDuringQuiet) {
+            flushDebouncedWrite();
+        }
+        canvasChangedDuringQuiet = false;
+        useSaveStatusStore.getState().markResumed(null);
     };
     /**
      * Schedule the resume check to fire when the quiet window expires.
@@ -717,7 +744,11 @@ export const initSyncBridge = () => {
             state.reloadElements(parsed.elements, onDisk, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
             lastSerializedTsx = onDisk.tsx;
             lastSerializedCss = onDisk.css;
-            useSaveStatusStore.setState({ state: { kind: 'saved' }, toast: null });
+            useSaveStatusStore.setState({
+                state: { kind: 'saved' },
+                toast: null,
+                dirtyDuringSave: false,
+            });
         }
         catch (err) {
             const message = err instanceof Error ? err.message : String(err);
@@ -862,6 +893,14 @@ export const initSyncBridge = () => {
             // preview immediately so the user sees changes reflected without
             // waiting for the debounced write.
             useSaveStatusStore.getState().markUnsaved();
+            if (quietWindow.isQuiet()) {
+                // The actual `writeIfDirty` won't fire until after the quiet
+                // window expires (or it'll bail when the debounce flushes
+                // inside the window). Remember that the user did edit the
+                // canvas so `reconcileAfterQuiet` knows to flush instead of
+                // silently dropping the change.
+                canvasChangedDuringQuiet = true;
+            }
             const previewCode = generateCode({
                 elements: state.elements,
                 rootId: state.rootElementId,
@@ -918,6 +957,11 @@ export const initSyncBridge = () => {
         // long agent task keeps Scamp paused until the agent settles.
         quietWindow.extend();
         cancelWriteTimer();
+        // Reset the canvas-changed-during-quiet flag at the start of
+        // (or extension to) the quiet window. We're now watching for
+        // canvas edits arriving DURING this window — anything before
+        // doesn't count.
+        canvasChangedDuringQuiet = false;
         useSaveStatusStore.getState().markPaused('external-edit');
         scheduleQuietResume();
         // External editors (Claude Code, vim, etc.) can trigger chokidar

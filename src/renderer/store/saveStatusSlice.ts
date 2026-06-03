@@ -103,6 +103,21 @@ type SaveStatusState = {
    * currently paused / never paused.
    */
   pauseStartedAt: number | null;
+  /**
+   * A canvas edit landed WHILE a save was already in flight. Set by
+   * `markUnsaved` when state is `saving` (the no-op branch — the
+   * follow-on edit can't pre-empt the running write, but we must
+   * remember it happened). `markConfirmed` consults this so the
+   * post-write state is `unsaved` (debounce still pending) rather
+   * than `saved` (which would lie about being in sync).
+   *
+   * Without this flag, the indicator transitions `saving → saved`
+   * the moment the in-flight write completes, even though the
+   * canvas has new edits waiting on a debounced write. Callers
+   * watching for `saved` (e.g. E2E `waitForSaved`) then return too
+   * early and read stale disk content.
+   */
+  dirtyDuringSave: boolean;
   /** A canvas edit landed but the debounced write hasn't fired yet. */
   markUnsaved: () => void;
   /** A write IPC is dispatching — record the attempt so we can retry on failure. */
@@ -158,20 +173,14 @@ export const useSaveStatusStore = create<SaveStatusState>((set) => ({
   state: { kind: 'saved' },
   toast: null,
   pauseStartedAt: null,
+  dirtyDuringSave: false,
   markUnsaved: () => {
     set((s) => {
-      // Skip-cases:
-      //   `error` / `reloaded-from-disk` — terminal states that
-      //      clear only on a successful save cycle (markSaving will
-      //      transition them out).
-      //   `saving` — a follow-on edit doesn't cancel the already-
-      //      in-flight write, it just queues another debounce.
-      //   `paused` / `diverged` — sync engine is intentionally not
-      //      transitioning to `unsaved`; the in-memory diff grows
-      //      under the existing label until the user resolves it.
+      if (s.state.kind === 'saving') {
+        return { dirtyDuringSave: true };
+      }
       if (
         s.state.kind === 'error' ||
-        s.state.kind === 'saving' ||
         s.state.kind === 'paused' ||
         s.state.kind === 'diverged' ||
         s.state.kind === 'reloaded-from-disk'
@@ -182,18 +191,19 @@ export const useSaveStatusStore = create<SaveStatusState>((set) => ({
     });
   },
   markSaving: (attempt) => {
-    set({ state: { kind: 'saving', attempt } });
+    set({ state: { kind: 'saving', attempt }, dirtyDuringSave: false });
   },
   markConfirmed: () => {
     set((s) => {
-      // Only advances from `saving` — a stray ack without a pending
-      // save shouldn't flip an error or a clean state.
       if (s.state.kind !== 'saving') return s;
+      if (s.dirtyDuringSave) {
+        return { state: { kind: 'unsaved' }, dirtyDuringSave: false };
+      }
       return { state: { kind: 'saved' } };
     });
   },
   markError: (message, attempt) => {
-    set({ state: { kind: 'error', message, lastAttempt: attempt } });
+    set({ state: { kind: 'error', message, lastAttempt: attempt }, dirtyDuringSave: false });
   },
   markClean: () => {
     set((s) => {

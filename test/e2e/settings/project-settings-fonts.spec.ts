@@ -19,7 +19,7 @@ test.describe('settings: project fonts', () => {
     const url =
       'https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap';
     const pasteInput = window.getByPlaceholder(
-      /^Paste a Google Fonts embed link/
+      /^Paste a Google Fonts or Adobe Fonts embed link/
     );
     await pasteInput.fill(url);
     await window.getByRole('button', { name: 'Add', exact: true }).click();

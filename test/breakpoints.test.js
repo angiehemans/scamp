@@ -94,7 +94,8 @@ describe('breakpointOverrideLines', () => {
             customProperties: { 'box-shadow': '0 2px 4px rgba(0,0,0,0.1)' },
         }, el);
         expect(lines).toEqual([
-            'padding: 8px 8px 8px 8px;',
+            // Collapsed to 1-value form since all four sides are equal.
+            'padding: 8px;',
             'box-shadow: 0 2px 4px rgba(0,0,0,0.1);',
         ]);
     });

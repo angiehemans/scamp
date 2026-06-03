@@ -273,7 +273,7 @@ describe('generateCode — CSS', () => {
         expect(block).toContain('gap: 24px;');
         expect(block).toContain('align-items: center;');
         expect(block).toContain('justify-content: space-between;');
-        expect(block).toContain('padding: 16px 16px 16px 16px;');
+        expect(block).toContain('padding: 16px;');
         expect(block).toContain('background: #0f0f0f;');
     });
     it('does not emit display/flex on the root when defaults are kept', () => {
@@ -342,8 +342,8 @@ describe('generateCode — CSS', () => {
         expect(block).toContain('width: 320px;');
         expect(block).toContain('height: 240px;');
         expect(block).toContain('background: #f0f0f0;');
-        expect(block).toContain('border-radius: 8px 8px 8px 8px;');
-        expect(block).toContain('border-width: 1px 1px 1px 1px;');
+        expect(block).toContain('border-radius: 8px;');
+        expect(block).toContain('border-width: 1px;');
         expect(block).toContain('border-style: solid;');
         expect(block).toContain('border-color: #cccccc;');
     });
@@ -449,7 +449,8 @@ describe('generateCode — CSS', () => {
             c3d4: makeRect({ id: 'c3d4' }),
         };
         const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-        expect(extractBlock(css, '.rect_a1b2')).toContain('margin: 8px 16px 8px 16px;');
+        // Collapses to 2-value form (vertical/horizontal symmetry).
+        expect(extractBlock(css, '.rect_a1b2')).toContain('margin: 8px 16px;');
         expect(extractBlock(css, '.rect_c3d4')).not.toContain('margin:');
     });
     it('does not emit margin on the root element', () => {

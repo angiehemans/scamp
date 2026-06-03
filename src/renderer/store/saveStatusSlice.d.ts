@@ -102,6 +102,21 @@ type SaveStatusState = {
      * currently paused / never paused.
      */
     pauseStartedAt: number | null;
+    /**
+     * A canvas edit landed WHILE a save was already in flight. Set by
+     * `markUnsaved` when state is `saving` (the no-op branch — the
+     * follow-on edit can't pre-empt the running write, but we must
+     * remember it happened). `markConfirmed` consults this so the
+     * post-write state is `unsaved` (debounce still pending) rather
+     * than `saved` (which would lie about being in sync).
+     *
+     * Without this flag, the indicator transitions `saving → saved`
+     * the moment the in-flight write completes, even though the
+     * canvas has new edits waiting on a debounced write. Callers
+     * watching for `saved` (e.g. E2E `waitForSaved`) then return too
+     * early and read stale disk content.
+     */
+    dirtyDuringSave: boolean;
     /** A canvas edit landed but the debounced write hasn't fired yet. */
     markUnsaved: () => void;
     /** A write IPC is dispatching — record the attempt so we can retry on failure. */

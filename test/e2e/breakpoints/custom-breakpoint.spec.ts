@@ -62,6 +62,7 @@ test.describe('breakpoints: custom breakpoint', () => {
     );
     expect(mediaMatch).not.toBeNull();
     expect(mediaMatch![1]).toContain(`.${className}`);
-    expect(mediaMatch![1]).toMatch(/padding:\s*4px 4px 4px 4px/);
+    // Collapsed to 1-value form (all sides equal).
+    expect(mediaMatch![1]).toMatch(/padding:\s*4px;/);
   });
 });

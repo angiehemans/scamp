@@ -23,7 +23,8 @@ test.describe('properties panel: spacing shorthand', () => {
     await waitForSaved(window);
     const { css } = await readPageFiles(project.dir, project.pageName);
     expect(css).toMatch(
-      new RegExp(`\\.${className}[^}]*padding:\\s*10px 10px 10px 10px`, 's')
+      // Collapsed to 1-value form (all four sides equal).
+      new RegExp(`\\.${className}[^}]*padding:\\s*10px;`, 's')
     );
   });
 
@@ -45,7 +46,8 @@ test.describe('properties panel: spacing shorthand', () => {
     await waitForSaved(window);
     const { css } = await readPageFiles(project.dir, project.pageName);
     expect(css).toMatch(
-      new RegExp(`\\.${className}[^}]*padding:\\s*10px 20px 10px 20px`, 's')
+      // Collapsed to 2-value form (vertical/horizontal symmetry).
+      new RegExp(`\\.${className}[^}]*padding:\\s*10px 20px;`, 's')
     );
   });
 

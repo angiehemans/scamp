@@ -265,7 +265,8 @@ describe('sync round-trip integration', () => {
         const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
         // Confirm the new declarations actually land in the file (i.e. they're
         // routed through the typed emitter, not the customProperties bag).
-        expect(css).toContain('margin: 12px 24px 12px 24px;');
+        // Collapses to 2-value form (vertical/horizontal symmetry).
+        expect(css).toContain('margin: 12px 24px;');
         expect(css).toContain('line-height: 1.5;');
         expect(css).toContain('letter-spacing: 2px;');
         const tsxPath = path.join(tmpDir, 'home.tsx');
