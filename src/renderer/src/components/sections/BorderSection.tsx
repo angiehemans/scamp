@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
@@ -6,6 +7,7 @@ import { EnumSelect } from '../controls/EnumSelect';
 import { FourSideInput } from '../controls/FourSideInput';
 import type { BorderStyle } from '@lib/element';
 import { isZeroSpaceTuple } from '@lib/spaceValue';
+import { classifyToken } from '@lib/tokenClassify';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -26,6 +28,10 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
   const groupToggle = useGroupToggle(elementId, 'border');
+  const spacingTokens = useMemo(
+    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    [themeTokens]
+  );
   if (!element) return null;
 
   // Hide the eye when no border is set AND no rounded corners.
@@ -79,6 +85,8 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           value={element.borderWidth}
           onChange={(next) => patchElement(elementId, { borderWidth: next })}
           min={0}
+          tokens={spacingTokens}
+          {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
         />
         <FourSideInput
           prefix="R"
@@ -86,6 +94,8 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           value={element.borderRadius}
           onChange={(next) => patchElement(elementId, { borderRadius: next })}
           min={0}
+          tokens={spacingTokens}
+          {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
         />
       </Row>
     </Section>

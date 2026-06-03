@@ -1,6 +1,7 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { PrefixSuffixInput } from './PrefixSuffixInput';
-import { formatSpaceShorthand, formatSpaceValue, spaceTupleEquals, spaceValueEquals, } from '@lib/spaceValue';
+import { SpaceTokenButton } from './SpaceTokenButton';
+import { formatSpaceShorthand, formatSpaceValue, isTokenSpaceValue, spaceTupleEquals, spaceValueEquals, tokenSpaceValue, } from '@lib/spaceValue';
 /**
  * Tokenise a shorthand string, respecting parens so values like
  * `var(--a, 16px) 8` split into two tokens rather than four.
@@ -89,7 +90,7 @@ const bumpSide = (v, delta, min) => {
  *
  * Invalid input reverts on blur via the PrefixSuffixInput value sync.
  */
-export const FourSideInput = ({ value, onChange, min = 0, prefix, title, }) => {
+export const FourSideInput = ({ value, onChange, min = 0, prefix, title, tokens, onOpenTheme, }) => {
     const handleCommit = (draft) => {
         const parsed = parseShorthand(draft, min);
         if (!parsed)
@@ -116,5 +117,20 @@ export const FourSideInput = ({ value, onChange, min = 0, prefix, title, }) => {
         (!allEqual
             ? `T:${formatSpaceValue(value[0])} R:${formatSpaceValue(value[1])} B:${formatSpaceValue(value[2])} L:${formatSpaceValue(value[3])}`
             : undefined);
-    return (_jsx(PrefixSuffixInput, { value: formatSpaceShorthand(value), onCommit: handleCommit, onArrow: handleArrow, prefix: prefix, placeholder: "0", title: tooltip }));
+    // Picking a token applies it uniformly to all four sides. The
+    // per-side text input still accepts mixed forms (`16 var(--m)`)
+    // for users who want asymmetric layouts; the picker is the
+    // quick path for the common "same value everywhere" case.
+    const handleSelectToken = (varRef) => {
+        const t = tokenSpaceValue(varRef);
+        onChange([t, t, t, t]);
+    };
+    // Highlight the picker icon when any side currently holds a token —
+    // a visible cue that the field's value isn't pure numeric.
+    const anyTokenSide = isTokenSpaceValue(value[0]) ||
+        isTokenSpaceValue(value[1]) ||
+        isTokenSpaceValue(value[2]) ||
+        isTokenSpaceValue(value[3]);
+    const suffix = tokens ? (_jsx(SpaceTokenButton, { tokens: tokens, onSelect: handleSelectToken, ...(onOpenTheme ? { onOpenTheme } : {}), active: anyTokenSide, ariaLabel: prefix ? `Pick ${prefix} token` : 'Pick spacing token' })) : undefined;
+    return (_jsx(PrefixSuffixInput, { value: formatSpaceShorthand(value), onCommit: handleCommit, onArrow: handleArrow, prefix: prefix, placeholder: "0", title: tooltip, ...(suffix !== undefined ? { suffix } : {}) }));
 };

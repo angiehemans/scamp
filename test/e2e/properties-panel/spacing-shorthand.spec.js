@@ -11,7 +11,9 @@ test.describe('properties panel: spacing shorthand', () => {
         await commitInput(paddingInput, '10');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
-        expect(css).toMatch(new RegExp(`\\.${className}[^}]*padding:\\s*10px 10px 10px 10px`, 's'));
+        expect(css).toMatch(
+        // Collapsed to 1-value form (all four sides equal).
+        new RegExp(`\\.${className}[^}]*padding:\\s*10px;`, 's'));
     });
     test('two values apply to vertical / horizontal', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
@@ -21,7 +23,9 @@ test.describe('properties panel: spacing shorthand', () => {
         await commitInput(paddingInput, '10 20');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
-        expect(css).toMatch(new RegExp(`\\.${className}[^}]*padding:\\s*10px 20px 10px 20px`, 's'));
+        expect(css).toMatch(
+        // Collapsed to 2-value form (vertical/horizontal symmetry).
+        new RegExp(`\\.${className}[^}]*padding:\\s*10px 20px;`, 's'));
     });
     test('four values apply to top / right / bottom / left', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();

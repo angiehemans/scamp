@@ -5,19 +5,20 @@ import {
   IconLayoutGrid,
 } from '@tabler/icons-react';
 
+import { useMemo } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
-import { NumberInput } from '../controls/NumberInput';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
+import { SpaceValueInput } from '../controls/SpaceValueInput';
 import type {
   AlignItems,
   GridSelfAlign,
   JustifyContent,
   ScampElement,
 } from '@lib/element';
-import { spaceValueNumberOrZero } from '@lib/spaceValue';
+import { classifyToken } from '@lib/tokenClassify';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -145,6 +146,12 @@ const computeLayoutPatch = (
 export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
+  const themeTokens = useCanvasStore((s) => s.themeTokens);
+  const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+  const spacingTokens = useMemo(
+    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    [themeTokens]
+  );
   if (!element) return null;
 
   const isFlex = element.display === 'flex';
@@ -228,12 +235,14 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
             />
           </Row>
           <Row label="">
-            <NumberInput
+            <SpaceValueInput
               prefix="Gap"
               title="Gap between flex children"
-              value={spaceValueNumberOrZero(element.gap)}
-              onChange={(value) => patchElement(elementId, { gap: value ?? 0 })}
+              value={element.gap}
+              onChange={(value) => patchElement(elementId, { gap: value })}
               min={0}
+              tokens={spacingTokens}
+              {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
             />
           </Row>
         </>
@@ -263,21 +272,25 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
             />
           </Row>
           <Row label="">
-            <NumberInput
+            <SpaceValueInput
               prefix="C-gap"
               title="column-gap"
-              value={spaceValueNumberOrZero(element.columnGap)}
+              value={element.columnGap}
               onChange={(value) =>
-                patchElement(elementId, { columnGap: value ?? 0 })
+                patchElement(elementId, { columnGap: value })
               }
               min={0}
+              tokens={spacingTokens}
+              {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
             />
-            <NumberInput
+            <SpaceValueInput
               prefix="R-gap"
               title="row-gap"
-              value={spaceValueNumberOrZero(element.rowGap)}
-              onChange={(value) => patchElement(elementId, { rowGap: value ?? 0 })}
+              value={element.rowGap}
+              onChange={(value) => patchElement(elementId, { rowGap: value })}
               min={0}
+              tokens={spacingTokens}
+              {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
             />
           </Row>
           <Row label="">

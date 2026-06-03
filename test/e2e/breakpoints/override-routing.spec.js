@@ -23,11 +23,12 @@ test.describe('breakpoints: override routing', () => {
         // Base class still carries 24px padding.
         const baseBlockMatch = css.match(new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`));
         expect(baseBlockMatch).not.toBeNull();
-        expect(baseBlockMatch[1]).toMatch(/padding:\s*24px 24px 24px 24px/);
+        // Collapsed to 1-value form (all sides equal).
+        expect(baseBlockMatch[1]).toMatch(/padding:\s*24px;/);
         // A media block for Tablet (768) exists and carries the 12px override.
         const mediaBlockMatch = css.match(/@media \(max-width: 768px\)\s*\{([\s\S]*?)\n\}/);
         expect(mediaBlockMatch).not.toBeNull();
         expect(mediaBlockMatch[1]).toContain(`.${className}`);
-        expect(mediaBlockMatch[1]).toMatch(/padding:\s*12px 12px 12px 12px/);
+        expect(mediaBlockMatch[1]).toMatch(/padding:\s*12px;/);
     });
 });

@@ -19,7 +19,11 @@ test.describe('properties panel: border', () => {
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*border-style:\\s*dashed`, 's'));
-        expect(css).toMatch(new RegExp(`\\.${className}[^}]*border-width:\\s*2px 2px 2px 2px`, 's'));
-        expect(css).toMatch(new RegExp(`\\.${className}[^}]*border-radius:\\s*4px 8px 12px 16px`, 's'));
+        expect(css).toMatch(
+        // Collapsed to 1-value form when all sides equal.
+        new RegExp(`\\.${className}[^}]*border-width:\\s*2px;`, 's'));
+        expect(css).toMatch(
+        // 4 distinct corners → 4-value form.
+        new RegExp(`\\.${className}[^}]*border-radius:\\s*4px 8px 12px 16px`, 's'));
     });
 });

@@ -27,8 +27,9 @@ test.describe('breakpoints: CSS output', () => {
         // Each media block carries only the overridden property.
         const tabletBlock = css.slice(tabletIdx, mobileIdx);
         const mobileBlock = css.slice(mobileIdx);
-        expect(tabletBlock).toMatch(/padding:\s*12px 12px 12px 12px/);
-        expect(mobileBlock).toMatch(/padding:\s*8px 8px 8px 8px/);
+        // Collapsed to 1-value form when all four sides equal.
+        expect(tabletBlock).toMatch(/padding:\s*12px;/);
+        expect(mobileBlock).toMatch(/padding:\s*8px;/);
         // Base class still reads 24px.
         const baseBlock = css.slice(0, tabletIdx);
         expect(baseBlock).toMatch(new RegExp(`\\.${className}\\s*\\{[^}]*padding:\\s*24px`));

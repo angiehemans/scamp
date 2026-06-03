@@ -1,4 +1,5 @@
 import { type SpaceTuple } from '@lib/spaceValue';
+import type { ThemeToken } from '@shared/types';
 type Props = {
     value: SpaceTuple;
     onChange: (next: SpaceTuple) => void;
@@ -9,6 +10,11 @@ type Props = {
     prefix?: string;
     /** Tooltip shown on hover. */
     title?: string;
+    /** Length-shaped theme tokens to offer in the picker. Omit to hide
+     *  the picker icon entirely. */
+    tokens?: ReadonlyArray<ThemeToken>;
+    /** Opens the Theme tokens panel from the empty-state row. */
+    onOpenTheme?: () => void;
 };
 /**
  * A single text input for editing a [top, right, bottom, left] tuple using
@@ -18,5 +24,5 @@ type Props = {
  *
  * Invalid input reverts on blur via the PrefixSuffixInput value sync.
  */
-export declare const FourSideInput: ({ value, onChange, min, prefix, title, }: Props) => JSX.Element;
+export declare const FourSideInput: ({ value, onChange, min, prefix, title, tokens, onOpenTheme, }: Props) => JSX.Element;
 export {};

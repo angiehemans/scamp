@@ -1,12 +1,16 @@
 import { PrefixSuffixInput } from './PrefixSuffixInput';
+import { SpaceTokenButton } from './SpaceTokenButton';
 import {
   formatSpaceShorthand,
   formatSpaceValue,
+  isTokenSpaceValue,
   spaceTupleEquals,
   spaceValueEquals,
+  tokenSpaceValue,
   type SpaceTuple,
   type SpaceValue,
 } from '@lib/spaceValue';
+import type { ThemeToken } from '@shared/types';
 
 type Props = {
   value: SpaceTuple;
@@ -18,6 +22,11 @@ type Props = {
   prefix?: string;
   /** Tooltip shown on hover. */
   title?: string;
+  /** Length-shaped theme tokens to offer in the picker. Omit to hide
+   *  the picker icon entirely. */
+  tokens?: ReadonlyArray<ThemeToken>;
+  /** Opens the Theme tokens panel from the empty-state row. */
+  onOpenTheme?: () => void;
 };
 
 /**
@@ -115,6 +124,8 @@ export const FourSideInput = ({
   min = 0,
   prefix,
   title,
+  tokens,
+  onOpenTheme,
 }: Props): JSX.Element => {
   const handleCommit = (draft: string): void => {
     const parsed = parseShorthand(draft, min);
@@ -144,6 +155,33 @@ export const FourSideInput = ({
       ? `T:${formatSpaceValue(value[0])} R:${formatSpaceValue(value[1])} B:${formatSpaceValue(value[2])} L:${formatSpaceValue(value[3])}`
       : undefined);
 
+  // Picking a token applies it uniformly to all four sides. The
+  // per-side text input still accepts mixed forms (`16 var(--m)`)
+  // for users who want asymmetric layouts; the picker is the
+  // quick path for the common "same value everywhere" case.
+  const handleSelectToken = (varRef: string): void => {
+    const t = tokenSpaceValue(varRef);
+    onChange([t, t, t, t]);
+  };
+
+  // Highlight the picker icon when any side currently holds a token —
+  // a visible cue that the field's value isn't pure numeric.
+  const anyTokenSide =
+    isTokenSpaceValue(value[0]) ||
+    isTokenSpaceValue(value[1]) ||
+    isTokenSpaceValue(value[2]) ||
+    isTokenSpaceValue(value[3]);
+
+  const suffix = tokens ? (
+    <SpaceTokenButton
+      tokens={tokens}
+      onSelect={handleSelectToken}
+      {...(onOpenTheme ? { onOpenTheme } : {})}
+      active={anyTokenSide}
+      ariaLabel={prefix ? `Pick ${prefix} token` : 'Pick spacing token'}
+    />
+  ) : undefined;
+
   return (
     <PrefixSuffixInput
       value={formatSpaceShorthand(value)}
@@ -152,6 +190,7 @@ export const FourSideInput = ({
       prefix={prefix}
       placeholder="0"
       title={tooltip}
+      {...(suffix !== undefined ? { suffix } : {})}
     />
   );
 };
