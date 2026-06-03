@@ -24,6 +24,7 @@ import { stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher } from './watcher';
 import { initSentryIfOptedIn, setSentryEnabled } from './sentry';
 import { buildApplicationMenu } from './menu';
+import { fixPathFromLoginShell } from './fixPath';
 
 const TEST_BOOTSTRAP: TestBootstrap = {
   e2e: process.env['SCAMP_E2E'] === '1',
@@ -48,6 +49,12 @@ const TEST_BOOTSTRAP: TestBootstrap = {
 // (registered later inside `whenReady`) and the SDK comes up live.
 const initialSettings = readSettingsSync();
 initSentryIfOptedIn(initialSettings.sentryOptIn === true);
+
+// GUI-launched packaged apps inherit a minimal PATH that omits
+// Homebrew/nvm/etc, so spawning npm/node throws ENOENT. Resolve the
+// login shell's real PATH once, before any child_process spawn.
+// See docs/notes/packaged-path.md.
+if (app.isPackaged) fixPathFromLoginShell();
 
 const registerTestIpc = (): void => {
   ipcMain.handle(IPC.TestGetBootstrap, (): TestBootstrap => TEST_BOOTSTRAP);
