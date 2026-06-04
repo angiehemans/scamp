@@ -3,6 +3,7 @@ import { basename, join } from 'path';
 import { AGENT_MD_CONTENT, AGENT_MD_CONTENT_LEGACY, CLAUDE_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_PAGE_CSS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, defaultPageTsx, } from '@shared/agentMd';
 import { decideLayoutMigration } from '@shared/layoutMigration';
 import { backfillThemeDefaults } from '@shared/themeBackfill';
+import { DEFAULT_TSCONFIG_JSON, ensureTsconfigAlias } from '@shared/tsconfigAlias';
 const componentNameFromPage = (pageName) => pageName
     .split(/[-_]/)
     .filter((part) => part.length > 0)
@@ -181,6 +182,10 @@ export const scaffoldNextjsProject = async (projectPath, projectName) => {
     await fs.writeFile(join(projectPath, 'CLAUDE.md'), CLAUDE_MD_CONTENT, 'utf-8');
     await fs.writeFile(join(projectPath, 'package.json'), defaultPackageJson(projectName), 'utf-8');
     await fs.writeFile(join(projectPath, 'next.config.ts'), DEFAULT_NEXT_CONFIG_TS, 'utf-8');
+    // tsconfig.json carries the `@/*` path alias that page/component
+    // imports rely on; without it `next dev` can't resolve
+    // `@/components/...`. See docs/notes/tsconfig-alias.md.
+    await fs.writeFile(join(projectPath, 'tsconfig.json'), DEFAULT_TSCONFIG_JSON, 'utf-8');
     const appDir = join(projectPath, 'app');
     await fs.mkdir(appDir, { recursive: false });
     await fs.writeFile(join(appDir, 'layout.tsx'), defaultLayoutTsx(projectName), 'utf-8');
@@ -286,6 +291,42 @@ export const ensureThemeDefaultsIfNeeded = async (projectPath, format) => {
     if (!result.changed)
         return;
     await fs.writeFile(themePath, result.content, 'utf-8');
+};
+/**
+ * Ensure the project's `tsconfig.json` declares the `@/*` path alias
+ * so `next dev` can resolve `@/components/...` imports. Writes a fresh
+ * template when the file is missing, and injects the alias into an
+ * existing config that lacks it (e.g. the bare tsconfig `next dev`
+ * auto-creates on first run). Already-aliased and user-customised
+ * configs are left untouched. See docs/notes/tsconfig-alias.md.
+ */
+export const ensureTsConfigIfNeeded = async (projectPath) => {
+    const tsconfigPath = join(projectPath, 'tsconfig.json');
+    let current;
+    try {
+        current = await fs.readFile(tsconfigPath, 'utf-8');
+    }
+    catch {
+        current = null;
+    }
+    const next = ensureTsconfigAlias(current);
+    if (next === null) {
+        // No change needed, OR the file exists but is unparseable (JSONC
+        // with comments) so we won't risk a lossy rewrite. Warn in the
+        // latter case so a user hitting the module-not-found error can add
+        // the `@/*` alias by hand.
+        if (current !== null && current.trim() !== '') {
+            try {
+                JSON.parse(current);
+            }
+            catch {
+                console.warn(`[tsconfig-alias] ${tsconfigPath} is not plain JSON; add ` +
+                    `compilerOptions.paths["@/*"] = ["./*"] manually so @/ imports resolve.`);
+            }
+        }
+        return;
+    }
+    await fs.writeFile(tsconfigPath, next, 'utf-8');
 };
 /**
  * Legacy flat-layout scaffold. Kept around for the migrator's

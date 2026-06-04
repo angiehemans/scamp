@@ -79,6 +79,15 @@ export declare const refreshAgentMdIfNeeded: (projectPath: string, format: Proje
  */
 export declare const ensureThemeDefaultsIfNeeded: (projectPath: string, format: ProjectFormat) => Promise<void>;
 /**
+ * Ensure the project's `tsconfig.json` declares the `@/*` path alias
+ * so `next dev` can resolve `@/components/...` imports. Writes a fresh
+ * template when the file is missing, and injects the alias into an
+ * existing config that lacks it (e.g. the bare tsconfig `next dev`
+ * auto-creates on first run). Already-aliased and user-customised
+ * configs are left untouched. See docs/notes/tsconfig-alias.md.
+ */
+export declare const ensureTsConfigIfNeeded: (projectPath: string) => Promise<void>;
+/**
  * Legacy flat-layout scaffold. Kept around for the migrator's
  * fixture-creation tests and for parity in the shared scaffold module.
  */

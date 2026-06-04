@@ -9,7 +9,7 @@ import { watchProject } from '../watcher';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
-import { ensureThemeDefaultsIfNeeded, readProjectComponents, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
+import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponents, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
 export { detectProjectFormat };
 export { scaffoldLegacyProject, scaffoldNextjsProject };
@@ -108,6 +108,10 @@ const openProject = async (args) => {
     // a blank preview can find the cause.
     if (project.format === 'nextjs') {
         await refreshLayoutTemplateIfNeeded(args.folderPath).catch(() => undefined);
+        // Ensure the `@/*` path alias exists so component imports resolve
+        // under `next dev`. Repairs projects scaffolded before tsconfig.json
+        // was written, and the bare tsconfig `next dev` auto-creates.
+        await ensureTsConfigIfNeeded(args.folderPath).catch(() => undefined);
     }
     // Backfill Scamp's project-default theme rules (--font-sans token,
     // box-sizing reset, body font-family) into theme.css if any are
