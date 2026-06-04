@@ -13,6 +13,23 @@ import { patchClassBlock } from '@shared/patchClass';
 import { cancelPendingWrite, registerPendingWrite } from '../watcher';
 import { checkWriteConflict } from './fileConflict';
 
+const RENAME_RACE_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
+
+// see docs/notes/windows-rename-race.md
+const renameWithRetry = async (from: string, to: string): Promise<void> => {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code ?? '';
+      if (!RENAME_RACE_CODES.has(code)) throw err;
+      await new Promise((r) => setTimeout(r, 20 + attempt * 30));
+    }
+  }
+  await fs.rename(from, to);
+};
+
 /**
  * Atomic write: write to a sibling .tmp file then rename. Prevents readers
  * (chokidar / external editors) from seeing a half-written file.
@@ -24,7 +41,7 @@ const atomicWrite = async (path: string, content: string): Promise<void> => {
   const suffix = randomBytes(4).toString('hex');
   const tmp = join(dirname(path), `.${basename(path)}.${suffix}.tmp`);
   await fs.writeFile(tmp, content, 'utf-8');
-  await fs.rename(tmp, path);
+  await renameWithRetry(tmp, path);
 };
 
 const handleWrite = async (args: FileWriteArgs): Promise<FileWriteResult> => {
