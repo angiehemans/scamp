@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { suggestProjectName, validateProjectName } from '@shared/projectName';
+import { errorMessage } from '@shared/errorMessage';
 import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
 import { Button } from './controls/Button';
 import styles from './CreateProjectModal.module.css';
@@ -44,7 +45,7 @@ export const CreateProjectModal = ({
     try {
       await onSubmit(validation.value);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(errorMessage(err));
       setCreating(false);
     }
   };

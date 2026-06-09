@@ -23,7 +23,7 @@ const DRAG_MIME = 'application/x-scamp-element-id';
 /** Convert a slug like "hero_card" to title case "Hero Card". */
 const titleCaseFromSlug = (slug) => slug
     .split('_')
-    .map((w) => (w.length > 0 ? w[0].toUpperCase() + w.slice(1) : ''))
+    .map((w) => (w.length > 0 ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
     .join(' ');
 const labelFor = (el) => {
     if (el.id === ROOT_ELEMENT_ID)

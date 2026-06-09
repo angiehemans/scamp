@@ -413,10 +413,18 @@ Per Phase 1.5's history-coverage doc: identify mutations that should push but do
 
 ---
 
-## Open questions for your review
+## Resolved decisions
 
-1. **Phase 2.7 (sandbox: true) risk tolerance:** comfortable doing this in a release branch with a manual test pass, or do you want a feature-flag rollout?
-2. **Phase 5.1 (canvasSlice split) approach:** one big PR with `combine()`, or incremental migration with both old and new slices coexisting?
-3. **Phase 5.2 (ProjectShell split) timing:** before or after a major feature freeze? It will create merge conflict pain for anyone with in-flight branches.
-4. **`generateCodeLegacy`:** keep or delete? (Affects Phase 4.5 scope.)
-5. **`agent.md` overwrite behaviour (review §3 moderate):** opt-out via `scamp.config.json`, or stay as-is and document?
+_Reviewed 2026-06-05. Each open question was checked against the code; conclusions below._
+
+1. **Phase 2.7 (sandbox: true): release branch + manual test pass, no feature flag.** Both preloads (`src/preload/index.ts`, `src/preload/preview.ts`) are pure `contextBridge` + `ipcRenderer` bridges with zero direct Node usage — all Node work (terminal/node-pty, file IO, watcher) is already in main. That's the configuration where `sandbox: true` is a near-no-op, so the one-line flip in `src/main/index.ts:94` and `src/main/previewWindow.ts:126` doesn't warrant a flag. Watch one thing during the manual pass: the sandboxed preload must stay CommonJS-compatible (only imports `electron` + a type-only `@shared` import today, so it's fine).
+
+2. **Phase 5.1 (canvasSlice split): one PR with `combine()`, NOT coexistence.** Today the store is a single monolithic `create<CanvasState>()((set) => ({...}))` (`canvasSlice.ts:912`, ~2200 lines, 44 consumers) — not yet using `combine()`. Coexisting old+new slices would create two sources of truth for element/selection state and require sync glue (worse than the split). `combine()` preserves the `useCanvasStore(selector)` public API, so consumer blast radius is zero if selectors stay stable. De-risk inside the branch: commit 1 mechanically extracts each domain into its own slice-creator module (pure move, shape unchanged); commit 2 wires them with `combine()`.
+
+3. **Phase 5.2 (ProjectShell split): incremental, no feature freeze.** §5.2 already specifies leaf-to-root, one hook/component per PR — done that way each PR is small and the merge-conflict warning only applies to a big-bang approach. Sequence the self-contained leaf extractions first (`useFontLinkReconciler`, `useComponentTreeCache`, `useNavigationRequests`); save the big handler blocks (`<PageSidebar>` 852-950, `<ComponentSidebar>` 1084-1507) for a quiet window or right after in-flight branches merge.
+
+4. **`generateCodeLegacy`: DELETE it and its test.** The only references are its own definition (`generateCode.ts:1389`), its build shims, and its dedicated test (`generateCodeImportName.test.ts`) — no app/main/renderer callsite imports it. It's a one-line wrapper kept alive only by a test for behaviour nothing depends on. The legacy *project format* still exists but is not wired to this function (its codegen path passes `cssModuleImportName` explicitly). Removing it shrinks Phase 4.5 scope — no `generateCode/legacy.ts` needed.
+
+5. **`agent.md` overwrite: ADD an opt-out via `scamp.config.json`.** `refreshManagedFile` (`projectScaffold.ts:359`) overwrites `agent.md` + `CLAUDE.md` on every open when content differs from the shipped template — silently clobbering user hand-edits to a file presented as user-facing agent instructions. The `ProjectConfig` parser (`src/shared/projectConfig.ts`) already has the exact pattern to reuse (present-when-true boolean flags like `nextjsMigrationDismissed`). Add `agentMdManaged?: boolean`; when explicitly `false`, skip the `agent.md` refresh (keep `CLAUDE.md` managed — it's the loader stub). ~10 lines following an existing pattern.
+
+**Cross-phase ordering note:** Phase 3.4 (`patchCustomProperties` action) and 3.9 (the `Record<string,unknown>` cast fixes) both touch `canvasSlice.ts`, which Phase 5.1 splits. The plan already orders 3.x before 5.1 — keep it that way so that work isn't written twice across the split.

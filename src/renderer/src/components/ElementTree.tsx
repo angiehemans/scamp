@@ -40,7 +40,7 @@ type RowProps = {
 const titleCaseFromSlug = (slug: string): string =>
   slug
     .split('_')
-    .map((w) => (w.length > 0 ? w[0]!.toUpperCase() + w.slice(1) : ''))
+    .map((w) => (w.length > 0 ? w.charAt(0).toUpperCase() + w.slice(1) : ''))
     .join(' ');
 
 const labelFor = (el: ScampElement): string => {

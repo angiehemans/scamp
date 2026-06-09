@@ -17,6 +17,7 @@ import {
 } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import type { ProjectFormat } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import {
   useSaveStatusStore,
   type LastWriteAttempt,
@@ -371,7 +372,7 @@ const dispatchPageWrite = (
       onConflict?.(result.conflict);
     })
     .catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       reportError(message, attempt);
     });
 };
@@ -394,7 +395,7 @@ const dispatchPatchWrite = (
       registerPendingSave(writeId, attempt, expected);
     })
     .catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       reportError(message, attempt);
       throw err;
     });
@@ -548,7 +549,7 @@ export const initSyncBridge = (): (() => void) => {
         parsed.cssDuplicates
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       useAppLogStore
         .getState()
         .log(
@@ -929,7 +930,7 @@ export const initSyncBridge = (): (() => void) => {
         dirtyDuringSave: false,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       useAppLogStore
         .getState()
         .log('warn', `Could not discard canvas (parse failed): ${message}`);

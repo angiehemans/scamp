@@ -10,6 +10,8 @@ type Props = {
   cancelLabel?: string;
   /** Visual style for the confirm button. */
   variant?: 'primary' | 'destructive';
+  /** Inline error (e.g. IPC failure) shown under the message; keeps the dialog open. */
+  error?: string | null;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -25,6 +27,7 @@ export const ConfirmDialog = ({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'primary',
+  error,
   onConfirm,
   onCancel,
 }: Props): JSX.Element => {
@@ -51,6 +54,7 @@ export const ConfirmDialog = ({
       >
         <h2 className={styles.title}>{title}</h2>
         <p className={styles.message}>{message}</p>
+        {error && <p className={styles.error}>{error}</p>}
         <div className={styles.actions}>
           <Button variant="ghost" onClick={onCancel}>
             {cancelLabel}

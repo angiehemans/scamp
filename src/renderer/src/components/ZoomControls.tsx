@@ -22,17 +22,32 @@ export const ZoomControls = (): JSX.Element => {
   return (
     <div className={styles.controls}>
       <Tooltip label="Zoom out (Ctrl/Cmd+-)">
-        <button className={styles.button} onClick={() => zoomOut()} type="button">
+        <button
+          aria-label="Zoom out"
+          className={styles.button}
+          onClick={() => zoomOut()}
+          type="button"
+        >
           −
         </button>
       </Tooltip>
       <Tooltip label="Reset zoom to fit (Ctrl/Cmd+0)">
-        <button className={styles.label} onClick={() => resetZoom()} type="button">
+        <button
+          aria-label={`Reset zoom to fit (currently ${label})`}
+          className={styles.label}
+          onClick={() => resetZoom()}
+          type="button"
+        >
           {label}
         </button>
       </Tooltip>
       <Tooltip label="Zoom in (Ctrl/Cmd+=)">
-        <button className={styles.button} onClick={() => zoomIn()} type="button">
+        <button
+          aria-label="Zoom in"
+          className={styles.button}
+          onClick={() => zoomIn()}
+          type="button"
+        >
           +
         </button>
       </Tooltip>

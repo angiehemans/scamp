@@ -5,6 +5,7 @@ import { removeFamilyFromUrl } from '@lib/googleFontsEmbed';
 import { parseFontEmbed } from '@lib/fontEmbed';
 import { fetchAdobeKitFamilies } from '@lib/adobeFontsFetch';
 import { serializeThemeFile } from '@lib/parseTheme';
+import { errorMessage } from '@shared/errorMessage';
 import { unionFamiliesFromUrls } from '../../lib/applyThemeFonts';
 import styles from './FontsSection.module.css';
 
@@ -147,7 +148,7 @@ export const FontsSection = ({ projectPath }: Props): JSX.Element => {
       await writeTheme(nextUrls);
       setDraft('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -181,7 +182,7 @@ export const FontsSection = ({ projectPath }: Props): JSX.Element => {
       setProjectFonts({ families: allFamilies, urls: nextUrls });
       await writeTheme(nextUrls);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }

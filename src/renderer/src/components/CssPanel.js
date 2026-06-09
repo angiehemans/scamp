@@ -8,6 +8,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { breakpointOverrideLines, classNameFor, elementDeclarationLines, } from '@lib/generateCode';
 import { createCssCompletion } from '@lib/cssCompletion';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import { savePatch } from '../syncBridge';
 import styles from './PropertiesPanel.module.css';
 const buildClassBody = (el, parent) => {
@@ -106,7 +107,7 @@ export const CssPanel = () => {
             dirtyRef.current = false;
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
     };
     // Reload the draft when the selection, the active breakpoint, or

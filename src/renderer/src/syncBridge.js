@@ -8,6 +8,7 @@ import { selectAnyAgentActive, selectPauseReason, useTerminalActivityStore, } fr
 import { captureAndPersistComponentThumbnail } from './lib/componentThumbnail';
 import { useCanvasStore, } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
+import { errorMessage } from '@shared/errorMessage';
 import { useSaveStatusStore, } from '@store/saveStatusSlice';
 import { useAppLogStore } from '@store/appLogSlice';
 const WRITE_DEBOUNCE_MS = 200;
@@ -259,7 +260,7 @@ const dispatchPageWrite = (attempt, onConflict) => {
         onConflict?.(result.conflict);
     })
         .catch((err) => {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = errorMessage(err);
         reportError(message, attempt);
     });
 };
@@ -278,7 +279,7 @@ const dispatchPatchWrite = (attempt) => {
         registerPendingSave(writeId, attempt, expected);
     })
         .catch((err) => {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = errorMessage(err);
         reportError(message, attempt);
         throw err;
     });
@@ -406,7 +407,7 @@ export const initSyncBridge = () => {
             store.reloadElements(parsed.elements, { tsx: conflict.actualTsxContent, css: conflict.actualCssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
         }
         catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
+            const message = errorMessage(err);
             useAppLogStore
                 .getState()
                 .log('warn', `External edit on ${target.name}.tsx couldn't be parsed: ${message}`);
@@ -751,7 +752,7 @@ export const initSyncBridge = () => {
             });
         }
         catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
+            const message = errorMessage(err);
             useAppLogStore
                 .getState()
                 .log('warn', `Could not discard canvas (parse failed): ${message}`);

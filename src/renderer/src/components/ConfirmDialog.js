@@ -8,7 +8,7 @@ import styles from './ConfirmDialog.module.css';
  * Intentionally generic so it can be reused for deletes, overwrites,
  * and anywhere else we need a yes/no prompt.
  */
-export const ConfirmDialog = ({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'primary', onConfirm, onCancel, }) => {
+export const ConfirmDialog = ({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'primary', error, onConfirm, onCancel, }) => {
     useDialogBackdrop({ onClose: onCancel });
     useEffect(() => {
         const handleKey = (e) => {
@@ -20,5 +20,5 @@ export const ConfirmDialog = ({ title, message, confirmLabel = 'Confirm', cancel
         document.addEventListener('keydown', handleKey);
         return () => document.removeEventListener('keydown', handleKey);
     }, [onConfirm]);
-    return (_jsx("div", { className: styles.backdrop, onClick: onCancel, children: _jsxs("div", { className: styles.dialog, role: "dialog", "aria-modal": "true", onClick: (e) => e.stopPropagation(), children: [_jsx("h2", { className: styles.title, children: title }), _jsx("p", { className: styles.message, children: message }), _jsxs("div", { className: styles.actions, children: [_jsx(Button, { variant: "ghost", onClick: onCancel, children: cancelLabel }), _jsx(Button, { variant: variant === 'destructive' ? 'destructive' : 'primary', onClick: onConfirm, autoFocus: true, children: confirmLabel })] })] }) }));
+    return (_jsx("div", { className: styles.backdrop, onClick: onCancel, children: _jsxs("div", { className: styles.dialog, role: "dialog", "aria-modal": "true", onClick: (e) => e.stopPropagation(), children: [_jsx("h2", { className: styles.title, children: title }), _jsx("p", { className: styles.message, children: message }), error && _jsx("p", { className: styles.error, children: error }), _jsxs("div", { className: styles.actions, children: [_jsx(Button, { variant: "ghost", onClick: onCancel, children: cancelLabel }), _jsx(Button, { variant: variant === 'destructive' ? 'destructive' : 'primary', onClick: onConfirm, autoFocus: true, children: confirmLabel })] })] }) }));
 };

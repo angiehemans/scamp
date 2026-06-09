@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import { randomBytes } from 'crypto';
 import { basename, join } from 'path';
 import type { PageFile } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import {
   AGENT_MD_CONTENT,
   CLAUDE_MD_CONTENT,
@@ -281,7 +282,7 @@ export const migrateLegacyToNextjs = async (
     // Mid-swap failure. The user's files are safe in the backup dir.
     // Surface a clear error pointing at it.
     throw new Error(
-      `Migration failed mid-swap. Your original project files are at ${backupDir}. Move them back into ${projectPath} and try again. (${err instanceof Error ? err.message : String(err)})`
+      `Migration failed mid-swap. Your original project files are at ${backupDir}. Move them back into ${projectPath} and try again. (${errorMessage(err)})`
     );
   }
 

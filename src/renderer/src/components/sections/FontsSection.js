@@ -6,6 +6,7 @@ import { removeFamilyFromUrl } from '@lib/googleFontsEmbed';
 import { parseFontEmbed } from '@lib/fontEmbed';
 import { fetchAdobeKitFamilies } from '@lib/adobeFontsFetch';
 import { serializeThemeFile } from '@lib/parseTheme';
+import { errorMessage } from '@shared/errorMessage';
 import { unionFamiliesFromUrls } from '../../lib/applyThemeFonts';
 import styles from './FontsSection.module.css';
 const providerLabel = (row) => {
@@ -122,7 +123,7 @@ export const FontsSection = ({ projectPath }) => {
             setDraft('');
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
         finally {
             setBusy(false);
@@ -157,7 +158,7 @@ export const FontsSection = ({ projectPath }) => {
             await writeTheme(nextUrls);
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
         finally {
             setBusy(false);

@@ -5,6 +5,8 @@ type Props = {
     cancelLabel?: string;
     /** Visual style for the confirm button. */
     variant?: 'primary' | 'destructive';
+    /** Inline error (e.g. IPC failure) shown under the message; keeps the dialog open. */
+    error?: string | null;
     onConfirm: () => void;
     onCancel: () => void;
 };
@@ -13,5 +15,5 @@ type Props = {
  * Intentionally generic so it can be reused for deletes, overwrites,
  * and anywhere else we need a yes/no prompt.
  */
-export declare const ConfirmDialog: ({ title, message, confirmLabel, cancelLabel, variant, onConfirm, onCancel, }: Props) => JSX.Element;
+export declare const ConfirmDialog: ({ title, message, confirmLabel, cancelLabel, variant, error, onConfirm, onCancel, }: Props) => JSX.Element;
 export {};

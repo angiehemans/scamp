@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { selectActivePageHistory, useHistoryStore, } from '@store/historySlice';
 import { formatHistoryLabel, formatRelativeTime, } from '@store/formatHistoryLabel';
+import { requireAt } from '@lib/safeAccess';
 import { Tooltip } from './controls/Tooltip';
 import styles from './HistoryPanel.module.css';
 /**
@@ -45,16 +46,16 @@ export const HistoryPanel = () => {
     // so `jumpToHistory` receives the canonical index.
     const indices = [];
     for (let i = userEntries.length - 1; i >= 0; i -= 1) {
-        indices.push(userEntries[i].idx);
+        indices.push(requireAt(userEntries, i).idx);
     }
     return (_jsx("div", { className: styles.panel, children: _jsx("ul", { className: styles.list, children: indices.map((idx, displayIdx) => {
-                const entry = history.entries[idx];
+                const entry = requireAt(history.entries, idx);
                 const isCurrent = idx === history.cursor;
                 const isFuture = idx > history.cursor;
                 // Render the past/future divider once — after the first
                 // entry whose index is greater than the cursor (i.e. the
                 // first future entry in display order).
-                const prevDisplay = displayIdx > 0 ? indices[displayIdx - 1] : null;
+                const prevDisplay = displayIdx > 0 ? requireAt(indices, displayIdx - 1) : null;
                 const showDivider = prevDisplay !== null &&
                     prevDisplay > history.cursor &&
                     idx <= history.cursor;

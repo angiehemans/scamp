@@ -13,6 +13,7 @@ import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { serializeThemeFile } from '@lib/parseTheme';
 import { classifyToken, type TokenCategory } from '@lib/tokenClassify';
 import type { ThemeToken } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
@@ -208,7 +209,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
         });
         setError(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errorMessage(e));
       }
     },
     [projectPath]

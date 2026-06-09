@@ -32,6 +32,13 @@
   color: var(--text-primary);
 }
 
+.error {
+  margin: -8px 0 16px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--error-text);
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;

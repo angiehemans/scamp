@@ -15,6 +15,7 @@ import type {
   WidthMode,
 } from './element';
 import { tokenSpaceValue, type SpaceTuple, type SpaceValue } from './spaceValue';
+import { requireAt, requireGroup } from './safeAccess';
 
 /**
  * Parse a `123px` (or bare number) into an integer. Returns 0 for empty
@@ -76,7 +77,7 @@ export const parseBorderShorthand = (raw: string): ParsedBorder => {
 
   // `border: none` (or `0`) — no border at all.
   if (tokens.length === 1) {
-    const only = tokens[0]!;
+    const only = requireAt(tokens, 0);
     if (only === 'none' || only === '0' || only === '0px') {
       return { borderWidth: 0, borderStyle: 'none', borderColor: fallback.borderColor };
     }
@@ -771,18 +772,18 @@ export const parseBoxShadowSegment = (segment: string): BoxShadowDef | null => {
   // lengths. A `calc(...)` length, `var(--space-4)`, or a percent
   // therefore refuses cleanly: it's neither at an end nor a px length,
   // so the parse fails and the value falls back to customProperties.
-  const firstIsLength = PX_LENGTH_RE.test(remaining[0]!);
-  const lastIsLength = PX_LENGTH_RE.test(remaining[remaining.length - 1]!);
+  const firstIsLength = PX_LENGTH_RE.test(requireAt(remaining, 0));
+  const lastIsLength = PX_LENGTH_RE.test(requireAt(remaining, remaining.length - 1));
 
   let color: string | null = null;
   let lengthSlice: string[];
   if (firstIsLength && lastIsLength) {
     lengthSlice = remaining;
   } else if (!firstIsLength && lastIsLength) {
-    color = remaining[0]!;
+    color = requireAt(remaining, 0);
     lengthSlice = remaining.slice(1);
   } else if (firstIsLength && !lastIsLength) {
-    color = remaining[remaining.length - 1]!;
+    color = requireAt(remaining, remaining.length - 1);
     lengthSlice = remaining.slice(0, remaining.length - 1);
   } else {
     // Both ends are non-length: either zero lengths, two colors, or a
@@ -800,8 +801,8 @@ export const parseBoxShadowSegment = (segment: string): BoxShadowDef | null => {
 
   if (lengths.length < 2 || lengths.length > 4) return null;
 
-  const offsetX = lengths[0]!;
-  const offsetY = lengths[1]!;
+  const offsetX = requireAt(lengths, 0);
+  const offsetY = requireAt(lengths, 1);
   const blur = lengths[2] ?? 0;
   const spread = lengths[3] ?? 0;
 
@@ -913,11 +914,11 @@ export const parseFilterFunction = (segment: string): FilterDef | null => {
   const match = trimmed.match(FILTER_CALL_RE);
   if (!match) return null;
 
-  const name = match[1]!.toLowerCase();
+  const name = requireGroup(match, 1).toLowerCase();
   if (!isFilterKind(name)) return null;
 
   const kind: FilterKind = name;
-  const arg = match[2]!.trim();
+  const arg = requireGroup(match, 2).trim();
   if (arg.length === 0) return null;
 
   const expectedUnit = FILTER_UNITS[kind];
@@ -932,13 +933,13 @@ export const parseFilterFunction = (segment: string): FilterDef | null => {
   let numberPart: string | null = null;
   if (expectedUnit === 'px') {
     const m = arg.match(/^(-?\d+(?:\.\d+)?)px$/i);
-    if (m) numberPart = m[1]!;
+    if (m) numberPart = requireGroup(m, 1);
   } else if (expectedUnit === '%') {
     const m = arg.match(/^(-?\d+(?:\.\d+)?)%$/);
-    if (m) numberPart = m[1]!;
+    if (m) numberPart = requireGroup(m, 1);
   } else if (expectedUnit === 'deg') {
     const m = arg.match(/^(-?\d+(?:\.\d+)?)deg$/i);
-    if (m) numberPart = m[1]!;
+    if (m) numberPart = requireGroup(m, 1);
   }
 
   if (numberPart === null) return null;
@@ -1056,7 +1057,7 @@ export const splitShadowColor = (value: string): SplitShadowColor => {
   const hex6 = trimmed.match(HEX6_COLOR_RE);
   if (hex6) {
     return {
-      base: `#${hex6[1]!.toLowerCase()}${hex6[2]!.toLowerCase()}${hex6[3]!.toLowerCase()}`,
+      base: `#${requireGroup(hex6, 1).toLowerCase()}${requireGroup(hex6, 2).toLowerCase()}${requireGroup(hex6, 3).toLowerCase()}`,
       alpha: 1,
       decomposable: true,
       hasExplicitAlpha: false,
@@ -1064,9 +1065,9 @@ export const splitShadowColor = (value: string): SplitShadowColor => {
   }
   const hex3 = trimmed.match(HEX3_COLOR_RE);
   if (hex3) {
-    const r = hex3[1]!;
-    const g = hex3[2]!;
-    const b = hex3[3]!;
+    const r = requireGroup(hex3, 1);
+    const g = requireGroup(hex3, 2);
+    const b = requireGroup(hex3, 3);
     return {
       base: `#${r}${r}${g}${g}${b}${b}`.toLowerCase(),
       alpha: 1,
@@ -1111,16 +1112,16 @@ export const combineShadowColor = (base: string, alpha: number): string => {
 
   const hex6 = trimmedBase.match(HEX6_COLOR_RE);
   if (hex6) {
-    const r = parseInt(hex6[1]!, 16);
-    const g = parseInt(hex6[2]!, 16);
-    const b = parseInt(hex6[3]!, 16);
+    const r = parseInt(requireGroup(hex6, 1), 16);
+    const g = parseInt(requireGroup(hex6, 2), 16);
+    const b = parseInt(requireGroup(hex6, 3), 16);
     return `rgba(${r}, ${g}, ${b}, ${formatAlpha(a)})`;
   }
   const hex3 = trimmedBase.match(HEX3_COLOR_RE);
   if (hex3) {
-    const r = parseInt(hex3[1]! + hex3[1]!, 16);
-    const g = parseInt(hex3[2]! + hex3[2]!, 16);
-    const b = parseInt(hex3[3]! + hex3[3]!, 16);
+    const r = parseInt(requireGroup(hex3, 1) + requireGroup(hex3, 1), 16);
+    const g = parseInt(requireGroup(hex3, 2) + requireGroup(hex3, 2), 16);
+    const b = parseInt(requireGroup(hex3, 3) + requireGroup(hex3, 3), 16);
     return `rgba(${r}, ${g}, ${b}, ${formatAlpha(a)})`;
   }
   const rgba = trimmedBase.match(RGBA_COLOR_RE);

@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useCallback, useEffect, useRef, useState, } from 'react';
 import { IconCode, IconPlayerPlay, IconTerminal2, } from '@tabler/icons-react';
 import { DEFAULT_COMPONENT_CANVAS_SIZE, DEFAULT_PROJECT_CONFIG, } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { useAppLogStore } from '@store/appLogSlice';
@@ -75,6 +76,9 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     const [pageMenu, setPageMenu] = useState(null);
     // Page pending deletion (confirmation dialog is open).
     const [deletingPageName, setDeletingPageName] = useState(null);
+    // Inline error shown in the delete-confirmation dialog when the
+    // delete IPC fails; keeps the dialog open so the user can retry.
+    const [deletePageError, setDeletePageError] = useState(null);
     // Per-project config loaded from scamp.config.json. Default values
     // render immediately so the canvas doesn't flash a wrong background
     // while the first read is in flight.
@@ -768,7 +772,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             resetPageEdit();
         }
         catch (e) {
-            setPageEditError(e instanceof Error ? e.message : String(e));
+            setPageEditError(errorMessage(e));
             setPageEditBusy(false);
         }
     };
@@ -789,7 +793,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             resetPageEdit();
         }
         catch (e) {
-            setPageEditError(e instanceof Error ? e.message : String(e));
+            setPageEditError(errorMessage(e));
             setPageEditBusy(false);
         }
     };
@@ -829,11 +833,12 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             resetPageEdit();
         }
         catch (e) {
-            setPageEditError(e instanceof Error ? e.message : String(e));
+            setPageEditError(errorMessage(e));
             setPageEditBusy(false);
         }
     };
     const handleDeletePage = async (name) => {
+        setDeletePageError(null);
         try {
             await window.scamp.deletePage({ projectPath: project.path, pageName: name });
             const nextPages = project.pages.filter((p) => p.name !== name);
@@ -844,11 +849,9 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             setDeletingPageName(null);
         }
         catch (e) {
-            // Surface failures as a basic alert — delete errors are rare and
-            // don't have a dedicated inline surface today.
-            // eslint-disable-next-line no-alert
-            window.alert(e instanceof Error ? e.message : String(e));
-            setDeletingPageName(null);
+            // Surface the failure inline in the confirm dialog and keep it
+            // open so the user can retry — mirrors create/rename handling.
+            setDeletePageError(errorMessage(e));
         }
     };
     // ---- Components ----
@@ -975,7 +978,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             openComponent(created.name, null);
         }
         catch (e) {
-            setComponentEditError(e instanceof Error ? e.message : String(e));
+            setComponentEditError(errorMessage(e));
         }
         finally {
             setCreatingComponent(false);
@@ -1029,7 +1032,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             openComponent(created.name, activePageName);
         }
         catch (e) {
-            setConvertError(e instanceof Error ? e.message : String(e));
+            setConvertError(errorMessage(e));
         }
         finally {
             setConvertingComponent(false);
@@ -1194,7 +1197,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         }
         catch (err) {
             disarmTargetSwapSuppression();
-            const message = err instanceof Error ? err.message : String(err);
+            const message = errorMessage(err);
             useAppLogStore
                 .getState()
                 .log('warn', `Delete component "${componentName}" failed: ${message}`);
@@ -1295,7 +1298,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         }
         catch (err) {
             disarmTargetSwapSuppression();
-            const message = err instanceof Error ? err.message : String(err);
+            const message = errorMessage(err);
             setComponentEditError(message);
             useAppLogStore
                 .getState()
@@ -1483,7 +1486,10 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                         destructive: true,
                         onSelect: () => requestDeleteComponent(componentMenu.componentName),
                     },
-                ], onClose: () => setComponentMenu(null) })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => setDeletingPageName(null) })), convertElementId !== null && (_jsx(CreateComponentDialog, { existingNames: project.components.map((c) => c.name), error: convertError, busy: convertingComponent, onConfirm: (name) => void handleConvertToComponent(convertElementId, name), onCancel: () => {
+                ], onClose: () => setComponentMenu(null) })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", error: deletePageError, onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => {
+                    setDeletingPageName(null);
+                    setDeletePageError(null);
+                } })), convertElementId !== null && (_jsx(CreateComponentDialog, { existingNames: project.components.map((c) => c.name), error: convertError, busy: convertingComponent, onConfirm: (name) => void handleConvertToComponent(convertElementId, name), onCancel: () => {
                     if (convertingComponent)
                         return;
                     setConvertElementId(null);

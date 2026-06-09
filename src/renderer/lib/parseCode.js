@@ -3,6 +3,7 @@ import postcss from 'postcss';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from './defaults';
 import { getTagDefaultPadding } from './tagDefaults';
 import { cssToScampProperty, isMappedProperty } from './cssPropertyMap';
+import { requireAt, requireGroup } from './safeAccess';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID, } from './element';
 import { canonicalizeGroupList, isPropertyGroup, } from './propertyGroups';
 import { parseAnimationShorthand, parsePx, parseSpaceValueOrNull } from './parsers';
@@ -50,8 +51,8 @@ const stripLegacyRootSizing = (decls) => {
     }
     // Width must be a bare `<N>px` value — anything else (percentages,
     // var() references, calc()) means the user customised it.
-    const widthOk = /^\s*\d+(?:\.\d+)?px\s*$/.test(decls[widthIdx].value);
-    const minHeightOk = /^\s*\d+(?:\.\d+)?px\s*$/.test(decls[minHeightIdx].value);
+    const widthOk = /^\s*\d+(?:\.\d+)?px\s*$/.test(requireAt(decls, widthIdx).value);
+    const minHeightOk = /^\s*\d+(?:\.\d+)?px\s*$/.test(requireAt(decls, minHeightIdx).value);
     if (!widthOk || !minHeightOk) {
         return { decls: [...decls], migrated: false };
     }
@@ -187,6 +188,8 @@ const scanComponentImports = (tsx) => {
     for (const match of tsx.matchAll(COMPONENT_IMPORT_RE)) {
         const importedName = match[1];
         const folderName = match[2];
+        if (importedName === undefined || folderName === undefined)
+            continue;
         if (importedName !== folderName)
             continue;
         out.set(importedName.toLowerCase(), importedName);
@@ -380,7 +383,7 @@ const parseTsxStructure = (tsx) => {
             if (typeof rawInstanceId === 'string' && rawInstanceId.length > 0) {
                 const resolvedName = componentImports.get(name);
                 const componentName = resolvedName ?? name;
-                const parentId = stack.length > 0 ? stack[stack.length - 1].id : null;
+                const parentId = stack.length > 0 ? requireAt(stack, stack.length - 1).id : null;
                 // Use the instanceId itself as the canvas element id —
                 // these need to be unique across the page anyway, and
                 // reusing it keeps debugging simple. (For very old
@@ -460,7 +463,7 @@ const parseTsxStructure = (tsx) => {
             const match = classRaw.match(CLASS_NAME_RE);
             const className = match?.[1] ?? '';
             const type = inferElementType(className, name);
-            const parentId = stack.length > 0 ? stack[stack.length - 1].id : null;
+            const parentId = stack.length > 0 ? requireAt(stack, stack.length - 1).id : null;
             // Derive the custom name from the class name prefix. If the
             // prefix is one of the defaults, the element has no custom name.
             let parsedName = null;
@@ -593,7 +596,7 @@ const parseTsxStructure = (tsx) => {
                 if (skippedDepth === 0 && stack.length > 0) {
                     const closeEnd = (parser.endIndex ?? skippedRootStart) + 1;
                     const source = tsx.slice(skippedRootStart, closeEnd);
-                    const top = stack[stack.length - 1];
+                    const top = requireAt(stack, stack.length - 1);
                     top.inlineFragments.push({
                         kind: 'jsx',
                         source,
@@ -917,6 +920,8 @@ const applyDeclarationsAsOverride = (decls) => {
         }
         if (isMappedProperty(prop)) {
             const mapper = cssToScampProperty[prop];
+            if (mapper === undefined)
+                continue;
             const delta = mapper(value);
             // Refusable mappers return `null` to mean "I can't reduce this
             // value to a typed field — preserve the raw declaration via
@@ -1143,6 +1148,8 @@ const applyDeclarations = (baseline, decls) => {
                     continue;
             }
             const mapper = cssToScampProperty[prop];
+            if (mapper === undefined)
+                continue;
             const delta = mapper(value);
             if (delta === null) {
                 customProperties[prop] = value;
@@ -1291,7 +1298,7 @@ export const parseCode = (tsx, css, options) => {
             const m = text.match(PROP_REF_TEXT_RE);
             if (!m)
                 continue;
-            const propName = m[1];
+            const propName = requireGroup(m, 1);
             if (!propDefaults.has(propName))
                 continue;
             elements[id] = {
