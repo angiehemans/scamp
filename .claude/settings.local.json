@@ -8,7 +8,14 @@
       "Bash(npm install *)",
       "Bash(npm uninstall *)",
       "Read(//home/angie-hemans/Documents/camp-files/portfolio-site/**)",
-      "Read(//home/angie-hemans/Documents/camp-files/portfolio-site/app/**)"
+      "Read(//home/angie-hemans/Documents/camp-files/portfolio-site/app/**)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(grep -E '\\\\.\\(ts|tsx|css|md\\)$')",
+      "Bash(grep -v -E '\\\\.\\(js|d\\\\.ts\\)$')",
+      "Bash(grep -v -E '\\\\.js$|\\\\.d\\\\.ts$')",
+      "Bash(grep -v -E '\\\\.js$|\\\\.js\\\\.map$|\\\\.d\\\\.ts$')",
+      "Bash(grep -E '\\\\.\\(ts|tsx|css|md\\)$|^.{2} \\(test/|docs/\\)')",
+      "Bash(grep -E '\\\\.\\(ts|tsx|css\\)$')"
     ]
   }
 }

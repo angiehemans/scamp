@@ -1,4 +1,22 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+// Top-level shell for an open project: owns page/component navigation,
+// the load pipeline (parseCode → store), and every page/component CRUD
+// handler. Canvas/element state lives in the Zustand store, not here.
+// Sections (line ranges approximate — navigate by the named anchors):
+//   ~100-186   local state hooks (active page/component, edit/menu state,
+//              projectConfig, parseError, refs)
+//   ~188-540   effects: config load, component-tree parse, navigation
+//              requests, font/theme injection, page-load + component-load
+//              (the two parseCode call sites + ParseErrorBanner trigger)
+//   ~543-880   panel toggles, preview sync, global keyboard shortcuts
+//   ~881-1005  page CRUD (handleAddPage / Duplicate / Rename / Delete)
+//   ~1006-1146 component editor: persistActiveSource, openComponent,
+//              exitComponentEditor, handleAddComponent
+//   ~1147-1408 instance flows: convert-to-component, lock-prop,
+//              delete-prop-text, detach, component context menu + delete
+//   ~1410-1575 handleRenameComponent + page context-menu builder
+//   ~1576-end  render: header toolbar, banners, sidebar, viewport,
+//              bottom panels + modals/dialogs
 import { useCallback, useEffect, useRef, useState, } from 'react';
 import { IconCode, IconPlayerPlay, IconTerminal2, } from '@tabler/icons-react';
 import { DEFAULT_COMPONENT_CANVAS_SIZE, DEFAULT_PROJECT_CONFIG, } from '@shared/types';
@@ -26,6 +44,7 @@ import { ZoomControls } from './ZoomControls';
 import { CanvasSizeControl } from './CanvasSizeControl';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
+import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { SaveStatusToast } from './SaveStatusToast';
 import { useTerminalActivityStore } from '@store/terminalActivitySlice';
@@ -89,6 +108,10 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // the banner (which also persists `canvasMigrationAcknowledged` to
     // scamp.config.json so the banner never reappears).
     const [showMigrationBanner, setShowMigrationBanner] = useState(false);
+    // Set when `parseCode` throws on the active page/component. The
+    // canvas keeps its last good state and this drives the inline
+    // ParseErrorBanner; cleared once the target parses again.
+    const [parseError, setParseError] = useState(null);
     // Ref to the artboard scroll container. Passed to `Viewport` so
     // fit-to-width zoom can observe the real scroll area, and used here
     // for the click-to-deselect handler on empty canvas space.
@@ -323,10 +346,17 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             });
         }
         catch (err) {
-            console.error('[ProjectShell] parseCode failed for', page.name, err);
-            resetForNewPage();
+            // Keep the last successfully-parsed canvas instead of blanking,
+            // and surface the failure inline + in the activity log. The
+            // file-changed reload re-runs this effect, so a fixed file
+            // clears the banner on its own.
+            useAppLogStore
+                .getState()
+                .log('error', `Couldn't parse page "${page.name}": ${errorMessage(err)}`);
+            setParseError({ targetName: page.name });
             return;
         }
+        setParseError(null);
         // Surface the one-time migration banner when the parser had to
         // strip the legacy root sizing three-tuple. Skipped when the user
         // has already dismissed it on a prior open of this project.
@@ -369,10 +399,14 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             });
         }
         catch (err) {
-            console.error('[ProjectShell] parseCode failed for component', component.name, err);
-            resetForNewPage();
+            // Keep the last good canvas; surface inline + in the activity log.
+            useAppLogStore
+                .getState()
+                .log('error', `Couldn't parse component "${component.name}": ${errorMessage(err)}`);
+            setParseError({ targetName: component.name });
             return;
         }
+        setParseError(null);
         loadComponent({
             name: component.name,
             tsxPath: component.tsxPath,
@@ -1340,7 +1374,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                             ? 'Open this project in a real browser preview window (⌘P)'
                             : projectFormatForPreview === 'legacy'
                                 ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
-                                : 'Open a page to enable preview.', children: _jsxs("button", { className: styles.toggleButton, onClick: openPreview, type: "button", disabled: !canPreview, "data-testid": "preview-button", children: [_jsx(IconPlayerPlay, { size: 14, className: styles.toggleButtonIcon }), "Preview"] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+                                : 'Open a page to enable preview.', children: _jsxs("button", { className: styles.toggleButton, onClick: openPreview, type: "button", disabled: !canPreview, "data-testid": "preview-button", children: [_jsx(IconPlayerPlay, { size: 14, className: styles.toggleButtonIcon }), "Preview"] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: () => setParseError(null) })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.

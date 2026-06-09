@@ -1,3 +1,4 @@
+// see docs/notes/round-trip-contract.md — why both sides must read these
 import type { BoxShadowDef, FilterDef, PropertyGroup } from './element';
 import type { SpaceTuple } from './spaceValue';
 

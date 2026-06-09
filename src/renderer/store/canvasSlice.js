@@ -1,3 +1,23 @@
+// The canvas store: in-memory element tree + all canvas/UI state for the
+// active page or component. The single source of truth the sync bridge
+// serialises to disk. Every mutating action that should be undoable calls
+// `commitElementsToHistory`; see docs/notes/history-coverage.md for which
+// do and don't. Sections (line ranges approximate):
+//   ~1-142     supporting types (Tool, *Input, ActivePage/Component,
+//              ComponentTree, PageSource, panel/zoom constants)
+//   ~144-595   CanvasState type — the full state shape
+//   ~597-762   element factory functions (makeRectangle/Text/Image/…)
+//   ~764-910   patch routing (applyPatchWithAxisRouting), commitElementsToHistory
+//   ~912-948   store creation (useCanvasStore) + initial state
+//   ~949-1148  selection/tool + element-creation + instance actions
+//   ~1151-1431 detach/rename refs, delete, duplicate
+//   ~1434-1571 copy/paste, group/ungroup, wrap-link
+//   ~1573-1882 reorder, edit mode, prop overrides, text, move/resize,
+//              patch, breakpoint/state field resets
+//   ~1884-2002 animation actions, property-group toggle, playAnimation
+//   ~2004-2089 loadPage / loadComponent / reloadElements
+//   ~2091-2177 UI panel + project metadata + zoom + theme + resetForNewPage
+//   ~2180-end  selectProjectColors selector
 import { create } from 'zustand';
 import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
 import { canonicalizeGroupList } from '@lib/propertyGroups';

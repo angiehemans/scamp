@@ -1,3 +1,4 @@
+// see docs/notes/save-status-machine.md — full save/sync state machine
 import { create } from 'zustand';
 
 /**

@@ -1,0 +1,48 @@
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--error-bg);
+  border-bottom: 1px solid var(--status-error);
+  color: var(--error-text);
+  font-size: 13px;
+}
+
+.content {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.3;
+  color: var(--status-error);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--error-text);
+}
+
+.message {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--error-text);
+}
+
+.dismissWrap {
+  flex-shrink: 0;
+}

@@ -14,6 +14,8 @@ _Phased rollout of the work surfaced in `docs/code-quality-review.md`. Phases ar
 
 ## Phase 1 — Quick wins (low risk, high readability)
 
+> **Status: ✅ COMPLETE (2026-06-09).** All 10 tasks done; full typecheck (node + web) and the 1441-test suite pass. New tested helpers: `@shared/errorMessage`, `@lib/safeAccess`. New notes: `docs/notes/{save-status-machine,round-trip-contract,history-coverage}.md`. New component: `ParseErrorBanner`. Note: several source line refs below were stale (the codebase had shifted) — 1.1 was already resolved in a prior session, and the `!`-assertion set in 1.8 was larger than listed. Changes are staged in the working tree on `release-0-3-5`, not yet committed/split into PRs.
+
 **Goal:** Pay down the cheap stuff first. Most of these are <1 hour each, lots of which are docs or 5-line code changes. Done in a week.
 
 ### 1.1 Resolve the dangling `docs/known-issues.md` references — S, Low
