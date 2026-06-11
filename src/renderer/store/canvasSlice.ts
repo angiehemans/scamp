@@ -38,6 +38,7 @@ import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore, type HistoryCommitInput } from './historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { classNameFor } from '@lib/generateCode';
+import { resolveElementAtState } from '@lib/stateCascade';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import {
@@ -481,6 +482,20 @@ type CanvasState = {
   resizeElement: (id: string, x: number, y: number, width: number, height: number) => void;
   patchElement: (id: string, patch: Partial<ScampElement>) => void;
   /**
+   * Merge `patch` into an element's `customProperties` and write the
+   * result through `patchElement` (so axis routing + history apply). A
+   * key whose patch value is `undefined` is DELETED — this is the
+   * single safe path for add / update / remove of custom props,
+   * replacing the manual splat-and-delete in section handlers where a
+   * forgotten delete left stale CSS. The merge base is the resolved
+   * element (active breakpoint + state), matching how panels read
+   * values.
+   */
+  patchCustomProperties: (
+    id: string,
+    patch: Record<string, string | undefined>
+  ) => void;
+  /**
    * Clear one or more fields from a specific breakpoint's override.
    * Used by the panel's "reset override" affordance. When the override
    * becomes empty after the clear, the whole breakpoint key is
@@ -822,6 +837,25 @@ const BASE_ONLY_PATCH_FIELDS = new Set<keyof ScampElement>([
  * Identity / content fields always land on top-level regardless of
  * axis. Pure — takes the element + patch, returns the next element.
  */
+/**
+ * Copy a single key from one partial element to another while
+ * preserving the key↔value type correlation TypeScript loses when the
+ * key is a `keyof ScampElement` union (a plain `target[key] =
+ * source[key]` widens both sides and errors). Generic over a single
+ * `K` so the value type stays tied to the key — no `Record<string,
+ * unknown>` cast needed. `stylePatch` is a `BreakpointOverride`
+ * (a `Partial<Omit<ScampElement, …>>`), which is assignable to the
+ * `Partial<ScampElement>` target; callers only ever pass style keys to
+ * it.
+ */
+const assignPatchKey = <K extends keyof ScampElement>(
+  target: Partial<ScampElement>,
+  source: Partial<ScampElement>,
+  key: K
+): void => {
+  target[key] = source[key];
+};
+
 const applyPatchWithAxisRouting = (
   el: ScampElement,
   patch: Partial<ScampElement>,
@@ -834,9 +868,9 @@ const applyPatchWithAxisRouting = (
   const stylePatch: BreakpointOverride = {};
   for (const key of Object.keys(patch) as Array<keyof ScampElement>) {
     if (BASE_ONLY_PATCH_FIELDS.has(key)) {
-      (basePatch as Record<string, unknown>)[key] = patch[key];
+      assignPatchKey(basePatch, patch, key);
     } else {
-      (stylePatch as Record<string, unknown>)[key] = patch[key];
+      assignPatchKey(stylePatch, patch, key);
     }
   }
 
@@ -1824,6 +1858,26 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
         propertyKeys: Object.keys(patch) as ReadonlyArray<keyof ScampElement>,
       });
     }
+  },
+
+  patchCustomProperties: (id, patch) => {
+    const state = useCanvasStore.getState();
+    const el = state.elements[id];
+    if (!el) return;
+    // Base off the resolved element so the merge matches what the
+    // panel currently shows (and what the old splat-and-delete used).
+    const resolved = resolveElementAtState(
+      el,
+      state.activeBreakpointId,
+      state.breakpoints,
+      state.activeStateName
+    );
+    const next: Record<string, string> = { ...resolved.customProperties };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete next[key];
+      else next[key] = value;
+    }
+    state.patchElement(id, { customProperties: next });
   },
 
   resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => {

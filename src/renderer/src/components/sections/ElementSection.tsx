@@ -6,6 +6,7 @@ import {
   type AttributeSpec,
 } from '@lib/elementTags';
 import type { ScampElement, SelectOption } from '@lib/element';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { LinkField } from './LinkField';
@@ -218,19 +219,18 @@ const SelectOptionsEditor = ({ elementId, element }: EditorProps): JSX.Element =
           >
             ✓
           </button>
-          <button
-            type="button"
-            className={styles.iconButton}
+          <Button
+            variant="removeRow"
             onClick={() => removeOption(idx)}
-            aria-label="Remove option"
+            ariaLabel="Remove option"
           >
             ×
-          </button>
+          </Button>
         </div>
       ))}
-      <button type="button" className={styles.addRow} onClick={addOption}>
+      <Button variant="addRow" onClick={addOption}>
         + Add option
-      </button>
+      </Button>
     </div>
   );
 };

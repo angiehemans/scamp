@@ -24,6 +24,7 @@ import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore } from './historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { classNameFor } from '@lib/generateCode';
+import { resolveElementAtState } from '@lib/stateCascade';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import { DEFAULT_BREAKPOINTS, } from '@shared/types';
@@ -225,6 +226,20 @@ const BASE_ONLY_PATCH_FIELDS = new Set([
  * Identity / content fields always land on top-level regardless of
  * axis. Pure — takes the element + patch, returns the next element.
  */
+/**
+ * Copy a single key from one partial element to another while
+ * preserving the key↔value type correlation TypeScript loses when the
+ * key is a `keyof ScampElement` union (a plain `target[key] =
+ * source[key]` widens both sides and errors). Generic over a single
+ * `K` so the value type stays tied to the key — no `Record<string,
+ * unknown>` cast needed. `stylePatch` is a `BreakpointOverride`
+ * (a `Partial<Omit<ScampElement, …>>`), which is assignable to the
+ * `Partial<ScampElement>` target; callers only ever pass style keys to
+ * it.
+ */
+const assignPatchKey = (target, source, key) => {
+    target[key] = source[key];
+};
 const applyPatchWithAxisRouting = (el, patch, activeBreakpointId, activeStateName) => {
     // Split the patch into base (always-top-level) and style (goes to
     // override when an axis is active).
@@ -232,10 +247,10 @@ const applyPatchWithAxisRouting = (el, patch, activeBreakpointId, activeStateNam
     const stylePatch = {};
     for (const key of Object.keys(patch)) {
         if (BASE_ONLY_PATCH_FIELDS.has(key)) {
-            basePatch[key] = patch[key];
+            assignPatchKey(basePatch, patch, key);
         }
         else {
-            stylePatch[key] = patch[key];
+            assignPatchKey(stylePatch, patch, key);
         }
     }
     const mergedBase = Object.keys(basePatch).length > 0 ? { ...el, ...basePatch } : el;
@@ -1178,6 +1193,23 @@ export const useCanvasStore = create()((set) => ({
                 propertyKeys: Object.keys(patch),
             });
         }
+    },
+    patchCustomProperties: (id, patch) => {
+        const state = useCanvasStore.getState();
+        const el = state.elements[id];
+        if (!el)
+            return;
+        // Base off the resolved element so the merge matches what the
+        // panel currently shows (and what the old splat-and-delete used).
+        const resolved = resolveElementAtState(el, state.activeBreakpointId, state.breakpoints, state.activeStateName);
+        const next = { ...resolved.customProperties };
+        for (const [key, value] of Object.entries(patch)) {
+            if (value === undefined)
+                delete next[key];
+            else
+                next[key] = value;
+        }
+        state.patchElement(id, { customProperties: next });
     },
     resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => {
         set((state) => {

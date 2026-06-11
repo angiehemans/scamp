@@ -12,6 +12,7 @@ import type {
   AnimationPlayState,
   ElementAnimation,
 } from '@lib/element';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
@@ -19,7 +20,6 @@ import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { DualField, Row, Section } from './Section';
 import controlStyles from '../controls/Controls.module.css';
-import sectionStyles from './Section.module.css';
 import styles from './AnimationSection.module.css';
 
 type Props = {
@@ -82,20 +82,24 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
   const setAnimation = useCanvasStore((s) => s.setAnimation);
   const removeAnimation = useCanvasStore((s) => s.removeAnimation);
   const playAnimation = useCanvasStore((s) => s.playAnimation);
-  const groupToggle = useGroupToggle(elementId, 'animation');
+  // Hide the eye when there's no animation defined (and the group
+  // isn't already off — leave it visible so the user can toggle
+  // back on). Multi-animation source ends up in
+  // customProperties.animation — the picker can't model the multi
+  // case, so we surface a hint, but it still counts as content.
+  const hasAnimationContent =
+    element !== undefined &&
+    (element.animation !== undefined ||
+      element.customProperties.animation !== undefined);
+  const groupToggle = useGroupToggle(
+    elementId,
+    'animation',
+    hasAnimationContent
+  );
   if (!element) return null;
 
   const animation = element.animation;
-  // Multi-animation source ends up in customProperties.animation —
-  // the picker can't model the multi case, so we surface a hint.
   const multiAnimationRaw = element.customProperties.animation;
-  // Hide the eye when there's no animation defined (and the group
-  // isn't already off — leave it visible so the user can toggle
-  // back on).
-  const hasAnimationContent =
-    animation !== undefined || multiAnimationRaw !== undefined;
-  const effectiveGroupToggle =
-    hasAnimationContent || !groupToggle.isOn ? groupToggle : undefined;
 
   const handleSelectPreset = (value: string): void => {
     if (value === NONE_VALUE) {
@@ -126,7 +130,7 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
         collapsible
         defaultOpen={false}
         elementId={elementId}
-        groupToggle={effectiveGroupToggle}
+        groupToggle={groupToggle}
         fields={['animation']}
         cssProperties={['animation']}
       >
@@ -148,7 +152,7 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
         collapsible
         defaultOpen={false}
         elementId={elementId}
-        groupToggle={effectiveGroupToggle}
+        groupToggle={groupToggle}
         fields={['animation']}
         cssProperties={['animation']}
       >
@@ -178,7 +182,7 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
       collapsible
       defaultOpen
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={['animation']}
       cssProperties={['animation']}
     >
@@ -314,22 +318,14 @@ export const AnimationSection = ({ elementId }: Props): JSX.Element | null => {
 
       <div className={styles.actions}>
         <Tooltip label="Play the animation once on the canvas. Infinite loops only play one iteration in the editor.">
-          <button
-            type="button"
-            className={sectionStyles.rowAddButton}
-            onClick={() => playAnimation(elementId)}
-          >
+          <Button variant="addRow" onClick={() => playAnimation(elementId)}>
             ▶ Play preview
-          </button>
+          </Button>
         </Tooltip>
         <Tooltip label="Clear this animation from the element. The keyframes stay in the file in case you re-apply.">
-          <button
-            type="button"
-            className={sectionStyles.rowAddButton}
-            onClick={() => removeAnimation(elementId)}
-          >
+          <Button variant="addRow" onClick={() => removeAnimation(elementId)}>
             ✕ Remove
-          </button>
+          </Button>
         </Tooltip>
       </div>
     </Section>

@@ -1,14 +1,16 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useMemo, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useListField } from '@store/hooks/useListField';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
-import sectionStyles from './Section.module.css';
+import { SectionEmptyState } from './SectionEmptyState';
 const PROPERTY_OPTIONS = [
     { value: 'all', label: 'all' },
     { value: 'opacity', label: 'opacity' },
@@ -44,25 +46,21 @@ export const TransitionsSection = ({ elementId }) => {
     // is always canonical ms; the unit is just a UI affordance for typing
     // shorter numbers when the user is working in seconds.
     const [unitState, setUnitState] = useState({});
-    const groupToggle = useGroupToggle(elementId, 'transitions');
+    // Hide the eye when no transitions are defined (or already off).
+    const groupToggle = useGroupToggle(elementId, 'transitions', (element?.transitions.length ?? 0) > 0);
+    const transitionsField = useListField(() => element?.transitions ?? [], (next) => patchElement(elementId, { transitions: next }));
     if (!element)
         return null;
     const transitions = element.transitions;
-    // Hide the eye when no transitions are defined (or already off).
-    const effectiveGroupToggle = transitions.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
-    const setTransitions = (next) => {
-        patchElement(elementId, { transitions: next });
-    };
     const unitFor = (idx) => unitState[idx] ?? { duration: 'ms', delay: 'ms' };
     const setUnit = (idx, axis, unit) => {
         setUnitState((prev) => ({ ...prev, [idx]: { ...unitFor(idx), [axis]: unit } }));
     };
-    const updateRow = (idx, patch) => {
-        const next = transitions.map((t, i) => (i === idx ? { ...t, ...patch } : t));
-        setTransitions(next);
-    };
+    // Wraps the shared remove to also drop the row's per-row unit state,
+    // which is keyed by index and would otherwise leak onto the row that
+    // shifts into this slot.
     const removeRow = (idx) => {
-        setTransitions(transitions.filter((_, i) => i !== idx));
+        transitionsField.remove(idx);
         setUnitState((prev) => {
             const copy = { ...prev };
             delete copy[idx];
@@ -70,15 +68,14 @@ export const TransitionsSection = ({ elementId }) => {
         });
     };
     const addRow = () => {
-        const seed = {
+        transitionsField.add({
             property: 'all',
             durationMs: 200,
             easing: 'ease',
             delayMs: 0,
-        };
-        setTransitions([...transitions, seed]);
+        });
     };
-    return (_jsxs(Section, { title: "Transitions", collapsible: true, defaultOpen: transitions.length > 0, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['transitions'], cssProperties: ['transition'], children: [transitions.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: sectionStyles.rowLabel, "data-testid": "transitions-empty", children: "None" }) })), transitions.map((t, idx) => (_jsx(TransitionRow, { transition: t, unit: unitFor(idx), onChange: (patch) => updateRow(idx, patch), onUnitChange: (axis, unit) => setUnit(idx, axis, unit), onRemove: () => removeRow(idx) }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRow, children: "+ Add transition" }) })] }));
+    return (_jsxs(Section, { title: "Transitions", collapsible: true, defaultOpen: transitions.length > 0, elementId: elementId, groupToggle: groupToggle, fields: ['transitions'], cssProperties: ['transition'], children: [transitions.length === 0 && (_jsx(SectionEmptyState, { testId: "transitions-empty" })), transitions.map((t, idx) => (_jsx(TransitionRow, { transition: t, unit: unitFor(idx), onChange: (patch) => transitionsField.update(idx, patch), onUnitChange: (axis, unit) => setUnit(idx, axis, unit), onRemove: () => removeRow(idx) }, idx))), _jsx(Row, { label: "", children: _jsx(Button, { variant: "addRow", onClick: addRow, children: "+ Add transition" }) })] }));
 };
 const TransitionRow = ({ transition, unit, onChange, onUnitChange, onRemove, }) => {
     // Detect whether the stored easing is a named keyword or a custom
@@ -97,5 +94,5 @@ const TransitionRow = ({ transition, unit, onChange, onUnitChange, onRemove, }) 
         }
         onChange({ easing: next });
     };
-    return (_jsxs(_Fragment, { children: [_jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: transition.property, options: PROPERTY_OPTIONS, onChange: (value) => onChange({ property: value }), title: "Property" }), _jsx(Tooltip, { label: "Remove transition", children: _jsx("button", { type: "button", className: sectionStyles.rowRemoveButton, onClick: onRemove, "aria-label": "Remove transition", children: "\u00D7" }) })] }), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "Dur", title: "Duration", value: msToDisplay(transition.durationMs, unit.duration), onChange: (value) => onChange({ durationMs: displayToMs(value, unit.duration) }), min: 0 }), _jsx(SegmentedControl, { value: unit.duration, options: UNIT_OPTIONS, onChange: (next) => onUnitChange('duration', next), title: "Duration unit" })] }), _jsx(Row, { label: "", children: _jsx(EnumSelect, { value: easingMode, options: EASING_OPTIONS, onChange: handleEasingChange, title: "Easing" }) }), easingMode === CUSTOM_EASING_VALUE && (_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { value: transition.easing, onCommit: (next) => onChange({ easing: next.trim() || 'ease' }), prefix: "fn", title: "Custom easing expression" }) })), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "Delay", title: "Delay", value: msToDisplay(transition.delayMs, unit.delay), onChange: (value) => onChange({ delayMs: displayToMs(value, unit.delay) }), min: 0 }), _jsx(SegmentedControl, { value: unit.delay, options: UNIT_OPTIONS, onChange: (next) => onUnitChange('delay', next), title: "Delay unit" })] })] }));
+    return (_jsxs(_Fragment, { children: [_jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: transition.property, options: PROPERTY_OPTIONS, onChange: (value) => onChange({ property: value }), title: "Property" }), _jsx(Tooltip, { label: "Remove transition", children: _jsx(Button, { variant: "removeRow", onClick: onRemove, ariaLabel: "Remove transition", children: "\u00D7" }) })] }), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "Dur", title: "Duration", value: msToDisplay(transition.durationMs, unit.duration), onChange: (value) => onChange({ durationMs: displayToMs(value, unit.duration) }), min: 0 }), _jsx(SegmentedControl, { value: unit.duration, options: UNIT_OPTIONS, onChange: (next) => onUnitChange('duration', next), title: "Duration unit" })] }), _jsx(Row, { label: "", children: _jsx(EnumSelect, { value: easingMode, options: EASING_OPTIONS, onChange: handleEasingChange, title: "Easing" }) }), easingMode === CUSTOM_EASING_VALUE && (_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { value: transition.easing, onCommit: (next) => onChange({ easing: next.trim() || 'ease' }), prefix: "fn", title: "Custom easing expression" }) })), _jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "Delay", title: "Delay", value: msToDisplay(transition.delayMs, unit.delay), onChange: (value) => onChange({ delayMs: displayToMs(value, unit.delay) }), min: 0 }), _jsx(SegmentedControl, { value: unit.delay, options: UNIT_OPTIONS, onChange: (next) => onUnitChange('delay', next), title: "Delay unit" })] })] }));
 };

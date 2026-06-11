@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useCanvasStore } from '@store/canvasSlice';
 import { DEFAULT_TAG, TAG_ATTRIBUTES, TAG_OPTIONS, } from '@lib/elementTags';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { LinkField } from './LinkField';
@@ -98,7 +99,7 @@ const SelectOptionsEditor = ({ elementId, element }) => {
         });
         update(next);
     };
-    return (_jsxs("div", { className: styles.optionsEditor, children: [_jsx("div", { className: styles.optionsHeader, children: "Options" }), options.length === 0 && (_jsx("div", { className: styles.optionsEmpty, children: "No options yet." })), options.map((opt, idx) => (_jsxs("div", { className: styles.optionRow, children: [_jsx(PrefixSuffixInput, { value: opt.value, placeholder: "value", onCommit: (next) => patchOption(idx, { value: next }) }), _jsx(PrefixSuffixInput, { value: opt.label, placeholder: "label", onCommit: (next) => patchOption(idx, { label: next }) }), _jsx("button", { type: "button", className: `${styles.pill} ${opt.selected ? styles.pillActive : ''}`, onClick: () => toggleSelected(idx), title: "Initially selected", children: "\u2713" }), _jsx("button", { type: "button", className: styles.iconButton, onClick: () => removeOption(idx), "aria-label": "Remove option", children: "\u00D7" })] }, idx))), _jsx("button", { type: "button", className: styles.addRow, onClick: addOption, children: "+ Add option" })] }));
+    return (_jsxs("div", { className: styles.optionsEditor, children: [_jsx("div", { className: styles.optionsHeader, children: "Options" }), options.length === 0 && (_jsx("div", { className: styles.optionsEmpty, children: "No options yet." })), options.map((opt, idx) => (_jsxs("div", { className: styles.optionRow, children: [_jsx(PrefixSuffixInput, { value: opt.value, placeholder: "value", onCommit: (next) => patchOption(idx, { value: next }) }), _jsx(PrefixSuffixInput, { value: opt.label, placeholder: "label", onCommit: (next) => patchOption(idx, { label: next }) }), _jsx("button", { type: "button", className: `${styles.pill} ${opt.selected ? styles.pillActive : ''}`, onClick: () => toggleSelected(idx), title: "Initially selected", children: "\u2713" }), _jsx(Button, { variant: "removeRow", onClick: () => removeOption(idx), ariaLabel: "Remove option", children: "\u00D7" })] }, idx))), _jsx(Button, { variant: "addRow", onClick: addOption, children: "+ Add option" })] }));
 };
 const SvgSourceEditor = ({ elementId, element }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);

@@ -117,6 +117,21 @@ type Props = {
   ) => void;
 };
 
+/**
+ * Holds the latest render's `value` in a stable ref. Lets a globally-
+ * bound effect (keydown listener, one-shot navigation consumer) read
+ * the current closure values without listing them as deps — so the
+ * listener binds once instead of re-binding on every change, and we
+ * drop the `exhaustive-deps` suppressions. Written during render (not
+ * in an effect) so an effect that reads `.current` synchronously sees
+ * this render's value even when it's declared before this ref.
+ */
+const useLatest = <T,>(value: T): { current: T } => {
+  const ref = useRef(value);
+  ref.current = value;
+  return ref;
+};
+
 export const ProjectShell = ({
   project,
   onClose,
@@ -323,14 +338,15 @@ export const ProjectShell = ({
   useEffect(() => {
     if (pendingComponentNavigation === null) return;
     if (project.components.some((c) => c.name === pendingComponentNavigation)) {
-      openComponent(pendingComponentNavigation, activePageName);
+      // Latest openComponent / activePageName via `componentNav`
+      // (useLatest) — fire only when the one-shot request flips,
+      // without a stale-closure dep suppression.
+      componentNav.current.openComponent(
+        pendingComponentNavigation,
+        componentNav.current.activePageName
+      );
     }
     useCanvasStore.getState().requestComponentNavigation(null);
-    // openComponent + activePageName are intentionally not in the
-    // dep array — we only want this to fire when pendingComponent-
-    // Navigation flips. Stable references via the store's getState()
-    // mean stale-closure reads are safe.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingComponentNavigation, project.components]);
 
   const loadPage = useCanvasStore((s) => s.loadPage);
@@ -620,7 +636,7 @@ export const ProjectShell = ({
       // Ctrl+` / Cmd+` — toggle the terminal (matches VS Code).
       if ((e.metaKey || e.ctrlKey) && e.key === '`') {
         e.preventDefault();
-        toggleTerminalPanel();
+        keyDeps.current.toggleTerminalPanel();
         return;
       }
 
@@ -628,7 +644,7 @@ export const ProjectShell = ({
       if ((e.metaKey || e.ctrlKey) && (e.key === 'p' || e.key === 'P')) {
         if (isEditableTarget(e.target)) return;
         e.preventDefault();
-        if (canPreview) openPreview();
+        if (keyDeps.current.canPreview) keyDeps.current.openPreview();
         return;
       }
 
@@ -780,7 +796,7 @@ export const ProjectShell = ({
           }
           if (propsAtRisk.length > 0) {
             const usages = findInstanceUsagesAcrossPages(
-              project.pages,
+              keyDeps.current.projectPages,
               activeName
             );
             const overriding = usages.filter((u) =>
@@ -789,7 +805,7 @@ export const ProjectShell = ({
               )
             );
             if (overriding.length > 0) {
-              setDeletePropTextRequest({
+              keyDeps.current.setDeletePropTextRequest({
                 elementIds: [...state.selectedElementIds],
                 propsAtRisk,
                 impactByPage: groupUsagesByPage(overriding),
@@ -859,9 +875,10 @@ export const ProjectShell = ({
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-    // toggleTerminalPanel and duplicateElement are read fresh from the
-    // store on every keystroke, so this listener doesn't need to re-bind.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Binds once: all closure values it reads (toggleTerminalPanel,
+    // canPreview, openPreview, project.pages, setDeletePropTextRequest)
+    // are read fresh via `keyDeps` (useLatest); everything else goes
+    // through the store's getState().
   }, []);
 
   // Esc anywhere outside a text input exits the component editor
@@ -887,13 +904,10 @@ export const ProjectShell = ({
           return;
         }
       }
-      exitComponentEditor();
+      latestExit.current();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-    // exitComponentEditor reads activeComponent + state setters
-    // fresh on each call, so we don't need it in the dep array.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeComponent]);
 
   // ---- Page management ----
@@ -1112,6 +1126,9 @@ export const ProjectShell = ({
     persistActiveSource();
     setActiveComponentState({ name, returnToPage: fromPage });
   };
+  // Latest refs for the one-shot canvas→component-editor navigation
+  // effect, which binds before these are defined (see useLatest).
+  const componentNav = useLatest({ openComponent, activePageName });
 
   /**
    * Exit the component editor. If the user entered from a page,
@@ -1130,6 +1147,9 @@ export const ProjectShell = ({
     setActiveComponentState(null);
     if (next !== null) setActivePageName(next);
   };
+  // Latest ref for the component-editor Esc handler, which binds
+  // before this is defined (see useLatest).
+  const latestExit = useLatest(exitComponentEditor);
 
   /**
    * Atomic add: create the component on disk, append to the
@@ -1270,6 +1290,16 @@ export const ProjectShell = ({
     propsAtRisk: ReadonlyArray<string>;
     impactByPage: ReadonlyArray<{ pageName: string; count: number }>;
   } | null>(null);
+
+  // Latest refs for the global keydown effect, which binds once and
+  // reads these via `.current` (see useLatest) instead of re-binding.
+  const keyDeps = useLatest({
+    toggleTerminalPanel,
+    canPreview,
+    openPreview,
+    projectPages: project.pages,
+    setDeletePropTextRequest,
+  });
 
   const handleConfirmDeletePropText = (): void => {
     if (!deletePropTextRequest) return;

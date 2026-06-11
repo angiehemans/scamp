@@ -2,18 +2,24 @@ import type { ReactNode } from 'react';
 import { Tooltip } from './Tooltip';
 import styles from './Controls.module.css';
 
-type Option<V extends string> = {
+/** Optional per-option tooltip. When set, the button is wrapped in
+ *  Tooltip so each segment can describe its effect individually. */
+type OptionBase<V extends string> = {
   value: V;
-  label: ReactNode;
-  /** Optional per-option tooltip. When set, the button is wrapped in
-   * Tooltip so each segment can describe its effect individually. */
   tooltip?: string;
-  /** Optional aria-label override — required when `label` is a
-   * non-text ReactNode (icon-only buttons) so the button has an
-   * accessible name. Falls back to `tooltip` when omitted, or the
-   * string value of `label` if it happens to be a plain string. */
-  ariaLabel?: string;
 };
+
+/**
+ * Discriminated by `label`: a plain-string label is its own accessible
+ * name, so `ariaLabel` stays optional. A non-text ReactNode label
+ * (icon-only segment) carries no accessible name, so `ariaLabel` is
+ * REQUIRED — the type, not just a doc comment, now enforces it. (A
+ * string is assignable to `ReactNode`, so a string label matches the
+ * first arm and never trips the requirement.)
+ */
+type Option<V extends string> =
+  | (OptionBase<V> & { label: string; ariaLabel?: string })
+  | (OptionBase<V> & { label: ReactNode; ariaLabel: string });
 
 type Props<V extends string> = {
   value: V;

@@ -32,6 +32,13 @@ export class ErrorBoundary extends Component<Props, State> {
   render(): ReactNode {
     if (this.state.error) {
       if (this.props.fallback) return this.props.fallback;
+      // Deliberate exception to the theme-token rule (CLAUDE.md): this is
+      // the last-resort UI shown when the app has crashed. It uses inline
+      // hex literals and a system font on purpose — `var(--token)` would
+      // depend on theme.css being loaded into :root, and a CSS-module
+      // class on the bundler having applied styles, both of which may be
+      // exactly what failed. Hardcoding keeps the recovery screen legible
+      // no matter what broke. Do not migrate these to tokens.
       return (
         <div
           style={{

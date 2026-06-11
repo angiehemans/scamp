@@ -1,5 +1,6 @@
 import { useCanvasStore } from '@store/canvasSlice';
 import { assetsDirSegment } from '@renderer/src/lib/path';
+import { Button } from '../controls/Button';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
@@ -24,6 +25,7 @@ const OBJ_POSITION_OPTIONS = [
 export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useCanvasStore((s) => s.elements[elementId]);
   const patchElement = useCanvasStore((s) => s.patchElement);
+  const patchCustomProperties = useCanvasStore((s) => s.patchCustomProperties);
   const activePage = useCanvasStore((s) => s.activePage);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const projectPath = useCanvasStore((s) => s.projectPath);
@@ -46,12 +48,7 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
   };
 
   const updateCustomProp = (prop: string, value: string): void => {
-    patchElement(elementId, {
-      customProperties: {
-        ...element.customProperties,
-        [prop]: value,
-      },
-    });
+    patchCustomProperties(elementId, { [prop]: value });
   };
 
   return (
@@ -67,13 +64,13 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
           ) : (
             <span className={styles.sourcePath}>(none)</span>
           )}
-          <button
-            className={styles.replaceBtn}
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => void handleReplace()}
-            type="button"
           >
             Replace
-          </button>
+          </Button>
         </div>
       </Row>
       <Row label="Alt text">

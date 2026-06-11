@@ -1,33 +1,3 @@
-.imageButton {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: 11px;
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.imageButton:hover {
-  background: #363636;
-}
-
-.removeButton {
-  width: 100%;
-  padding: 4px 8px;
-  font-size: 11px;
-  background: transparent;
-  color: #e55;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.removeButton:hover {
-  background: rgba(255, 80, 80, 0.1);
-}
-
 .positionGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

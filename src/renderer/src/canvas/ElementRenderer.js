@@ -542,8 +542,10 @@ instanceSelected) => {
     if (isText && propName !== null) {
         props['data-scamp-instance-id'] = instanceId;
         props['data-scamp-prop'] = propName;
-        const baseStyle = props['style'] ?? {};
-        props['style'] = { ...baseStyle, pointerEvents: 'auto' };
+        // `props.style` is still the `style` local here (only attrs/src/alt
+        // are written above), so read the typed CSSProperties directly
+        // rather than casting the `unknown`-valued bag entry.
+        props['style'] = { ...style, pointerEvents: 'auto' };
         if (instanceSelected) {
             const existing = typeof props['className'] === 'string' ? props['className'] : '';
             props['className'] = existing

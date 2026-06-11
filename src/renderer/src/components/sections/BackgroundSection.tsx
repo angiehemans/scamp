@@ -1,8 +1,10 @@
-import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useCanvasStore } from '@store/canvasSlice';
+import { useColorPickerContext } from '@store/hooks/useColorPickerContext';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { assetsDirSegment } from '@renderer/src/lib/path';
 import type { BlendMode } from '@lib/element';
 import { BlendModeSelect } from '../controls/BlendModeSelect';
+import { Button } from '../controls/Button';
 import { ColorInput } from '../controls/ColorInput';
 import { previewStyle } from '../controls/livePreview';
 import { SegmentedControl } from '../controls/SegmentedControl';
@@ -36,27 +38,29 @@ const BG_POSITION_OPTIONS = [
 export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
-  const projectColors = useCanvasStore(selectProjectColors);
-  const themeTokens = useCanvasStore((s) => s.themeTokens);
-  const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+  const patchCustomProperties = useCanvasStore((s) => s.patchCustomProperties);
+  const { presetColors, themeTokens, onOpenTheme } = useColorPickerContext();
   const activePage = useCanvasStore((s) => s.activePage);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const projectPath = useCanvasStore((s) => s.projectPath);
-  const groupToggle = useGroupToggle(elementId, 'background');
+  // Hide the group-toggle eye when there's nothing in this section
+  // to hide. Stays visible while the group is already off so the
+  // user can flip it back on without first re-adding a value.
+  const hasBackgroundContent =
+    element !== undefined &&
+    (element.backgroundColor !== 'transparent' ||
+      (element.customProperties['background-image'] ?? null) !== null);
+  const groupToggle = useGroupToggle(
+    elementId,
+    'background',
+    hasBackgroundContent
+  );
   if (!element) return null;
 
   const bgImage = element.customProperties['background-image'] ?? null;
   const bgSize = element.customProperties['background-size'] ?? 'cover';
   const bgPosition = element.customProperties['background-position'] ?? 'center';
   const bgRepeat = element.customProperties['background-repeat'] ?? 'no-repeat';
-
-  // Hide the group-toggle eye when there's nothing in this section
-  // to hide. Stays visible while the group is already off so the
-  // user can flip it back on without first re-adding a value.
-  const hasBackgroundContent =
-    element.backgroundColor !== 'transparent' || bgImage !== null;
-  const effectiveGroupToggle =
-    hasBackgroundContent || !groupToggle.isOn ? groupToggle : undefined;
 
   const handleSetBackgroundImage = async (): Promise<void> => {
     if (!activePage || !projectPath) return;
@@ -68,33 +72,25 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
       sourcePath: chosen.path,
       projectPath,
     });
-    patchElement(elementId, {
-      customProperties: {
-        ...element.customProperties,
-        'background-image': `url("${copied.relativePath}")`,
-        'background-size': 'cover',
-        'background-position': 'center',
-        'background-repeat': 'no-repeat',
-      },
+    patchCustomProperties(elementId, {
+      'background-image': `url("${copied.relativePath}")`,
+      'background-size': 'cover',
+      'background-position': 'center',
+      'background-repeat': 'no-repeat',
     });
   };
 
   const handleRemoveBackgroundImage = (): void => {
-    const next = { ...element.customProperties };
-    delete next['background-image'];
-    delete next['background-size'];
-    delete next['background-position'];
-    delete next['background-repeat'];
-    patchElement(elementId, { customProperties: next });
+    patchCustomProperties(elementId, {
+      'background-image': undefined,
+      'background-size': undefined,
+      'background-position': undefined,
+      'background-repeat': undefined,
+    });
   };
 
   const updateBgProp = (prop: string, value: string): void => {
-    patchElement(elementId, {
-      customProperties: {
-        ...element.customProperties,
-        [prop]: value,
-      },
-    });
+    patchCustomProperties(elementId, { [prop]: value });
   };
 
   // Only surface the background-blend dropdown when a blend can
@@ -106,7 +102,7 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
     <Section
       title="Background"
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={['backgroundColor', 'backgroundBlendMode']}
       cssProperties={[
         'background',
@@ -125,19 +121,20 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
           onPreview={previewStyle(elementId, 'backgroundColor')}
           historyElementId={elementId}
           historyPropertyKey="backgroundColor"
-          presetColors={projectColors.length > 0 ? projectColors : undefined}
+          presetColors={presetColors}
           tokens={themeTokens}
-          onOpenTheme={openThemePanel ?? undefined}
+          onOpenTheme={onOpenTheme}
         />
       </Row>
       <Row label="">
-        <button
-          className={styles.imageButton}
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth
           onClick={() => void handleSetBackgroundImage()}
-          type="button"
         >
           {bgImage ? 'Replace image' : 'Set background image'}
-        </button>
+        </Button>
       </Row>
       {bgImage && (
         <>
@@ -180,13 +177,14 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
             </Row>
           )}
           <Row label="">
-            <button
-              className={styles.removeButton}
+            <Button
+              variant="dangerGhost"
+              size="sm"
+              fullWidth
               onClick={handleRemoveBackgroundImage}
-              type="button"
             >
               Remove background image
-            </button>
+            </Button>
           </Row>
         </>
       )}

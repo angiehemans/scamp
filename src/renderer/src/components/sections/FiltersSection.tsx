@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
+import { useListField } from '@store/hooks/useListField';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { FilterDef, FilterKind } from '@lib/element';
 import {
@@ -11,10 +12,12 @@ import {
   FILTER_UNITS,
 } from '@lib/filterKinds';
 
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
+import { SectionEmptyState } from './SectionEmptyState';
 import sectionStyles from './Section.module.css';
 import styles from './FiltersSection.module.css';
 
@@ -50,16 +53,25 @@ const KIND_TOOLTIPS: Record<FilterKind, string> = {
 export const FiltersSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
-  const groupToggle = useGroupToggle(elementId, 'filters');
+  // Hide the eye when no filters are defined (or already off).
+  const groupToggle = useGroupToggle(
+    elementId,
+    'filters',
+    (element?.filters.length ?? 0) > 0 ||
+      (element?.backdropFilters.length ?? 0) > 0
+  );
+  const filtersField = useListField<FilterDef>(
+    () => element?.filters ?? [],
+    (next) => patchElement(elementId, { filters: next })
+  );
+  const backdropField = useListField<FilterDef>(
+    () => element?.backdropFilters ?? [],
+    (next) => patchElement(elementId, { backdropFilters: next })
+  );
   if (!element) return null;
 
   const filters: ReadonlyArray<FilterDef> = element.filters;
   const backdropFilters: ReadonlyArray<FilterDef> = element.backdropFilters;
-  // Hide the eye when no filters are defined (or already off).
-  const effectiveGroupToggle =
-    filters.length > 0 || backdropFilters.length > 0 || !groupToggle.isOn
-      ? groupToggle
-      : undefined;
 
   // The backdrop subsection is gated behind a session-local toggle so
   // the common case stays compact. Once the user adds a row the
@@ -69,41 +81,10 @@ export const FiltersSection = ({ elementId }: Props): JSX.Element | null => {
     backdropFilters.length > 0
   );
 
-  const setFilters = (next: ReadonlyArray<FilterDef>): void => {
-    patchElement(elementId, { filters: next });
-  };
-  const setBackdrop = (next: ReadonlyArray<FilterDef>): void => {
-    patchElement(elementId, { backdropFilters: next });
-  };
-
-  const updateRow = (
-    list: ReadonlyArray<FilterDef>,
-    setter: (next: ReadonlyArray<FilterDef>) => void
-  ) =>
-    (idx: number, patch: Partial<FilterDef>): void => {
-      setter(list.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
-    };
-
-  const removeRow = (
-    list: ReadonlyArray<FilterDef>,
-    setter: (next: ReadonlyArray<FilterDef>) => void
-  ) =>
-    (idx: number): void => {
-      setter(list.filter((_, i) => i !== idx));
-    };
-
-  const addRowTo = (
-    list: ReadonlyArray<FilterDef>,
-    setter: (next: ReadonlyArray<FilterDef>) => void
-  ) =>
-    (): void => {
-      setter([...list, makeFilter('blur')]);
-    };
-
   const handleBackdropToggle = (next: boolean): void => {
     setBackdropOpen(next);
     if (!next && backdropFilters.length > 0) {
-      setBackdrop([]);
+      patchElement(elementId, { backdropFilters: [] });
     }
   };
 
@@ -113,34 +94,24 @@ export const FiltersSection = ({ elementId }: Props): JSX.Element | null => {
       collapsible
       defaultOpen={filters.length > 0 || backdropFilters.length > 0}
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={['filters', 'backdropFilters']}
       cssProperties={['filter', 'backdrop-filter']}
     >
-      {filters.length === 0 && (
-        <div className={sectionStyles.row}>
-          <span className={sectionStyles.rowLabel} data-testid="filters-empty">
-            None
-          </span>
-        </div>
-      )}
+      {filters.length === 0 && <SectionEmptyState testId="filters-empty" />}
       {filters.map((filter, idx) => (
         <FilterRow
           key={idx}
           index={idx}
           filter={filter}
-          onChange={(patch) => updateRow(filters, setFilters)(idx, patch)}
-          onRemove={() => removeRow(filters, setFilters)(idx)}
+          onChange={(patch) => filtersField.update(idx, patch)}
+          onRemove={() => filtersField.remove(idx)}
         />
       ))}
       <Row label="">
-        <button
-          type="button"
-          className={sectionStyles.rowAddButton}
-          onClick={addRowTo(filters, setFilters)}
-        >
+        <Button variant="addRow" onClick={() => filtersField.add(makeFilter('blur'))}>
           + Add filter
-        </button>
+        </Button>
       </Row>
 
       <div className={styles.backdropDivider} />
@@ -173,20 +144,17 @@ export const FiltersSection = ({ elementId }: Props): JSX.Element | null => {
               key={idx}
               index={idx}
               filter={filter}
-              onChange={(patch) =>
-                updateRow(backdropFilters, setBackdrop)(idx, patch)
-              }
-              onRemove={() => removeRow(backdropFilters, setBackdrop)(idx)}
+              onChange={(patch) => backdropField.update(idx, patch)}
+              onRemove={() => backdropField.remove(idx)}
             />
           ))}
           <Row label="">
-            <button
-              type="button"
-              className={sectionStyles.rowAddButton}
-              onClick={addRowTo(backdropFilters, setBackdrop)}
+            <Button
+              variant="addRow"
+              onClick={() => backdropField.add(makeFilter('blur'))}
             >
               + Add backdrop filter
-            </button>
+            </Button>
           </Row>
         </>
       )}
@@ -222,14 +190,13 @@ const FilterRow = ({
       <div className={styles.rowHeader}>
         <span className={styles.rowTitle}>Filter {index + 1}</span>
         <Tooltip label={`Remove filter ${index + 1}`}>
-          <button
-            type="button"
-            className={sectionStyles.rowRemoveButton}
+          <Button
+            variant="removeRow"
             onClick={onRemove}
-            aria-label={`Remove filter ${index + 1}`}
+            ariaLabel={`Remove filter ${index + 1}`}
           >
             ×
-          </button>
+          </Button>
         </Tooltip>
       </div>
       <Row label="">

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
 
-import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useCanvasStore } from '@store/canvasSlice';
+import { useColorPickerContext } from '@store/hooks/useColorPickerContext';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { classifyToken } from '@lib/tokenClassify';
@@ -28,9 +29,9 @@ const FONT_WEIGHT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
 const ICON_SIZE = 14;
 
 const TEXT_ALIGN_OPTIONS = [
-  { value: 'left' as TextAlign, label: <IconAlignLeft size={ICON_SIZE} /> },
-  { value: 'center' as TextAlign, label: <IconAlignCenter size={ICON_SIZE} /> },
-  { value: 'right' as TextAlign, label: <IconAlignRight size={ICON_SIZE} /> },
+  { value: 'left' as TextAlign, label: <IconAlignLeft size={ICON_SIZE} />, ariaLabel: 'Align left' },
+  { value: 'center' as TextAlign, label: <IconAlignCenter size={ICON_SIZE} />, ariaLabel: 'Align center' },
+  { value: 'right' as TextAlign, label: <IconAlignRight size={ICON_SIZE} />, ariaLabel: 'Align right' },
 ] as const;
 
 const isFontWeight = (n: number): n is FontWeight =>
@@ -39,9 +40,7 @@ const isFontWeight = (n: number): n is FontWeight =>
 export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
-  const projectColors = useCanvasStore(selectProjectColors);
-  const themeTokens = useCanvasStore((s) => s.themeTokens);
-  const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+  const { presetColors, themeTokens, onOpenTheme } = useColorPickerContext();
   const allFonts = useFontsStore(selectAllFonts);
 
   // Filter theme tokens by category so each input only offers tokens
@@ -59,29 +58,32 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
     [themeTokens]
   );
   const letterSpacingTokens = fontSizeTokens; // lengths work for both
-  const groupToggle = useGroupToggle(elementId, 'typography');
-
-  if (!element || element.type !== 'text') return null;
-
   // Hide the eye when none of the typed typography fields are set
   // (and the group isn't already off — leave it visible so the
   // user can toggle back on).
   const hasTypographyContent =
-    element.fontFamily !== undefined ||
-    element.fontSize !== undefined ||
-    element.fontWeight !== undefined ||
-    element.color !== undefined ||
-    element.textAlign !== undefined ||
-    element.lineHeight !== undefined ||
-    element.letterSpacing !== undefined;
-  const effectiveGroupToggle =
-    hasTypographyContent || !groupToggle.isOn ? groupToggle : undefined;
+    element !== undefined &&
+    element.type === 'text' &&
+    (element.fontFamily !== undefined ||
+      element.fontSize !== undefined ||
+      element.fontWeight !== undefined ||
+      element.color !== undefined ||
+      element.textAlign !== undefined ||
+      element.lineHeight !== undefined ||
+      element.letterSpacing !== undefined);
+  const groupToggle = useGroupToggle(
+    elementId,
+    'typography',
+    hasTypographyContent
+  );
+
+  if (!element || element.type !== 'text') return null;
 
   return (
     <Section
       title="Typography"
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={[
         'fontFamily',
         'fontSize',
@@ -122,7 +124,7 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
           tokens={fontSizeTokens}
           defaultUnit="px"
           onChange={(value) => patchElement(elementId, { fontSize: value })}
-          onOpenTheme={openThemePanel ?? undefined}
+          onOpenTheme={onOpenTheme}
           placeholder="auto"
         />
         <EnumSelect
@@ -142,9 +144,9 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
           onPreview={previewStyle(elementId, 'color')}
           historyElementId={elementId}
           historyPropertyKey="color"
-          presetColors={projectColors.length > 0 ? projectColors : undefined}
+          presetColors={presetColors}
           tokens={themeTokens}
-          onOpenTheme={openThemePanel ?? undefined}
+          onOpenTheme={onOpenTheme}
         />
         <SegmentedControl<TextAlign>
           value={element.textAlign ?? 'left'}
@@ -161,7 +163,7 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
           tokens={lineHeightTokens}
           defaultUnit=""
           onChange={(value) => patchElement(elementId, { lineHeight: value })}
-          onOpenTheme={openThemePanel ?? undefined}
+          onOpenTheme={onOpenTheme}
           placeholder="auto"
         />
         <TokenOrNumberInput
@@ -171,7 +173,7 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
           tokens={letterSpacingTokens}
           defaultUnit="px"
           onChange={(value) => patchElement(elementId, { letterSpacing: value })}
-          onOpenTheme={openThemePanel ?? undefined}
+          onOpenTheme={onOpenTheme}
           placeholder="0"
         />
       </Row>

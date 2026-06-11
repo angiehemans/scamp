@@ -26,25 +26,6 @@
   border-color: var(--accent);
 }
 
-.addButton {
-  background: var(--bg-hover);
-  border: none;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: 13px;
-  padding: 0 14px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.addButton:hover:not(:disabled) {
-  background: var(--border-strong);
-}
-
-.addButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .error {
   font-size: 12px;
@@ -100,23 +81,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.removeButton {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-family: inherit;
-  flex-shrink: 0;
-}
-
-.removeButton:hover {
-  color: var(--status-error);
-  border-color: var(--status-error);
 }
 
 /* Provider tag — small label next to each row clarifying which

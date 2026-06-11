@@ -7,10 +7,10 @@ import {
   suggestExportFilename,
 } from '@renderer/src/lib/exportCapture';
 import type { ExportFormat } from '@shared/types';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Section, Row } from './Section';
-import sectionStyles from './Section.module.css';
 import styles from './ExportSection.module.css';
 
 type Scope =
@@ -202,14 +202,13 @@ export const ExportSection = (): JSX.Element | null => {
         )}
         {error && <div className={styles.error}>{error}</div>}
         <Row label="">
-          <button
-            type="button"
-            className={`${sectionStyles.rowAddButton} ${styles.exportButton}`}
+          <Button
+            variant="addRow"
             onClick={() => void handleExport()}
             disabled={disabled}
           >
             {busy ? 'Exporting…' : buttonLabel}
-          </button>
+          </Button>
         </Row>
       </Section>
     </div>

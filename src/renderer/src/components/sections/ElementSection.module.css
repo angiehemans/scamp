@@ -56,40 +56,6 @@
   color: var(--text-inverse);
 }
 
-.iconButton {
-  width: var(--control-h);
-  height: var(--control-h);
-  border: 0;
-  background: transparent;
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.iconButton:hover {
-  background: var(--bg-hover);
-  color: var(--text-inverse);
-}
-
-.addRow {
-  background: transparent;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  padding: 4px 8px;
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-}
-
-.addRow:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border-color: #4a4a4a;
-}
-
 .textarea {
   width: 100%;
   min-height: 120px;

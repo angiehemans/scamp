@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useCanvasStore } from '@store/canvasSlice';
+import { useColorPickerContext } from '@store/hooks/useColorPickerContext';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { ColorInput } from '../controls/ColorInput';
 import { previewStyle } from '../controls/livePreview';
@@ -24,33 +25,29 @@ const BORDER_STYLE_OPTIONS: ReadonlyArray<{ value: BorderStyle; label: string }>
 export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
-  const projectColors = useCanvasStore(selectProjectColors);
-  const themeTokens = useCanvasStore((s) => s.themeTokens);
-  const openThemePanel = useCanvasStore((s) => s.openThemePanel);
-  const groupToggle = useGroupToggle(elementId, 'border');
-  const spacingTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
-    [themeTokens]
-  );
-  if (!element) return null;
-
+  const { presetColors, themeTokens, onOpenTheme } = useColorPickerContext();
   // Hide the eye when no border is set AND no rounded corners.
   // Border radius lives in the same group, so a rounded-but-
   // un-bordered element still has something to toggle. Token-form
   // sides (e.g. `var(--space-md)`) always count as "set" — they're
   // an authored value the user wants visible in the file.
   const hasBorderContent =
-    element.borderStyle !== 'none' ||
-    !isZeroSpaceTuple(element.borderWidth) ||
-    !isZeroSpaceTuple(element.borderRadius);
-  const effectiveGroupToggle =
-    hasBorderContent || !groupToggle.isOn ? groupToggle : undefined;
+    element !== undefined &&
+    (element.borderStyle !== 'none' ||
+      !isZeroSpaceTuple(element.borderWidth) ||
+      !isZeroSpaceTuple(element.borderRadius));
+  const groupToggle = useGroupToggle(elementId, 'border', hasBorderContent);
+  const spacingTokens = useMemo(
+    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    [themeTokens]
+  );
+  if (!element) return null;
 
   return (
     <Section
       title="Border"
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={['borderColor', 'borderStyle', 'borderWidth', 'borderRadius']}
       cssProperties={[
         'border',
@@ -67,9 +64,9 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           onPreview={previewStyle(elementId, 'borderColor')}
           historyElementId={elementId}
           historyPropertyKey="borderColor"
-          presetColors={projectColors.length > 0 ? projectColors : undefined}
+          presetColors={presetColors}
           tokens={themeTokens}
-          onOpenTheme={openThemePanel ?? undefined}
+          onOpenTheme={onOpenTheme}
         />
         <EnumSelect<BorderStyle>
           value={element.borderStyle}
@@ -86,7 +83,7 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           onChange={(next) => patchElement(elementId, { borderWidth: next })}
           min={0}
           tokens={spacingTokens}
-          {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
+          onOpenTheme={onOpenTheme}
         />
         <FourSideInput
           prefix="R"
@@ -95,7 +92,7 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           onChange={(next) => patchElement(elementId, { borderRadius: next })}
           min={0}
           tokens={spacingTokens}
-          {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
+          onOpenTheme={onOpenTheme}
         />
       </Row>
     </Section>
