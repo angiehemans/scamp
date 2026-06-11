@@ -16,6 +16,7 @@ import {
   shellBaseName,
   supportsForegroundDetection,
 } from './terminalForeground';
+import { assertInsideActiveProject } from './pathContainment';
 
 // In dev we allow more concurrent ptys than the user can actually open
 // from the UI (MAX_TABS = 3). HMR re-mounts TerminalView without always
@@ -60,6 +61,9 @@ const findWindow = (): BrowserWindow | null => {
 };
 
 const createTerminal = (args: TerminalCreateArgs): TerminalCreateResult => {
+  // Pin the shell's working directory to the active project. Without this
+  // a compromised renderer could spawn a shell anywhere on disk.
+  const cwd = assertInsideActiveProject(args.cwd);
   if (terminals.size >= MAX_TERMINALS) {
     // Log loudly so the dev knows orphans piled up — not just a quiet
     // IPC rejection in the renderer console.
@@ -76,7 +80,7 @@ const createTerminal = (args: TerminalCreateArgs): TerminalCreateResult => {
     name: 'xterm-256color',
     cols: Math.max(args.cols, 1),
     rows: Math.max(args.rows, 1),
-    cwd: args.cwd,
+    cwd,
     env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
   });
 

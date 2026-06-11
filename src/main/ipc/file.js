@@ -6,6 +6,7 @@ import { IPC } from '@shared/ipcChannels';
 import { patchClassBlock } from '@shared/patchClass';
 import { cancelPendingWrite, registerPendingWrite } from '../watcher';
 import { checkWriteConflict } from './fileConflict';
+import { assertInsideActiveProject } from './pathContainment';
 /**
  * Atomic write: write to a sibling .tmp file then rename. Prevents readers
  * (chokidar / external editors) from seeing a half-written file.
@@ -20,6 +21,8 @@ const atomicWrite = async (path, content) => {
     await fs.rename(tmp, path);
 };
 const handleWrite = async (args) => {
+    assertInsideActiveProject(args.tsxPath);
+    assertInsideActiveProject(args.cssPath);
     const conflict = await checkWriteConflict(args);
     if (conflict) {
         return { ok: false, conflict };
@@ -51,6 +54,7 @@ const handleWrite = async (args) => {
  * drives the save-status indicator.
  */
 const handlePatch = async (args) => {
+    assertInsideActiveProject(args.cssPath);
     const writeId = randomUUID();
     registerPendingWrite(args.cssPath, writeId, false);
     try {

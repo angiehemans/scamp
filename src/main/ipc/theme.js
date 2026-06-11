@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { getProjectFormat } from './projectFormatCache';
+import { assertInsideActiveProject } from './pathContainment';
 /**
  * Path on disk where a project's `theme.css` lives. Nextjs projects
  * co-locate it inside `app/` so the root layout can import it and
@@ -32,6 +33,12 @@ const writeTheme = async (args) => {
     await fs.writeFile(themePathFor(args.projectPath, format), args.content, 'utf-8');
 };
 export const registerThemeIpc = () => {
-    ipcMain.handle(IPC.ThemeRead, async (_e, args) => readTheme(args.projectPath));
-    ipcMain.handle(IPC.ThemeWrite, async (_e, args) => writeTheme(args));
+    ipcMain.handle(IPC.ThemeRead, async (_e, args) => {
+        assertInsideActiveProject(args.projectPath);
+        return readTheme(args.projectPath);
+    });
+    ipcMain.handle(IPC.ThemeWrite, async (_e, args) => {
+        assertInsideActiveProject(args.projectPath);
+        return writeTheme(args);
+    });
 };

@@ -4,6 +4,7 @@ import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
 import { parseProjectConfig, serializeProjectConfig, } from '@shared/projectConfig';
+import { assertInsideActiveProject } from './pathContainment';
 const CONFIG_FILE = 'scamp.config.json';
 const readConfig = async (projectPath) => {
     try {
@@ -35,6 +36,12 @@ export const ensureProjectConfig = async (projectPath) => {
     }
 };
 export const registerProjectConfigIpc = () => {
-    ipcMain.handle(IPC.ProjectConfigRead, async (_e, args) => readConfig(args.projectPath));
-    ipcMain.handle(IPC.ProjectConfigWrite, async (_e, args) => writeConfig(args.projectPath, args.config));
+    ipcMain.handle(IPC.ProjectConfigRead, async (_e, args) => {
+        assertInsideActiveProject(args.projectPath);
+        return readConfig(args.projectPath);
+    });
+    ipcMain.handle(IPC.ProjectConfigWrite, async (_e, args) => {
+        assertInsideActiveProject(args.projectPath);
+        return writeConfig(args.projectPath, args.config);
+    });
 };

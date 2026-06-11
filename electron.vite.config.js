@@ -2,6 +2,56 @@ import { resolve } from 'path';
 import { defineConfig, loadEnv } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 /**
+ * Content-Security-Policy for the MAIN app window. Injected as a
+ * `<meta http-equiv>` tag into `index.html` at build time only — never
+ * in the dev server, where Vite's HMR relies on an inline react-refresh
+ * preamble that `script-src 'self'` would block. The preview window has
+ * its own `preview/index.html` and is intentionally left uncovered: it
+ * hosts the user's `next dev` app via `<webview>` and must not inherit
+ * Scamp's policy.
+ *
+ * Font origins are exactly the two providers the font picker accepts
+ * (see fontEmbed.ts — Google + Adobe; any other URL is rejected):
+ *   - Google: `fonts.googleapis.com` (kit CSS) + `fonts.gstatic.com` (woff2)
+ *   - Adobe:  `use.typekit.net` (kit CSS, both <link>ed and fetched by
+ *     adobeFontsFetch) + `p.typekit.net` (woff2)
+ * Plus the `scamp-asset:` image protocol and `data:`/`blob:` for inline
+ * and canvas-exported images. `style-src 'unsafe-inline'` is required by
+ * CodeMirror and the app's inline element styles. If a third font
+ * provider is added to fontEmbed.ts, widen style-src/font-src to match.
+ */
+const MAIN_WINDOW_CSP = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.typekit.net",
+    "font-src 'self' https://fonts.gstatic.com https://use.typekit.net https://p.typekit.net data:",
+    "img-src 'self' scamp-asset: data: blob:",
+    "connect-src 'self' https://use.typekit.net",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+].join('; ');
+/**
+ * Inject `MAIN_WINDOW_CSP` into the main window's `index.html` for
+ * production builds only. Skipped when the Vite dev server is present
+ * (`ctx.server`), and scoped to the top-level `index.html` so the
+ * preview shell is left alone.
+ */
+const injectMainWindowCsp = () => ({
+    name: 'scamp-inject-main-window-csp',
+    transformIndexHtml: {
+        order: 'pre',
+        handler(html, ctx) {
+            if (ctx.server)
+                return html;
+            if (ctx.path !== '/index.html')
+                return html;
+            const tag = `<meta http-equiv="Content-Security-Policy" content="${MAIN_WINDOW_CSP}" />`;
+            return html.replace('</title>', `</title>\n    ${tag}`);
+        },
+    },
+});
+/**
  * Runtime secrets — currently just `SENTRY_DSN` — are baked into
  * the bundled main.js at build time via Vite's `define`
  * substitution. We read them from the project's `.env*` files
@@ -80,7 +130,7 @@ export default defineConfig(({ mode }) => {
                     },
                 },
             },
-            plugins: [react()],
+            plugins: [react(), injectMainWindowCsp()],
         },
     };
 });

@@ -18,6 +18,7 @@ import {
   updateRecentProjectFormat,
 } from './recentProjects';
 import { watchProject } from '../watcher';
+import { setSentryProjectRoot } from '../sentry';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
@@ -112,6 +113,7 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
 
   await addRecentProject({ name, path: projectPath, format });
   await watchProject(projectPath);
+  setSentryProjectRoot(projectPath);
   return readProject(projectPath);
 };
 
@@ -164,6 +166,7 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
     format: project.format,
   });
   await watchProject(args.folderPath);
+  setSentryProjectRoot(args.folderPath);
   return project;
 };
 

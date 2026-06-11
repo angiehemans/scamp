@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { IPC } from '@shared/ipcChannels';
 import { copyImage } from './imageOps';
 import { getProjectFormat } from './projectFormatCache';
+import { assertInsideActiveProject } from './pathContainment';
 const IMAGE_FILTERS = [
     { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'] },
 ];
@@ -35,6 +36,10 @@ const chooseImage = async (args) => {
 };
 export const registerImageIpc = () => {
     ipcMain.handle(IPC.FileCopyImage, async (_e, args) => {
+        // The copy destination is derived from `projectPath`; keep it inside
+        // the active project. `sourcePath` is a user-chosen file (native
+        // dialog) and may legitimately live anywhere, so it isn't contained.
+        assertInsideActiveProject(args.projectPath);
         const format = await getProjectFormat(args.projectPath);
         return copyImage(args, format);
     });

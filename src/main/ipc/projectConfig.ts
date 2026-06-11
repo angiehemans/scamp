@@ -12,6 +12,7 @@ import {
   parseProjectConfig,
   serializeProjectConfig,
 } from '@shared/projectConfig';
+import { assertInsideActiveProject } from './pathContainment';
 
 const CONFIG_FILE = 'scamp.config.json';
 
@@ -53,11 +54,16 @@ export const ensureProjectConfig = async (
 export const registerProjectConfigIpc = (): void => {
   ipcMain.handle(
     IPC.ProjectConfigRead,
-    async (_e, args: ProjectConfigReadArgs) => readConfig(args.projectPath)
+    async (_e, args: ProjectConfigReadArgs) => {
+      assertInsideActiveProject(args.projectPath);
+      return readConfig(args.projectPath);
+    }
   );
   ipcMain.handle(
     IPC.ProjectConfigWrite,
-    async (_e, args: ProjectConfigWriteArgs) =>
-      writeConfig(args.projectPath, args.config)
+    async (_e, args: ProjectConfigWriteArgs) => {
+      assertInsideActiveProject(args.projectPath);
+      return writeConfig(args.projectPath, args.config);
+    }
   );
 };

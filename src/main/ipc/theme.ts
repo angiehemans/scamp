@@ -4,6 +4,7 @@ import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type { ProjectFormat } from '@shared/types';
 import { getProjectFormat } from './projectFormatCache';
+import { assertInsideActiveProject } from './pathContainment';
 
 /**
  * Path on disk where a project's `theme.css` lives. Nextjs projects
@@ -44,12 +45,15 @@ const writeTheme = async (args: {
 };
 
 export const registerThemeIpc = (): void => {
-  ipcMain.handle(
-    IPC.ThemeRead,
-    async (_e, args: { projectPath: string }) => readTheme(args.projectPath)
-  );
+  ipcMain.handle(IPC.ThemeRead, async (_e, args: { projectPath: string }) => {
+    assertInsideActiveProject(args.projectPath);
+    return readTheme(args.projectPath);
+  });
   ipcMain.handle(
     IPC.ThemeWrite,
-    async (_e, args: { projectPath: string; content: string }) => writeTheme(args)
+    async (_e, args: { projectPath: string; content: string }) => {
+      assertInsideActiveProject(args.projectPath);
+      return writeTheme(args);
+    }
   );
 };

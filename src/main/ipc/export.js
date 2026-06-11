@@ -2,6 +2,16 @@ import { dialog, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { IPC } from '@shared/ipcChannels';
+/**
+ * Paths the user has approved this session via the native save dialog.
+ * Export writes go to an arbitrary user-chosen location (Desktop, etc.),
+ * so project containment doesn't apply — instead the dialog is the trust
+ * boundary, and `writePng` / `writeSvg` only accept a path that came back
+ * from `chooseSavePath`. Blocks a compromised renderer from writing
+ * arbitrary files (e.g. overwriting `~/.bashrc`) by calling the export
+ * IPC directly with a forged path.
+ */
+const dialogApprovedPaths = new Set();
 const EXTENSION_FOR = {
     png: 'png',
     svg: 'svg',
@@ -42,10 +52,21 @@ const chooseSavePath = async (args) => {
     if (result.canceled || !result.filePath) {
         return { canceled: true, path: null };
     }
+    dialogApprovedPaths.add(path.resolve(result.filePath));
     return { canceled: false, path: result.filePath };
 };
 /** Strip path separators and other characters that don't belong in a filename. */
 const sanitizeFilename = (raw) => raw.replace(/[\\/:*?"<>|]+/g, '').trim();
+/**
+ * Reject an export write whose path the user didn't approve via the save
+ * dialog this session. Throws so the IPC rejects and the caller surfaces
+ * the failure.
+ */
+const assertDialogApproved = (filePath) => {
+    if (!dialogApprovedPaths.has(path.resolve(filePath))) {
+        throw new Error('Export path was not approved via the save dialog.');
+    }
+};
 /** Decode a `data:image/png;base64,…` URL into a buffer. */
 const decodeDataUrl = (dataUrl) => {
     const comma = dataUrl.indexOf(',');
@@ -56,6 +77,7 @@ const decodeDataUrl = (dataUrl) => {
 };
 const writePng = async (args) => {
     try {
+        assertDialogApproved(args.path);
         const buf = decodeDataUrl(args.dataUrl);
         await fs.writeFile(args.path, buf);
         return { ok: true };
@@ -69,6 +91,7 @@ const writePng = async (args) => {
 };
 const writeSvg = async (args) => {
     try {
+        assertDialogApproved(args.path);
         await fs.writeFile(args.path, args.svgString, 'utf-8');
         return { ok: true };
     }

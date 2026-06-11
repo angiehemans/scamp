@@ -43,6 +43,10 @@ export const watchProject = async (folderPath) => {
         ignored: [/(^|[\/\\])\../, /(^|[\/\\])node_modules([\/\\]|$)/],
         persistent: true,
         ignoreInitial: true,
+        // Don't traverse symlinks out of the project — a symlinked file or
+        // dir inside the project shouldn't pull external paths into the watch
+        // set (defense-in-depth alongside the path-containment guards).
+        followSymlinks: false,
         depth: 3,
         awaitWriteFinish: {
             stabilityThreshold: 200,

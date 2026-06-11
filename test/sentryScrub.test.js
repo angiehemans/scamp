@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 // Mock electron's `app` because `src/main/sentry.ts` imports it at
 // module load. We don't exercise the parts that call into app here —
 // just the pure `scrubPaths` helper — but the import has to resolve.
@@ -12,7 +12,7 @@ vi.mock('@sentry/electron/main', () => ({
     init: vi.fn(),
     close: vi.fn().mockResolvedValue(undefined),
 }));
-const { scrubPaths } = await import('../src/main/sentry');
+const { scrubPaths, scrubRoot, setSentryProjectRoot } = await import('../src/main/sentry');
 describe('scrubPaths', () => {
     it('returns undefined unchanged', () => {
         expect(scrubPaths(undefined)).toBeUndefined();
@@ -39,5 +39,31 @@ describe('scrubPaths', () => {
     });
     it('redacts paths embedded in error messages', () => {
         expect(scrubPaths('TypeError: cannot read property "x" of undefined at /Users/angie/code/foo.tsx:42:10')).toBe('TypeError: cannot read property "x" of undefined at /Users/[redacted]/code/foo.tsx:42:10');
+    });
+});
+describe('scrubRoot', () => {
+    it('returns the string unchanged when no root is set', () => {
+        expect(scrubRoot('/opt/work/secret/app/page.tsx', null)).toBe('/opt/work/secret/app/page.tsx');
+    });
+    it('replaces the project root with <project>', () => {
+        expect(scrubRoot('/opt/work/secret/app/page.tsx', '/opt/work/secret')).toBe('<project>/app/page.tsx');
+    });
+    it('replaces every occurrence of the root', () => {
+        expect(scrubRoot('/p/a.tsx and /p/b.tsx', '/p')).toBe('<project>/a.tsx and <project>/b.tsx');
+    });
+});
+describe('scrubPaths with an active project root', () => {
+    afterEach(() => setSentryProjectRoot(null));
+    it('scrubs a project root outside any user-home directory', () => {
+        setSentryProjectRoot('/opt/work/secret-client');
+        expect(scrubPaths('/opt/work/secret-client/app/page.tsx')).toBe('<project>/app/page.tsx');
+    });
+    it('scrubs the project root before redacting the home username', () => {
+        setSentryProjectRoot('/Users/angie/projects/secret');
+        expect(scrubPaths('/Users/angie/projects/secret/app/x.tsx')).toBe('<project>/app/x.tsx');
+    });
+    it('still redacts a home path that is not under the project', () => {
+        setSentryProjectRoot('/Users/angie/projects/secret');
+        expect(scrubPaths('/Users/angie/.ssh/id_rsa')).toBe('/Users/[redacted]/.ssh/id_rsa');
     });
 });

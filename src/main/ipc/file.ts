@@ -12,6 +12,7 @@ import type {
 import { patchClassBlock } from '@shared/patchClass';
 import { cancelPendingWrite, registerPendingWrite } from '../watcher';
 import { checkWriteConflict } from './fileConflict';
+import { assertInsideActiveProject } from './pathContainment';
 
 /**
  * Atomic write: write to a sibling .tmp file then rename. Prevents readers
@@ -28,6 +29,8 @@ const atomicWrite = async (path: string, content: string): Promise<void> => {
 };
 
 const handleWrite = async (args: FileWriteArgs): Promise<FileWriteResult> => {
+  assertInsideActiveProject(args.tsxPath);
+  assertInsideActiveProject(args.cssPath);
   const conflict = await checkWriteConflict(args);
   if (conflict) {
     return { ok: false, conflict };
@@ -60,6 +63,7 @@ const handleWrite = async (args: FileWriteArgs): Promise<FileWriteResult> => {
  * drives the save-status indicator.
  */
 const handlePatch = async (args: FilePatchArgs): Promise<FilePatchResult> => {
+  assertInsideActiveProject(args.cssPath);
   const writeId = randomUUID();
   registerPendingWrite(args.cssPath, writeId, false);
   try {
