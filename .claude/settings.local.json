@@ -44,7 +44,9 @@
       "Bash(sed -n '188,205p' TransitionsSection.tsx)",
       "Bash(sed -n '109,118p' FiltersSection.tsx)",
       "Bash(sed -n '153,162p' FiltersSection.tsx)",
-      "Bash(sed -n '193,207p' FiltersSection.tsx)"
+      "Bash(sed -n '193,207p' FiltersSection.tsx)",
+      "Bash(git --no-pager diff --stat src/renderer/src/components/ProjectShell.tsx)",
+      "Bash(git --no-pager diff src/renderer/src/components/ProjectShell.tsx)"
     ]
   }
 }

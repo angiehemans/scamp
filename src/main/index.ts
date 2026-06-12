@@ -96,9 +96,13 @@ const createWindow = (): void => {
     backgroundColor: '#1a1a1a',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      // OS-level renderer isolation. Safe here because the main preload
-      // (src/preload/index.ts) is a pure contextBridge/ipcRenderer bridge
-      // with no direct Node usage — all privileged work happens in main.
+      // OS-level renderer isolation, on top of contextIsolation +
+      // nodeIntegration:false. The main preload is a pure
+      // contextBridge/ipcRenderer bridge AND is built as a single
+      // self-contained CJS file (no `require("./chunks/…")`) — a
+      // sandboxed preload can only require `electron`, so the inline of
+      // `@shared/ipcChannels` in electron.vite.config.ts
+      // (inlinePreloadSharedConstants) is what makes this safe.
       // See docs/notes/sandbox-tradeoffs.md.
       sandbox: true,
       contextIsolation: true,

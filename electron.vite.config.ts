@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { defineConfig, loadEnv } from 'electron-vite';
 import react from '@vitejs/plugin-react';
@@ -54,6 +55,56 @@ const injectMainWindowCsp = (): Plugin => ({
 });
 
 /**
+ * Keep each preload entry self-contained so `webPreferences.sandbox:
+ * true` works. The two preloads (`index.ts`, `preview.ts`) both import
+ * `@shared/ipcChannels`; by default Rollup hoists that shared module
+ * into `out/preload/chunks/*.js`, so the built preload does
+ * `require("./chunks/…")`. A sandboxed preload may only
+ * `require('electron')` plus a tiny built-in allowlist — a relative
+ * chunk require throws on load, `exposeInMainWorld` never runs, and
+ * `window.scamp` is undefined (blank screen). See
+ * docs/notes/sandbox-tradeoffs.md.
+ *
+ * This plugin (preload build only) resolves `@shared/ipcChannels` to a
+ * unique id per importing entry, so Rollup treats each import as a
+ * distinct module and inlines a copy into each preload instead of
+ * sharing a chunk. Safe because the module is side-effect-free
+ * constants; the duplication is a few hundred bytes per preload.
+ */
+const inlinePreloadSharedConstants = (): Plugin => {
+  const SHARED = '@shared/ipcChannels';
+  const TAG = '?preload-inline=';
+  return {
+    name: 'scamp-inline-preload-shared-constants',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      // Match both the bare `@shared/ipcChannels` specifier and the
+      // absolute path the alias plugin rewrites it to (the alias also
+      // runs `enforce: 'pre'`, so either form can reach us first).
+      if (importer == null || source.includes(TAG)) return null;
+      const norm = source.replace(/\\/g, '/');
+      const isShared =
+        source === SHARED ||
+        /(?:^|\/)shared\/ipcChannels(?:\.[cm]?[tj]s)?$/.test(norm);
+      if (!isShared) return null;
+      const resolved = await this.resolve(source, importer, {
+        ...options,
+        skipSelf: true,
+      });
+      if (resolved == null) return null;
+      // Unique id per importing entry → Rollup inlines a copy instead
+      // of hoisting a shared chunk.
+      return `${resolved.id}${TAG}${encodeURIComponent(importer)}`;
+    },
+    load(id) {
+      const at = id.indexOf(TAG);
+      if (at < 0) return null;
+      return readFileSync(id.slice(0, at), 'utf8');
+    },
+  };
+};
+
+/**
  * Runtime secrets — currently just `SENTRY_DSN` — are baked into
  * the bundled main.js at build time via Vite's `define`
  * substitution. We read them from the project's `.env*` files
@@ -94,6 +145,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     preload: {
+      // Inline the shared @shared/ipcChannels into each preload entry so
+      // the sandboxed main preload has no `require("./chunks/…")`.
+      plugins: [inlinePreloadSharedConstants()],
       resolve: {
         alias: {
           '@shared': resolve(__dirname, 'src/shared'),
