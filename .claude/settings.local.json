@@ -46,7 +46,19 @@
       "Bash(sed -n '153,162p' FiltersSection.tsx)",
       "Bash(sed -n '193,207p' FiltersSection.tsx)",
       "Bash(git --no-pager diff --stat src/renderer/src/components/ProjectShell.tsx)",
-      "Bash(git --no-pager diff src/renderer/src/components/ProjectShell.tsx)"
+      "Bash(git --no-pager diff src/renderer/src/components/ProjectShell.tsx)",
+      "Bash(grep -vE \"\\\\.\\(js|d\\\\.ts\\)$|tsbuildinfo\")",
+      "Bash(sed -n '755,815p' src/renderer/lib/element.ts)",
+      "Bash(sed -n '1,8p' src/renderer/lib/element.ts)",
+      "Bash(echo \"regen exit: $?\")",
+      "Bash(node -e ' *)",
+      "Bash(sed -i \"s|import\\('\\\\\\\\./|import\\('../|g\" src/renderer/lib/parseCode/*.ts)",
+      "Bash(sed -n '13,60p' src/renderer/lib/defaults.ts)",
+      "Bash(sed -n '1,55p' test/blendModes.test.ts)",
+      "Bash(git add *)",
+      "Bash(git reset *)",
+      "Bash(grep -E \"\\\\.\\(js|d\\\\.ts\\)$|tsbuildinfo\")",
+      "Bash(cd *)"
     ]
   }
 }
