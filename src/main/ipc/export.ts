@@ -10,6 +10,7 @@ import type {
   ExportResult,
   ExportSvgArgs,
 } from '@shared/types';
+import { EXTENSION_FOR, sanitizeFilename, decodeDataUrl } from './exportOps';
 
 /**
  * Paths the user has approved this session via the native save dialog.
@@ -21,11 +22,6 @@ import type {
  * IPC directly with a forged path.
  */
 const dialogApprovedPaths = new Set<string>();
-
-const EXTENSION_FOR: Record<ExportFormat, string> = {
-  png: 'png',
-  svg: 'svg',
-};
 
 const FILTER_FOR: Record<ExportFormat, Electron.FileFilter> = {
   png: { name: 'PNG image', extensions: ['png'] },
@@ -73,10 +69,6 @@ const chooseSavePath = async (
   return { canceled: false, path: result.filePath };
 };
 
-/** Strip path separators and other characters that don't belong in a filename. */
-const sanitizeFilename = (raw: string): string =>
-  raw.replace(/[\\/:*?"<>|]+/g, '').trim();
-
 /**
  * Reject an export write whose path the user didn't approve via the save
  * dialog this session. Throws so the IPC rejects and the caller surfaces
@@ -86,14 +78,6 @@ const assertDialogApproved = (filePath: string): void => {
   if (!dialogApprovedPaths.has(path.resolve(filePath))) {
     throw new Error('Export path was not approved via the save dialog.');
   }
-};
-
-/** Decode a `data:image/png;base64,…` URL into a buffer. */
-const decodeDataUrl = (dataUrl: string): Buffer => {
-  const comma = dataUrl.indexOf(',');
-  if (comma < 0) throw new Error('Malformed data URL');
-  const base64 = dataUrl.slice(comma + 1);
-  return Buffer.from(base64, 'base64');
 };
 
 const writePng = async (args: ExportPngArgs): Promise<ExportResult> => {

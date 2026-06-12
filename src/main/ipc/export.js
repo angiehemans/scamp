@@ -2,6 +2,7 @@ import { dialog, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { IPC } from '@shared/ipcChannels';
+import { EXTENSION_FOR, sanitizeFilename, decodeDataUrl } from './exportOps';
 /**
  * Paths the user has approved this session via the native save dialog.
  * Export writes go to an arbitrary user-chosen location (Desktop, etc.),
@@ -12,10 +13,6 @@ import { IPC } from '@shared/ipcChannels';
  * IPC directly with a forged path.
  */
 const dialogApprovedPaths = new Set();
-const EXTENSION_FOR = {
-    png: 'png',
-    svg: 'svg',
-};
 const FILTER_FOR = {
     png: { name: 'PNG image', extensions: ['png'] },
     svg: { name: 'SVG image', extensions: ['svg'] },
@@ -55,8 +52,6 @@ const chooseSavePath = async (args) => {
     dialogApprovedPaths.add(path.resolve(result.filePath));
     return { canceled: false, path: result.filePath };
 };
-/** Strip path separators and other characters that don't belong in a filename. */
-const sanitizeFilename = (raw) => raw.replace(/[\\/:*?"<>|]+/g, '').trim();
 /**
  * Reject an export write whose path the user didn't approve via the save
  * dialog this session. Throws so the IPC rejects and the caller surfaces
@@ -66,14 +61,6 @@ const assertDialogApproved = (filePath) => {
     if (!dialogApprovedPaths.has(path.resolve(filePath))) {
         throw new Error('Export path was not approved via the save dialog.');
     }
-};
-/** Decode a `data:image/png;base64,…` URL into a buffer. */
-const decodeDataUrl = (dataUrl) => {
-    const comma = dataUrl.indexOf(',');
-    if (comma < 0)
-        throw new Error('Malformed data URL');
-    const base64 = dataUrl.slice(comma + 1);
-    return Buffer.from(base64, 'base64');
 };
 const writePng = async (args) => {
     try {
