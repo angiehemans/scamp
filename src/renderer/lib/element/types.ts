@@ -1,0 +1,759 @@
+/**
+ * Canonical canvas element type. Mirrors the Element shape from prd-scamp-poc.md
+ * §"Zustand State Shape". Both `generateCode` and `parseCode` (added in M3)
+ * operate on a flat `Record<string, ScampElement>` keyed by id.
+ */
+
+import type { SpaceValue, SpaceTuple } from '../spaceValue';
+
+export type WidthMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
+export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
+
+/**
+ * The fixed taxonomy of CSS-property "groups" the panel surfaces
+ * as togglable section headers. See
+ * `src/renderer/lib/propertyGroups.ts` for the group → field
+ * mapping and the helper functions that consume it.
+ *
+ * Lives in this module (rather than propertyGroups.ts) so
+ * `ScampElement.toggledOffGroups` can be typed without a circular
+ * import — propertyGroups.ts imports `ScampElement` itself.
+ *
+ * Sizing, Layout, and Visibility are deliberately NOT togglable
+ * — see `propertyGroups.ts`'s module doc for the rationale.
+ */
+export type PropertyGroup =
+  | 'background'
+  | 'border'
+  | 'shadow'
+  | 'typography'
+  | 'filters'
+  | 'blend'
+  | 'transitions'
+  | 'animation';
+/**
+ * `display` values the panel models directly. `'none'` here is the
+ * "block" mode (no flex / no grid layout) — visibility:none is a
+ * separate concept in `visibilityMode`. Naming keeps the legacy
+ * meaning of `'none'` as "neither flex nor grid" so existing files
+ * round-trip.
+ */
+export type DisplayMode = 'none' | 'flex' | 'grid';
+export type FlexDirection = 'row' | 'column';
+export type AlignItems = 'flex-start' | 'center' | 'flex-end' | 'stretch';
+export type JustifyContent =
+  | 'flex-start'
+  | 'center'
+  | 'flex-end'
+  | 'space-between'
+  | 'space-around';
+/**
+ * Used for grid-only alignment controls (`justify-items`,
+ * `align-self`, `justify-self`). Modern CSS accepts the same short
+ * keywords on grid containers AND the longer `flex-start`/`flex-end`
+ * on grid containers, so the existing flex-flavoured `alignItems`
+ * field keeps working untouched on grid elements.
+ */
+export type GridSelfAlign = 'start' | 'center' | 'end' | 'stretch';
+export type BorderStyle = 'none' | 'solid' | 'dashed' | 'dotted';
+/**
+ * CSS `position`. `'auto'` is a Scamp-only sentinel meaning "let
+ * Scamp pick" — the generator emits `position: relative` for the
+ * page root, `position: absolute` for non-flex/non-grid children,
+ * and no declaration at all for flex/grid children. Setting any
+ * other value pins it: that value is emitted exactly as written.
+ */
+export type Position =
+  | 'auto'
+  | 'static'
+  | 'relative'
+  | 'absolute'
+  | 'fixed'
+  | 'sticky';
+export type FontWeight = 400 | 500 | 600 | 700;
+export type TextAlign = 'left' | 'center' | 'right';
+
+export type ElementType =
+  | 'rectangle'
+  | 'text'
+  | 'image'
+  | 'input'
+  | 'component-instance';
+
+/**
+ * One non-Scamp inline fragment between (or around) the element
+ * children of a Scamp parent — either a loose text node or an
+ * unclassed JSX subtree captured verbatim from the source. Preserved
+ * in DOM source order so the generator can interleave them with
+ * element children at emit time.
+ *
+ * `afterChildIndex`:
+ *   -1 → before the parent's first element child
+ *    n → after `parent.childIds[n]`
+ *
+ * Multiple fragments at the same index are emitted in capture order.
+ */
+export type InlineFragment =
+  | { kind: 'text'; value: string; afterChildIndex: number }
+  | { kind: 'jsx'; source: string; afterChildIndex: number };
+
+/**
+ * The named easing keywords the WYSIWYG dropdown offers. The parser
+ * also accepts arbitrary `cubic-bezier(...)` expressions and stores
+ * them verbatim in this same field — the panel renders those as the
+ * `Custom…` row.
+ */
+export type TransitionEasing =
+  | 'ease'
+  | 'linear'
+  | 'ease-in'
+  | 'ease-out'
+  | 'ease-in-out'
+  | string;
+
+/**
+ * One row of the Transitions section. The CSS shorthand
+ * `transition: opacity 200ms ease, transform 300ms ease-in-out 100ms`
+ * round-trips as a list of these.
+ *
+ * Duration and delay are stored in canonical milliseconds. The UI
+ * tracks the user's preferred unit (ms vs s) in component-local
+ * state so they can toggle without a stored field.
+ *
+ * `property` is a free-form string at the data layer so that
+ * agent-written transitions on properties outside the dropdown set
+ * (e.g. `box-shadow`) round-trip cleanly. The UI surface restricts
+ * the dropdown options.
+ */
+export type TransitionDef = {
+  property: string;
+  durationMs: number;
+  easing: TransitionEasing;
+  delayMs: number;
+};
+
+/**
+ * One entry in a `<select>` element's option list. Options are not
+ * canvas elements — they're managed as a typed list on the parent
+ * select element and emitted as inline JSX children at generate time.
+ */
+export type SelectOption = {
+  value: string;
+  label: string;
+  selected?: boolean;
+};
+
+/**
+ * The names of curated preset animations Scamp ships in its picker.
+ * Stored on the element when the user selects from the picker; on
+ * round-trip, names matching this list AND with a canonical
+ * keyframes body are recognised back to the picker. Anything else
+ * is preserved verbatim as `isPreset: false`.
+ *
+ * Order here matches the picker's grouping (entrances, exits,
+ * attention, subtle) for predictable iteration.
+ */
+export type AnimationPresetName =
+  | 'fade-in'
+  | 'fade-in-up'
+  | 'fade-in-down'
+  | 'slide-in-left'
+  | 'slide-in-right'
+  | 'scale-in'
+  | 'bounce-in'
+  | 'fade-out'
+  | 'fade-out-up'
+  | 'slide-out-left'
+  | 'slide-out-right'
+  | 'scale-out'
+  | 'pulse'
+  | 'shake'
+  | 'bounce'
+  | 'spin'
+  | 'ping'
+  | 'float'
+  | 'wiggle';
+
+export type AnimationDirection =
+  | 'normal'
+  | 'reverse'
+  | 'alternate'
+  | 'alternate-reverse';
+
+export type AnimationFillMode = 'none' | 'forwards' | 'backwards' | 'both';
+export type AnimationPlayState = 'running' | 'paused';
+
+/**
+ * One CSS animation applied to an element. Stored as typed fields so
+ * the panel can render proper controls; serialised back to the
+ * `animation` shorthand on emit.
+ *
+ * `isPreset` records whether the name matched the preset library at
+ * parse time AND whether the keyframes body matched the canonical
+ * preset body — both must be true for the picker to show "Preset:
+ * fade-in-up". A preset name with an agent-edited body shows as
+ * "Custom (was fade-in-up)".
+ *
+ * `easing` is a free-form string at the data layer so that
+ * agent-written easings outside the typed dropdown (`cubic-bezier(...)`,
+ * `steps(...)`, etc.) round-trip cleanly.
+ */
+export type ElementAnimation = {
+  name: string;
+  isPreset: boolean;
+  durationMs: number;
+  easing: string;
+  delayMs: number;
+  iterationCount: number | 'infinite';
+  direction: AnimationDirection;
+  fillMode: AnimationFillMode;
+  playState: AnimationPlayState;
+};
+
+/**
+ * The full set of CSS blend-mode keywords Scamp models as a typed
+ * field. Matches the WYSIWYG dropdown groups (Darken / Lighten /
+ * Contrast / Inversion / Component) plus the default `normal`.
+ * Anything outside this list — `plus-darker`, `plus-lighter`,
+ * vendor-prefixed, future spec additions — is preserved verbatim
+ * via `customProperties`.
+ *
+ * Used for both `mix-blend-mode` and `background-blend-mode`. The
+ * keyword set is identical for the two properties.
+ */
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'darken'
+  | 'color-burn'
+  | 'screen'
+  | 'lighten'
+  | 'color-dodge'
+  | 'overlay'
+  | 'soft-light'
+  | 'hard-light'
+  | 'difference'
+  | 'exclusion'
+  | 'hue'
+  | 'saturation'
+  | 'color'
+  | 'luminosity';
+
+/**
+ * One box-shadow applied to an element. Stored as typed fields so
+ * the panel can render proper controls; serialised back into the
+ * `box-shadow` shorthand on emit. Multiple shadows on one element
+ * become a comma-separated list, in the order stored here.
+ *
+ * `inset` flips the shadow from outside the box (default) to inside.
+ * The CSS spec allows the `inset` keyword either before or after the
+ * lengths and color; the generator always emits it leading
+ * (`inset 0 4px 8px ...`) for consistency.
+ *
+ * `color` is a free-form string at the data layer so token refs
+ * (`var(--shadow-color)`), `currentColor`, named colors, and
+ * `rgba(...)` round-trip cleanly. The panel surfaces a ColorInput
+ * for the common case and falls back to the raw text for anything
+ * exotic.
+ */
+export type BoxShadowDef = {
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  spread: number;
+  color: string;
+  inset: boolean;
+};
+
+/**
+ * The set of CSS filter functions Scamp models as typed entries.
+ * Each kind carries a single numeric argument in its canonical unit:
+ *
+ *   - blur        → px  (length)
+ *   - hue-rotate  → deg (angle)
+ *   - everything else → % (percentage)
+ *
+ * Functions outside this set (`drop-shadow`, `url(...)`, vendor
+ * prefixes) refuse from the mapper and round-trip verbatim via
+ * `customProperties`.
+ */
+export type FilterKind =
+  | 'blur'
+  | 'brightness'
+  | 'contrast'
+  | 'grayscale'
+  | 'hue-rotate'
+  | 'invert'
+  | 'opacity'
+  | 'saturate'
+  | 'sepia';
+
+/**
+ * One CSS filter function applied to an element. The kind picks
+ * which function name is emitted and the unit; `value` is the
+ * numeric argument in that unit (percent kinds use 100 = 100%,
+ * not 1.0, so the panel renders the value the user types directly).
+ *
+ * Used for both `filter` and `backdrop-filter` — the two lists are
+ * independent fields on the element but share this row shape.
+ */
+export type FilterDef = {
+  kind: FilterKind;
+  value: number;
+};
+
+/**
+ * One `@keyframes` rule on a page, preserved at the page level
+ * because keyframes are shared resources — multiple elements can
+ * reference the same `fade-in-up` block. Mirrors the
+ * `customMediaBlocks` shape: `body` is the verbatim declaration
+ * list (the part between the outer braces).
+ */
+export type KeyframesBlock = {
+  /** The keyframe name as written, e.g. `fade-in-up`. */
+  name: string;
+  /** Verbatim declaration block content, including all rule blocks
+   *  and comments, formatted as the source had it. */
+  body: string;
+  /** True when `name` matches a preset AND `body` is structurally
+   *  equivalent to the canonical preset body. False for
+   *  agent-written, edited, or unknown-named blocks. */
+  isPreset: boolean;
+};
+
+export type ScampElement = {
+  id: string;
+  type: ElementType;
+  parentId: string | null;
+  childIds: string[];
+
+  /**
+   * Optional HTML tag override. When undefined, the element renders /
+   * generates as the default for its type:
+   *   - rectangles → `div`
+   *   - text → `p`
+   *   - image → `img`
+   *   - input → `input`
+   *
+   * Setting this lets agents and hand-written files use semantic tags
+   * like `h1`, `h2`, `section`, `header`, `nav`, etc. — the parser
+   * captures whatever's in the file, the generator emits it back, and
+   * the canvas renders the real tag (so styles like h1's default font
+   * size match what the user will see in production).
+   */
+  tag?: string;
+
+  /**
+   * Generic HTML attribute bag — mirrors how `customProperties` works
+   * for CSS. Tag-specific panel fields write here (`href`, `target`,
+   * `method`, `action`, `datetime`, `for`, `cite`, `controls`,
+   * `autoplay`, `type` for button/input, etc.) and the parser collects
+   * any attribute it isn't already typed to handle. Boolean attributes
+   * are stored as the empty string `""` and emitted bare.
+   */
+  attributes?: Record<string, string>;
+
+  /**
+   * Only meaningful when `tag === 'select'`. The options the select
+   * renders. Stored as a list on the element rather than as nested
+   * canvas elements so they can be edited inline in the properties
+   * panel without cluttering the layers tree.
+   */
+  selectOptions?: ReadonlyArray<SelectOption>;
+
+  /**
+   * Only meaningful when `tag === 'svg'`. The raw inner source between
+   * the `<svg>` open and close tags, preserved verbatim so the
+   * generator can re-emit it byte-for-byte. The canvas does NOT render
+   * this — svg elements show as placeholder rectangles on the canvas.
+   */
+  svgSource?: string;
+
+  /**
+   * Optional human-readable name. When set, the slugified version
+   * replaces the default `rect` / `text` prefix in the generated CSS
+   * class name (e.g. "Hero Card" → `hero-card_a1b2`). The name is
+   * stored as a `data-scamp-name` attribute in the TSX and round-trips
+   * through parseCode.
+   */
+  name?: string;
+
+  // Sizing
+  widthMode: WidthMode;
+  widthValue: number;
+  heightMode: HeightMode;
+  heightValue: number;
+
+  /**
+   * Optional verbatim CSS length string for `width`. Only meaningful
+   * when `widthMode === 'fixed'`. When set, the generator emits this
+   * string instead of `${widthValue}px` so non-px units (`vh`, `vw`,
+   * `em`, `rem`, `calc(...)`, `var(--…)`, …) round-trip exactly as
+   * the user / agent wrote them.
+   *
+   * `widthValue` is still maintained as a best-effort integer-px
+   * fallback so the canvas resize math (drag-handles, fit-to-bounds)
+   * has something concrete to work with — for `100vh` we store
+   * `widthValue: 100`, for `calc(100% - 20px)` we store `0` (or the
+   * last known px value).
+   *
+   * Cleared (set to `undefined`) when the user types a plain px value
+   * or switches to a non-fixed mode.
+   */
+  widthCustom?: string;
+
+  /** As `widthCustom` but for `height`. See that field's docs. */
+  heightCustom?: string;
+
+  // Position
+  x: number;
+  y: number;
+  /**
+   * `position` mode. Default `'auto'` lets the generator pick based
+   * on tree shape (root → relative, non-flex child → absolute, flex
+   * child → none). Any other value pins the position and gets
+   * emitted as-is. Useful for sticky navbars, fixed overlays, etc.
+   */
+  position: Position;
+
+  // Layout (as container)
+  display: DisplayMode;
+  flexDirection: FlexDirection;
+  /** Stored as either px (number) or a `var(--token)` reference.
+   *  See `spaceValue.ts` for the union shape and helpers. */
+  gap: SpaceValue;
+  alignItems: AlignItems;
+  justifyContent: JustifyContent;
+
+  /**
+   * Grid-only container fields. Free-text template strings (so
+   * `repeat(3, 1fr)`, `auto-fill`, `minmax(...)`, etc. round-trip
+   * unmolested) and per-axis gaps. Per-axis gaps share the `SpaceValue`
+   * shape — px or `var(--token)`. `justifyItems` is grid-only — flex
+   * uses `justifyContent` for the same axis.
+   */
+  gridTemplateColumns: string;
+  gridTemplateRows: string;
+  columnGap: SpaceValue;
+  rowGap: SpaceValue;
+  justifyItems: GridSelfAlign;
+
+  /**
+   * Grid-item fields — applied when this element's PARENT is a grid
+   * container. Free-text `gridColumn` / `gridRow` so `span 2`,
+   * `1 / 3`, named-line refs etc. round-trip.
+   */
+  gridColumn: string;
+  gridRow: string;
+  alignSelf: GridSelfAlign;
+  justifySelf: GridSelfAlign;
+
+  /** Per-side `[top, right, bottom, left]`. Each side is a
+   *  `SpaceValue` — px or `var(--token)`. See `spaceValue.ts`. */
+  padding: SpaceTuple;
+  margin: SpaceTuple;
+
+  /**
+   * Optional CSS `min-height` as a free-form string (so `100vh`,
+   * `500px`, `var(--page-min-h)`, `calc(...)` round-trip without a
+   * parallel "raw" field). Undefined when no `min-height` is declared
+   * for the element. The page-root defaults to `'100vh'` via
+   * `DEFAULT_ROOT_STYLES` so generated pages have a visible height in
+   * any browser; non-root elements default to undefined and only emit
+   * a declaration when the user / agent sets one explicitly.
+   */
+  minHeight?: string;
+
+  // Appearance
+  backgroundColor: string;
+  /** Corner radii `[TL, TR, BR, BL]`. Each is a `SpaceValue`. */
+  borderRadius: SpaceTuple;
+  /** Per-side border widths `[top, right, bottom, left]`. Each is
+   *  a `SpaceValue`. */
+  borderWidth: SpaceTuple;
+  borderStyle: BorderStyle;
+  borderColor: string;
+
+  /** CSS `opacity` as a 0..1 number. Default 1. */
+  opacity: number;
+  /**
+   * Visibility state. Maps to CSS as:
+   *   - 'visible' → no declaration emitted
+   *   - 'hidden'  → `visibility: hidden;`
+   *   - 'none'    → `display: none;` (suppresses flex emits)
+   */
+  visibilityMode: 'visible' | 'hidden' | 'none';
+
+  /**
+   * CSS `mix-blend-mode`. Default `'normal'` emits no declaration.
+   * Any other value emits `mix-blend-mode: <value>` so the cascade
+   * makes the element blend with content behind it. Round-trips
+   * through `parseCode` via `cssToScampProperty`.
+   */
+  mixBlendMode: BlendMode;
+
+  /**
+   * CSS `background-blend-mode`. Default `'normal'` emits no
+   * declaration. Only meaningful when both a background color and
+   * a background image are set on the element — the panel hides
+   * the control otherwise, but the data model permits it freely so
+   * agent edits round-trip.
+   */
+  backgroundBlendMode: BlendMode;
+
+  // Text only
+  text?: string;
+  /** Component-side prop name (component editor only). see docs/notes/components-data-model.md */
+  prop?: string;
+  fontFamily?: string;
+  /**
+   * Full CSS `font-size` value, e.g. `"16px"`, `"1rem"`, or a token
+   * reference like `"var(--text-lg)"`. Stored as a string so token
+   * refs and non-px units round-trip without a parallel "raw" field.
+   */
+  fontSize?: string;
+  fontWeight?: FontWeight;
+  color?: string;
+  textAlign?: TextAlign;
+  /** CSS `line-height` — unitless number (`"1.5"`), length (`"20px"`),
+   * or a token reference (`"var(--leading-normal)"`). */
+  lineHeight?: string;
+  /** CSS `letter-spacing` — length or token reference. */
+  letterSpacing?: string;
+
+  // Image only
+  src?: string;
+  alt?: string;
+
+  // Component-instance only. see docs/notes/components-data-model.md
+  componentName?: string;
+  /** Stable per-page id emitted as `data-scamp-instance-id`. */
+  instanceId?: string;
+  /** Per-instance text-prop overrides; empty-string is explicit, not absence. */
+  propOverrides?: Record<string, string>;
+  /** Parser saw an instance tag with no matching component on disk. */
+  missingComponent?: boolean;
+
+  /**
+   * Ordered list of box shadows applied to the element. Empty by
+   * default. Emitted as a single `box-shadow: a, b, c` declaration
+   * when non-empty. Order matters — the first entry is rendered on
+   * top of the rest. Agent-written `box-shadow` values that the
+   * parser can't reduce (e.g. `var(--shadow-lg)` on the whole
+   * declaration, `inherit`, `calc(...)` lengths) are preserved
+   * verbatim in `customProperties` and leave this list empty.
+   */
+  boxShadows: ReadonlyArray<BoxShadowDef>;
+
+  /**
+   * Ordered list of CSS filter functions applied to the element.
+   * Empty by default. Emitted as a single space-joined
+   * `filter: f1(...) f2(...)` declaration when non-empty. Order
+   * matters — filters apply in sequence and reordering changes the
+   * visual result. Agent-written `filter` values containing functions
+   * outside `FilterKind` (`drop-shadow`, `url(...)`, `var(...)` args)
+   * refuse from the mapper and preserve verbatim in
+   * `customProperties`.
+   */
+  filters: ReadonlyArray<FilterDef>;
+
+  /**
+   * Same shape as `filters` but emitted as `backdrop-filter`. Applies
+   * filter effects to the content behind the element (visible only
+   * when the element's background is partially transparent). The
+   * two lists are independent — adding a blur to `filters` doesn't
+   * touch `backdropFilters`.
+   */
+  backdropFilters: ReadonlyArray<FilterDef>;
+
+  /**
+   * Ordered list of CSS transitions. Empty by default. Emitted as a
+   * single `transition: a, b, c` shorthand when non-empty; the
+   * parser handles the shorthand AND the longhand form in case an
+   * agent writes them split.
+   */
+  transitions: ReadonlyArray<TransitionDef>;
+
+  /**
+   * Single CSS animation applied to this element. Undefined when
+   * the element has no `animation` declaration. Multi-animation
+   * source (`animation: a 1s, b 2s`) is preserved verbatim via
+   * `customProperties.animation` rather than this field — the
+   * panel doesn't model the multi case.
+   */
+  animation?: ElementAnimation;
+
+  /**
+   * Loose text and unclassed JSX between this element's child
+   * elements, preserved in DOM source order. Empty by default.
+   * Populated by `parseCode` when an agent writes mixed
+   * text-and-element children inside a non-text container; the
+   * generator interleaves these with `childIds` at emit time so
+   * the output round-trips byte-equivalent. The layers panel
+   * surfaces them in a "Raw" group so the user can see the
+   * fragments exist (they're not directly editable from the
+   * canvas).
+   */
+  inlineFragments: ReadonlyArray<InlineFragment>;
+
+  /**
+   * Property groups the user has toggled OFF for this element.
+   * Empty by default. Each entry is a `PropertyGroup` string
+   * (`'shadow'`, `'background'`, etc. — see
+   * `src/renderer/lib/propertyGroups.ts` for the full list).
+   *
+   * Element-scoped: a toggled-off group applies across the base
+   * styles AND every per-state / per-breakpoint override. The
+   * typed values inside the group are NOT cleared — they're
+   * preserved in their fields so toggling back ON restores them
+   * unchanged. The canvas renders as if those properties weren't
+   * set; the generator emits them as a labelled comment block
+   * (label + commented decls — e.g. a `shadow off` label
+   * followed by the commented `box-shadow` declaration) after
+   * the active declarations.
+   *
+   * Stored sorted + deduped so on-disk round-trips stay
+   * text-stable.
+   */
+  toggledOffGroups: ReadonlyArray<PropertyGroup>;
+
+  // Passthrough — properties the canvas can't visually represent
+  customProperties: Record<string, string>;
+
+  /**
+   * Per-breakpoint style overrides keyed by breakpoint id (matching
+   * entries in `ProjectConfig.breakpoints`). Each value carries ONLY
+   * the fields the user overrode at that breakpoint — everything
+   * else cascades from the base (desktop) styles on this element.
+   *
+   * Desktop is not stored here: it's the element's top-level fields.
+   * When a breakpoint's override object would become empty (all
+   * overrides removed), the key is deleted so round-trips stay
+   * text-stable.
+   */
+  breakpointOverrides?: Record<string, BreakpointOverride>;
+
+  /**
+   * Per-state style overrides for the recognised CSS pseudo-classes
+   * (`hover`, `active`, `focus`). Each value carries ONLY the fields
+   * the user changed for that state — everything else cascades from
+   * the base ("rest") styles on this element. Default state isn't
+   * stored here: it's the element's top-level fields.
+   *
+   * Empty / fully-cleared override keys are dropped, and the entire
+   * `stateOverrides` map is cleared back to `undefined` when no state
+   * has any overrides, so round-trips stay text-stable.
+   *
+   * Desktop-only in this version — combining with breakpoints lands
+   * later (see `docs/plans/2026-04-30-element-states.md`).
+   */
+  stateOverrides?: Partial<Record<ElementStateName, StateOverride>>;
+
+  /**
+   * Pseudo-class blocks the parser couldn't route to a recognised
+   * state (`:focus-visible`, `:checked`, `:disabled`, `:nth-child(...)`,
+   * compound selectors like `.rect_a1b2:hover .child`, etc.). Stored
+   * verbatim so the generator can re-emit them after the element's
+   * recognised state blocks. Empty / undefined when the source CSS
+   * had nothing exotic for this class.
+   */
+  customSelectorBlocks?: ReadonlyArray<RawSelectorBlock>;
+};
+
+/**
+ * Which `ScampElement` fields a breakpoint can override. Excludes
+ * identity / tree fields (id, type, parentId, childIds) and the
+ * override map itself — a breakpoint can't re-parent an element or
+ * nest its own overrides. Also excludes TSX-level fields (tag,
+ * attributes, selectOptions, svgSource) and the `text` content —
+ * breakpoints change CSS only.
+ *
+ * `stateOverrides` and `customSelectorBlocks` are excluded too: a
+ * breakpoint can't itself carry per-state overrides in this version
+ * (the matrix is deferred — see the element-states plan), and the
+ * raw-selector passthrough lives only at the top level.
+ */
+export type BreakpointOverride = Partial<
+  Omit<
+    ScampElement,
+    | 'id'
+    | 'type'
+    | 'parentId'
+    | 'childIds'
+    | 'breakpointOverrides'
+    | 'stateOverrides'
+    | 'customSelectorBlocks'
+    | 'tag'
+    | 'attributes'
+    | 'selectOptions'
+    | 'svgSource'
+    | 'text'
+    | 'name'
+  >
+>;
+
+/**
+ * The fixed set of CSS pseudo-classes Scamp models as first-class
+ * "states" with typed per-field overrides. Other pseudo-classes
+ * (`:focus-visible`, `:disabled`, `:checked`, `:nth-child(...)`,
+ * compound selectors) are preserved verbatim via
+ * `customSelectorBlocks` rather than parsed into typed overrides.
+ *
+ * Order matters for emit: `:hover` → `:active` → `:focus` matches
+ * the LVHA-ish ordering convention so cascade resolution is
+ * predictable. Keep new entries in the same intended-emit order.
+ */
+export type ElementStateName = 'hover' | 'active' | 'focus';
+
+export const ELEMENT_STATES: ReadonlyArray<ElementStateName> = [
+  'hover',
+  'active',
+  'focus',
+];
+
+/**
+ * Subset of element fields a per-state override can carry. Strict
+ * superset of `BreakpointOverride` — every breakpoint-overridable
+ * field is also state-overridable, plus `animation` (which states
+ * support but breakpoints don't). The asymmetry is deliberate:
+ * per-state animations are common (`:hover` triggers `shake`);
+ * per-breakpoint animations are rare and add UX complexity.
+ *
+ * The properties panel deliberately doesn't expose `position` / `x`
+ * / `y` / `transitions` controls when a non-default state is active
+ * (hover layout shifts are bad UX; per-state transitions are a
+ * separate feature). That UI rule lives in the section components,
+ * not in this type — preserving anything an agent hand-writes inside
+ * a pseudo-class block is more important than blocking it at the
+ * type boundary.
+ *
+ * Because `StateOverride` extends `BreakpointOverride`, code that
+ * takes a `BreakpointOverride` (the shared override emitter, the
+ * shared override parser entry point) accepts a state override too —
+ * but only sees the breakpoint-overridable fields. The animation
+ * branch in `breakpointOverrideLines` is therefore unreachable for
+ * an actual breakpoint override per the type system; comment in
+ * place to flag this for future maintainers.
+ */
+export type StateOverride = BreakpointOverride & {
+  animation?: ElementAnimation;
+};
+
+/**
+ * One pseudo-class rule the parser couldn't route into a typed state
+ * override — preserved verbatim so the generator can re-emit it
+ * unchanged. Selector includes the leading `.<className>` so we know
+ * which element this block belongs to; `body` is the declaration list
+ * (just the inner declarations, no braces) formatted as the source had
+ * it.
+ */
+export type RawSelectorBlock = {
+  selector: string;
+  body: string;
+};
+
+/**
+ * The id used for the implicit page-root element. Stays constant across
+ * all pages so other code can rely on a known anchor.
+ */
+export const ROOT_ELEMENT_ID = 'root';
