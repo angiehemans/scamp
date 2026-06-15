@@ -1,3 +1,15 @@
+// Renderer side of the save / sync pipeline. See
+// docs/notes/save-status-machine.md.
+//
+// 5.4 (partial) pulled the stateless + cleanly-separable pieces into a
+// `syncBridge/` folder: editTarget (pure path helpers), pendingSaves
+// (the ack / pending-save Maps + confirm logic), writeDispatch (the IPC
+// dispatch + retry). They cross only via function calls, so no mutable
+// state spans files. `initSyncBridge` below is left whole on purpose:
+// its handlers share four init-local vars (writeTimer, lastSerialized*,
+// canvasChangedDuringQuiet), and splitting it means lifting that save
+// cache to module scope — a live-pipeline change best done with the app
+// running, which this pass couldn't verify.
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
 import { parseThemeFile } from '@lib/parseTheme';
@@ -6,61 +18,17 @@ import { externalEditTracker } from './lib/externalEditTracker';
 import { createQuietWindow } from './lib/quietWindow';
 import { selectAnyAgentActive, selectPauseReason, useTerminalActivityStore, } from '@store/terminalActivitySlice';
 import { captureAndPersistComponentThumbnail } from './lib/componentThumbnail';
-import { useCanvasStore, } from '@store/canvasSlice';
+import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { errorMessage } from '@shared/errorMessage';
-import { useSaveStatusStore, } from '@store/saveStatusSlice';
+import { useSaveStatusStore } from '@store/saveStatusSlice';
 import { useAppLogStore } from '@store/appLogSlice';
-const WRITE_DEBOUNCE_MS = 200;
-/**
- * The CSS-module file basename `generateCode` should put in the TSX
- * import line for the given project format. Nextjs projects always
- * import `./page.module.css` (each page lives in its own folder); the
- * legacy flat layout imports `./<pageName>.module.css`.
- */
-const cssModuleImportNameFor = (format, pageName) => (format === 'nextjs' ? 'page' : pageName);
-const toEditTarget = (page, component) => {
-    // activeComponent takes precedence — `loadComponent` clears
-    // `activePage` and vice versa, so this defensive ordering only
-    // matters during the in-flight setState batch where both may
-    // briefly be readable.
-    if (component) {
-        return {
-            kind: 'component',
-            name: component.name,
-            tsxPath: component.tsxPath,
-            cssPath: component.cssPath,
-        };
-    }
-    if (page) {
-        return {
-            kind: 'page',
-            name: page.name,
-            tsxPath: page.tsxPath,
-            cssPath: page.cssPath,
-        };
-    }
-    return null;
-};
-/**
- * CSS-module import name for the active target. Pages route
- * through `cssModuleImportNameFor` (which depends on project
- * format); components always import their own
- * `./<ComponentName>.module.css` regardless of project format.
- */
-const importNameForTarget = (target, format) => {
-    if (target.kind === 'component')
-        return target.name;
-    return cssModuleImportNameFor(format, target.name);
-};
-/**
- * Safety net for the "save is confirmed" transition. The main-process
- * watcher already emits an ack on its own 400 ms expiry, so the bridge
- * should receive one event per write even on filesystems that skip
- * the chokidar stability event. This larger window only catches the
- * case where IPC itself fails to deliver the ack.
- */
-const ACK_WATCHDOG_MS = 2000;
+import { WRITE_DEBOUNCE_MS, importNameForTarget, toEditTarget, } from './syncBridge/editTarget';
+import { handleAck, notifyWriteAborted } from './syncBridge/pendingSaves';
+import { dispatchPageWrite } from './syncBridge/writeDispatch';
+// savePatch / retryLastSave moved to writeDispatch; re-exported so
+// CssPanel + the save-status retry button keep importing from here.
+export { savePatch, retryLastSave } from './syncBridge/writeDispatch';
 /**
  * Module-scoped handle to the active bridge's debounced-write flusher.
  * Populated by `initSyncBridge` on mount and cleared on teardown. Used
@@ -129,183 +97,6 @@ export const disarmTargetSwapSuppression = () => {
     if (suppressTargetSwapTimer !== null) {
         clearTimeout(suppressTargetSwapTimer);
         suppressTargetSwapTimer = null;
-    }
-};
-const pendingSaves = new Map();
-const earlyAcks = new Map();
-const EARLY_ACK_TTL_MS = 1000;
-/**
- * The most recent dispatched attempt, regardless of current status.
- * `retryLastSave` uses this to re-issue after an error.
- */
-let lastDispatchedAttempt = null;
-/**
- * Throttle for the aborted-write toast. A burst of canvas events
- * (e.g. a drag in progress) can fire writeIfDirty many times in
- * rapid succession; we only want ONE toast per external-edit
- * window. After the throttle interval the next abort can show
- * another toast.
- */
-let lastAbortToastAt = 0;
-const ABORT_TOAST_THROTTLE_MS = 4000;
-const notifyWriteAborted = (fileName) => {
-    const now = Date.now();
-    if (now - lastAbortToastAt < ABORT_TOAST_THROTTLE_MS)
-        return;
-    lastAbortToastAt = now;
-    useSaveStatusStore
-        .getState()
-        .showToast(`Your canvas change wasn't saved — ${fileName} was just edited externally.`);
-};
-const clearPending = (writeId) => {
-    const entry = pendingSaves.get(writeId);
-    if (!entry)
-        return;
-    clearTimeout(entry.watchdog);
-    pendingSaves.delete(writeId);
-};
-const maybeConfirm = (writeId) => {
-    const entry = pendingSaves.get(writeId);
-    if (!entry)
-        return;
-    if (!entry.ipcDone)
-        return;
-    for (const path of entry.expected) {
-        if (!entry.acked.has(path))
-            return;
-    }
-    clearPending(writeId);
-    useSaveStatusStore.getState().markConfirmed();
-};
-const handleAck = (writeId, path) => {
-    const entry = pendingSaves.get(writeId);
-    if (entry) {
-        entry.acked.add(path);
-        maybeConfirm(writeId);
-        return;
-    }
-    // Ack arrived before dispatch's `.then` registered the pending save
-    // (fast filesystems can race chokidar ahead of IPC resolution), OR
-    // the write was never tracked at all (e.g. format-migration writes
-    // on project open bypass the indicator). Buffer with a short TTL
-    // so dispatches can drain, but stray acks don't leak.
-    const existing = earlyAcks.get(writeId);
-    if (existing) {
-        existing.paths.add(path);
-        return;
-    }
-    const timer = setTimeout(() => {
-        earlyAcks.delete(writeId);
-    }, EARLY_ACK_TTL_MS);
-    earlyAcks.set(writeId, { paths: new Set([path]), timer });
-};
-const reportError = (message, attempt) => {
-    useSaveStatusStore.getState().markError(message, attempt);
-    useAppLogStore.getState().log('error', `Save failed: ${message}`);
-};
-/**
- * Record a just-dispatched write in the pending-saves map and check
- * whether it's already confirmable (acks that arrived before IPC
- * resolved land in `earlyAcks`).
- */
-const registerPendingSave = (writeId, attempt, expected) => {
-    const entry = {
-        attempt,
-        ipcDone: true,
-        acked: new Set(),
-        expected,
-        watchdog: setTimeout(() => {
-            if (!pendingSaves.has(writeId))
-                return;
-            clearPending(writeId);
-            reportError('No confirmation from disk watcher', attempt);
-        }, ACK_WATCHDOG_MS),
-    };
-    const buffered = earlyAcks.get(writeId);
-    if (buffered) {
-        clearTimeout(buffered.timer);
-        for (const p of buffered.paths)
-            entry.acked.add(p);
-        earlyAcks.delete(writeId);
-    }
-    pendingSaves.set(writeId, entry);
-    maybeConfirm(writeId);
-};
-const dispatchPageWrite = (attempt, onConflict) => {
-    useSaveStatusStore.getState().markSaving(attempt);
-    lastDispatchedAttempt = attempt;
-    const expected = new Set([attempt.tsxPath, attempt.cssPath]);
-    void window.scamp
-        .writeFile({
-        tsxPath: attempt.tsxPath,
-        cssPath: attempt.cssPath,
-        tsxContent: attempt.tsxContent,
-        cssContent: attempt.cssContent,
-        ...(attempt.expectedTsxContent !== undefined
-            ? { expectedTsxContent: attempt.expectedTsxContent }
-            : {}),
-        ...(attempt.expectedCssContent !== undefined
-            ? { expectedCssContent: attempt.expectedCssContent }
-            : {}),
-    })
-        .then((result) => {
-        if (result.ok) {
-            registerPendingSave(result.writeId, attempt, expected);
-            return;
-        }
-        // Conflict: an external editor wrote between our last sync
-        // and this dispatch. Drop the pending save state and hand
-        // the actual content off to the caller's resync handler.
-        useSaveStatusStore.getState().markClean();
-        onConflict?.(result.conflict);
-    })
-        .catch((err) => {
-        const message = errorMessage(err);
-        reportError(message, attempt);
-    });
-};
-const dispatchPatchWrite = (attempt) => {
-    useSaveStatusStore.getState().markSaving(attempt);
-    lastDispatchedAttempt = attempt;
-    const expected = new Set([attempt.cssPath]);
-    return window.scamp
-        .patchFile({
-        cssPath: attempt.cssPath,
-        className: attempt.className,
-        newDeclarations: attempt.newDeclarations,
-        ...(attempt.media ? { media: attempt.media } : {}),
-    })
-        .then(({ writeId }) => {
-        registerPendingSave(writeId, attempt, expected);
-    })
-        .catch((err) => {
-        const message = errorMessage(err);
-        reportError(message, attempt);
-        throw err;
-    });
-};
-/**
- * Commit a CSS panel patch through the save-status pipeline. The
- * CssPanel previously called `window.scamp.patchFile` directly; routing
- * through here keeps the "Saving…" / "Saved" transitions consistent
- * between canvas-driven writes and panel edits.
- */
-export const savePatch = async (attempt) => {
-    await dispatchPatchWrite({ kind: 'patch', ...attempt });
-};
-/**
- * Re-dispatch the last attempted save. Invoked by the error-state
- * retry button on the save-status indicator.
- */
-export const retryLastSave = () => {
-    const attempt = lastDispatchedAttempt;
-    if (!attempt)
-        return;
-    if (attempt.kind === 'write') {
-        dispatchPageWrite(attempt);
-    }
-    else {
-        void dispatchPatchWrite(attempt);
     }
 };
 /**

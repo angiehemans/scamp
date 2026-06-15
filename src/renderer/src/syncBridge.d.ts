@@ -1,3 +1,4 @@
+export { savePatch, retryLastSave } from './syncBridge/writeDispatch';
 export declare const flushPendingPageWrite: () => void;
 export declare const resumeFromPause: () => void;
 /**
@@ -14,25 +15,6 @@ export declare const saveDivergedCanvas: () => void;
 export declare const discardDivergedCanvas: () => void;
 export declare const armTargetSwapSuppression: () => void;
 export declare const disarmTargetSwapSuppression: () => void;
-/**
- * Commit a CSS panel patch through the save-status pipeline. The
- * CssPanel previously called `window.scamp.patchFile` directly; routing
- * through here keeps the "Saving…" / "Saved" transitions consistent
- * between canvas-driven writes and panel edits.
- */
-export declare const savePatch: (attempt: {
-    cssPath: string;
-    className: string;
-    newDeclarations: string;
-    media?: {
-        maxWidth: number;
-    };
-}) => Promise<void>;
-/**
- * Re-dispatch the last attempted save. Invoked by the error-state
- * retry button on the save-status indicator.
- */
-export declare const retryLastSave: () => void;
 /**
  * Wires the canvas store to the file system.
  *
