@@ -58,7 +58,10 @@
       "Bash(git add *)",
       "Bash(git reset *)",
       "Bash(grep -E \"\\\\.\\(js|d\\\\.ts\\)$|tsbuildinfo\")",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(git show *)",
+      "Bash(sed -n '24,40p' src/renderer/src/syncBridge.ts)",
+      "Bash(echo \"regen exit $?\")"
     ]
   }
 }
