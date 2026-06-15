@@ -89,9 +89,37 @@ Page/document-level:
   `delete-page` kinds are reserved but unused). Undo does not resurrect a
   deleted page.
 
-Gaps worth knowing: instance **prop-override** edits *do* push (`patch`),
-but **theme-token edits** and **custom CSS / media-block edits** currently
-do not. Phase 5.5 of the code-quality plan audits these.
+## Phase 5.5 audit conclusion
+
+Every **per-page element-map mutation** in `canvasSlice.ts` pushes — all
+24 element mutators (draw/add, delete/duplicate, group/ungroup,
+move/resize, patch/patchCustomProperties, set/clearPropOverride,
+set/removeAnimation, reset-at-breakpoint/state, togglePropertyGroup, …)
+call `commitElementsToHistory` (directly or by delegating to
+`patchElement`). So coverage **within the per-page element-history model
+is complete**, and the plan's acceptance — undo an instance
+prop-override after navigating away and back — holds (locked in by
+`test/historyPropOverride.test.ts`).
+
+The named "gaps" are **not** missing wiring — they're state that lives
+*outside* the per-page element snapshot, so there's no `elements` map to
+commit:
+
+- **Theme-token edits** (`setThemeTokens`) — project-wide, not per page.
+  A per-page snapshot of project-wide tokens has muddy cross-page
+  semantics (undo on page B could revert a token changed while editing
+  page A). Proper undo needs a **separate project-level history**, which
+  is a feature, not a cleanup — deliberately out of 5.5 scope.
+- **Custom CSS / `@media`-block edits** (CssPanel) — go straight to disk
+  via `savePatch` (file patch), not through an `elements` mutation; the
+  canvas updates on the round-trip reload. Page-level
+  (`pageCustomMediaBlocks`) is document-level state, same boundary.
+- **Component definition rename / delete** — component-management ops,
+  managed outside per-page element history exactly like add/delete page
+  (the `raw-css` / `add-page` / `delete-page` kinds stay reserved-unused).
+
+In short: nothing was added to the per-page stack because nothing was
+missing from it; the real gaps want a project-level history feature.
 
 ## Mechanics (`historySlice.ts`)
 
