@@ -23,22 +23,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import {
-  IconCode,
-  IconPlayerPlay,
-  IconTerminal2,
-} from '@tabler/icons-react';
 import type {
   ComponentFile,
   PageFile,
   ProjectData,
 } from '@shared/types';
-import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { useAppLogStore } from '@store/appLogSlice';
-import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
+import type { ScampElement } from '@lib/element';
 import { parseCode } from '@lib/parseCode';
 import { generateCode } from '@lib/generateCode';
 import {
@@ -46,22 +40,16 @@ import {
   disarmTargetSwapSuppression,
   flushPendingPageWrite,
 } from '../syncBridge';
-import { Viewport } from '../canvas/Viewport';
-import { Toolbar } from './Toolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
 import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
-import { ZoomControls } from './ZoomControls';
-import { CanvasSizeControl } from './CanvasSizeControl';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
-import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { SaveStatusToast } from './SaveStatusToast';
-import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
 import { PageContextMenu, type PageMenuItem } from './PageContextMenu';
@@ -90,6 +78,8 @@ import {
 } from '@lib/componentRename';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
+import { ProjectHeader } from './projectShell/ProjectHeader';
+import { CanvasArea } from './projectShell/CanvasArea';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
@@ -1156,59 +1146,16 @@ export const ProjectShell = ({
 
   return (
     <div className={styles.shell}>
-      <header className={styles.toolbar}>
-        <button className={styles.backButton} onClick={onClose} type="button">
-          ← Projects
-        </button>
-        <span className={styles.spacer} />
-        <ZoomControls />
-        <Tooltip label="Toggle code panel">
-          <button
-            className={`${styles.toggleButton} ${
-              bottomPanel === 'code' ? styles.toggleActive : ''
-            }`}
-            onClick={toggleCodePanel}
-            type="button"
-          >
-            <IconCode size={14} className={styles.toggleButtonIcon} />
-            Code
-          </button>
-        </Tooltip>
-        <Tooltip label="Toggle terminal (Ctrl+`)">
-          <button
-            className={`${styles.toggleButton} ${
-              bottomPanel === 'terminal' ? styles.toggleActive : ''
-            }`}
-            onClick={toggleTerminalPanel}
-            type="button"
-          >
-            <IconTerminal2 size={14} className={styles.toggleButtonIcon} />
-            Terminal
-          </button>
-        </Tooltip>
-        <Tooltip
-          label={
-            canPreview
-              ? 'Open this project in a real browser preview window (⌘P)'
-              : projectFormatForPreview === 'legacy'
-                ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
-                : 'Open a page to enable preview.'
-          }
-        >
-          <button
-            className={styles.toggleButton}
-            onClick={openPreview}
-            type="button"
-            disabled={!canPreview}
-            data-testid="preview-button"
-          >
-            <IconPlayerPlay size={14} className={styles.toggleButtonIcon} />
-            Preview
-          </button>
-        </Tooltip>
-        <SaveStatusIndicator />
-        <span className={styles.projectName}>{project.name}</span>
-      </header>
+      <ProjectHeader
+        projectName={project.name}
+        bottomPanel={bottomPanel}
+        canPreview={canPreview}
+        projectFormat={projectFormatForPreview}
+        onClose={onClose}
+        onToggleCode={toggleCodePanel}
+        onToggleTerminal={toggleTerminalPanel}
+        onOpenPreview={openPreview}
+      />
       <SaveStatusToast />
       {showMigrationBanner && (
         <MigrationBanner onDismiss={handleDismissMigrationBanner} />
@@ -1479,140 +1426,16 @@ export const ProjectShell = ({
           </div>
           </>}
         </aside>
-        <div className={styles.artboard}>
-          <div
-            ref={artboardScrollRef}
-            className={styles.artboardScroll}
-            style={{ backgroundColor: projectConfig.artboardBackground }}
-          >
-            <div className={styles.canvasContent}>
-              {activeComponent !== null && (
-                <div
-                  className={styles.componentEditorBanner}
-                  data-testid="component-editor-banner"
-                >
-                  <span>
-                    Editing component:{' '}
-                    <strong>{activeComponent.name}</strong>. Changes
-                    affect all instances.
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.componentEditorExit}
-                    onClick={exitComponentEditor}
-                  >
-                    Exit
-                  </button>
-                </div>
-              )}
-              <div className={styles.canvasHeader}>
-                {activeComponent !== null ? (
-                  // Breadcrumb: "<return page> > <component>" when
-                  // entered from a page, otherwise just the
-                  // component name. Clicking a non-current segment
-                  // navigates back to it; clicking the current
-                  // segment selects the root element same as the
-                  // page badge.
-                  <div
-                    className={styles.canvasHeaderBadge}
-                    role="navigation"
-                    aria-label="Component editor breadcrumb"
-                  >
-                    {activeComponent.returnToPage !== null && (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.canvasBreadcrumbLink}
-                          onClick={exitComponentEditor}
-                        >
-                          {activeComponent.returnToPage}
-                        </button>
-                        <span aria-hidden="true">{' › '}</span>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      className={styles.canvasBreadcrumbCurrent}
-                      onClick={() =>
-                        useCanvasStore
-                          .getState()
-                          .selectElement(ROOT_ELEMENT_ID)
-                      }
-                      title="Select component root"
-                    >
-                      {activeComponent.name}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.canvasHeaderBadge}
-                    onClick={() =>
-                      useCanvasStore
-                        .getState()
-                        .selectElement(ROOT_ELEMENT_ID)
-                    }
-                    title="Select page root"
-                  >
-                    {activePageName ?? 'Page'}
-                  </button>
-                )}
-                <span className={styles.canvasHeaderSpacer} />
-                <CanvasSizeControl
-                  config={projectConfig}
-                  onChange={handleProjectConfigChange}
-                  componentName={
-                    activeComponent !== null
-                      ? activeComponent.name
-                      : undefined
-                  }
-                />
-              </div>
-              <Viewport
-                canvasWidth={
-                  activeComponent !== null
-                    ? (projectConfig.componentCanvas?.[activeComponent.name]
-                        ?.width ?? DEFAULT_COMPONENT_CANVAS_SIZE.width)
-                    : projectConfig.canvasWidth
-                }
-                canvasHeight={
-                  activeComponent !== null
-                    ? (projectConfig.componentCanvas?.[activeComponent.name]
-                        ?.height ?? DEFAULT_COMPONENT_CANVAS_SIZE.height)
-                    : undefined
-                }
-                canvasOverflowHidden={projectConfig.canvasOverflowHidden}
-                scrollContainerRef={artboardScrollRef}
-                // Drag-handle resize is enabled only in component
-                // mode; the page canvas uses the project-wide
-                // `canvasWidth` setting (no resize handle, no
-                // explicit height — page canvases grow with
-                // content).
-                onResize={
-                  activeComponent !== null
-                    ? (width, height) => {
-                        const name = activeComponent.name;
-                        const nextMap = {
-                          ...(projectConfig.componentCanvas ?? {}),
-                          [name]: { width, height },
-                        };
-                        handleProjectConfigChange({
-                          ...projectConfig,
-                          componentCanvas: nextMap,
-                        });
-                      }
-                    : undefined
-                }
-              />
-            </div>
-          </div>
-          <div className={styles.elementToolbar}>
-            <Toolbar
-              onOpenSettings={() => setShowProjectSettings(true)}
-              onOpenTheme={() => setShowThemePanel(true)}
-            />
-          </div>
-        </div>
+        <CanvasArea
+          activeComponent={activeComponent}
+          activePageName={activePageName}
+          projectConfig={projectConfig}
+          artboardScrollRef={artboardScrollRef}
+          onProjectConfigChange={handleProjectConfigChange}
+          onExitComponentEditor={exitComponentEditor}
+          onOpenSettings={() => setShowProjectSettings(true)}
+          onOpenTheme={() => setShowThemePanel(true)}
+        />
         <PropertiesPanel />
       </div>
       {bottomPanel === 'code' && <CodePanel />}

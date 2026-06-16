@@ -18,32 +18,23 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 //   ~1576-end  render: header toolbar, banners, sidebar, viewport,
 //              bottom panels + modals/dialogs
 import { useCallback, useEffect, useRef, useState, } from 'react';
-import { IconCode, IconPlayerPlay, IconTerminal2, } from '@tabler/icons-react';
-import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { useAppLogStore } from '@store/appLogSlice';
-import { ROOT_ELEMENT_ID } from '@lib/element';
 import { parseCode } from '@lib/parseCode';
 import { generateCode } from '@lib/generateCode';
 import { armTargetSwapSuppression, disarmTargetSwapSuppression, flushPendingPageWrite, } from '../syncBridge';
-import { Viewport } from '../canvas/Viewport';
-import { Toolbar } from './Toolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
 import { ElementTree } from './ElementTree';
 import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
-import { ZoomControls } from './ZoomControls';
-import { CanvasSizeControl } from './CanvasSizeControl';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
-import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { SaveStatusToast } from './SaveStatusToast';
-import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
 import { PageContextMenu } from './PageContextMenu';
@@ -56,6 +47,8 @@ import { filterUsagesWithPropOverride, findInstanceUsagesAcrossPages, groupUsage
 import { rewriteComponentForRename, rewritePageForComponentRename, } from '@lib/componentRename';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
+import { ProjectHeader } from './projectShell/ProjectHeader';
+import { CanvasArea } from './projectShell/CanvasArea';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
@@ -946,11 +939,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         },
     ];
     const isEditingPage = pageEdit !== null;
-    return (_jsxs("div", { className: styles.shell, children: [_jsxs("header", { className: styles.toolbar, children: [_jsx("button", { className: styles.backButton, onClick: onClose, type: "button", children: "\u2190 Projects" }), _jsx("span", { className: styles.spacer }), _jsx(ZoomControls, {}), _jsx(Tooltip, { label: "Toggle code panel", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'code' ? styles.toggleActive : ''}`, onClick: toggleCodePanel, type: "button", children: [_jsx(IconCode, { size: 14, className: styles.toggleButtonIcon }), "Code"] }) }), _jsx(Tooltip, { label: "Toggle terminal (Ctrl+`)", children: _jsxs("button", { className: `${styles.toggleButton} ${bottomPanel === 'terminal' ? styles.toggleActive : ''}`, onClick: toggleTerminalPanel, type: "button", children: [_jsx(IconTerminal2, { size: 14, className: styles.toggleButtonIcon }), "Terminal"] }) }), _jsx(Tooltip, { label: canPreview
-                            ? 'Open this project in a real browser preview window (⌘P)'
-                            : projectFormatForPreview === 'legacy'
-                                ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
-                                : 'Open a page to enable preview.', children: _jsxs("button", { className: styles.toggleButton, onClick: openPreview, type: "button", disabled: !canPreview, "data-testid": "preview-button", children: [_jsx(IconPlayerPlay, { size: 14, className: styles.toggleButtonIcon }), "Preview"] }) }), _jsx(SaveStatusIndicator, {}), _jsx("span", { className: styles.projectName, children: project.name })] }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: () => setParseError(null) })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, bottomPanel: bottomPanel, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onToggleCode: toggleCodePanel, onToggleTerminal: toggleTerminalPanel, onOpenPreview: openPreview }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: () => setParseError(null) })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.
@@ -1046,44 +1035,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                                                             }, error: componentEditError, busy: creatingComponent }) }))] }), componentEdit === null && (_jsx("button", { className: styles.addPageButton, onClick: () => {
                                                     setComponentEditError(null);
                                                     setComponentEdit('new');
-                                                }, type: "button", children: "+ Add Component" }))] }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsxs("div", { className: styles.artboard, children: [_jsx("div", { ref: artboardScrollRef, className: styles.artboardScroll, style: { backgroundColor: projectConfig.artboardBackground }, children: _jsxs("div", { className: styles.canvasContent, children: [activeComponent !== null && (_jsxs("div", { className: styles.componentEditorBanner, "data-testid": "component-editor-banner", children: [_jsxs("span", { children: ["Editing component:", ' ', _jsx("strong", { children: activeComponent.name }), ". Changes affect all instances."] }), _jsx("button", { type: "button", className: styles.componentEditorExit, onClick: exitComponentEditor, children: "Exit" })] })), _jsxs("div", { className: styles.canvasHeader, children: [activeComponent !== null ? (
-                                                // Breadcrumb: "<return page> > <component>" when
-                                                // entered from a page, otherwise just the
-                                                // component name. Clicking a non-current segment
-                                                // navigates back to it; clicking the current
-                                                // segment selects the root element same as the
-                                                // page badge.
-                                                _jsxs("div", { className: styles.canvasHeaderBadge, role: "navigation", "aria-label": "Component editor breadcrumb", children: [activeComponent.returnToPage !== null && (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", className: styles.canvasBreadcrumbLink, onClick: exitComponentEditor, children: activeComponent.returnToPage }), _jsx("span", { "aria-hidden": "true", children: ' › ' })] })), _jsx("button", { type: "button", className: styles.canvasBreadcrumbCurrent, onClick: () => useCanvasStore
-                                                                .getState()
-                                                                .selectElement(ROOT_ELEMENT_ID), title: "Select component root", children: activeComponent.name })] })) : (_jsx("button", { type: "button", className: styles.canvasHeaderBadge, onClick: () => useCanvasStore
-                                                        .getState()
-                                                        .selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(CanvasSizeControl, { config: projectConfig, onChange: handleProjectConfigChange, componentName: activeComponent !== null
-                                                        ? activeComponent.name
-                                                        : undefined })] }), _jsx(Viewport, { canvasWidth: activeComponent !== null
-                                                ? (projectConfig.componentCanvas?.[activeComponent.name]
-                                                    ?.width ?? DEFAULT_COMPONENT_CANVAS_SIZE.width)
-                                                : projectConfig.canvasWidth, canvasHeight: activeComponent !== null
-                                                ? (projectConfig.componentCanvas?.[activeComponent.name]
-                                                    ?.height ?? DEFAULT_COMPONENT_CANVAS_SIZE.height)
-                                                : undefined, canvasOverflowHidden: projectConfig.canvasOverflowHidden, scrollContainerRef: artboardScrollRef, 
-                                            // Drag-handle resize is enabled only in component
-                                            // mode; the page canvas uses the project-wide
-                                            // `canvasWidth` setting (no resize handle, no
-                                            // explicit height — page canvases grow with
-                                            // content).
-                                            onResize: activeComponent !== null
-                                                ? (width, height) => {
-                                                    const name = activeComponent.name;
-                                                    const nextMap = {
-                                                        ...(projectConfig.componentCanvas ?? {}),
-                                                        [name]: { width, height },
-                                                    };
-                                                    handleProjectConfigChange({
-                                                        ...projectConfig,
-                                                        componentCanvas: nextMap,
-                                                    });
-                                                }
-                                                : undefined })] }) }), _jsx("div", { className: styles.elementToolbar, children: _jsx(Toolbar, { onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }) })] }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: () => setPageMenu(null) })), componentMenu && (_jsx(PageContextMenu, { x: componentMenu.x, y: componentMenu.y, items: [
+                                                }, type: "button", children: "+ Add Component" }))] }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor, onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: () => setPageMenu(null) })), componentMenu && (_jsx(PageContextMenu, { x: componentMenu.x, y: componentMenu.y, items: [
                     {
                         label: 'Rename…',
                         onSelect: () => {
