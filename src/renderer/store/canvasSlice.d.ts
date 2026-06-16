@@ -492,9 +492,9 @@ type CanvasState = {
 };
 export declare const useCanvasStore: import("zustand").UseBoundStore<import("zustand").StoreApi<CanvasState>>;
 /**
- * Extract all color values used across every element in the current page.
- * Deduplicated and sorted by frequency (most used first). Returns an empty
- * array when no meaningful colors are found.
+ * Project palette — colors used across the current page, most-frequent
+ * first. Extraction logic lives in @lib/projectColors; this selector
+ * wraps it for useCanvasStore(selectProjectColors).
  */
 export declare const selectProjectColors: (state: CanvasState) => string[];
 export {};
