@@ -31,13 +31,9 @@ import {
 import type {
   ComponentFile,
   PageFile,
-  ProjectConfig,
   ProjectData,
 } from '@shared/types';
-import {
-  DEFAULT_COMPONENT_CANVAS_SIZE,
-  DEFAULT_PROJECT_CONFIG,
-} from '@shared/types';
+import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
@@ -50,9 +46,6 @@ import {
   disarmTargetSwapSuppression,
   flushPendingPageWrite,
 } from '../syncBridge';
-import { parseThemeFile } from '@lib/parseTheme';
-import { applyThemeFonts } from '../lib/applyThemeFonts';
-import { useFontsStore } from '@store/fontsSlice';
 import { Viewport } from '../canvas/Viewport';
 import { Toolbar } from './Toolbar';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -68,7 +61,6 @@ import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusIndicator } from './SaveStatusIndicator';
 import { SaveStatusToast } from './SaveStatusToast';
-import { useTerminalActivityStore } from '@store/terminalActivitySlice';
 import { Tooltip } from './controls/Tooltip';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
@@ -99,6 +91,13 @@ import {
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
+import { useProjectConfig } from './projectShell/useProjectConfig';
+import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
+import {
+  useFontLinkReconciler,
+  useProjectTheme,
+} from './projectShell/useProjectFonts';
+import { useNavigationRequests } from './projectShell/useNavigationRequests';
 import type { DeletePropTextRequest } from './projectShell/types';
 import styles from './ProjectShell.module.css';
 
@@ -188,11 +187,11 @@ export const ProjectShell = ({
   // Inline error shown in the delete-confirmation dialog when the
   // delete IPC fails; keeps the dialog open so the user can retry.
   const [deletePageError, setDeletePageError] = useState<string | null>(null);
-  // Per-project config loaded from scamp.config.json. Default values
-  // render immediately so the canvas doesn't flash a wrong background
-  // while the first read is in flight.
-  const [projectConfig, setProjectConfig] = useState<ProjectConfig>(
-    DEFAULT_PROJECT_CONFIG
+  // Per-project config (scamp.config.json) + its canvas-store breakpoint
+  // mirror, owned by the hook. Defaults render immediately so the canvas
+  // doesn't flash a wrong background while the first read is in flight.
+  const { projectConfig, handleProjectConfigChange } = useProjectConfig(
+    project.path
   );
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   // Set true when parseCode detected the legacy root three-tuple on
@@ -210,145 +209,15 @@ export const ProjectShell = ({
   // fit-to-width zoom can observe the real scroll area, and used here
   // for the click-to-deselect handler on empty canvas space.
   const artboardScrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const load = async (): Promise<void> => {
-      const next = await window.scamp.readProjectConfig({
-        projectPath: project.path,
-      });
-      if (!cancelled) setProjectConfig(next);
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [project.path]);
 
-  const handleProjectConfigChange = useCallback(
-    (next: ProjectConfig): void => {
-      setProjectConfig(next);
-      void window.scamp.writeProjectConfig({
-        projectPath: project.path,
-        config: next,
-      });
-    },
-    [project.path]
-  );
+  // Mirror read-only project + config state into the canvas store for
+  // deeply-nested readers (format, root path, page list, component-tree
+  // cache, active-target canvas min-height).
+  useProjectStoreSync({ project, projectConfig, activeComponent });
 
-  // Mirror the project's breakpoint table into the canvas store so
-  // deeply-nested components (ElementRenderer, cascaded styles) can
-  // read it without prop drilling.
-  useEffect(() => {
-    useCanvasStore.getState().setBreakpoints(projectConfig.breakpoints);
-  }, [projectConfig.breakpoints]);
-
-  // Mirror the project format so the sync bridge can pick the right
-  // CSS-module import basename when emitting code.
-  useEffect(() => {
-    useCanvasStore.getState().setProjectFormat(project.format);
-  }, [project.format]);
-
-  // Mirror the project root path so deeply-nested components don't
-  // have to walk up from `activePage.tsxPath` (which gets the wrong
-  // answer for nested nextjs page folders).
-  useEffect(() => {
-    useCanvasStore.getState().setProjectPath(project.path);
-  }, [project.path]);
-
-  // Mirror the project's page list so the Link section's destination
-  // dropdown and the canvas link indicator's broken-link check have
-  // a fast lookup without prop drilling.
-  useEffect(() => {
-    useCanvasStore.getState().setPageNames(project.pages.map((p) => p.name));
-  }, [project.pages]);
-
-  // Parse every component's TSX/CSS into an element tree and push
-  // the result into the canvas store's componentTrees cache. The
-  // renderer reads from there when it hits a `component-instance`
-  // element on a page. Re-runs on every `project.components`
-  // reference change so component edits (via the editor OR an
-  // external agent) propagate live to every instance on every
-  // page without per-page work.
-  useEffect(() => {
-    const trees: Record<
-      string,
-      { elements: Record<string, import('@lib/element').ScampElement>; rootId: string }
-    > = {};
-    for (const component of project.components) {
-      try {
-        const parsed = parseCode(component.tsxContent, component.cssContent, {
-          breakpoints: projectConfig.breakpoints,
-        });
-        trees[component.name] = {
-          elements: parsed.elements,
-          rootId: parsed.rootId,
-        };
-      } catch (err) {
-        // Skip the component — its instances will render as
-        // missing-component placeholders. Log so the dev console
-        // surfaces the parse failure.
-        console.error(
-          '[ProjectShell] parseCode failed for component',
-          component.name,
-          err
-        );
-      }
-    }
-    useCanvasStore.getState().setComponentTrees(trees);
-  }, [project.components, projectConfig.breakpoints]);
-
-  // Keep the canvas min-height in sync with the active target.
-  // Page editor: 900 (matches EMPTY_FRAME_MIN_HEIGHT — the empty-
-  // page canvas baseline). Component editor: the user-configured
-  // `componentCanvas[name].height` (or its default fallback).
-  // The root element's render branch reads from this, so the
-  // root fills the visible canvas frame regardless of content
-  // size, and clicks on "empty" canvas area still hit the root.
-  useEffect(() => {
-    const next =
-      activeComponent !== null
-        ? (projectConfig.componentCanvas?.[activeComponent.name]?.height ??
-            DEFAULT_COMPONENT_CANVAS_SIZE.height)
-        : 900;
-    useCanvasStore.getState().setCanvasMinHeight(next);
-  }, [activeComponent, projectConfig.componentCanvas]);
-
-  // Consume page-navigation requests from the canvas link indicator.
-  // The store holds a one-shot pending navigation; we route it through
-  // the same setActivePageName flow the sidebar uses, then clear.
-  const pendingPageNavigation = useCanvasStore(
-    (s) => s.pendingPageNavigation
-  );
-  useEffect(() => {
-    if (pendingPageNavigation === null) return;
-    if (project.pages.some((p) => p.name === pendingPageNavigation)) {
-      setActivePageName(pendingPageNavigation);
-    }
-    useCanvasStore.getState().requestPageNavigation(null);
-  }, [pendingPageNavigation, project.pages]);
-
-  // Same one-shot mechanism for the canvas → component-editor
-  // navigation: double-clicking a component instance on the page
-  // canvas sets this field, and we route it through the same
-  // `openComponent` flow the sidebar uses. The instance's host
-  // page becomes the `returnToPage`, so the breadcrumb and Esc
-  // can return there.
-  const pendingComponentNavigation = useCanvasStore(
-    (s) => s.pendingComponentNavigation
-  );
-  useEffect(() => {
-    if (pendingComponentNavigation === null) return;
-    if (project.components.some((c) => c.name === pendingComponentNavigation)) {
-      // Latest openComponent / activePageName via `componentNav`
-      // (useLatest) — fire only when the one-shot request flips,
-      // without a stale-closure dep suppression.
-      componentNav.current.openComponent(
-        pendingComponentNavigation,
-        componentNav.current.activePageName
-      );
-    }
-    useCanvasStore.getState().requestComponentNavigation(null);
-  }, [pendingComponentNavigation, project.components]);
+  // Page / component one-shot navigation requests from the canvas are
+  // consumed by useNavigationRequests, called below once `componentNav`
+  // exists.
 
   const loadPage = useCanvasStore((s) => s.loadPage);
   const loadComponent = useCanvasStore((s) => s.loadComponent);
@@ -378,65 +247,11 @@ export const ProjectShell = ({
     setTerminalEverOpened(false);
   }, [project.path]);
 
-  // Keep a `<link rel="stylesheet">` per project font URL in
-  // `document.head` so the canvas preview actually loads the
-  // referenced Google Fonts stylesheet. Reconciles on delta: unchanged
-  // URLs keep their tag (and the browser's cached stylesheet) across
-  // renders.
-  const projectFontUrls = useFontsStore((s) => s.projectFontUrls);
-  useEffect(() => {
-    const ATTR = 'data-scamp-font-import';
-    const existing = new Map<string, HTMLLinkElement>();
-    document
-      .querySelectorAll<HTMLLinkElement>(`link[${ATTR}]`)
-      .forEach((el) => {
-        const u = el.getAttribute(ATTR);
-        if (u) existing.set(u, el);
-      });
-    const wanted = new Set(projectFontUrls);
-    for (const [url, el] of existing) {
-      if (!wanted.has(url)) el.remove();
-    }
-    for (const url of projectFontUrls) {
-      if (existing.has(url)) continue;
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = url;
-      link.setAttribute(ATTR, url);
-      document.head.appendChild(link);
-    }
-  }, [projectFontUrls]);
-  // On ProjectShell unmount (project closed) strip every injected tag
-  // so a different project doesn't inherit this one's fonts.
-  useEffect(() => {
-    return () => {
-      document
-        .querySelectorAll<HTMLLinkElement>(`link[data-scamp-font-import]`)
-        .forEach((el) => el.remove());
-    };
-  }, []);
-
-  // Load theme tokens + font imports from theme.css on project open.
-  useEffect(() => {
-    const loadTheme = async (): Promise<void> => {
-      const content = await window.scamp.readTheme({ projectPath: project.path });
-      const parsed = parseThemeFile(content);
-      useCanvasStore.getState().setThemeTokens(parsed.tokens);
-      // `applyThemeFonts` derives Google families synchronously from
-      // each URL, surfaces any cached Adobe kit families, then kicks
-      // off background fetches to refresh Adobe kits from the network.
-      applyThemeFonts(parsed.fontImportUrls);
-    };
-    void loadTheme();
-    return () => {
-      // Clear when the project unmounts so a stale project's fonts
-      // don't linger in the picker.
-      useFontsStore.getState().setProjectFonts({ families: [], urls: [] });
-      // Reset the user's sync intent so a manual pause or override
-      // from one project doesn't bleed into the next.
-      useTerminalActivityStore.getState().setUserIntent('auto');
-    };
-  }, [project.path]);
+  // Inject a `<link>` per project font URL so the canvas preview loads the
+  // referenced Google Fonts stylesheets, and load theme tokens + font
+  // imports from theme.css on open.
+  useFontLinkReconciler();
+  useProjectTheme(project.path);
 
   // Parse + load the selected page whenever it changes. The store's
   // sync bridge handles writes back to disk on canvas edits.
@@ -841,6 +656,11 @@ export const ProjectShell = ({
   // Latest refs for the one-shot canvas→component-editor navigation
   // effect, which binds before these are defined (see useLatest).
   const componentNav = useLatest({ openComponent, activePageName });
+
+  // Consume the canvas's one-shot page / component navigation requests
+  // (link indicator jump, double-click into an instance editor). Called
+  // here because it reads `openComponent` via the `componentNav` ref.
+  useNavigationRequests(project, setActivePageName, componentNav);
 
   /**
    * Exit the component editor. If the user entered from a page,
