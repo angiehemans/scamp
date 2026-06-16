@@ -20,7 +20,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectData } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
-import { flushPendingPageWrite } from '../syncBridge';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
@@ -31,16 +30,15 @@ import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
-import { PageNameInput } from './PageNameInput';
-import { ComponentNameInput } from './ComponentNameInput';
 import { PageContextMenu } from './PageContextMenu';
 import { ElementContextMenu } from './ElementContextMenu';
 import { CreateComponentDialog } from './CreateComponentDialog';
-import { ComponentSidebarItem } from './ComponentSidebarItem';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import { ProjectHeader } from './projectShell/ProjectHeader';
 import { CanvasArea } from './projectShell/CanvasArea';
+import { PageSidebar } from './projectShell/PageSidebar';
+import { ComponentSidebar } from './projectShell/ComponentSidebar';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
@@ -363,211 +361,41 @@ export const ProjectShell = ({
           </div>
           {leftSidebarTab === 'history' && <HistoryPanel />}
           {leftSidebarTab === 'layers' && <>
-          <div className={styles.sidebarSection}>
-            <h2 className={styles.sidebarTitle}>Pages</h2>
-            <ul className={styles.pageList}>
-              {project.pages.map((page) => {
-                const isDuplicating =
-                  pageEdit !== null &&
-                  pageEdit !== 'new' &&
-                  'duplicate' in pageEdit &&
-                  pageEdit.duplicate === page.name;
-                const isRenaming =
-                  pageEdit !== null &&
-                  pageEdit !== 'new' &&
-                  'rename' in pageEdit &&
-                  pageEdit.rename === page.name;
-                if (isDuplicating) {
-                  // Seed with `[name]-copy` and select just the "-copy"
-                  // portion so the user can retype it instantly.
-                  const seed = `${page.name}-copy`;
-                  return (
-                    <li key={page.name}>
-                      <PageNameInput
-                        initialValue={seed}
-                        existingNames={existingPageNames}
-                        selectRange={[page.name.length, seed.length]}
-                        onConfirm={(name) => void handleDuplicatePage(page.name, name)}
-                        onCancel={resetPageEdit}
-                        error={pageEditError}
-                        busy={pageEditBusy}
-                      />
-                    </li>
-                  );
-                }
-                if (isRenaming) {
-                  // Exclude the current name from collision checks so
-                  // "rename home → home" surfaces as an explicit no-op
-                  // from the IPC rather than as a spurious collision.
-                  const otherNames = existingPageNames.filter(
-                    (n) => n !== page.name
-                  );
-                  return (
-                    <li key={page.name}>
-                      <PageNameInput
-                        initialValue={page.name}
-                        existingNames={otherNames}
-                        onConfirm={(name) => void handleRenamePage(page.name, name)}
-                        onCancel={resetPageEdit}
-                        error={pageEditError}
-                        busy={pageEditBusy}
-                      />
-                    </li>
-                  );
-                }
-                return (
-                  <li key={page.name}>
-                    <button
-                      className={`${styles.pageButton} ${
-                        activeComponent === null &&
-                        activePageName === page.name
-                          ? styles.pageActive
-                          : ''
-                      }`}
-                      onClick={() => {
-                        if (isEditingPage) return;
-                        // Clicking the same page that's already
-                        // active is a no-op for state but we
-                        // still want to keep the early-return so
-                        // we don't pointlessly thrash the project
-                        // snapshot.
-                        const sameTargetClicked =
-                          activeComponent === null &&
-                          activePageName === page.name;
-                        if (sameTargetClicked) return;
-                        // Flush any in-flight write on the
-                        // outgoing target (component or other
-                        // page) BEFORE swapping so the disk has
-                        // the user's latest edits. Then persist
-                        // those edits into the React snapshot so
-                        // re-entering the outgoing target later
-                        // shows the work, not the stale
-                        // initial-load template.
-                        flushPendingPageWrite();
-                        persistActiveSource();
-                        if (activeComponent !== null) {
-                          setActiveComponentState(null);
-                        }
-                        setActivePageName(page.name);
-                      }}
-                      onContextMenu={(e) => openPageMenu(e, page.name)}
-                      type="button"
-                    >
-                      {page.name}
-                    </button>
-                  </li>
-                );
-              })}
-              {pageEdit === 'new' && (
-                <li>
-                  <PageNameInput
-                    existingNames={existingPageNames}
-                    onConfirm={(name) => void handleAddPage(name)}
-                    onCancel={resetPageEdit}
-                    error={pageEditError}
-                    busy={pageEditBusy}
-                  />
-                </li>
-              )}
-            </ul>
-            {pageEdit !== 'new' && (
-              <button
-                className={styles.addPageButton}
-                onClick={() => {
-                  if (isEditingPage) return;
-                  setPageEditError(null);
-                  setPageEdit('new');
-                }}
-                type="button"
-              >
-                + Add Page
-              </button>
-            )}
-          </div>
-          <div className={styles.sidebarSection}>
-            <h2 className={styles.sidebarTitle}>Components</h2>
-            <ul className={styles.pageList}>
-              {project.components.map((component) => {
-                const isRenaming =
-                  componentEdit !== null &&
-                  componentEdit !== 'new' &&
-                  componentEdit.rename === component.name;
-                if (isRenaming) {
-                  return (
-                    <li key={component.name}>
-                      <ComponentNameInput
-                        initialValue={component.name}
-                        existingNames={project.components
-                          .map((c) => c.name)
-                          .filter((n) => n !== component.name)}
-                        onConfirm={(name) =>
-                          void handleRenameComponent(component.name, name)
-                        }
-                        onCancel={() => {
-                          if (renamingComponent) return;
-                          setComponentEdit(null);
-                          setComponentEditError(null);
-                        }}
-                        error={componentEditError}
-                        busy={renamingComponent}
-                      />
-                    </li>
-                  );
-                }
-                return (
-                  <li key={component.name}>
-                    <ComponentSidebarItem
-                      componentName={component.name}
-                      projectPath={project.path}
-                      isActive={activeComponent?.name === component.name}
-                      onClick={() => openComponent(component.name, null)}
-                      onContextMenu={(e) =>
-                        openComponentMenu(e, component.name)
-                      }
-                      // HTML5 DnD source: dragging a component onto
-                      // the canvas inserts an instance there. The
-                      // Viewport's drop handler reads this
-                      // dataTransfer mime to distinguish a
-                      // component-drag from any other drag.
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData(
-                          'application/x-scamp-component',
-                          component.name
-                        );
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }}
-                    />
-                  </li>
-                );
-              })}
-              {componentEdit === 'new' && (
-                <li>
-                  <ComponentNameInput
-                    existingNames={project.components.map((c) => c.name)}
-                    onConfirm={(name) => void handleAddComponent(name)}
-                    onCancel={() => {
-                      setComponentEdit(null);
-                      setComponentEditError(null);
-                    }}
-                    error={componentEditError}
-                    busy={creatingComponent}
-                  />
-                </li>
-              )}
-            </ul>
-            {componentEdit === null && (
-              <button
-                className={styles.addPageButton}
-                onClick={() => {
-                  setComponentEditError(null);
-                  setComponentEdit('new');
-                }}
-                type="button"
-              >
-                + Add Component
-              </button>
-            )}
-          </div>
+          <PageSidebar
+            pages={project.pages}
+            existingPageNames={existingPageNames}
+            pageEdit={pageEdit}
+            pageEditError={pageEditError}
+            pageEditBusy={pageEditBusy}
+            isEditingPage={isEditingPage}
+            activePageName={activePageName}
+            activeComponent={activeComponent}
+            setPageEdit={setPageEdit}
+            setPageEditError={setPageEditError}
+            resetPageEdit={resetPageEdit}
+            handleAddPage={handleAddPage}
+            handleDuplicatePage={handleDuplicatePage}
+            handleRenamePage={handleRenamePage}
+            openPageMenu={openPageMenu}
+            persistActiveSource={persistActiveSource}
+            setActiveComponentState={setActiveComponentState}
+            setActivePageName={setActivePageName}
+          />
+          <ComponentSidebar
+            components={project.components}
+            projectPath={project.path}
+            componentEdit={componentEdit}
+            componentEditError={componentEditError}
+            renamingComponent={renamingComponent}
+            creatingComponent={creatingComponent}
+            activeComponent={activeComponent}
+            setComponentEdit={setComponentEdit}
+            setComponentEditError={setComponentEditError}
+            handleAddComponent={handleAddComponent}
+            handleRenameComponent={handleRenameComponent}
+            openComponent={openComponent}
+            openComponentMenu={openComponentMenu}
+          />
           <div
             className={`${styles.sidebarSection} ${styles.sidebarLayers}`}
             data-testid="layers-panel"
