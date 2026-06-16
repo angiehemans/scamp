@@ -98,7 +98,7 @@ export type PanelMode = 'ui' | 'css' | 'data';
  * back to "fit-to-container".
  */
 export declare const ZOOM_STEPS: ReadonlyArray<number>;
-type CanvasState = {
+export type CanvasState = {
     elements: Record<string, ScampElement>;
     rootElementId: string;
     /**
@@ -497,4 +497,3 @@ export declare const useCanvasStore: import("zustand").UseBoundStore<import("zus
  * wraps it for useCanvasStore(selectProjectColors).
  */
 export declare const selectProjectColors: (state: CanvasState) => string[];
-export {};
