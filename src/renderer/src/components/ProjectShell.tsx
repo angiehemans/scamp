@@ -23,11 +23,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type {
-  ComponentFile,
-  PageFile,
-  ProjectData,
-} from '@shared/types';
+import type { PageFile, ProjectData } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
@@ -75,8 +71,9 @@ import {
   useFontLinkReconciler,
   useProjectTheme,
 } from './projectShell/useProjectFonts';
-import { useNavigationRequests } from './projectShell/useNavigationRequests';
+import { useActiveTarget } from './projectShell/useActiveTarget';
 import { useInstanceFlows } from './projectShell/useInstanceFlows';
+import { useLatest } from './projectShell/useLatest';
 import styles from './ProjectShell.module.css';
 
 type Props = {
@@ -95,40 +92,11 @@ type Props = {
   ) => void;
 };
 
-/**
- * Holds the latest render's `value` in a stable ref. Lets a globally-
- * bound effect (keydown listener, one-shot navigation consumer) read
- * the current closure values without listing them as deps — so the
- * listener binds once instead of re-binding on every change, and we
- * drop the `exhaustive-deps` suppressions. Written during render (not
- * in an effect) so an effect that reads `.current` synchronously sees
- * this render's value even when it's declared before this ref.
- */
-const useLatest = <T,>(value: T): { current: T } => {
-  const ref = useRef(value);
-  ref.current = value;
-  return ref;
-};
-
 export const ProjectShell = ({
   project,
   onClose,
   onProjectChange,
 }: Props): JSX.Element => {
-  const [activePageName, setActivePageName] = useState<string | null>(
-    project.pages[0]?.name ?? null
-  );
-  // The component currently being edited, when the canvas is in
-  // the component editor instead of the page editor. Mutually
-  // exclusive with `activePageName` — opening one clears the other.
-  // The optional `returnToPage` field records which page (if any)
-  // the user entered the component from so Esc / breadcrumb-click
-  // can put them back where they were. For Phase 2 the user only
-  // enters from the sidebar list, so this stays null in practice.
-  const [activeComponent, setActiveComponentState] = useState<
-    | { name: string; returnToPage: string | null }
-    | null
-  >(null);
   // Brief in-progress flag while `+ component` is creating a new
   // component on disk. Disables the add-button + name input.
   const [creatingComponent, setCreatingComponent] = useState(false);
@@ -172,34 +140,38 @@ export const ProjectShell = ({
     project.path
   );
   const [showProjectSettings, setShowProjectSettings] = useState(false);
-  // Set true when parseCode detected the legacy root three-tuple on
-  // any page load in this session. Cleared when the user dismisses
-  // the banner (which also persists `canvasMigrationAcknowledged` to
-  // scamp.config.json so the banner never reappears).
-  const [showMigrationBanner, setShowMigrationBanner] = useState(false);
-  // Set when `parseCode` throws on the active page/component. The
-  // canvas keeps its last good state and this drives the inline
-  // ParseErrorBanner; cleared once the target parses again.
-  const [parseError, setParseError] = useState<{ targetName: string } | null>(
-    null
-  );
   // Ref to the artboard scroll container. Passed to `Viewport` so
   // fit-to-width zoom can observe the real scroll area, and used here
   // for the click-to-deselect handler on empty canvas space.
   const artboardScrollRef = useRef<HTMLDivElement>(null);
+
+  // Which page or component is open + the load pipeline, parse-error /
+  // migration banner state, source persistence, and component enter/exit.
+  const {
+    activePageName,
+    setActivePageName,
+    activeComponent,
+    setActiveComponentState,
+    parseError,
+    clearParseError,
+    showMigrationBanner,
+    handleDismissMigrationBanner,
+    persistActiveSource,
+    openComponent,
+    exitComponentEditor,
+    latestExit,
+  } = useActiveTarget({
+    project,
+    onProjectChange,
+    projectConfig,
+    handleProjectConfigChange,
+  });
 
   // Mirror read-only project + config state into the canvas store for
   // deeply-nested readers (format, root path, page list, component-tree
   // cache, active-target canvas min-height).
   useProjectStoreSync({ project, projectConfig, activeComponent });
 
-  // Page / component one-shot navigation requests from the canvas are
-  // consumed by useNavigationRequests, called below once `componentNav`
-  // exists.
-
-  const loadPage = useCanvasStore((s) => s.loadPage);
-  const loadComponent = useCanvasStore((s) => s.loadComponent);
-  const resetForNewPage = useCanvasStore((s) => s.resetForNewPage);
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
   const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
   const leftSidebarTab = useCanvasStore((s) => s.leftSidebarTab);
@@ -230,128 +202,6 @@ export const ProjectShell = ({
   // imports from theme.css on open.
   useFontLinkReconciler();
   useProjectTheme(project.path);
-
-  // Parse + load the selected page whenever it changes. The store's
-  // sync bridge handles writes back to disk on canvas edits.
-  // Skipped when the user has entered the component editor —
-  // `activeComponent` takes precedence and a sibling effect below
-  // loads that target instead.
-  useEffect(() => {
-    if (activeComponent !== null) return;
-    if (!activePageName) {
-      resetForNewPage();
-      return;
-    }
-    const page: PageFile | undefined = project.pages.find((p) => p.name === activePageName);
-    if (!page) {
-      resetForNewPage();
-      return;
-    }
-    let parsed: ReturnType<typeof parseCode>;
-    try {
-      parsed = parseCode(page.tsxContent, page.cssContent, {
-        breakpoints: projectConfig.breakpoints,
-      });
-    } catch (err) {
-      // Keep the last successfully-parsed canvas instead of blanking,
-      // and surface the failure inline + in the activity log. The
-      // file-changed reload re-runs this effect, so a fixed file
-      // clears the banner on its own.
-      useAppLogStore
-        .getState()
-        .log('error', `Couldn't parse page "${page.name}": ${errorMessage(err)}`);
-      setParseError({ targetName: page.name });
-      return;
-    }
-    setParseError(null);
-    // Surface the one-time migration banner when the parser had to
-    // strip the legacy root sizing three-tuple. Skipped when the user
-    // has already dismissed it on a prior open of this project.
-    if (parsed.migrated && !projectConfig.canvasMigrationAcknowledged) {
-      setShowMigrationBanner(true);
-    }
-    loadPage(
-      { name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath },
-      parsed.elements,
-      { tsx: page.tsxContent, css: page.cssContent },
-      parsed.customMediaBlocks,
-      parsed.keyframesBlocks,
-      parsed.cssDuplicates
-    );
-    // Per-page history persists across page switches — `loadPage`
-    // activates this page's bucket in the history slice. Don't
-    // clear here; switching back to this page should restore its
-    // stack.
-  }, [
-    activeComponent,
-    activePageName,
-    project.pages,
-    loadPage,
-    resetForNewPage,
-    projectConfig.canvasMigrationAcknowledged,
-  ]);
-
-  // Parse + load the active component whenever it changes. Mirror
-  // of the page-load effect above — component editor reuses every
-  // canvas / panel / history primitive unchanged.
-  useEffect(() => {
-    if (activeComponent === null) return;
-    const component: ComponentFile | undefined = project.components.find(
-      (c) => c.name === activeComponent.name
-    );
-    if (!component) {
-      // The component disappeared from disk while we had it open
-      // (rename / delete from outside Scamp). Fall back to a clean
-      // canvas — the sidebar will refresh on the next pages-changed
-      // event and the user can re-open whatever's still there.
-      setActiveComponentState(null);
-      resetForNewPage();
-      return;
-    }
-    let parsed: ReturnType<typeof parseCode>;
-    try {
-      parsed = parseCode(component.tsxContent, component.cssContent, {
-        breakpoints: projectConfig.breakpoints,
-      });
-    } catch (err) {
-      // Keep the last good canvas; surface inline + in the activity log.
-      useAppLogStore
-        .getState()
-        .log(
-          'error',
-          `Couldn't parse component "${component.name}": ${errorMessage(err)}`
-        );
-      setParseError({ targetName: component.name });
-      return;
-    }
-    setParseError(null);
-    loadComponent(
-      {
-        name: component.name,
-        tsxPath: component.tsxPath,
-        cssPath: component.cssPath,
-      },
-      parsed.elements,
-      { tsx: component.tsxContent, css: component.cssContent },
-      parsed.customMediaBlocks,
-      parsed.keyframesBlocks,
-      parsed.cssDuplicates
-    );
-  }, [
-    activeComponent,
-    project.components,
-    loadComponent,
-    resetForNewPage,
-    projectConfig.canvasMigrationAcknowledged,
-  ]);
-
-  const handleDismissMigrationBanner = useCallback((): void => {
-    setShowMigrationBanner(false);
-    handleProjectConfigChange({
-      ...projectConfig,
-      canvasMigrationAcknowledged: true,
-    });
-  }, [projectConfig, handleProjectConfigChange]);
 
   // Background click on the artboard scroll area (outside any frame
   // content) clears selection. Lives here rather than inside Viewport
@@ -541,125 +391,6 @@ export const ProjectShell = ({
   };
 
   // ---- Components ----
-
-  /**
-   * Mirror the canvas's current `pageSource` (the just-serialized
-   * TSX + CSS for the active target) back into
-   * `project.pages` / `project.components` before swapping
-   * targets. Without this, the per-target snapshots in
-   * `project.*` stay frozen at their initial-load content, and
-   * the load useEffect's call to `parseCode(snapshot.tsxContent,
-   * …)` parses the OLD blank template on every re-entry —
-   * silently dropping every edit the user made.
-   *
-   * `flushPendingPageWrite()` must run BEFORE this helper so any
-   * unwritten changes are first serialized into `pageSource`
-   * via `writeIfDirty → setPageSource`.
-   */
-  const persistActiveSource = (): void => {
-    const source = useCanvasStore.getState().pageSource;
-    if (!source) return;
-    // Capture the target identity from the React closure (NOT the
-    // mutating `prev` arg) since the rule "are we on a page or a
-    // component" doesn't change between queued updates — it's
-    // determined by what the user is editing right now.
-    const targetComponentName =
-      activeComponent !== null ? activeComponent.name : null;
-    const targetPageName = activePageName;
-    if (targetComponentName !== null) {
-      // Use a functional updater so a previously-queued
-      // setProject from the same handler (e.g. convert-to-
-      // component adding a new entry to project.components)
-      // composes correctly with this update instead of getting
-      // stomped by the closure-captured `project` ref.
-      onProjectChange?.((prev) => {
-        const existing = prev.components.find(
-          (c) => c.name === targetComponentName
-        );
-        if (
-          existing &&
-          existing.tsxContent === source.tsx &&
-          existing.cssContent === source.css
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          components: prev.components.map((c) =>
-            c.name === targetComponentName
-              ? { ...c, tsxContent: source.tsx, cssContent: source.css }
-              : c
-          ),
-        };
-      });
-      return;
-    }
-    if (targetPageName !== null) {
-      onProjectChange?.((prev) => {
-        const existing = prev.pages.find((p) => p.name === targetPageName);
-        if (
-          existing &&
-          existing.tsxContent === source.tsx &&
-          existing.cssContent === source.css
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          pages: prev.pages.map((p) =>
-            p.name === targetPageName
-              ? { ...p, tsxContent: source.tsx, cssContent: source.css }
-              : p
-          ),
-        };
-      });
-    }
-  };
-
-  /**
-   * Open the named component in the component editor. Flushes any
-   * pending edit on the OUTGOING target first so a debounced page
-   * write doesn't fire after we've switched the active target,
-   * then persists the outgoing target's latest content into
-   * `project.*` so re-entry picks up the user's work instead of
-   * a stale snapshot. `fromPage` records the page we're leaving
-   * so Esc / breadcrumb click can return there; Phase 2 always
-   * passes null because the only entry point is the sidebar list.
-   */
-  const openComponent = (name: string, fromPage: string | null): void => {
-    flushPendingPageWrite();
-    persistActiveSource();
-    setActiveComponentState({ name, returnToPage: fromPage });
-  };
-  // Latest refs for the one-shot canvas→component-editor navigation
-  // effect, which binds before these are defined (see useLatest).
-  const componentNav = useLatest({ openComponent, activePageName });
-
-  // Consume the canvas's one-shot page / component navigation requests
-  // (link indicator jump, double-click into an instance editor). Called
-  // here because it reads `openComponent` via the `componentNav` ref.
-  useNavigationRequests(project, setActivePageName, componentNav);
-
-  /**
-   * Exit the component editor. If the user entered from a page,
-   * return there; otherwise drop back to whatever page is the
-   * current default. Flushes the pending component write first
-   * so the component's changes land on disk before the canvas
-   * swaps to the page target, then persists the latest serialized
-   * source into `project.components` so re-entry shows the user's
-   * work, not the original template.
-   */
-  const exitComponentEditor = (): void => {
-    if (activeComponent === null) return;
-    flushPendingPageWrite();
-    persistActiveSource();
-    const next = activeComponent.returnToPage;
-    setActiveComponentState(null);
-    if (next !== null) setActivePageName(next);
-  };
-  // Latest ref for the component-editor Esc handler, which binds
-  // before this is defined (see useLatest).
-  const latestExit = useLatest(exitComponentEditor);
 
   /**
    * Atomic add: create the component on disk, append to the
@@ -1017,7 +748,7 @@ export const ProjectShell = ({
       {parseError && (
         <ParseErrorBanner
           targetName={parseError.targetName}
-          onDismiss={() => setParseError(null)}
+          onDismiss={clearParseError}
         />
       )}
       {project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (
