@@ -1,29 +1,26 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-// Top-level shell for an open project: owns page/component navigation,
-// the load pipeline (parseCode → store), and every page/component CRUD
-// handler. Canvas/element state lives in the Zustand store, not here.
-// Sections (line ranges approximate — navigate by the named anchors):
-//   ~100-186   local state hooks (active page/component, edit/menu state,
-//              projectConfig, parseError, refs)
-//   ~188-540   effects: config load, component-tree parse, navigation
-//              requests, font/theme injection, page-load + component-load
-//              (the two parseCode call sites + ParseErrorBanner trigger)
-//   ~543-880   panel toggles, preview sync, global keyboard shortcuts
-//   ~881-1005  page CRUD (handleAddPage / Duplicate / Rename / Delete)
-//   ~1006-1146 component editor: persistActiveSource, openComponent,
-//              exitComponentEditor, handleAddComponent
-//   ~1147-1408 instance flows: convert-to-component, lock-prop,
-//              delete-prop-text, detach, component context menu + delete
-//   ~1410-1575 handleRenameComponent + page context-menu builder
-//   ~1576-end  render: header toolbar, banners, sidebar, viewport,
-//              bottom panels + modals/dialogs
-import { useCallback, useEffect, useRef, useState, } from 'react';
-import { errorMessage } from '@shared/errorMessage';
+// Top-level shell for an open project: composes the canvas, panels, and
+// sidebar, and wires together the projectShell/ hooks that own the real
+// logic. Canvas/element state lives in the Zustand store, not here.
+//
+// The body is now mostly hook calls + a render tree. The logic lives in
+// components/projectShell/:
+//   useProjectConfig        — scamp.config.json + breakpoint mirror
+//   useProjectStoreSync      — project state → canvas store mirrors
+//   useFontLinkReconciler /  — font <link> injection + theme.css load
+//     useProjectTheme
+//   useActiveTarget          — active page/component, load pipeline,
+//                              parse-error/migration banners, source
+//                              persistence, component enter/exit, nav
+//   usePageManagement        — Pages sidebar state + page CRUD
+//   useComponentManagement   — Components sidebar state + component CRUD
+//   useInstanceFlows         — convert / lock-prop / detach / del-prop-text
+//   useCanvasKeyboardShortcuts — global canvas shortcuts + editor Esc
+// Render is split into ProjectHeader / CanvasArea (+ the sidebar lists and
+// modals still inline here for now).
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useAppLogStore } from '@store/appLogSlice';
-import { parseCode } from '@lib/parseCode';
-import { generateCode } from '@lib/generateCode';
-import { armTargetSwapSuppression, disarmTargetSwapSuppression, flushPendingPageWrite, } from '../syncBridge';
+import { flushPendingPageWrite } from '../syncBridge';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { TerminalPanel } from './TerminalPanel';
@@ -40,8 +37,6 @@ import { PageContextMenu } from './PageContextMenu';
 import { ElementContextMenu } from './ElementContextMenu';
 import { CreateComponentDialog } from './CreateComponentDialog';
 import { ComponentSidebarItem } from './ComponentSidebarItem';
-import { findInstanceUsagesAcrossPages, groupUsagesByPage, } from '@lib/componentUsage';
-import { rewriteComponentForRename, rewritePageForComponentRename, } from '@lib/componentRename';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import { ProjectHeader } from './projectShell/ProjectHeader';
@@ -52,21 +47,11 @@ import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import { useFontLinkReconciler, useProjectTheme, } from './projectShell/useProjectFonts';
 import { useActiveTarget } from './projectShell/useActiveTarget';
 import { usePageManagement } from './projectShell/usePageManagement';
+import { useComponentManagement } from './projectShell/useComponentManagement';
 import { useInstanceFlows } from './projectShell/useInstanceFlows';
 import { useLatest } from './projectShell/useLatest';
 import styles from './ProjectShell.module.css';
 export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
-    // Brief in-progress flag while `+ component` is creating a new
-    // component on disk. Disables the add-button + name input.
-    const [creatingComponent, setCreatingComponent] = useState(false);
-    // Inline-edit state for the components list.
-    //   `'new'` — PascalCase name input at the bottom (Create).
-    //   `{ rename: name }` — replaces that component's button with
-    //     a name input pre-filled with `name`.
-    //   `null` — no editing in progress.
-    const [componentEdit, setComponentEdit] = useState(null);
-    const [componentEditError, setComponentEditError] = useState(null);
-    const [renamingComponent, setRenamingComponent] = useState(false);
     // Per-project config (scamp.config.json) + its canvas-store breakpoint
     // mirror, owned by the hook. Defaults render immediately so the canvas
     // doesn't flash a wrong background while the first read is in flight.
@@ -94,6 +79,16 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         onProjectChange,
         activePageName,
         setActivePageName,
+        persistActiveSource,
+    });
+    // Components sidebar inline-edit / context-menu state + the multi-file
+    // add / rename / delete handlers.
+    const { componentEdit, setComponentEdit, componentEditError, setComponentEditError, creatingComponent, renamingComponent, handleAddComponent, handleRenameComponent, openComponentMenu, componentMenu, closeComponentMenu, requestDeleteComponent, deletingComponent, setDeletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, } = useComponentManagement({
+        project,
+        onProjectChange,
+        activeComponent,
+        setActiveComponentState,
+        openComponent,
         persistActiveSource,
     });
     const bottomPanel = useCanvasStore((s) => s.bottomPanel);
@@ -183,39 +178,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         activePageName,
         project.pages,
     ]);
-    // ---- Components ----
-    /**
-     * Atomic add: create the component on disk, append to the
-     * project list, and immediately enter its editor. PascalCase
-     * validation happens main-side too; this rejects locally first
-     * so users see invalid-name errors without an IPC round trip.
-     */
-    const handleAddComponent = async (name) => {
-        setCreatingComponent(true);
-        setComponentEditError(null);
-        try {
-            const created = await window.scamp.createComponent({
-                projectPath: project.path,
-                componentName: name,
-            });
-            // Functional updater so this composes with `openComponent`'s
-            // follow-on `persistActiveSource` if the outgoing page has
-            // unsaved edits — otherwise the second setProject would
-            // clobber the new component out of `project.components`.
-            onProjectChange?.((prev) => ({
-                ...prev,
-                components: [...prev.components, created],
-            }));
-            setComponentEdit(null);
-            openComponent(created.name, null);
-        }
-        catch (e) {
-            setComponentEditError(errorMessage(e));
-        }
-        finally {
-            setCreatingComponent(false);
-        }
-    };
     // Multi-file component-instance flows (convert-to-component, lock-prop,
     // delete-prop-text, detach) + their confirmation-modal state. The
     // delete-prop-text request is raised from the keyboard handler below via
@@ -238,207 +200,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // Global canvas keyboard shortcuts + component-editor Esc. Bound here
     // (after keyDeps/latestExit exist) rather than earlier in the body.
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
-    // Phase 7: component-sidebar context menu (right-click) +
-    // delete-component flow. Holds the menu coords + target name
-    // while open; cleared on dismiss.
-    const [componentMenu, setComponentMenu] = useState(null);
-    const [deletingComponent, setDeletingComponent] = useState(null);
-    const [componentDeleteBusy, setComponentDeleteBusy] = useState(false);
-    const openComponentMenu = (e, componentName) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setComponentMenu({ x: e.clientX, y: e.clientY, componentName });
-    };
-    const requestDeleteComponent = (componentName) => {
-        const usages = findInstanceUsagesAcrossPages(project.pages, componentName);
-        setDeletingComponent({
-            componentName,
-            impactByPage: groupUsagesByPage(usages),
-        });
-    };
-    /** see docs/notes/components-multi-file-ops.md — Delete-component */
-    const handleConfirmDeleteComponent = async () => {
-        if (!deletingComponent)
-            return;
-        const { componentName } = deletingComponent;
-        setComponentDeleteBusy(true);
-        armTargetSwapSuppression();
-        try {
-            const breakpoints = useCanvasStore.getState().breakpoints;
-            const updatedPages = [];
-            for (const page of project.pages) {
-                const parsed = parseCode(page.tsxContent, page.cssContent, {
-                    breakpoints,
-                });
-                const toRemove = new Set();
-                for (const el of Object.values(parsed.elements)) {
-                    if (el.type === 'component-instance' && el.componentName === componentName) {
-                        toRemove.add(el.id);
-                    }
-                }
-                if (toRemove.size === 0) {
-                    updatedPages.push(page);
-                    continue;
-                }
-                const nextElements = {};
-                for (const [id, el] of Object.entries(parsed.elements)) {
-                    if (toRemove.has(id))
-                        continue;
-                    nextElements[id] = {
-                        ...el,
-                        childIds: el.childIds.filter((c) => !toRemove.has(c)),
-                    };
-                }
-                const rewritten = generateCode({
-                    elements: nextElements,
-                    rootId: parsed.rootId,
-                    pageName: page.name,
-                    breakpoints,
-                    customMediaBlocks: parsed.customMediaBlocks,
-                    pageKeyframesBlocks: parsed.keyframesBlocks,
-                    cssModuleImportName: project.format === 'nextjs' ? 'page' : page.name,
-                });
-                await window.scamp.writeFile({
-                    tsxPath: page.tsxPath,
-                    cssPath: page.cssPath,
-                    tsxContent: rewritten.tsx,
-                    cssContent: rewritten.css,
-                });
-                updatedPages.push({
-                    ...page,
-                    tsxContent: rewritten.tsx,
-                    cssContent: rewritten.css,
-                });
-            }
-            // Folder removal AFTER page rewrites so imports don't dangle.
-            await window.scamp.deleteComponent({
-                projectPath: project.path,
-                componentName,
-            });
-            const wasEditingDeleted = activeComponent !== null && activeComponent.name === componentName;
-            if (wasEditingDeleted) {
-                setActiveComponentState(null);
-            }
-            onProjectChange?.({
-                ...project,
-                pages: updatedPages,
-                components: project.components.filter((c) => c.name !== componentName),
-            });
-            setDeletingComponent(null);
-        }
-        catch (err) {
-            disarmTargetSwapSuppression();
-            const message = errorMessage(err);
-            useAppLogStore
-                .getState()
-                .log('warn', `Delete component "${componentName}" failed: ${message}`);
-        }
-        finally {
-            setComponentDeleteBusy(false);
-        }
-    };
-    /** see docs/notes/components-multi-file-ops.md — Rename-component */
-    const handleRenameComponent = async (oldName, newName) => {
-        if (oldName === newName) {
-            setComponentEdit(null);
-            return;
-        }
-        setRenamingComponent(true);
-        setComponentEditError(null);
-        armTargetSwapSuppression();
-        try {
-            flushPendingPageWrite();
-            persistActiveSource();
-            const breakpoints = useCanvasStore.getState().breakpoints;
-            const sourceComponent = project.components.find((c) => c.name === oldName);
-            if (!sourceComponent) {
-                throw new Error(`Component "${oldName}" not found in project.`);
-            }
-            const newContent = rewriteComponentForRename(sourceComponent.tsxContent, sourceComponent.cssContent, oldName, newName, { breakpoints });
-            // Skip pages that don't reference oldName — keeps them byte-stable.
-            const rewrittenPages = [];
-            const unchangedPages = [];
-            for (const page of project.pages) {
-                const result = rewritePageForComponentRename(page.tsxContent, page.cssContent, oldName, newName, page.name, project.format, { breakpoints });
-                if (result.changed) {
-                    rewrittenPages.push({
-                        file: page,
-                        tsx: result.tsx,
-                        css: result.css,
-                    });
-                }
-                else {
-                    unchangedPages.push(page);
-                }
-            }
-            const newComponentFile = await window.scamp.createComponent({
-                projectPath: project.path,
-                componentName: newName,
-                tsxContent: newContent.tsx,
-                cssContent: newContent.css,
-            });
-            for (const entry of rewrittenPages) {
-                await window.scamp.writeFile({
-                    tsxPath: entry.file.tsxPath,
-                    cssPath: entry.file.cssPath,
-                    tsxContent: entry.tsx,
-                    cssContent: entry.css,
-                });
-            }
-            // Old folder removed last so page imports don't dangle.
-            await window.scamp.deleteComponent({
-                projectPath: project.path,
-                componentName: oldName,
-            });
-            const nextComponents = project.components.map((c) => c.name === oldName ? newComponentFile : c);
-            const nextPages = [
-                ...unchangedPages,
-                ...rewrittenPages.map((e) => ({
-                    ...e.file,
-                    tsxContent: e.tsx,
-                    cssContent: e.css,
-                })),
-            ];
-            // Preserve original page order so the sidebar doesn't reshuffle.
-            const orderedPages = project.pages.map((p) => {
-                const rewritten = rewrittenPages.find((e) => e.file.name === p.name);
-                if (rewritten) {
-                    return {
-                        ...p,
-                        tsxContent: rewritten.tsx,
-                        cssContent: rewritten.css,
-                    };
-                }
-                return p;
-            });
-            void nextPages; // keep types tidy when the ordered variant wins below
-            onProjectChange?.({
-                ...project,
-                components: nextComponents,
-                pages: orderedPages,
-            });
-            if (activeComponent !== null && activeComponent.name === oldName) {
-                setActiveComponentState({
-                    name: newName,
-                    returnToPage: activeComponent.returnToPage,
-                });
-            }
-            // Keep active page's in-memory componentName fields consistent.
-            useCanvasStore.getState().renameComponentReferences(oldName, newName);
-            setComponentEdit(null);
-        }
-        catch (err) {
-            disarmTargetSwapSuppression();
-            const message = errorMessage(err);
-            setComponentEditError(message);
-            useAppLogStore
-                .getState()
-                .log('warn', `Rename component "${oldName}" → "${newName}" failed: ${message}`);
-        }
-        finally {
-            setRenamingComponent(false);
-        }
-    };
     // Local binding so the `!== null` guard narrows it for the dialog's
     // onConfirm closure (a property access wouldn't narrow).
     const convertElementId = instanceFlows.convertElementId;
@@ -551,7 +312,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                         destructive: true,
                         onSelect: () => requestDeleteComponent(componentMenu.componentName),
                     },
-                ], onClose: () => setComponentMenu(null) })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", error: deletePageError, onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => {
+                ], onClose: closeComponentMenu })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", error: deletePageError, onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => {
                     setDeletingPageName(null);
                     setDeletePageError(null);
                 } })), convertElementId !== null && (_jsx(CreateComponentDialog, { existingNames: project.components.map((c) => c.name), error: instanceFlows.convertError, busy: instanceFlows.convertingComponent, onConfirm: (name) => void instanceFlows.handleConvertToComponent(convertElementId, name), onCancel: instanceFlows.cancelConvert })), instanceFlows.lockPropRequest !== null && (_jsx(ConfirmDialog, { title: `Lock "${instanceFlows.lockPropRequest.propName}"?`, message: `This will drop the override on ${instanceFlows.lockPropRequest.impactByPage
