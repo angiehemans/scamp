@@ -53,22 +53,10 @@ import { SaveStatusToast } from './SaveStatusToast';
 import { PageNameInput } from './PageNameInput';
 import { ComponentNameInput } from './ComponentNameInput';
 import { PageContextMenu, type PageMenuItem } from './PageContextMenu';
-import {
-  CONVERT_TO_COMPONENT_EVENT,
-  DETACH_INSTANCE_EVENT,
-  ElementContextMenu,
-  type ConvertToComponentEventDetail,
-  type DetachInstanceEventDetail,
-} from './ElementContextMenu';
+import { ElementContextMenu } from './ElementContextMenu';
 import { CreateComponentDialog } from './CreateComponentDialog';
 import { ComponentSidebarItem } from './ComponentSidebarItem';
 import {
-  REQUEST_LOCK_PROP_EVENT,
-  type RequestLockPropEventDetail,
-} from './DataPanel';
-import { generateComponentFromSubtree } from '@lib/extractComponent';
-import {
-  filterUsagesWithPropOverride,
   findInstanceUsagesAcrossPages,
   groupUsagesByPage,
 } from '@lib/componentUsage';
@@ -88,7 +76,7 @@ import {
   useProjectTheme,
 } from './projectShell/useProjectFonts';
 import { useNavigationRequests } from './projectShell/useNavigationRequests';
-import type { DeletePropTextRequest } from './projectShell/types';
+import { useInstanceFlows } from './projectShell/useInstanceFlows';
 import styles from './ProjectShell.module.css';
 
 type Props = {
@@ -704,111 +692,16 @@ export const ProjectShell = ({
     }
   };
 
-  // ---- Convert-to-component flow ----
-
-  // Element id queued for the create-component dialog. Set when
-  // the user picks "Create component…" from the right-click
-  // menu; cleared on cancel or after the new component lands.
-  const [convertElementId, setConvertElementId] = useState<string | null>(
-    null
-  );
-  const [convertingComponent, setConvertingComponent] = useState(false);
-  const [convertError, setConvertError] = useState<string | null>(null);
-
-  // Subscribe to the menu's `scamp:convert-to-component` event.
-  // The handler stashes the element id so the dialog renders on
-  // the next paint; the actual write happens on the dialog's
-  // confirm.
-  useEffect(() => {
-    const handler = (e: Event): void => {
-      const detail = (e as CustomEvent<ConvertToComponentEventDetail>).detail;
-      if (!detail) return;
-      setConvertError(null);
-      setConvertElementId(detail.elementId);
-    };
-    window.addEventListener(CONVERT_TO_COMPONENT_EVENT, handler);
-    return () =>
-      window.removeEventListener(CONVERT_TO_COMPONENT_EVENT, handler);
-  }, []);
-
-  /** see docs/notes/components-multi-file-ops.md — Convert-to-component */
-  const handleConvertToComponent = async (
-    elementId: string,
-    name: string
-  ): Promise<void> => {
-    setConvertingComponent(true);
-    setConvertError(null);
-    try {
-      const state = useCanvasStore.getState();
-      const generated = generateComponentFromSubtree(
-        state.elements,
-        elementId,
-        name,
-        state.breakpoints
-      );
-      if (!generated) {
-        throw new Error('Could not extract the selected element.');
-      }
-      const created = await window.scamp.createComponent({
-        projectPath: project.path,
-        componentName: name,
-        tsxContent: generated.tsx,
-        cssContent: generated.css,
-      });
-      state.replaceSubtreeWithInstance(elementId, name);
-      // Functional updater composes with openComponent's follow-on setProject.
-      onProjectChange?.((prev) => ({
-        ...prev,
-        components: [...prev.components, created],
-      }));
-      setConvertElementId(null);
-      openComponent(created.name, activePageName);
-    } catch (e) {
-      setConvertError(errorMessage(e));
-    } finally {
-      setConvertingComponent(false);
-    }
-  };
-
-  // Lock-prop-with-overrides warning. see docs/notes/components-multi-file-ops.md
-  const [lockPropRequest, setLockPropRequest] = useState<{
-    elementId: string;
-    propName: string;
-    impactByPage: ReadonlyArray<{ pageName: string; count: number }>;
-  } | null>(null);
-
-  useEffect(() => {
-    const handler = (e: Event): void => {
-      const detail = (e as CustomEvent<RequestLockPropEventDetail>).detail;
-      if (!detail) return;
-      const usages = findInstanceUsagesAcrossPages(
-        project.pages,
-        detail.componentName
-      );
-      const overriding = filterUsagesWithPropOverride(usages, detail.propName);
-      if (overriding.length === 0) {
-        useCanvasStore.getState().togglePropOnText(detail.elementId);
-        return;
-      }
-      setLockPropRequest({
-        elementId: detail.elementId,
-        propName: detail.propName,
-        impactByPage: groupUsagesByPage(overriding),
-      });
-    };
-    window.addEventListener(REQUEST_LOCK_PROP_EVENT, handler);
-    return () => window.removeEventListener(REQUEST_LOCK_PROP_EVENT, handler);
-  }, [project.pages]);
-
-  const handleConfirmLockProp = (): void => {
-    if (!lockPropRequest) return;
-    useCanvasStore.getState().togglePropOnText(lockPropRequest.elementId);
-    setLockPropRequest(null);
-  };
-
-  // Delete-prop-text warning when instances override it.
-  const [deletePropTextRequest, setDeletePropTextRequest] =
-    useState<DeletePropTextRequest | null>(null);
+  // Multi-file component-instance flows (convert-to-component, lock-prop,
+  // delete-prop-text, detach) + their confirmation-modal state. The
+  // delete-prop-text request is raised from the keyboard handler below via
+  // `instanceFlows.setDeletePropTextRequest`.
+  const instanceFlows = useInstanceFlows({
+    project,
+    onProjectChange,
+    openComponent,
+    activePageName,
+  });
 
   // Latest refs for the global keydown effect, which binds once and
   // reads these via `.current` (see useLatest) instead of re-binding.
@@ -817,54 +710,12 @@ export const ProjectShell = ({
     canPreview,
     openPreview,
     projectPages: project.pages,
-    setDeletePropTextRequest,
+    setDeletePropTextRequest: instanceFlows.setDeletePropTextRequest,
   });
 
   // Global canvas keyboard shortcuts + component-editor Esc. Bound here
   // (after keyDeps/latestExit exist) rather than earlier in the body.
   useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
-
-  const handleConfirmDeletePropText = (): void => {
-    if (!deletePropTextRequest) return;
-    const state = useCanvasStore.getState();
-    for (const id of deletePropTextRequest.elementIds) {
-      if (id === state.rootElementId) continue;
-      useCanvasStore.getState().deleteElement(id);
-    }
-    setDeletePropTextRequest(null);
-  };
-
-  // Detach-from-component flow. see docs/notes/components-multi-file-ops.md
-  const [detachRequest, setDetachRequest] = useState<{
-    instanceId: string;
-    componentName: string;
-    overrideCount: number;
-  } | null>(null);
-
-  useEffect(() => {
-    const handler = (e: Event): void => {
-      const detail = (e as CustomEvent<DetachInstanceEventDetail>).detail;
-      if (!detail) return;
-      const state = useCanvasStore.getState();
-      const el = state.elements[detail.instanceId];
-      if (!el || el.type !== 'component-instance') return;
-      const componentName = el.componentName ?? '(unnamed)';
-      const overrideCount = Object.keys(el.propOverrides ?? {}).length;
-      setDetachRequest({
-        instanceId: detail.instanceId,
-        componentName,
-        overrideCount,
-      });
-    };
-    window.addEventListener(DETACH_INSTANCE_EVENT, handler);
-    return () => window.removeEventListener(DETACH_INSTANCE_EVENT, handler);
-  }, []);
-
-  const handleConfirmDetach = (): void => {
-    if (!detachRequest) return;
-    useCanvasStore.getState().detachInstance(detachRequest.instanceId);
-    setDetachRequest(null);
-  };
 
   // Phase 7: component-sidebar context menu (right-click) +
   // delete-component flow. Holds the menu coords + target name
@@ -1143,6 +994,9 @@ export const ProjectShell = ({
   ];
 
   const isEditingPage = pageEdit !== null;
+  // Local binding so the `!== null` guard narrows it for the dialog's
+  // onConfirm closure (a property access wouldn't narrow).
+  const convertElementId = instanceFlows.convertElementId;
 
   return (
     <div className={styles.shell}>
@@ -1517,23 +1371,19 @@ export const ProjectShell = ({
       {convertElementId !== null && (
         <CreateComponentDialog
           existingNames={project.components.map((c) => c.name)}
-          error={convertError}
-          busy={convertingComponent}
+          error={instanceFlows.convertError}
+          busy={instanceFlows.convertingComponent}
           onConfirm={(name) =>
-            void handleConvertToComponent(convertElementId, name)
+            void instanceFlows.handleConvertToComponent(convertElementId, name)
           }
-          onCancel={() => {
-            if (convertingComponent) return;
-            setConvertElementId(null);
-            setConvertError(null);
-          }}
+          onCancel={instanceFlows.cancelConvert}
         />
       )}
 
-      {lockPropRequest !== null && (
+      {instanceFlows.lockPropRequest !== null && (
         <ConfirmDialog
-          title={`Lock "${lockPropRequest.propName}"?`}
-          message={`This will drop the override on ${lockPropRequest.impactByPage
+          title={`Lock "${instanceFlows.lockPropRequest.propName}"?`}
+          message={`This will drop the override on ${instanceFlows.lockPropRequest.impactByPage
             .map(
               (g) =>
                 `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`
@@ -1541,8 +1391,8 @@ export const ProjectShell = ({
             .join(', ')}. The component-side default will render in their place.`}
           confirmLabel="Lock prop"
           variant="destructive"
-          onConfirm={handleConfirmLockProp}
-          onCancel={() => setLockPropRequest(null)}
+          onConfirm={instanceFlows.handleConfirmLockProp}
+          onCancel={instanceFlows.cancelLockProp}
         />
       )}
 
@@ -1569,14 +1419,14 @@ export const ProjectShell = ({
         />
       )}
 
-      {deletePropTextRequest !== null && (
+      {instanceFlows.deletePropTextRequest !== null && (
         <ConfirmDialog
           title={
-            deletePropTextRequest.propsAtRisk.length === 1
-              ? `Delete prop "${deletePropTextRequest.propsAtRisk[0]}"?`
+            instanceFlows.deletePropTextRequest.propsAtRisk.length === 1
+              ? `Delete prop "${instanceFlows.deletePropTextRequest.propsAtRisk[0]}"?`
               : 'Delete prop text elements?'
           }
-          message={`Existing overrides on ${deletePropTextRequest.impactByPage
+          message={`Existing overrides on ${instanceFlows.deletePropTextRequest.impactByPage
             .map(
               (g) =>
                 `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`
@@ -1586,23 +1436,23 @@ export const ProjectShell = ({
             )} will no longer have an effect. The pages keep the attribute on disk until they re-save.`}
           confirmLabel="Delete"
           variant="destructive"
-          onConfirm={handleConfirmDeletePropText}
-          onCancel={() => setDeletePropTextRequest(null)}
+          onConfirm={instanceFlows.handleConfirmDeletePropText}
+          onCancel={instanceFlows.cancelDeletePropText}
         />
       )}
 
-      {detachRequest !== null && (
+      {instanceFlows.detachRequest !== null && (
         <ConfirmDialog
-          title={`Detach ${detachRequest.componentName} instance?`}
+          title={`Detach ${instanceFlows.detachRequest.componentName} instance?`}
           message={
-            detachRequest.overrideCount > 0
-              ? `The component's design will be copied directly into this page. Future edits to ${detachRequest.componentName} won't update this copy. Your ${detachRequest.overrideCount} override${detachRequest.overrideCount === 1 ? '' : 's'} will be baked in as literal text. This cannot be undone with re-attach.`
-              : `The component's design will be copied directly into this page. Future edits to ${detachRequest.componentName} won't update this copy. This cannot be undone with re-attach.`
+            instanceFlows.detachRequest.overrideCount > 0
+              ? `The component's design will be copied directly into this page. Future edits to ${instanceFlows.detachRequest.componentName} won't update this copy. Your ${instanceFlows.detachRequest.overrideCount} override${instanceFlows.detachRequest.overrideCount === 1 ? '' : 's'} will be baked in as literal text. This cannot be undone with re-attach.`
+              : `The component's design will be copied directly into this page. Future edits to ${instanceFlows.detachRequest.componentName} won't update this copy. This cannot be undone with re-attach.`
           }
           confirmLabel="Detach"
           variant="destructive"
-          onConfirm={handleConfirmDetach}
-          onCancel={() => setDetachRequest(null)}
+          onConfirm={instanceFlows.handleConfirmDetach}
+          onCancel={instanceFlows.cancelDetach}
         />
       )}
     </div>
