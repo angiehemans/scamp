@@ -16,8 +16,9 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 //   useComponentManagement   — Components sidebar state + component CRUD
 //   useInstanceFlows         — convert / lock-prop / detach / del-prop-text
 //   useCanvasKeyboardShortcuts — global canvas shortcuts + editor Esc
-// Render is split into ProjectHeader / CanvasArea (+ the sidebar lists and
-// modals still inline here for now).
+// Render is split into ProjectHeader, PageSidebar, ComponentSidebar,
+// CanvasArea, and ProjectModals; only the panel toggles and a thin layout
+// frame stay here.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -30,15 +31,12 @@ import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
-import { PageContextMenu } from './PageContextMenu';
-import { ElementContextMenu } from './ElementContextMenu';
-import { CreateComponentDialog } from './CreateComponentDialog';
-import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import { ProjectHeader } from './projectShell/ProjectHeader';
 import { CanvasArea } from './projectShell/CanvasArea';
 import { PageSidebar } from './projectShell/PageSidebar';
 import { ComponentSidebar } from './projectShell/ComponentSidebar';
+import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
@@ -198,9 +196,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // Global canvas keyboard shortcuts + component-editor Esc. Bound here
     // (after keyDeps/latestExit exist) rather than earlier in the body.
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
-    // Local binding so the `!== null` guard narrows it for the dialog's
-    // onConfirm closure (a property access wouldn't narrow).
-    const convertElementId = instanceFlows.convertElementId;
     return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, bottomPanel: bottomPanel, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onToggleCode: toggleCodePanel, onToggleTerminal: toggleTerminalPanel, onOpenPreview: openPreview }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
@@ -210,37 +205,5 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                 }, onDismiss: () => handleProjectConfigChange({
                     ...projectConfig,
                     nextjsMigrationDismissed: true,
-                }) })), _jsxs("div", { className: styles.body, children: [_jsxs("aside", { className: styles.sidebar, children: [_jsxs("div", { className: styles.sidebarTabStrip, role: "tablist", children: [_jsx("button", { type: "button", role: "tab", "aria-selected": leftSidebarTab === 'layers', className: `${styles.sidebarTab} ${leftSidebarTab === 'layers' ? styles.sidebarTabActive : ''}`, onClick: () => setLeftSidebarTab('layers'), children: "Pages & Layers" }), _jsx("button", { type: "button", role: "tab", "aria-selected": leftSidebarTab === 'history', className: `${styles.sidebarTab} ${leftSidebarTab === 'history' ? styles.sidebarTabActive : ''}`, onClick: () => setLeftSidebarTab('history'), children: "History" })] }), leftSidebarTab === 'history' && _jsx(HistoryPanel, {}), leftSidebarTab === 'layers' && _jsxs(_Fragment, { children: [_jsx(PageSidebar, { pages: project.pages, existingPageNames: existingPageNames, pageEdit: pageEdit, pageEditError: pageEditError, pageEditBusy: pageEditBusy, isEditingPage: isEditingPage, activePageName: activePageName, activeComponent: activeComponent, setPageEdit: setPageEdit, setPageEditError: setPageEditError, resetPageEdit: resetPageEdit, handleAddPage: handleAddPage, handleDuplicatePage: handleDuplicatePage, handleRenamePage: handleRenamePage, openPageMenu: openPageMenu, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName }), _jsx(ComponentSidebar, { components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor, onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: closePageMenu })), componentMenu && (_jsx(PageContextMenu, { x: componentMenu.x, y: componentMenu.y, items: [
-                    {
-                        label: 'Rename…',
-                        onSelect: () => {
-                            setComponentEditError(null);
-                            setComponentEdit({ rename: componentMenu.componentName });
-                        },
-                    },
-                    {
-                        label: 'Delete component…',
-                        destructive: true,
-                        onSelect: () => requestDeleteComponent(componentMenu.componentName),
-                    },
-                ], onClose: closeComponentMenu })), _jsx(ElementContextMenu, {}), deletingPageName && (_jsx(ConfirmDialog, { title: `Delete page "${deletingPageName}"?`, message: `This will remove ${deletingPageName}.tsx and ${deletingPageName}.module.css from your project folder. This cannot be undone.`, confirmLabel: "Delete", cancelLabel: "Cancel", variant: "destructive", error: deletePageError, onConfirm: () => void handleDeletePage(deletingPageName), onCancel: () => {
-                    setDeletingPageName(null);
-                    setDeletePageError(null);
-                } })), convertElementId !== null && (_jsx(CreateComponentDialog, { existingNames: project.components.map((c) => c.name), error: instanceFlows.convertError, busy: instanceFlows.convertingComponent, onConfirm: (name) => void instanceFlows.handleConvertToComponent(convertElementId, name), onCancel: instanceFlows.cancelConvert })), instanceFlows.lockPropRequest !== null && (_jsx(ConfirmDialog, { title: `Lock "${instanceFlows.lockPropRequest.propName}"?`, message: `This will drop the override on ${instanceFlows.lockPropRequest.impactByPage
-                    .map((g) => `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`)
-                    .join(', ')}. The component-side default will render in their place.`, confirmLabel: "Lock prop", variant: "destructive", onConfirm: instanceFlows.handleConfirmLockProp, onCancel: instanceFlows.cancelLockProp })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: `Delete component "${deletingComponent.componentName}"?`, message: deletingComponent.impactByPage.length === 0
-                    ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
-                    : `Removes the components/${deletingComponent.componentName}/ folder AND every instance from: ${deletingComponent.impactByPage
-                        .map((g) => `${g.pageName} (${g.count} instance${g.count === 1 ? '' : 's'})`)
-                        .join(', ')}. This cannot be undone.`, confirmLabel: componentDeleteBusy ? 'Deleting…' : 'Delete component', variant: "destructive", onConfirm: () => void handleConfirmDeleteComponent(), onCancel: () => {
-                    if (componentDeleteBusy)
-                        return;
-                    setDeletingComponent(null);
-                } })), instanceFlows.deletePropTextRequest !== null && (_jsx(ConfirmDialog, { title: instanceFlows.deletePropTextRequest.propsAtRisk.length === 1
-                    ? `Delete prop "${instanceFlows.deletePropTextRequest.propsAtRisk[0]}"?`
-                    : 'Delete prop text elements?', message: `Existing overrides on ${instanceFlows.deletePropTextRequest.impactByPage
-                    .map((g) => `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`)
-                    .join(', ')} will no longer have an effect. The pages keep the attribute on disk until they re-save.`, confirmLabel: "Delete", variant: "destructive", onConfirm: instanceFlows.handleConfirmDeletePropText, onCancel: instanceFlows.cancelDeletePropText })), instanceFlows.detachRequest !== null && (_jsx(ConfirmDialog, { title: `Detach ${instanceFlows.detachRequest.componentName} instance?`, message: instanceFlows.detachRequest.overrideCount > 0
-                    ? `The component's design will be copied directly into this page. Future edits to ${instanceFlows.detachRequest.componentName} won't update this copy. Your ${instanceFlows.detachRequest.overrideCount} override${instanceFlows.detachRequest.overrideCount === 1 ? '' : 's'} will be baked in as literal text. This cannot be undone with re-attach.`
-                    : `The component's design will be copied directly into this page. Future edits to ${instanceFlows.detachRequest.componentName} won't update this copy. This cannot be undone with re-attach.`, confirmLabel: "Detach", variant: "destructive", onConfirm: instanceFlows.handleConfirmDetach, onCancel: instanceFlows.cancelDetach }))] }));
+                }) })), _jsxs("div", { className: styles.body, children: [_jsxs("aside", { className: styles.sidebar, children: [_jsxs("div", { className: styles.sidebarTabStrip, role: "tablist", children: [_jsx("button", { type: "button", role: "tab", "aria-selected": leftSidebarTab === 'layers', className: `${styles.sidebarTab} ${leftSidebarTab === 'layers' ? styles.sidebarTabActive : ''}`, onClick: () => setLeftSidebarTab('layers'), children: "Pages & Layers" }), _jsx("button", { type: "button", role: "tab", "aria-selected": leftSidebarTab === 'history', className: `${styles.sidebarTab} ${leftSidebarTab === 'history' ? styles.sidebarTabActive : ''}`, onClick: () => setLeftSidebarTab('history'), children: "History" })] }), leftSidebarTab === 'history' && _jsx(HistoryPanel, {}), leftSidebarTab === 'layers' && _jsxs(_Fragment, { children: [_jsx(PageSidebar, { pages: project.pages, existingPageNames: existingPageNames, pageEdit: pageEdit, pageEditError: pageEditError, pageEditBusy: pageEditBusy, isEditingPage: isEditingPage, activePageName: activePageName, activeComponent: activeComponent, setPageEdit: setPageEdit, setPageEditError: setPageEditError, resetPageEdit: resetPageEdit, handleAddPage: handleAddPage, handleDuplicatePage: handleDuplicatePage, handleRenamePage: handleRenamePage, openPageMenu: openPageMenu, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName }), _jsx(ComponentSidebar, { components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor, onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), _jsx(ProjectModals, { components: project.components, instanceFlows: instanceFlows, pageMenu: pageMenu, buildMenuItems: buildMenuItems, closePageMenu: closePageMenu, deletingPageName: deletingPageName, deletePageError: deletePageError, handleDeletePage: handleDeletePage, setDeletingPageName: setDeletingPageName, setDeletePageError: setDeletePageError, componentMenu: componentMenu, closeComponentMenu: closeComponentMenu, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, requestDeleteComponent: requestDeleteComponent, deletingComponent: deletingComponent, componentDeleteBusy: componentDeleteBusy, handleConfirmDeleteComponent: handleConfirmDeleteComponent, setDeletingComponent: setDeletingComponent })] }));
 };
