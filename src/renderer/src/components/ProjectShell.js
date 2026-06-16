@@ -20,7 +20,6 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useCallback, useEffect, useRef, useState, } from 'react';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useHistoryStore } from '@store/historySlice';
 import { useAppLogStore } from '@store/appLogSlice';
 import { parseCode } from '@lib/parseCode';
 import { generateCode } from '@lib/generateCode';
@@ -52,6 +51,7 @@ import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import { useFontLinkReconciler, useProjectTheme, } from './projectShell/useProjectFonts';
 import { useActiveTarget } from './projectShell/useActiveTarget';
+import { usePageManagement } from './projectShell/usePageManagement';
 import { useInstanceFlows } from './projectShell/useInstanceFlows';
 import { useLatest } from './projectShell/useLatest';
 import styles from './ProjectShell.module.css';
@@ -67,21 +67,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     const [componentEdit, setComponentEdit] = useState(null);
     const [componentEditError, setComponentEditError] = useState(null);
     const [renamingComponent, setRenamingComponent] = useState(false);
-    // Pages sidebar inline-edit state. `'new'` shows the Add Page input at
-    // the bottom of the list. `{ duplicate: name }` replaces the named row
-    // with an input seeded from that page. `null` means no editing in
-    // progress and the sidebar behaves normally.
-    const [pageEdit, setPageEdit] = useState(null);
-    const [pageEditBusy, setPageEditBusy] = useState(false);
-    const [pageEditError, setPageEditError] = useState(null);
-    // Right-click context menu — stores the viewport coords and the page
-    // name the menu was opened for.
-    const [pageMenu, setPageMenu] = useState(null);
-    // Page pending deletion (confirmation dialog is open).
-    const [deletingPageName, setDeletingPageName] = useState(null);
-    // Inline error shown in the delete-confirmation dialog when the
-    // delete IPC fails; keeps the dialog open so the user can retry.
-    const [deletePageError, setDeletePageError] = useState(null);
     // Per-project config (scamp.config.json) + its canvas-store breakpoint
     // mirror, owned by the hook. Defaults render immediately so the canvas
     // doesn't flash a wrong background while the first read is in flight.
@@ -103,6 +88,14 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // deeply-nested readers (format, root path, page list, component-tree
     // cache, active-target canvas min-height).
     useProjectStoreSync({ project, projectConfig, activeComponent });
+    // Pages sidebar inline-edit / context-menu state + page CRUD handlers.
+    const { existingPageNames, pageEdit, setPageEdit, pageEditBusy, pageEditError, setPageEditError, isEditingPage, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, buildMenuItems, pageMenu, closePageMenu, deletingPageName, setDeletingPageName, deletePageError, setDeletePageError, handleDeletePage, } = usePageManagement({
+        project,
+        onProjectChange,
+        activePageName,
+        setActivePageName,
+        persistActiveSource,
+    });
     const bottomPanel = useCanvasStore((s) => s.bottomPanel);
     const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
     const leftSidebarTab = useCanvasStore((s) => s.leftSidebarTab);
@@ -190,117 +183,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         activePageName,
         project.pages,
     ]);
-    // ---- Page management ----
-    const existingPageNames = project.pages.map((p) => p.name);
-    const resetPageEdit = () => {
-        setPageEdit(null);
-        setPageEditBusy(false);
-        setPageEditError(null);
-    };
-    const handleAddPage = async (name) => {
-        setPageEditBusy(true);
-        setPageEditError(null);
-        try {
-            const newPage = await window.scamp.createPage({
-                projectPath: project.path,
-                pageName: name,
-            });
-            // Mirror the outgoing page's in-memory state into project.pages
-            // BEFORE switching. Without this, returning later via the sidebar
-            // re-parses the page from a stale tsxContent (the snapshot
-            // captured at project open) and any edits since then disappear.
-            flushPendingPageWrite();
-            persistActiveSource();
-            onProjectChange?.((prev) => ({
-                ...prev,
-                pages: [...prev.pages, newPage],
-            }));
-            setActivePageName(newPage.name);
-            resetPageEdit();
-        }
-        catch (e) {
-            setPageEditError(errorMessage(e));
-            setPageEditBusy(false);
-        }
-    };
-    const handleDuplicatePage = async (sourcePageName, newName) => {
-        setPageEditBusy(true);
-        setPageEditError(null);
-        try {
-            const newPage = await window.scamp.duplicatePage({
-                projectPath: project.path,
-                sourcePageName,
-                newPageName: newName,
-            });
-            onProjectChange?.({
-                ...project,
-                pages: [...project.pages, newPage],
-            });
-            setActivePageName(newPage.name);
-            resetPageEdit();
-        }
-        catch (e) {
-            setPageEditError(errorMessage(e));
-            setPageEditBusy(false);
-        }
-    };
-    const handleRenamePage = async (oldName, newName) => {
-        setPageEditBusy(true);
-        setPageEditError(null);
-        try {
-            // Ensure any pending debounced write lands on the OLD files
-            // before the rename swaps them out from under us.
-            flushPendingPageWrite();
-            // Capture the old tsxPath so we can rekey the history bucket
-            // after the rename. The page's path changes (the file moves on
-            // disk), so without rekey the in-session history would be
-            // stranded under the old key and lost.
-            const oldTsxPath = project.pages.find((p) => p.name === oldName)?.tsxPath;
-            const newPage = await window.scamp.renamePage({
-                projectPath: project.path,
-                oldPageName: oldName,
-                newPageName: newName,
-            });
-            const nextPages = project.pages.map((p) => p.name === oldName ? newPage : p);
-            onProjectChange?.({ ...project, pages: nextPages });
-            if (activePageName === oldName) {
-                setActivePageName(newPage.name);
-            }
-            // Move the history bucket to the new tsxPath, then push a
-            // `rename-page` entry. The entry lives in the (now renamed)
-            // page's bucket so undoing it surfaces the pre-rename state.
-            if (oldTsxPath) {
-                useHistoryStore.getState().rekeyPage(oldTsxPath, newPage.tsxPath);
-            }
-            useHistoryStore.getState().commitHistory({
-                kind: 'rename-page',
-                previousName: oldName,
-                pageName: newName,
-            }, useCanvasStore.getState().elements);
-            resetPageEdit();
-        }
-        catch (e) {
-            setPageEditError(errorMessage(e));
-            setPageEditBusy(false);
-        }
-    };
-    const handleDeletePage = async (name) => {
-        setDeletePageError(null);
-        try {
-            await window.scamp.deletePage({ projectPath: project.path, pageName: name });
-            const nextPages = project.pages.filter((p) => p.name !== name);
-            onProjectChange?.({ ...project, pages: nextPages });
-            if (activePageName === name) {
-                setActivePageName(nextPages[0]?.name ?? null);
-            }
-            setDeletingPageName(null);
-        }
-        catch (e) {
-            // Surface the failure inline in the confirm dialog and keep it
-            // open so the user can retry — mirrors create/rename handling.
-            setDeletePageError(errorMessage(e));
-        }
-    };
     // ---- Components ----
     /**
      * Atomic add: create the component on disk, append to the
@@ -557,34 +439,6 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             setRenamingComponent(false);
         }
     };
-    const openPageMenu = (e, pageName) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setPageMenu({ x: e.clientX, y: e.clientY, pageName });
-    };
-    const buildMenuItems = (pageName) => [
-        {
-            label: 'Rename',
-            onSelect: () => {
-                setPageEditError(null);
-                setPageEdit({ rename: pageName });
-            },
-        },
-        {
-            label: 'Duplicate',
-            onSelect: () => {
-                setPageEditError(null);
-                setPageEdit({ duplicate: pageName });
-            },
-        },
-        {
-            label: 'Delete',
-            destructive: true,
-            disabled: project.pages.length <= 1,
-            onSelect: () => setDeletingPageName(pageName),
-        },
-    ];
-    const isEditingPage = pageEdit !== null;
     // Local binding so the `!== null` guard narrows it for the dialog's
     // onConfirm closure (a property access wouldn't narrow).
     const convertElementId = instanceFlows.convertElementId;
@@ -684,7 +538,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                                                             }, error: componentEditError, busy: creatingComponent }) }))] }), componentEdit === null && (_jsx("button", { className: styles.addPageButton, onClick: () => {
                                                     setComponentEditError(null);
                                                     setComponentEdit('new');
-                                                }, type: "button", children: "+ Add Component" }))] }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor, onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: () => setPageMenu(null) })), componentMenu && (_jsx(PageContextMenu, { x: componentMenu.x, y: componentMenu.y, items: [
+                                                }, type: "button", children: "+ Add Component" }))] }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })] }), _jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor, onOpenSettings: () => setShowProjectSettings(true), onOpenTheme: () => setShowThemePanel(true) }), _jsx(PropertiesPanel, {})] }), bottomPanel === 'code' && _jsx(CodePanel, {}), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), showThemePanel && (_jsx(ThemePanel, { projectPath: project.path, onClose: () => setShowThemePanel(false) })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) })), pageMenu && (_jsx(PageContextMenu, { x: pageMenu.x, y: pageMenu.y, items: buildMenuItems(pageMenu.pageName), onClose: closePageMenu })), componentMenu && (_jsx(PageContextMenu, { x: componentMenu.x, y: componentMenu.y, items: [
                     {
                         label: 'Rename…',
                         onSelect: () => {
