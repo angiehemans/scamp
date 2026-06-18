@@ -76,11 +76,6 @@ const api = {
         ipcRenderer.on(IPC.FileWriteAck, listener);
         return () => ipcRenderer.removeListener(IPC.FileWriteAck, listener);
     },
-    onSnapshotRestoreComplete: (handler) => {
-        const listener = (_e, payload) => handler(payload);
-        ipcRenderer.on(IPC.SnapshotRestoreComplete, listener);
-        return () => ipcRenderer.removeListener(IPC.SnapshotRestoreComplete, listener);
-    },
     // Images
     copyImage: (args) => ipcRenderer.invoke(IPC.FileCopyImage, args),
     chooseImage: (args) => ipcRenderer.invoke(IPC.FileChooseImage, args),

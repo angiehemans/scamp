@@ -225,7 +225,9 @@ describe('restoreSnapshot', () => {
         const snap = await createSnapshot(root, 'nextjs', 'manual', 'good state', now);
         // Mutate the project after the snapshot.
         await fs.writeFile(path.join(root, 'app', 'page.tsx'), 'BROKEN by agent');
-        const res = await restoreSnapshot(root, 'nextjs', snap.id, now + 60000);
+        const res = await restoreSnapshot(root, 'nextjs', snap.id, {
+            nowMs: now + 60000,
+        });
         expect(res.ok).toBe(true);
         // Files are back to the snapshot content.
         expect(await fs.readFile(path.join(root, 'app', 'page.tsx'), 'utf-8')).toBe('home tsx');

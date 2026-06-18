@@ -92,10 +92,10 @@ export const IPC = {
     // happens main-side; see docs/notes/snapshots.md.
     SnapshotCreate: 'snapshot:create',
     SnapshotList: 'snapshot:list',
+    // Restore broadcasts the existing ProjectPagesChanged afterwards (its
+    // file copies are suppressed at the watcher) to drive a full renderer
+    // re-read, so it needs no dedicated completion channel.
     SnapshotRestore: 'snapshot:restore',
-    // Main → renderer: the restore's file copies have landed, so the
-    // renderer can refresh the project + clear the in-session undo stack.
-    SnapshotRestoreComplete: 'snapshot:restore:complete',
     SnapshotDelete: 'snapshot:delete',
     // Export (page or element)
     ExportChooseSavePath: 'export:chooseSavePath',

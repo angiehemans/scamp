@@ -212,3 +212,14 @@ const readIfExists = async (p: string): Promise<string | null> => {
 };
 
 export const getWatchedPath = (): string | null => watchedPath;
+
+/**
+ * Broadcast `ProjectPagesChanged` to the renderer so it re-reads the
+ * project from disk. Used after a snapshot restore (whose copies are
+ * suppressed at the watcher) to drive a full project refresh through the
+ * existing pages-changed path.
+ */
+export const notifyPagesChanged = (): void => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send(IPC.ProjectPagesChanged);
+};

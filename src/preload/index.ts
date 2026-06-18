@@ -49,7 +49,6 @@ import type {
   SnapshotListResult,
   SnapshotRestoreArgs,
   SnapshotRestoreResult,
-  SnapshotRestoreCompletePayload,
   TerminalCreateArgs,
   TerminalCreateResult,
   TerminalDataPayload,
@@ -211,17 +210,6 @@ const api = {
     const listener = (_e: IpcRendererEvent, payload: FileWriteAckPayload): void => handler(payload);
     ipcRenderer.on(IPC.FileWriteAck, listener);
     return () => ipcRenderer.removeListener(IPC.FileWriteAck, listener);
-  },
-
-  onSnapshotRestoreComplete: (
-    handler: (payload: SnapshotRestoreCompletePayload) => void
-  ): (() => void) => {
-    const listener = (
-      _e: IpcRendererEvent,
-      payload: SnapshotRestoreCompletePayload
-    ): void => handler(payload);
-    ipcRenderer.on(IPC.SnapshotRestoreComplete, listener);
-    return () => ipcRenderer.removeListener(IPC.SnapshotRestoreComplete, listener);
   },
 
   // Images

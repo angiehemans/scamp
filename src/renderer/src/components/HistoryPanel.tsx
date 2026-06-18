@@ -1,39 +1,63 @@
 import { useEffect, useState } from 'react';
-import { useCanvasStore } from '@store/canvasSlice';
 import {
-  selectActivePageHistory,
-  useHistoryStore,
-} from '@store/historySlice';
+  IconArrowBackUp,
+  IconBolt,
+  IconBookmark,
+  IconPlayerPlay,
+  IconPlayerStop,
+  IconRefresh,
+  type Icon,
+} from '@tabler/icons-react';
+
+import type { SnapshotMeta } from '@shared/types';
+import { useSnapshotsStore } from '@store/snapshotsSlice';
 import {
-  formatHistoryLabel,
-  formatRelativeTime,
-} from '@store/formatHistoryLabel';
-import type { HistoryEntry } from '@store/historyTypes';
-import { requireAt } from '@lib/safeAccess';
+  formatPageCount,
+  snapshotsNewestFirst,
+  triggerIcon,
+  type TriggerIcon,
+} from '@store/snapshotDisplay';
+import { formatRelativeTime } from '@store/formatHistoryLabel';
+
 import { Tooltip } from './controls/Tooltip';
+import { Button } from './controls/Button';
+import { ConfirmDialog } from './ConfirmDialog';
 import styles from './HistoryPanel.module.css';
 
-/**
- * Visual history panel — the second tab in the left sidebar.
- * Renders the active page's history list with the current cursor
- * highlighted. Clicking an entry jumps to that point in history.
- *
- * Past entries (cursor and below in time) display solid; future
- * entries (greyed out, after a divider) are the redoable steps.
- *
- * Per the story spec: clicks are dropped silently while a canvas
- * drag is in flight, so the panel is display-only during drag.
- */
-export const HistoryPanel = (): JSX.Element => {
-  const history = useHistoryStore(selectActivePageHistory);
-  const transactionDepth = useHistoryStore((s) => s.transactionDepth);
-  const jumpToHistory = useHistoryStore((s) => s.jumpToHistory);
-  const elements = useCanvasStore((s) => s.elements);
-  const isDragging = transactionDepth > 0;
+type Props = {
+  /** Active project root — snapshots are scoped to it. */
+  projectPath: string;
+};
 
-  // 30s tick to keep relative timestamps fresh ("just now" → "1
-  // min ago" etc.). Only runs while this component is mounted —
-  // hidden when the tab isn't active, so no background timer.
+const TRIGGER_ICON: Record<TriggerIcon, Icon> = {
+  'session-open': IconPlayerPlay,
+  'session-close': IconPlayerStop,
+  agent: IconBolt,
+  manual: IconBookmark,
+  auto: IconRefresh,
+  restore: IconArrowBackUp,
+};
+
+/**
+ * The History panel — the second tab in the left sidebar. Lists the
+ * project's persistent snapshots (newest first) with a "Now" marker for
+ * the current state. Clicking a snapshot restores it (after confirming);
+ * "Save snapshot" takes a manual one. The in-session Cmd+Z undo stack is
+ * independent and unaffected. See docs/notes/snapshots.md.
+ */
+export const HistoryPanel = ({ projectPath }: Props): JSX.Element => {
+  const snapshots = useSnapshotsStore((s) => s.snapshots);
+  const loadSnapshots = useSnapshotsStore((s) => s.loadSnapshots);
+  const takeSnapshot = useSnapshotsStore((s) => s.takeSnapshot);
+  const restoreSnapshot = useSnapshotsStore((s) => s.restoreSnapshot);
+
+  // Refresh the list every time the panel mounts (i.e. the tab is opened)
+  // so agent-edit / auto-save snapshots taken while it was hidden appear.
+  useEffect(() => {
+    void loadSnapshots(projectPath);
+  }, [loadSnapshots, projectPath]);
+
+  // 30s tick keeps relative timestamps fresh ("just now" → "1 min ago").
   const [, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000);
@@ -41,119 +65,140 @@ export const HistoryPanel = (): JSX.Element => {
   }, []);
   const now = Date.now();
 
-  // The `'load'` entry is a synthetic baseline that lets `Cmd+Z`
-  // return to the file's loaded state — not a user action. Skip it
-  // when deciding whether the panel is empty AND when rendering.
-  const userEntries = history.entries
-    .map((entry, idx) => ({ entry, idx }))
-    .filter(({ entry }) => entry.kind !== 'load');
+  // Manual-snapshot naming + restore-confirm state.
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+  const [pendingRestore, setPendingRestore] = useState<SnapshotMeta | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
-  if (userEntries.length === 0) {
-    return (
-      <div className={styles.panel}>
-        <p className={styles.empty}>No changes made in this session</p>
-      </div>
-    );
-  }
+  const handleSaveSnapshot = (): void => {
+    void takeSnapshot(projectPath, 'manual', name.trim() || undefined);
+    setName('');
+    setNaming(false);
+  };
 
-  // Render newest-first (the spec's mock has most-recent at top).
-  // `display` is reversed; index in the underlying array is preserved
-  // so `jumpToHistory` receives the canonical index.
-  const indices: number[] = [];
-  for (let i = userEntries.length - 1; i >= 0; i -= 1) {
-    indices.push(requireAt(userEntries, i).idx);
-  }
+  const handleConfirmRestore = async (): Promise<void> => {
+    if (!pendingRestore) return;
+    const res = await restoreSnapshot(projectPath, pendingRestore.id);
+    if (res.ok) {
+      setPendingRestore(null);
+      setRestoreError(null);
+    } else {
+      setRestoreError(res.error);
+    }
+  };
+
+  const ordered = snapshotsNewestFirst(snapshots);
 
   return (
     <div className={styles.panel}>
+      <div className={styles.header}>
+        {naming ? (
+          <input
+            className={styles.nameInput}
+            autoFocus
+            value={name}
+            placeholder="Snapshot name (optional)"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveSnapshot();
+              if (e.key === 'Escape') {
+                setNaming(false);
+                setName('');
+              }
+            }}
+            onBlur={() => {
+              setNaming(false);
+              setName('');
+            }}
+          />
+        ) : (
+          <Button variant="secondary" fullWidth onClick={() => setNaming(true)}>
+            Save snapshot
+          </Button>
+        )}
+      </div>
+
       <ul className={styles.list}>
-        {indices.map((idx, displayIdx) => {
-          const entry = requireAt(history.entries, idx);
-          const isCurrent = idx === history.cursor;
-          const isFuture = idx > history.cursor;
-          // Render the past/future divider once — after the first
-          // entry whose index is greater than the cursor (i.e. the
-          // first future entry in display order).
-          const prevDisplay = displayIdx > 0 ? requireAt(indices, displayIdx - 1) : null;
-          const showDivider =
-            prevDisplay !== null &&
-            prevDisplay > history.cursor &&
-            idx <= history.cursor;
-          return (
-            <HistoryRow
-              key={entry.id}
-              entry={entry}
-              isCurrent={isCurrent}
-              isFuture={isFuture}
-              showDivider={showDivider}
-              elements={elements}
+        <li className={`${styles.row} ${styles.nowRow}`}>
+          <div className={styles.rowButton}>
+            <span className={styles.bullet} aria-hidden="true">
+              ●
+            </span>
+            <span className={styles.label}>Now</span>
+          </div>
+        </li>
+
+        {ordered.length === 0 ? (
+          <li>
+            <p className={styles.empty}>No snapshots yet</p>
+          </li>
+        ) : (
+          ordered.map((snap) => (
+            <SnapshotRow
+              key={snap.id}
+              snapshot={snap}
               now={now}
-              // Clicks are suppressed during a canvas drag — the
-              // panel is display-only while a transaction is open
-              // per the story spec.
-              onJump={isDragging ? () => undefined : () => jumpToHistory(idx)}
+              onRestore={() => {
+                setRestoreError(null);
+                setPendingRestore(snap);
+              }}
             />
-          );
-        })}
+          ))
+        )}
       </ul>
+
+      {pendingRestore && (
+        <ConfirmDialog
+          title="Restore this snapshot?"
+          message={`${pendingRestore.label} — ${formatRelativeTime(
+            Date.parse(pendingRestore.timestamp),
+            now
+          )}\n\nThis will replace all current project files with the snapshot. Your current state will be saved as a new snapshot first.`}
+          confirmLabel="Restore"
+          cancelLabel="Cancel"
+          variant="destructive"
+          error={restoreError}
+          onConfirm={() => void handleConfirmRestore()}
+          onCancel={() => {
+            setPendingRestore(null);
+            setRestoreError(null);
+          }}
+        />
+      )}
     </div>
   );
 };
 
 type RowProps = {
-  entry: HistoryEntry;
-  isCurrent: boolean;
-  isFuture: boolean;
-  showDivider: boolean;
-  elements: Record<string, ReturnType<typeof useCanvasStore.getState>['elements'][string]>;
+  snapshot: SnapshotMeta;
   now: number;
-  onJump: () => void;
+  onRestore: () => void;
 };
 
-const HistoryRow = ({
-  entry,
-  isCurrent,
-  isFuture,
-  showDivider,
-  elements,
-  now,
-  onJump,
-}: RowProps): JSX.Element => {
-  const label = formatHistoryLabel(entry, elements);
-  const relative = formatRelativeTime(entry.timestamp, now);
-  const absolute = new Date(entry.timestamp).toLocaleTimeString();
+const SnapshotRow = ({ snapshot, now, onRestore }: RowProps): JSX.Element => {
+  const Icon = TRIGGER_ICON[triggerIcon(snapshot.trigger)];
+  const ts = Date.parse(snapshot.timestamp);
+  const relative = formatRelativeTime(ts, now);
+  const absolute = new Date(ts).toLocaleString();
 
   return (
-    <>
-      {showDivider && (
-        <li className={styles.divider} aria-hidden="true">
-          undone
-        </li>
-      )}
+    <li className={styles.row}>
       <Tooltip label={absolute}>
-        <li
-          className={[
-            styles.row,
-            isCurrent ? styles.current : '',
-            isFuture ? styles.future : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <button
-            type="button"
-            className={styles.rowButton}
-            onClick={onJump}
-            disabled={isCurrent}
-          >
-            <span className={styles.bullet} aria-hidden="true">
-              {isCurrent ? '●' : ''}
+        <button type="button" className={styles.rowButton} onClick={onRestore}>
+          <span className={styles.icon} aria-hidden="true">
+            <Icon size={14} stroke={2} />
+          </span>
+          <span className={styles.label}>
+            {snapshot.label}
+            <span className={styles.secondary}>
+              {' · '}
+              {formatPageCount(snapshot.pageCount)}
             </span>
-            <span className={styles.label}>{label}</span>
-            <span className={styles.timestamp}>{relative}</span>
-          </button>
-        </li>
+          </span>
+          <span className={styles.timestamp}>{relative}</span>
+        </button>
       </Tooltip>
-    </>
+    </li>
   );
 };

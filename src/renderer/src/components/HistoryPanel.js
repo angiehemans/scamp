@@ -1,80 +1,90 @@
-import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
-import { useCanvasStore } from '@store/canvasSlice';
-import { selectActivePageHistory, useHistoryStore, } from '@store/historySlice';
-import { formatHistoryLabel, formatRelativeTime, } from '@store/formatHistoryLabel';
-import { requireAt } from '@lib/safeAccess';
+import { IconArrowBackUp, IconBolt, IconBookmark, IconPlayerPlay, IconPlayerStop, IconRefresh, } from '@tabler/icons-react';
+import { useSnapshotsStore } from '@store/snapshotsSlice';
+import { formatPageCount, snapshotsNewestFirst, triggerIcon, } from '@store/snapshotDisplay';
+import { formatRelativeTime } from '@store/formatHistoryLabel';
 import { Tooltip } from './controls/Tooltip';
+import { Button } from './controls/Button';
+import { ConfirmDialog } from './ConfirmDialog';
 import styles from './HistoryPanel.module.css';
+const TRIGGER_ICON = {
+    'session-open': IconPlayerPlay,
+    'session-close': IconPlayerStop,
+    agent: IconBolt,
+    manual: IconBookmark,
+    auto: IconRefresh,
+    restore: IconArrowBackUp,
+};
 /**
- * Visual history panel — the second tab in the left sidebar.
- * Renders the active page's history list with the current cursor
- * highlighted. Clicking an entry jumps to that point in history.
- *
- * Past entries (cursor and below in time) display solid; future
- * entries (greyed out, after a divider) are the redoable steps.
- *
- * Per the story spec: clicks are dropped silently while a canvas
- * drag is in flight, so the panel is display-only during drag.
+ * The History panel — the second tab in the left sidebar. Lists the
+ * project's persistent snapshots (newest first) with a "Now" marker for
+ * the current state. Clicking a snapshot restores it (after confirming);
+ * "Save snapshot" takes a manual one. The in-session Cmd+Z undo stack is
+ * independent and unaffected. See docs/notes/snapshots.md.
  */
-export const HistoryPanel = () => {
-    const history = useHistoryStore(selectActivePageHistory);
-    const transactionDepth = useHistoryStore((s) => s.transactionDepth);
-    const jumpToHistory = useHistoryStore((s) => s.jumpToHistory);
-    const elements = useCanvasStore((s) => s.elements);
-    const isDragging = transactionDepth > 0;
-    // 30s tick to keep relative timestamps fresh ("just now" → "1
-    // min ago" etc.). Only runs while this component is mounted —
-    // hidden when the tab isn't active, so no background timer.
+export const HistoryPanel = ({ projectPath }) => {
+    const snapshots = useSnapshotsStore((s) => s.snapshots);
+    const loadSnapshots = useSnapshotsStore((s) => s.loadSnapshots);
+    const takeSnapshot = useSnapshotsStore((s) => s.takeSnapshot);
+    const restoreSnapshot = useSnapshotsStore((s) => s.restoreSnapshot);
+    // Refresh the list every time the panel mounts (i.e. the tab is opened)
+    // so agent-edit / auto-save snapshots taken while it was hidden appear.
+    useEffect(() => {
+        void loadSnapshots(projectPath);
+    }, [loadSnapshots, projectPath]);
+    // 30s tick keeps relative timestamps fresh ("just now" → "1 min ago").
     const [, setTick] = useState(0);
     useEffect(() => {
         const id = setInterval(() => setTick((t) => t + 1), 30_000);
         return () => clearInterval(id);
     }, []);
     const now = Date.now();
-    // The `'load'` entry is a synthetic baseline that lets `Cmd+Z`
-    // return to the file's loaded state — not a user action. Skip it
-    // when deciding whether the panel is empty AND when rendering.
-    const userEntries = history.entries
-        .map((entry, idx) => ({ entry, idx }))
-        .filter(({ entry }) => entry.kind !== 'load');
-    if (userEntries.length === 0) {
-        return (_jsx("div", { className: styles.panel, children: _jsx("p", { className: styles.empty, children: "No changes made in this session" }) }));
-    }
-    // Render newest-first (the spec's mock has most-recent at top).
-    // `display` is reversed; index in the underlying array is preserved
-    // so `jumpToHistory` receives the canonical index.
-    const indices = [];
-    for (let i = userEntries.length - 1; i >= 0; i -= 1) {
-        indices.push(requireAt(userEntries, i).idx);
-    }
-    return (_jsx("div", { className: styles.panel, children: _jsx("ul", { className: styles.list, children: indices.map((idx, displayIdx) => {
-                const entry = requireAt(history.entries, idx);
-                const isCurrent = idx === history.cursor;
-                const isFuture = idx > history.cursor;
-                // Render the past/future divider once — after the first
-                // entry whose index is greater than the cursor (i.e. the
-                // first future entry in display order).
-                const prevDisplay = displayIdx > 0 ? requireAt(indices, displayIdx - 1) : null;
-                const showDivider = prevDisplay !== null &&
-                    prevDisplay > history.cursor &&
-                    idx <= history.cursor;
-                return (_jsx(HistoryRow, { entry: entry, isCurrent: isCurrent, isFuture: isFuture, showDivider: showDivider, elements: elements, now: now, 
-                    // Clicks are suppressed during a canvas drag — the
-                    // panel is display-only while a transaction is open
-                    // per the story spec.
-                    onJump: isDragging ? () => undefined : () => jumpToHistory(idx) }, entry.id));
-            }) }) }));
+    // Manual-snapshot naming + restore-confirm state.
+    const [naming, setNaming] = useState(false);
+    const [name, setName] = useState('');
+    const [pendingRestore, setPendingRestore] = useState(null);
+    const [restoreError, setRestoreError] = useState(null);
+    const handleSaveSnapshot = () => {
+        void takeSnapshot(projectPath, 'manual', name.trim() || undefined);
+        setName('');
+        setNaming(false);
+    };
+    const handleConfirmRestore = async () => {
+        if (!pendingRestore)
+            return;
+        const res = await restoreSnapshot(projectPath, pendingRestore.id);
+        if (res.ok) {
+            setPendingRestore(null);
+            setRestoreError(null);
+        }
+        else {
+            setRestoreError(res.error);
+        }
+    };
+    const ordered = snapshotsNewestFirst(snapshots);
+    return (_jsxs("div", { className: styles.panel, children: [_jsx("div", { className: styles.header, children: naming ? (_jsx("input", { className: styles.nameInput, autoFocus: true, value: name, placeholder: "Snapshot name (optional)", onChange: (e) => setName(e.target.value), onKeyDown: (e) => {
+                        if (e.key === 'Enter')
+                            handleSaveSnapshot();
+                        if (e.key === 'Escape') {
+                            setNaming(false);
+                            setName('');
+                        }
+                    }, onBlur: () => {
+                        setNaming(false);
+                        setName('');
+                    } })) : (_jsx(Button, { variant: "secondary", fullWidth: true, onClick: () => setNaming(true), children: "Save snapshot" })) }), _jsxs("ul", { className: styles.list, children: [_jsx("li", { className: `${styles.row} ${styles.nowRow}`, children: _jsxs("div", { className: styles.rowButton, children: [_jsx("span", { className: styles.bullet, "aria-hidden": "true", children: "\u25CF" }), _jsx("span", { className: styles.label, children: "Now" })] }) }), ordered.length === 0 ? (_jsx("li", { children: _jsx("p", { className: styles.empty, children: "No snapshots yet" }) })) : (ordered.map((snap) => (_jsx(SnapshotRow, { snapshot: snap, now: now, onRestore: () => {
+                            setRestoreError(null);
+                            setPendingRestore(snap);
+                        } }, snap.id))))] }), pendingRestore && (_jsx(ConfirmDialog, { title: "Restore this snapshot?", message: `${pendingRestore.label} — ${formatRelativeTime(Date.parse(pendingRestore.timestamp), now)}\n\nThis will replace all current project files with the snapshot. Your current state will be saved as a new snapshot first.`, confirmLabel: "Restore", cancelLabel: "Cancel", variant: "destructive", error: restoreError, onConfirm: () => void handleConfirmRestore(), onCancel: () => {
+                    setPendingRestore(null);
+                    setRestoreError(null);
+                } }))] }));
 };
-const HistoryRow = ({ entry, isCurrent, isFuture, showDivider, elements, now, onJump, }) => {
-    const label = formatHistoryLabel(entry, elements);
-    const relative = formatRelativeTime(entry.timestamp, now);
-    const absolute = new Date(entry.timestamp).toLocaleTimeString();
-    return (_jsxs(_Fragment, { children: [showDivider && (_jsx("li", { className: styles.divider, "aria-hidden": "true", children: "undone" })), _jsx(Tooltip, { label: absolute, children: _jsx("li", { className: [
-                        styles.row,
-                        isCurrent ? styles.current : '',
-                        isFuture ? styles.future : '',
-                    ]
-                        .filter(Boolean)
-                        .join(' '), children: _jsxs("button", { type: "button", className: styles.rowButton, onClick: onJump, disabled: isCurrent, children: [_jsx("span", { className: styles.bullet, "aria-hidden": "true", children: isCurrent ? '●' : '' }), _jsx("span", { className: styles.label, children: label }), _jsx("span", { className: styles.timestamp, children: relative })] }) }) })] }));
+const SnapshotRow = ({ snapshot, now, onRestore }) => {
+    const Icon = TRIGGER_ICON[triggerIcon(snapshot.trigger)];
+    const ts = Date.parse(snapshot.timestamp);
+    const relative = formatRelativeTime(ts, now);
+    const absolute = new Date(ts).toLocaleString();
+    return (_jsx("li", { className: styles.row, children: _jsx(Tooltip, { label: absolute, children: _jsxs("button", { type: "button", className: styles.rowButton, onClick: onRestore, children: [_jsx("span", { className: styles.icon, "aria-hidden": "true", children: _jsx(Icon, { size: 14, stroke: 2 }) }), _jsxs("span", { className: styles.label, children: [snapshot.label, _jsxs("span", { className: styles.secondary, children: [' · ', formatPageCount(snapshot.pageCount)] })] }), _jsx("span", { className: styles.timestamp, children: relative })] }) }) }));
 };

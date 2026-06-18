@@ -250,20 +250,21 @@ export const deleteSnapshot = async (projectPath, snapshotId) => {
  * Restore a snapshot: first snapshot the current state (`before_restore`)
  * so the restore itself is undoable, then copy the snapshot's files back
  * over the project. Overlay copy — files added since the snapshot are
- * left in place (Phase E decides whether to also remove them).
+ * left in place.
  */
-export const restoreSnapshot = async (projectPath, format, snapshotId, nowMs = Date.now()) => {
+export const restoreSnapshot = async (projectPath, format, snapshotId, opts = {}) => {
     try {
         const existing = await readIndex(projectPath);
         if (!existing.some((s) => s.id === snapshotId)) {
             return { ok: false, error: 'Snapshot not found.' };
         }
-        await createSnapshot(projectPath, format, 'before_restore', undefined, nowMs);
+        await createSnapshot(projectPath, format, 'before_restore', undefined, opts.nowMs);
         const dir = snapshotDirFor(projectPath, snapshotId);
         const files = await walkFiles(dir);
         for (const abs of files) {
             const dest = join(projectPath, relative(dir, abs));
             await fs.mkdir(dirname(dest), { recursive: true });
+            opts.beforeWrite?.(dest);
             await fs.copyFile(abs, dest);
         }
         return { ok: true };

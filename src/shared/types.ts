@@ -155,6 +155,12 @@ export type ProjectConfig = {
    */
   nextjsMigrationDismissed?: boolean;
   /**
+   * Auto-save snapshots (the 5-minutes-of-activity trigger). Enabled by
+   * default; only stored when explicitly disabled (`false`). Disable it
+   * if the 50-snapshot limit is being hit too often.
+   */
+  snapshotAutoSave?: boolean;
+  /**
    * Responsive breakpoints for this project, ordered widest first.
    * Style edits in non-desktop mode land inside `@media
    * (max-width: Npx)` blocks keyed by each breakpoint's width.
@@ -469,8 +475,6 @@ export type SnapshotRestoreArgs = { projectPath: string; snapshotId: string };
 export type SnapshotRestoreResult =
   | { ok: true; snapshotId: string }
   | { ok: false; error: string };
-
-export type SnapshotRestoreCompletePayload = { snapshotId: string };
 
 export type SnapshotDeleteArgs = { projectPath: string; snapshotId: string };
 export type SnapshotDeleteResult = { ok: boolean };

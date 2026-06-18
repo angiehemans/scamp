@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { ipcMain } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import type {
@@ -12,6 +13,7 @@ import type {
 } from '@shared/types';
 
 import { getProjectFormat } from './projectFormatCache';
+import { notifyPagesChanged, registerPendingWrite } from '../watcher';
 import {
   createSnapshot,
   deleteSnapshot,
@@ -24,9 +26,12 @@ import {
  * project format from the cached lookup before delegating, mirroring the
  * page / component handlers. All `.scamp/` file I/O lives in snapshotOps.
  *
- * The restore's main → renderer `SnapshotRestoreComplete` broadcast is
- * added in Phase E alongside the reload orchestration; for now restore is
- * a plain invoke that returns once the files are copied back.
+ * Restore registers a suppressed pending-write for every file it copies
+ * back, so the watcher treats the burst as Scamp's own writes (no
+ * `agent_edit` snapshot, no per-file reload), then broadcasts
+ * ProjectPagesChanged so the renderer re-reads the whole project from
+ * disk through the existing refresh path. The renderer additionally
+ * clears the in-session undo stack on a successful restore.
  */
 export const registerSnapshotIpc = (): void => {
   ipcMain.handle(
@@ -54,13 +59,20 @@ export const registerSnapshotIpc = (): void => {
     IPC.SnapshotRestore,
     async (_e, args: SnapshotRestoreArgs): Promise<SnapshotRestoreResult> => {
       const format = await getProjectFormat(args.projectPath);
-      const result = await restoreSnapshot(
-        args.projectPath,
-        format,
-        args.snapshotId
-      );
-      if (result.ok) return { ok: true, snapshotId: args.snapshotId };
-      return { ok: false, error: result.error ?? 'Restore failed.' };
+      // One writeId for the whole restore burst; suppress chokidar for
+      // each copied file so the watcher doesn't mistake the restore for
+      // external edits.
+      const writeId = randomUUID();
+      const result = await restoreSnapshot(args.projectPath, format, args.snapshotId, {
+        beforeWrite: (dest) => registerPendingWrite(dest, writeId, true),
+      });
+      if (!result.ok) {
+        return { ok: false, error: result.error ?? 'Restore failed.' };
+      }
+      // Drive a full project re-read in the renderer through the existing
+      // pages-changed path (the per-file file:changed events were suppressed).
+      notifyPagesChanged();
+      return { ok: true, snapshotId: args.snapshotId };
     }
   );
 

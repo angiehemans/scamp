@@ -46,13 +46,24 @@ export declare const listSnapshots: (projectPath: string) => Promise<SnapshotMet
 export declare const deleteSnapshot: (projectPath: string, snapshotId: string) => Promise<{
     ok: boolean;
 }>;
+type RestoreOptions = {
+    nowMs?: number;
+    /**
+     * Called with each destination path just before it's overwritten.
+     * The IPC handler uses this to register a suppressed pending-write so
+     * the watcher doesn't treat the restore's copies as external edits
+     * (which would spawn `agent_edit` snapshots and a redundant reload).
+     */
+    beforeWrite?: (dest: string) => void;
+};
 /**
  * Restore a snapshot: first snapshot the current state (`before_restore`)
  * so the restore itself is undoable, then copy the snapshot's files back
  * over the project. Overlay copy — files added since the snapshot are
- * left in place (Phase E decides whether to also remove them).
+ * left in place.
  */
-export declare const restoreSnapshot: (projectPath: string, format: ProjectFormat, snapshotId: string, nowMs?: number) => Promise<{
+export declare const restoreSnapshot: (projectPath: string, format: ProjectFormat, snapshotId: string, opts?: RestoreOptions) => Promise<{
     ok: boolean;
     error?: string;
 }>;
+export {};

@@ -303,30 +303,48 @@ export const deleteSnapshot = async (
   }
 };
 
+type RestoreOptions = {
+  nowMs?: number;
+  /**
+   * Called with each destination path just before it's overwritten.
+   * The IPC handler uses this to register a suppressed pending-write so
+   * the watcher doesn't treat the restore's copies as external edits
+   * (which would spawn `agent_edit` snapshots and a redundant reload).
+   */
+  beforeWrite?: (dest: string) => void;
+};
+
 /**
  * Restore a snapshot: first snapshot the current state (`before_restore`)
  * so the restore itself is undoable, then copy the snapshot's files back
  * over the project. Overlay copy — files added since the snapshot are
- * left in place (Phase E decides whether to also remove them).
+ * left in place.
  */
 export const restoreSnapshot = async (
   projectPath: string,
   format: ProjectFormat,
   snapshotId: string,
-  nowMs: number = Date.now()
+  opts: RestoreOptions = {}
 ): Promise<{ ok: boolean; error?: string }> => {
   try {
     const existing = await readIndex(projectPath);
     if (!existing.some((s) => s.id === snapshotId)) {
       return { ok: false, error: 'Snapshot not found.' };
     }
-    await createSnapshot(projectPath, format, 'before_restore', undefined, nowMs);
+    await createSnapshot(
+      projectPath,
+      format,
+      'before_restore',
+      undefined,
+      opts.nowMs
+    );
 
     const dir = snapshotDirFor(projectPath, snapshotId);
     const files = await walkFiles(dir);
     for (const abs of files) {
       const dest = join(projectPath, relative(dir, abs));
       await fs.mkdir(dirname(dest), { recursive: true });
+      opts.beforeWrite?.(dest);
       await fs.copyFile(abs, dest);
     }
     return { ok: true };

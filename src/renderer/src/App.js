@@ -5,7 +5,7 @@ import { ProjectShell } from './components/ProjectShell';
 import { SettingsPage } from './components/SettingsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SentryOptInPrompt } from './components/SentryOptInPrompt';
-import { initSyncBridge } from './syncBridge';
+import { initSyncBridge, flushPendingPageWrite } from './syncBridge';
 import { useFontsStore } from '@store/fontsSlice';
 import { useTerminalActivityStore } from '@store/terminalActivitySlice';
 export const App = () => {
@@ -177,6 +177,14 @@ export const App = () => {
     if (view === 'project' && project) {
         const closingProjectPath = project.path;
         return (_jsx(ErrorBoundary, { children: _jsx(ProjectShell, { project: project, onClose: () => {
+                    // Session-close snapshot: flush any pending debounced write
+                    // so the snapshot includes the latest canvas state, then take
+                    // it. Fire-and-forget — main reads the project from disk.
+                    flushPendingPageWrite();
+                    void window.scamp.createSnapshot({
+                        projectPath: closingProjectPath,
+                        trigger: 'session_close',
+                    });
                     // Close the preview window and stop its dev server
                     // before tearing down the project — preview shouldn't
                     // outlive the project that's editing it.
