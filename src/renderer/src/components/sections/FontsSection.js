@@ -6,7 +6,9 @@ import { removeFamilyFromUrl } from '@lib/googleFontsEmbed';
 import { parseFontEmbed } from '@lib/fontEmbed';
 import { fetchAdobeKitFamilies } from '@lib/adobeFontsFetch';
 import { serializeThemeFile } from '@lib/parseTheme';
+import { errorMessage } from '@shared/errorMessage';
 import { unionFamiliesFromUrls } from '../../lib/applyThemeFonts';
+import { Button } from '../controls/Button';
 import styles from './FontsSection.module.css';
 const providerLabel = (row) => {
     switch (row.kind) {
@@ -122,7 +124,7 @@ export const FontsSection = ({ projectPath }) => {
             setDraft('');
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
         finally {
             setBusy(false);
@@ -157,7 +159,7 @@ export const FontsSection = ({ projectPath }) => {
             await writeTheme(nextUrls);
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
         finally {
             setBusy(false);
@@ -172,13 +174,13 @@ export const FontsSection = ({ projectPath }) => {
                                 e.preventDefault();
                                 void handleAdd();
                             }
-                        }, spellCheck: false, autoCapitalize: "off", autoCorrect: "off" }), _jsx("button", { type: "button", className: styles.addButton, onClick: () => void handleAdd(), disabled: busy || draft.trim().length === 0, children: busy ? 'Adding…' : 'Add' })] }), error && _jsx("div", { className: styles.error, children: error }), _jsxs("div", { className: styles.help, children: ["Fonts you add here are saved in ", _jsx("code", { children: "theme.css" }), " in your project folder. Import that file in your production build to use the fonts outside Scamp."] }), rows.length === 0 ? (_jsx("div", { className: styles.empty, children: "No project fonts yet." })) : (_jsx("div", { className: styles.list, children: rows.map((row, i) => {
+                        }, spellCheck: false, autoCapitalize: "off", autoCorrect: "off" }), _jsx(Button, { variant: "secondary", onClick: () => void handleAdd(), disabled: busy || draft.trim().length === 0, children: busy ? 'Adding…' : 'Add' })] }), error && _jsx("div", { className: styles.error, children: error }), _jsxs("div", { className: styles.help, children: ["Fonts you add here are saved in ", _jsx("code", { children: "theme.css" }), " in your project folder. Import that file in your production build to use the fonts outside Scamp."] }), rows.length === 0 ? (_jsx("div", { className: styles.empty, children: "No project fonts yet." })) : (_jsx("div", { className: styles.list, children: rows.map((row, i) => {
                     const key = row.kind === 'unrecognized'
                         ? `unrecognized::${row.sourceUrl}::${i}`
                         : `${row.kind}::${row.sourceUrl}::${row.family}`;
                     const label = providerLabel(row);
                     return (_jsxs("div", { className: styles.listItem, children: [_jsxs("div", { className: styles.listItemBody, children: [_jsx("div", { className: styles.listItemFamilies, children: row.kind === 'unrecognized'
                                             ? '(unrecognized URL)'
-                                            : row.family }), row.kind === 'unrecognized' && (_jsx("div", { className: styles.listItemUrl, children: row.sourceUrl }))] }), label && (_jsx("span", { className: styles.providerTag, "data-provider": label.toLowerCase(), children: label })), _jsx("button", { type: "button", className: styles.removeButton, onClick: () => void handleRemove(row), disabled: busy, title: removeTooltip(row), children: "Remove" })] }, key));
+                                            : row.family }), row.kind === 'unrecognized' && (_jsx("div", { className: styles.listItemUrl, children: row.sourceUrl }))] }), label && (_jsx("span", { className: styles.providerTag, "data-provider": label.toLowerCase(), children: label })), _jsx(Button, { variant: "ghost", size: "sm", onClick: () => void handleRemove(row), disabled: busy, title: removeTooltip(row), children: "Remove" })] }, key));
                 }) }))] }));
 };

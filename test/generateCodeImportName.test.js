@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateCode, generateCodeLegacy } from '@lib/generateCode';
+import { generateCode } from '@lib/generateCode';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 const makeRoot = () => ({
     id: ROOT_ELEMENT_ID,
@@ -79,35 +79,5 @@ describe('generateCode — cssModuleImportName', () => {
             cssModuleImportName: 'page',
         });
         expect(tsx).toContain('export default function AboutUs()');
-    });
-});
-describe('generateCodeLegacy', () => {
-    it('matches generateCode with cssModuleImportName=pageName', () => {
-        const elements = { [ROOT_ELEMENT_ID]: makeRoot() };
-        const legacy = generateCodeLegacy({
-            elements,
-            rootId: ROOT_ELEMENT_ID,
-            pageName: 'home',
-        });
-        const explicit = generateCode({
-            elements,
-            rootId: ROOT_ELEMENT_ID,
-            pageName: 'home',
-            cssModuleImportName: 'home',
-        });
-        expect(legacy).toEqual(explicit);
-    });
-    it('ignores any cssModuleImportName the caller passes', () => {
-        // The legacy entry point's whole point is that the import is
-        // pinned to the page name — if a caller threads an override through
-        // by accident, legacy should still behave legacy.
-        const elements = { [ROOT_ELEMENT_ID]: makeRoot() };
-        const legacy = generateCodeLegacy({
-            elements,
-            rootId: ROOT_ELEMENT_ID,
-            pageName: 'home',
-            cssModuleImportName: 'page',
-        });
-        expect(legacy.tsx).toContain(`import styles from './home.module.css';`);
     });
 });

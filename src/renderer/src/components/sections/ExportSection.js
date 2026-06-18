@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode';
 import { capturePng, captureSvg, suggestExportFilename, } from '@renderer/src/lib/exportCapture';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Section, Row } from './Section';
-import sectionStyles from './Section.module.css';
 import styles from './ExportSection.module.css';
 const FORMAT_OPTIONS = [
     { value: 'png', label: 'PNG' },
@@ -139,7 +139,7 @@ export const ExportSection = () => {
         ? `Export ${scope.className}`
         : 'Export page';
     const disabled = scope.kind === 'disabled' || busy;
-    return (_jsx("div", { id: EXPORT_SECTION_DOM_ID, children: _jsxs(Section, { title: "Export", children: [_jsx(Row, { label: "Format", children: _jsx(EnumSelect, { value: exportSettings.lastFormat, options: FORMAT_OPTIONS, onChange: setExportFormat, title: "Export format" }) }), exportSettings.lastFormat === 'png' && (_jsx(Row, { label: "Scale", children: _jsx(SegmentedControl, { value: String(exportSettings.lastPngScale), options: SCALE_OPTIONS, onChange: (v) => setExportPngScale(Number(v)), title: "PNG scale factor" }) })), exportSettings.lastFormat === 'svg' && (_jsx("div", { className: styles.hint, children: "SVG export works best for simple layouts. Complex CSS effects may not be fully captured." })), _jsx(Row, { label: "Size", children: _jsx("span", { className: styles.sizeReadout, children: sizeReadout }) }), scope.kind === 'disabled' && (_jsx("div", { className: styles.hint, children: scope.reason })), error && _jsx("div", { className: styles.error, children: error }), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: `${sectionStyles.rowAddButton} ${styles.exportButton}`, onClick: () => void handleExport(), disabled: disabled, children: busy ? 'Exporting…' : buttonLabel }) })] }) }));
+    return (_jsx("div", { id: EXPORT_SECTION_DOM_ID, children: _jsxs(Section, { title: "Export", children: [_jsx(Row, { label: "Format", children: _jsx(EnumSelect, { value: exportSettings.lastFormat, options: FORMAT_OPTIONS, onChange: setExportFormat, title: "Export format" }) }), exportSettings.lastFormat === 'png' && (_jsx(Row, { label: "Scale", children: _jsx(SegmentedControl, { value: String(exportSettings.lastPngScale), options: SCALE_OPTIONS, onChange: (v) => setExportPngScale(Number(v)), title: "PNG scale factor" }) })), exportSettings.lastFormat === 'svg' && (_jsx("div", { className: styles.hint, children: "SVG export works best for simple layouts. Complex CSS effects may not be fully captured." })), _jsx(Row, { label: "Size", children: _jsx("span", { className: styles.sizeReadout, children: sizeReadout }) }), scope.kind === 'disabled' && (_jsx("div", { className: styles.hint, children: scope.reason })), error && _jsx("div", { className: styles.error, children: error }), _jsx(Row, { label: "", children: _jsx(Button, { variant: "addRow", onClick: () => void handleExport(), disabled: disabled, children: busy ? 'Exporting…' : buttonLabel }) })] }) }));
 };
 /**
  * Live size readout. Reads `offsetWidth` / `offsetHeight` from the

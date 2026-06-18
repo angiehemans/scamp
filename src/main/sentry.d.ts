@@ -1,4 +1,16 @@
 /**
+ * Register (or clear, with `null`) the project root to strip from Sentry
+ * events. Stored resolved so it matches the absolute paths in stack
+ * frames and breadcrumbs.
+ */
+export declare const setSentryProjectRoot: (root: string | null) => void;
+/**
+ * Replace every occurrence of `root` in `s` with `<project>`. Literal
+ * (not regex) match so path characters need no escaping. Pure — exported
+ * for tests.
+ */
+export declare const scrubRoot: (s: string, root: string | null) => string;
+/**
  * Sentry crash-reporting init for Scamp's main process.
  *
  * The user's opt-in choice lives in `settings.json` (the same

@@ -54,6 +54,7 @@ describe('scaffoldNextjsProject', () => {
             'next.config.ts',
             'package.json',
             'public',
+            'tsconfig.json',
         ]);
         expect(await list('app')).toEqual([
             'layout.tsx',
@@ -63,6 +64,13 @@ describe('scaffoldNextjsProject', () => {
         ]);
         expect(await list('public')).toEqual(['assets']);
         expect(await list('public/assets')).toEqual([]);
+    });
+    it('scaffolds a tsconfig.json declaring the @/* path alias so component imports resolve', async () => {
+        await scaffoldNextjsProject(projectDir, 'my-project');
+        const raw = await fs.readFile(path.join(projectDir, 'tsconfig.json'), 'utf-8');
+        const parsed = JSON.parse(raw);
+        expect(parsed.compilerOptions.baseUrl).toBe('.');
+        expect(parsed.compilerOptions.paths['@/*']).toEqual(['./*']);
     });
     it('emits a Home component in app/page.tsx that imports ./page.module.css', async () => {
         await scaffoldNextjsProject(projectDir, 'my-project');

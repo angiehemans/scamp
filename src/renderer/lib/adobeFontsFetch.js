@@ -12,6 +12,7 @@
  * typed result. Network and parse failures are surfaced as
  * `{ ok: false, error }` rather than throwing.
  */
+import { errorMessage } from '@shared/errorMessage';
 /** Match every `font-family: "<name>"` declaration inside an
  *  `@font-face { … }` block. Accepts single or double quotes; the
  *  body match is non-greedy so we don't span across blocks. */
@@ -22,7 +23,7 @@ export const fetchAdobeKitFamilies = async (url) => {
         response = await fetch(url, { cache: 'no-cache' });
     }
     catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
+        const message = errorMessage(e);
         return {
             ok: false,
             error: `Couldn't reach Adobe Fonts (${message}).`,
@@ -39,7 +40,7 @@ export const fetchAdobeKitFamilies = async (url) => {
         body = await response.text();
     }
     catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
+        const message = errorMessage(e);
         return {
             ok: false,
             error: `Couldn't read the kit's CSS (${message}).`,

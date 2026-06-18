@@ -98,7 +98,7 @@ export type PanelMode = 'ui' | 'css' | 'data';
  * back to "fit-to-container".
  */
 export declare const ZOOM_STEPS: ReadonlyArray<number>;
-type CanvasState = {
+export type CanvasState = {
     elements: Record<string, ScampElement>;
     rootElementId: string;
     /**
@@ -379,6 +379,17 @@ type CanvasState = {
     resizeElement: (id: string, x: number, y: number, width: number, height: number) => void;
     patchElement: (id: string, patch: Partial<ScampElement>) => void;
     /**
+     * Merge `patch` into an element's `customProperties` and write the
+     * result through `patchElement` (so axis routing + history apply). A
+     * key whose patch value is `undefined` is DELETED — this is the
+     * single safe path for add / update / remove of custom props,
+     * replacing the manual splat-and-delete in section handlers where a
+     * forgotten delete left stale CSS. The merge base is the resolved
+     * element (active breakpoint + state), matching how panels read
+     * values.
+     */
+    patchCustomProperties: (id: string, patch: Record<string, string | undefined>) => void;
+    /**
      * Clear one or more fields from a specific breakpoint's override.
      * Used by the panel's "reset override" affordance. When the override
      * becomes empty after the clear, the whole breakpoint key is
@@ -481,9 +492,8 @@ type CanvasState = {
 };
 export declare const useCanvasStore: import("zustand").UseBoundStore<import("zustand").StoreApi<CanvasState>>;
 /**
- * Extract all color values used across every element in the current page.
- * Deduplicated and sorted by frequency (most used first). Returns an empty
- * array when no meaningful colors are found.
+ * Project palette — colors used across the current page, most-frequent
+ * first. Extraction logic lives in @lib/projectColors; this selector
+ * wraps it for useCanvasStore(selectProjectColors).
  */
 export declare const selectProjectColors: (state: CanvasState) => string[];
-export {};

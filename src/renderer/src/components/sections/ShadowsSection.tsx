@@ -1,14 +1,19 @@
-import { useCanvasStore, selectProjectColors } from '@store/canvasSlice';
+import { useCanvasStore } from '@store/canvasSlice';
+import {
+  useColorPickerContext,
+  type ColorPickerContext,
+} from '@store/hooks/useColorPickerContext';
+import { useListField } from '@store/hooks/useListField';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { BoxShadowDef } from '@lib/element';
 import { combineShadowColor, splitShadowColor } from '@lib/parsers';
-import type { ThemeToken } from '@shared/types';
+import { Button } from '../controls/Button';
 import { ColorInput } from '../controls/ColorInput';
 import { NumberInput } from '../controls/NumberInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
-import sectionStyles from './Section.module.css';
+import { SectionEmptyState } from './SectionEmptyState';
 import styles from './ShadowsSection.module.css';
 
 type Props = {
@@ -34,32 +39,19 @@ const INSET_OPTIONS: ReadonlyArray<{ value: InsetMode; label: string }> = [
 export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
-  const projectColors = useCanvasStore(selectProjectColors);
-  const themeTokens = useCanvasStore((s) => s.themeTokens);
-  const openThemePanel = useCanvasStore((s) => s.openThemePanel);
-  const groupToggle = useGroupToggle(elementId, 'shadow');
+  const colorContext = useColorPickerContext();
+  const groupToggle = useGroupToggle(
+    elementId,
+    'shadow',
+    (element?.boxShadows.length ?? 0) > 0
+  );
+  const shadowField = useListField<BoxShadowDef>(
+    () => element?.boxShadows ?? [],
+    (next) => patchElement(elementId, { boxShadows: next })
+  );
   if (!element) return null;
 
   const shadows: ReadonlyArray<BoxShadowDef> = element.boxShadows;
-  // Hide the eye when there are no shadows defined (or already off).
-  const effectiveGroupToggle =
-    shadows.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
-
-  const setShadows = (next: ReadonlyArray<BoxShadowDef>): void => {
-    patchElement(elementId, { boxShadows: next });
-  };
-
-  const updateRow = (idx: number, patch: Partial<BoxShadowDef>): void => {
-    setShadows(shadows.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
-  };
-
-  const removeRow = (idx: number): void => {
-    setShadows(shadows.filter((_, i) => i !== idx));
-  };
-
-  const addRow = (): void => {
-    setShadows([...shadows, { ...DEFAULT_NEW_SHADOW }]);
-  };
 
   return (
     <Section
@@ -67,41 +59,29 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
       collapsible
       defaultOpen={shadows.length > 0}
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={['boxShadows']}
       cssProperties={['box-shadow']}
     >
-      {shadows.length === 0 && (
-        <div className={sectionStyles.row}>
-          <span
-            className={sectionStyles.rowLabel}
-            data-testid="shadows-empty"
-          >
-            None
-          </span>
-        </div>
-      )}
+      {shadows.length === 0 && <SectionEmptyState testId="shadows-empty" />}
       {shadows.map((shadow, idx) => (
         <ShadowRow
           key={idx}
           index={idx}
           shadow={shadow}
           elementId={elementId}
-          onChange={(patch) => updateRow(idx, patch)}
-          onRemove={() => removeRow(idx)}
-          projectColors={projectColors}
-          themeTokens={themeTokens}
-          onOpenTheme={openThemePanel ?? undefined}
+          onChange={(patch) => shadowField.update(idx, patch)}
+          onRemove={() => shadowField.remove(idx)}
+          colorContext={colorContext}
         />
       ))}
       <Row label="">
-        <button
-          type="button"
-          className={sectionStyles.rowAddButton}
-          onClick={addRow}
+        <Button
+          variant="addRow"
+          onClick={() => shadowField.add({ ...DEFAULT_NEW_SHADOW })}
         >
           + Add shadow
-        </button>
+        </Button>
       </Row>
     </Section>
   );
@@ -114,9 +94,7 @@ type RowProps = {
   elementId: string;
   onChange: (patch: Partial<BoxShadowDef>) => void;
   onRemove: () => void;
-  projectColors: ReadonlyArray<string>;
-  themeTokens: ReadonlyArray<ThemeToken>;
-  onOpenTheme?: () => void;
+  colorContext: ColorPickerContext;
 };
 
 const ShadowRow = ({
@@ -125,9 +103,7 @@ const ShadowRow = ({
   elementId,
   onChange,
   onRemove,
-  projectColors,
-  themeTokens,
-  onOpenTheme,
+  colorContext,
 }: RowProps): JSX.Element => {
   return (
     <div className={styles.shadowRow}>
@@ -143,14 +119,13 @@ const ShadowRow = ({
           )}
         </span>
         <Tooltip label="Remove shadow">
-          <button
-            type="button"
-            className={sectionStyles.rowRemoveButton}
+          <Button
+            variant="removeRow"
             onClick={onRemove}
-            aria-label={`Remove shadow ${index + 1}`}
+            ariaLabel={`Remove shadow ${index + 1}`}
           >
             ×
-          </button>
+          </Button>
         </Tooltip>
       </div>
       <Row label="">
@@ -203,9 +178,7 @@ const ShadowRow = ({
           color={shadow.color}
           elementId={elementId}
           onChange={(color) => onChange({ color })}
-          projectColors={projectColors}
-          themeTokens={themeTokens}
-          onOpenTheme={onOpenTheme}
+          colorContext={colorContext}
         />
       </Row>
     </div>
@@ -217,9 +190,7 @@ type ColorRowProps = {
   /** Element id for the picker's history entry tag. */
   elementId: string;
   onChange: (next: string) => void;
-  projectColors: ReadonlyArray<string>;
-  themeTokens: ReadonlyArray<ThemeToken>;
-  onOpenTheme?: () => void;
+  colorContext: ColorPickerContext;
 };
 
 /**
@@ -236,9 +207,7 @@ const ShadowColorRow = ({
   color,
   elementId,
   onChange,
-  projectColors,
-  themeTokens,
-  onOpenTheme,
+  colorContext,
 }: ColorRowProps): JSX.Element => {
   const split = splitShadowColor(color);
   const opacityPercent = Math.round(split.alpha * 100);
@@ -274,9 +243,9 @@ const ShadowColorRow = ({
         onChange={handleColorChange}
         historyElementId={elementId}
         historyPropertyKey="boxShadows"
-        presetColors={projectColors.length > 0 ? projectColors : undefined}
-        tokens={themeTokens}
-        onOpenTheme={onOpenTheme}
+        presetColors={colorContext.presetColors}
+        tokens={colorContext.themeTokens}
+        onOpenTheme={colorContext.onOpenTheme}
         disableAlpha
       />
       <NumberInput

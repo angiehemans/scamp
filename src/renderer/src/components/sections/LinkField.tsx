@@ -438,6 +438,8 @@ const WrappedHint = ({
   const href = parent.attributes?.href ?? '';
   return (
     <Row label="Link to">
+      {/* Raw <button>: a custom icon+code hint row (select the wrapping
+          link), not a labeled action — not a controls/Button case. */}
       <button
         type="button"
         className={styles.wrappedHint}

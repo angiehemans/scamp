@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useListField } from '@store/hooks/useListField';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { TransitionDef } from '@lib/element';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
-import sectionStyles from './Section.module.css';
+import { SectionEmptyState } from './SectionEmptyState';
 
 type Props = {
   elementId: string;
@@ -62,17 +64,19 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
   const [unitState, setUnitState] = useState<
     Record<number, { duration: TimeUnit; delay: TimeUnit }>
   >({});
-  const groupToggle = useGroupToggle(elementId, 'transitions');
+  // Hide the eye when no transitions are defined (or already off).
+  const groupToggle = useGroupToggle(
+    elementId,
+    'transitions',
+    (element?.transitions.length ?? 0) > 0
+  );
+  const transitionsField = useListField<TransitionDef>(
+    () => element?.transitions ?? [],
+    (next) => patchElement(elementId, { transitions: next })
+  );
 
   if (!element) return null;
   const transitions: ReadonlyArray<TransitionDef> = element.transitions;
-  // Hide the eye when no transitions are defined (or already off).
-  const effectiveGroupToggle =
-    transitions.length > 0 || !groupToggle.isOn ? groupToggle : undefined;
-
-  const setTransitions = (next: ReadonlyArray<TransitionDef>): void => {
-    patchElement(elementId, { transitions: next });
-  };
 
   const unitFor = (idx: number): { duration: TimeUnit; delay: TimeUnit } =>
     unitState[idx] ?? { duration: 'ms', delay: 'ms' };
@@ -81,13 +85,11 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
     setUnitState((prev) => ({ ...prev, [idx]: { ...unitFor(idx), [axis]: unit } }));
   };
 
-  const updateRow = (idx: number, patch: Partial<TransitionDef>): void => {
-    const next = transitions.map((t, i) => (i === idx ? { ...t, ...patch } : t));
-    setTransitions(next);
-  };
-
+  // Wraps the shared remove to also drop the row's per-row unit state,
+  // which is keyed by index and would otherwise leak onto the row that
+  // shifts into this slot.
   const removeRow = (idx: number): void => {
-    setTransitions(transitions.filter((_, i) => i !== idx));
+    transitionsField.remove(idx);
     setUnitState((prev) => {
       const copy = { ...prev };
       delete copy[idx];
@@ -96,13 +98,12 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
   };
 
   const addRow = (): void => {
-    const seed: TransitionDef = {
+    transitionsField.add({
       property: 'all',
       durationMs: 200,
       easing: 'ease',
       delayMs: 0,
-    };
-    setTransitions([...transitions, seed]);
+    });
   };
 
   return (
@@ -111,35 +112,27 @@ export const TransitionsSection = ({ elementId }: Props): JSX.Element | null => 
       collapsible
       defaultOpen={transitions.length > 0}
       elementId={elementId}
-      groupToggle={effectiveGroupToggle}
+      groupToggle={groupToggle}
       fields={['transitions']}
       cssProperties={['transition']}
     >
       {transitions.length === 0 && (
-        <div className={sectionStyles.row}>
-          <span className={sectionStyles.rowLabel} data-testid="transitions-empty">
-            None
-          </span>
-        </div>
+        <SectionEmptyState testId="transitions-empty" />
       )}
       {transitions.map((t, idx) => (
         <TransitionRow
           key={idx}
           transition={t}
           unit={unitFor(idx)}
-          onChange={(patch) => updateRow(idx, patch)}
+          onChange={(patch) => transitionsField.update(idx, patch)}
           onUnitChange={(axis, unit) => setUnit(idx, axis, unit)}
           onRemove={() => removeRow(idx)}
         />
       ))}
       <Row label="">
-        <button
-          type="button"
-          className={sectionStyles.rowAddButton}
-          onClick={addRow}
-        >
+        <Button variant="addRow" onClick={addRow}>
           + Add transition
-        </button>
+        </Button>
       </Row>
     </Section>
   );
@@ -192,14 +185,9 @@ const TransitionRow = ({
           title="Property"
         />
         <Tooltip label="Remove transition">
-          <button
-            type="button"
-            className={sectionStyles.rowRemoveButton}
-            onClick={onRemove}
-            aria-label="Remove transition"
-          >
+          <Button variant="removeRow" onClick={onRemove} ariaLabel="Remove transition">
             ×
-          </button>
+          </Button>
         </Tooltip>
       </Row>
       <Row label="">

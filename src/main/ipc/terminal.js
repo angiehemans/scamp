@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain } from 'electron';
 import * as pty from 'node-pty';
 import { IPC } from '@shared/ipcChannels';
 import { readForeground, shellBaseName, supportsForegroundDetection, } from './terminalForeground';
+import { assertInsideActiveProject } from './pathContainment';
 // In dev we allow more concurrent ptys than the user can actually open
 // from the UI (MAX_TABS = 3). HMR re-mounts TerminalView without always
 // running its cleanup, so orphaned ptys stack up across reloads until
@@ -29,6 +30,9 @@ const findWindow = () => {
     return wins[0] ?? null;
 };
 const createTerminal = (args) => {
+    // Pin the shell's working directory to the active project. Without this
+    // a compromised renderer could spawn a shell anywhere on disk.
+    const cwd = assertInsideActiveProject(args.cwd);
     if (terminals.size >= MAX_TERMINALS) {
         // Log loudly so the dev knows orphans piled up — not just a quiet
         // IPC rejection in the renderer console.
@@ -41,7 +45,7 @@ const createTerminal = (args) => {
         name: 'xterm-256color',
         cols: Math.max(args.cols, 1),
         rows: Math.max(args.rows, 1),
-        cwd: args.cwd,
+        cwd,
         env: { ...process.env, TERM: 'xterm-256color' },
     });
     proc.onData((data) => {

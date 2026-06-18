@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import { errorMessage } from '@shared/errorMessage';
 import { allocateFreePort } from './portAlloc';
 import { detectReady } from './readyDetector';
 /** Cap on log lines kept per server so memory doesn't grow without bound. */
@@ -208,7 +209,7 @@ export const ensureDevServer = async (projectPath) => {
             await startNextDev(entry);
         }
         catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
+            const message = errorMessage(err);
             appendLog(entry, message);
             // startNextDev / runNpmInstall already set crashed status on
             // failure; this catch is defensive.

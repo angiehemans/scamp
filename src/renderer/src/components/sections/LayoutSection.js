@@ -122,7 +122,7 @@ export const LayoutSection = ({ elementId }) => {
     if (element.visibilityMode === 'none') {
         return (_jsx(Section, { title: "Layout", children: _jsx("div", { style: {
                     fontSize: 12,
-                    color: '#888',
+                    color: 'var(--text-secondary)',
                     padding: '8px 0',
                     lineHeight: 1.4,
                 }, children: "Layout is disabled while Visibility is set to None \u2014 the element is removed from the page." }) }));

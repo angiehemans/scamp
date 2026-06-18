@@ -6,6 +6,7 @@ import {
   type AttributeSpec,
 } from '@lib/elementTags';
 import type { ScampElement, SelectOption } from '@lib/element';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { LinkField } from './LinkField';
@@ -210,6 +211,8 @@ const SelectOptionsEditor = ({ elementId, element }: EditorProps): JSX.Element =
             placeholder="label"
             onCommit={(next) => patchOption(idx, { label: next })}
           />
+          {/* Raw <button>: a toggle pill (selected/unselected), not a
+              labeled action — controls/Button has no toggle variant. */}
           <button
             type="button"
             className={`${styles.pill} ${opt.selected ? styles.pillActive : ''}`}
@@ -218,19 +221,18 @@ const SelectOptionsEditor = ({ elementId, element }: EditorProps): JSX.Element =
           >
             ✓
           </button>
-          <button
-            type="button"
-            className={styles.iconButton}
+          <Button
+            variant="removeRow"
             onClick={() => removeOption(idx)}
-            aria-label="Remove option"
+            ariaLabel="Remove option"
           >
             ×
-          </button>
+          </Button>
         </div>
       ))}
-      <button type="button" className={styles.addRow} onClick={addOption}>
+      <Button variant="addRow" onClick={addOption}>
         + Add option
-      </button>
+      </Button>
     </div>
   );
 };

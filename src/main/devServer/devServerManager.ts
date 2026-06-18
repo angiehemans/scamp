@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { DevServerStatus } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import { allocateFreePort } from './portAlloc';
 import { detectReady } from './readyDetector';
 
@@ -227,7 +228,7 @@ export const ensureDevServer = async (projectPath: string): Promise<DevServerSta
       }
       await startNextDev(entry);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       appendLog(entry, message);
       // startNextDev / runNpmInstall already set crashed status on
       // failure; this catch is defensive.

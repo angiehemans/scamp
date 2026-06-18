@@ -2,22 +2,11 @@ import { app, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
-import { normalizeRecentProjectEntry } from '@shared/recentProjectNormalize';
-const MAX_RECENT = 5;
+import { parseRecentStore, upsertRecent, setRecentFormat, removeRecentByPath, } from './recentProjectsOps';
 const storePath = () => join(app.getPath('userData'), 'recentProjects.json');
 const readStore = async () => {
     try {
-        const raw = await fs.readFile(storePath(), 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object' && 'recentProjects' in parsed) {
-            const list = parsed.recentProjects;
-            if (Array.isArray(list)) {
-                return list
-                    .map(normalizeRecentProjectEntry)
-                    .filter((e) => e !== null);
-            }
-        }
-        return [];
+        return parseRecentStore(await fs.readFile(storePath(), 'utf-8'));
     }
     catch {
         return [];
@@ -28,17 +17,12 @@ const writeStore = async (list) => {
 };
 export const addRecentProject = async (project) => {
     const list = await readStore();
-    const filtered = list.filter((p) => p.path !== project.path);
-    const next = [
-        {
-            name: project.name,
-            path: project.path,
-            format: project.format,
-            lastOpened: new Date().toISOString(),
-        },
-        ...filtered,
-    ].slice(0, MAX_RECENT);
-    await writeStore(next);
+    await writeStore(upsertRecent(list, {
+        name: project.name,
+        path: project.path,
+        format: project.format,
+        lastOpened: new Date().toISOString(),
+    }));
 };
 /**
  * Update the format of a recent-projects entry in place. Called after
@@ -46,13 +30,11 @@ export const addRecentProject = async (project) => {
  * correct format without a re-detect.
  */
 export const updateRecentProjectFormat = async (path, format) => {
-    const list = await readStore();
-    const next = list.map((p) => p.path === path ? { ...p, format } : p);
-    await writeStore(next);
+    await writeStore(setRecentFormat(await readStore(), path, format));
 };
 const getWithExistence = async () => {
     const list = await readStore();
-    const checked = await Promise.all(list.map(async (p) => {
+    return Promise.all(list.map(async (p) => {
         try {
             const stat = await fs.stat(p.path);
             return { ...p, exists: stat.isDirectory() };
@@ -61,11 +43,9 @@ const getWithExistence = async () => {
             return { ...p, exists: false };
         }
     }));
-    return checked;
 };
 const removeRecentProject = async (path) => {
-    const list = await readStore();
-    await writeStore(list.filter((p) => p.path !== path));
+    await writeStore(removeRecentByPath(await readStore(), path));
 };
 export const registerRecentProjectsIpc = () => {
     ipcMain.handle(IPC.RecentProjectsGet, () => getWithExistence());

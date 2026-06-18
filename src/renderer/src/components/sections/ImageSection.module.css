@@ -14,21 +14,6 @@
   white-space: nowrap;
 }
 
-.replaceBtn {
-  padding: 2px 8px;
-  font-size: 10px;
-  background: var(--bg-hover);
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.replaceBtn:hover {
-  background: #363636;
-}
-
 .altInput {
   width: 100%;
   padding: 3px 6px;

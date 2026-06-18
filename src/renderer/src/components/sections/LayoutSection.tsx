@@ -167,7 +167,7 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
         <div
           style={{
             fontSize: 12,
-            color: '#888',
+            color: 'var(--text-secondary)',
             padding: '8px 0',
             lineHeight: 1.4,
           }}

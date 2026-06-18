@@ -1,12 +1,15 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useListField } from '@store/hooks/useListField';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { FILTER_DEFAULTS, FILTER_KINDS, FILTER_LABELS, FILTER_RANGES, FILTER_UNITS, } from '@lib/filterKinds';
+import { Button } from '../controls/Button';
 import { EnumSelect } from '../controls/EnumSelect';
 import { NumberInput } from '../controls/NumberInput';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
+import { SectionEmptyState } from './SectionEmptyState';
 import sectionStyles from './Section.module.css';
 import styles from './FiltersSection.module.css';
 const KIND_OPTIONS = FILTER_KINDS.map((kind) => ({ value: kind, label: FILTER_LABELS[kind] }));
@@ -32,42 +35,27 @@ const KIND_TOOLTIPS = {
 export const FiltersSection = ({ elementId }) => {
     const element = useResolvedElement(elementId);
     const patchElement = useCanvasStore((s) => s.patchElement);
-    const groupToggle = useGroupToggle(elementId, 'filters');
+    // Hide the eye when no filters are defined (or already off).
+    const groupToggle = useGroupToggle(elementId, 'filters', (element?.filters.length ?? 0) > 0 ||
+        (element?.backdropFilters.length ?? 0) > 0);
+    const filtersField = useListField(() => element?.filters ?? [], (next) => patchElement(elementId, { filters: next }));
+    const backdropField = useListField(() => element?.backdropFilters ?? [], (next) => patchElement(elementId, { backdropFilters: next }));
     if (!element)
         return null;
     const filters = element.filters;
     const backdropFilters = element.backdropFilters;
-    // Hide the eye when no filters are defined (or already off).
-    const effectiveGroupToggle = filters.length > 0 || backdropFilters.length > 0 || !groupToggle.isOn
-        ? groupToggle
-        : undefined;
     // The backdrop subsection is gated behind a session-local toggle so
     // the common case stays compact. Once the user adds a row the
     // toggle implicitly flips on; we also reflect any pre-existing
     // backdrop list via the initial state.
     const [backdropOpen, setBackdropOpen] = useState(backdropFilters.length > 0);
-    const setFilters = (next) => {
-        patchElement(elementId, { filters: next });
-    };
-    const setBackdrop = (next) => {
-        patchElement(elementId, { backdropFilters: next });
-    };
-    const updateRow = (list, setter) => (idx, patch) => {
-        setter(list.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
-    };
-    const removeRow = (list, setter) => (idx) => {
-        setter(list.filter((_, i) => i !== idx));
-    };
-    const addRowTo = (list, setter) => () => {
-        setter([...list, makeFilter('blur')]);
-    };
     const handleBackdropToggle = (next) => {
         setBackdropOpen(next);
         if (!next && backdropFilters.length > 0) {
-            setBackdrop([]);
+            patchElement(elementId, { backdropFilters: [] });
         }
     };
-    return (_jsxs(Section, { title: "Filters", collapsible: true, defaultOpen: filters.length > 0 || backdropFilters.length > 0, elementId: elementId, groupToggle: effectiveGroupToggle, fields: ['filters', 'backdropFilters'], cssProperties: ['filter', 'backdrop-filter'], children: [filters.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: sectionStyles.rowLabel, "data-testid": "filters-empty", children: "None" }) })), filters.map((filter, idx) => (_jsx(FilterRow, { index: idx, filter: filter, onChange: (patch) => updateRow(filters, setFilters)(idx, patch), onRemove: () => removeRow(filters, setFilters)(idx) }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRowTo(filters, setFilters), children: "+ Add filter" }) }), _jsx("div", { className: styles.backdropDivider }), _jsxs("div", { className: styles.backdropHeader, children: [_jsx("span", { className: styles.backdropTitle, children: "Backdrop filter" }), _jsx(Tooltip, { label: "Backdrop filter applies effects to content behind this element. Requires a partially transparent background to be visible.", children: _jsxs("label", { className: styles.backdropToggle, children: [_jsx("input", { type: "checkbox", checked: backdropOpen, onChange: (e) => handleBackdropToggle(e.target.checked) }), _jsx("span", { children: "Enable" })] }) })] }), backdropOpen && (_jsxs(_Fragment, { children: [backdropFilters.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: styles.backdropHint, children: "Requires partially transparent background to be visible." }) })), backdropFilters.map((filter, idx) => (_jsx(FilterRow, { index: idx, filter: filter, onChange: (patch) => updateRow(backdropFilters, setBackdrop)(idx, patch), onRemove: () => removeRow(backdropFilters, setBackdrop)(idx) }, idx))), _jsx(Row, { label: "", children: _jsx("button", { type: "button", className: sectionStyles.rowAddButton, onClick: addRowTo(backdropFilters, setBackdrop), children: "+ Add backdrop filter" }) })] }))] }));
+    return (_jsxs(Section, { title: "Filters", collapsible: true, defaultOpen: filters.length > 0 || backdropFilters.length > 0, elementId: elementId, groupToggle: groupToggle, fields: ['filters', 'backdropFilters'], cssProperties: ['filter', 'backdrop-filter'], children: [filters.length === 0 && _jsx(SectionEmptyState, { testId: "filters-empty" }), filters.map((filter, idx) => (_jsx(FilterRow, { index: idx, filter: filter, onChange: (patch) => filtersField.update(idx, patch), onRemove: () => filtersField.remove(idx) }, idx))), _jsx(Row, { label: "", children: _jsx(Button, { variant: "addRow", onClick: () => filtersField.add(makeFilter('blur')), children: "+ Add filter" }) }), _jsx("div", { className: styles.backdropDivider }), _jsxs("div", { className: styles.backdropHeader, children: [_jsx("span", { className: styles.backdropTitle, children: "Backdrop filter" }), _jsx(Tooltip, { label: "Backdrop filter applies effects to content behind this element. Requires a partially transparent background to be visible.", children: _jsxs("label", { className: styles.backdropToggle, children: [_jsx("input", { type: "checkbox", checked: backdropOpen, onChange: (e) => handleBackdropToggle(e.target.checked) }), _jsx("span", { children: "Enable" })] }) })] }), backdropOpen && (_jsxs(_Fragment, { children: [backdropFilters.length === 0 && (_jsx("div", { className: sectionStyles.row, children: _jsx("span", { className: styles.backdropHint, children: "Requires partially transparent background to be visible." }) })), backdropFilters.map((filter, idx) => (_jsx(FilterRow, { index: idx, filter: filter, onChange: (patch) => backdropField.update(idx, patch), onRemove: () => backdropField.remove(idx) }, idx))), _jsx(Row, { label: "", children: _jsx(Button, { variant: "addRow", onClick: () => backdropField.add(makeFilter('blur')), children: "+ Add backdrop filter" }) })] }))] }));
 };
 const FilterRow = ({ index, filter, onChange, onRemove, }) => {
     const unit = FILTER_UNITS[filter.kind];
@@ -78,5 +66,5 @@ const FilterRow = ({ index, filter, onChange, onRemove, }) => {
         // from blur(50px) to brightness should not produce brightness(50%).
         onChange({ kind: next, value: FILTER_DEFAULTS[next] });
     };
-    return (_jsxs("div", { className: styles.filterRow, children: [_jsxs("div", { className: styles.rowHeader, children: [_jsxs("span", { className: styles.rowTitle, children: ["Filter ", index + 1] }), _jsx(Tooltip, { label: `Remove filter ${index + 1}`, children: _jsx("button", { type: "button", className: sectionStyles.rowRemoveButton, onClick: onRemove, "aria-label": `Remove filter ${index + 1}`, children: "\u00D7" }) })] }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: filter.kind, options: KIND_OPTIONS, onChange: handleKindChange, title: KIND_TOOLTIPS[filter.kind] }), _jsx(NumberInput, { suffix: unit, title: KIND_TOOLTIPS[filter.kind], value: filter.value, onChange: (value) => value !== undefined && onChange({ value }), min: range.min, max: range.max })] })] }));
+    return (_jsxs("div", { className: styles.filterRow, children: [_jsxs("div", { className: styles.rowHeader, children: [_jsxs("span", { className: styles.rowTitle, children: ["Filter ", index + 1] }), _jsx(Tooltip, { label: `Remove filter ${index + 1}`, children: _jsx(Button, { variant: "removeRow", onClick: onRemove, ariaLabel: `Remove filter ${index + 1}`, children: "\u00D7" }) })] }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: filter.kind, options: KIND_OPTIONS, onChange: handleKindChange, title: KIND_TOOLTIPS[filter.kind] }), _jsx(NumberInput, { suffix: unit, title: KIND_TOOLTIPS[filter.kind], value: filter.value, onChange: (value) => value !== undefined && onChange({ value }), min: range.min, max: range.max })] })] }));
 };

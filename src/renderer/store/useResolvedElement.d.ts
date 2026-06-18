@@ -37,12 +37,20 @@ export declare const useBreakpointOverrideFields: (elementId: string | null) => 
 export declare const useStateOverrideFields: (elementId: string | null) => ReadonlySet<keyof StateOverride>;
 /**
  * Hook returning the `groupToggle` prop for a section's
- * property-group eye button. Reads the raw element's
- * `toggledOffGroups` and exposes a stable `onChange` bound to the
- * canvas slice action. Element-scoped — independent of the active
- * breakpoint / state.
+ * property-group eye button, or `undefined` when the eye should be
+ * hidden. Reads the raw element's `toggledOffGroups` and exposes a
+ * stable `onChange` bound to the canvas slice action. Element-scoped —
+ * independent of the active breakpoint / state.
+ *
+ * `hasContent` is whether the group currently has anything to hide
+ * (e.g. a shadow defined, a non-default border). The visibility rule
+ * — previously duplicated in every section as
+ * `hasContent || !isOn ? groupToggle : undefined` — lives here now:
+ * the eye is hidden only when there's nothing to hide AND the group
+ * is already on; while off it stays visible so the user can turn the
+ * (empty) group back on without first re-adding a value.
  */
-export declare const useGroupToggle: (elementId: string, group: PropertyGroup) => {
+export declare const useGroupToggle: (elementId: string, group: PropertyGroup, hasContent: boolean) => {
     isOn: boolean;
     onChange: (on: boolean) => void;
-};
+} | undefined;

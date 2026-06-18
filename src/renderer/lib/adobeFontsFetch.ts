@@ -13,6 +13,8 @@
  * `{ ok: false, error }` rather than throwing.
  */
 
+import { errorMessage } from '@shared/errorMessage';
+
 export type AdobeFetchResult =
   | { ok: true; families: string[] }
   | { ok: false; error: string };
@@ -30,7 +32,7 @@ export const fetchAdobeKitFamilies = async (
   try {
     response = await fetch(url, { cache: 'no-cache' });
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errorMessage(e);
     return {
       ok: false,
       error: `Couldn't reach Adobe Fonts (${message}).`,
@@ -48,7 +50,7 @@ export const fetchAdobeKitFamilies = async (
   try {
     body = await response.text();
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errorMessage(e);
     return {
       ok: false,
       error: `Couldn't read the kit's CSS (${message}).`,

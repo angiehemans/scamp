@@ -21,8 +21,13 @@ import {
   updatePreviewWindow,
 } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
-import { initWatcher, disposeWatcher } from './watcher';
-import { initSentryIfOptedIn, setSentryEnabled } from './sentry';
+import { initWatcher, disposeWatcher, getWatchedPath } from './watcher';
+import { resolveInsideProject } from './ipc/pathContainment';
+import {
+  initSentryIfOptedIn,
+  setSentryEnabled,
+  setSentryProjectRoot,
+} from './sentry';
 import { buildApplicationMenu } from './menu';
 import { fixPathFromLoginShell } from './fixPath';
 
@@ -91,7 +96,15 @@ const createWindow = (): void => {
     backgroundColor: '#1a1a1a',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      // OS-level renderer isolation, on top of contextIsolation +
+      // nodeIntegration:false. The main preload is a pure
+      // contextBridge/ipcRenderer bridge AND is built as a single
+      // self-contained CJS file (no `require("./chunks/…")`) — a
+      // sandboxed preload can only require `electron`, so the inline of
+      // `@shared/ipcChannels` in electron.vite.config.ts
+      // (inlinePreloadSharedConstants) is what makes this safe.
+      // See docs/notes/sandbox-tradeoffs.md.
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -175,7 +188,21 @@ app.whenReady().then(() => {
     // Parse with URL to get a correctly decoded pathname.
     const parsed = new URL(request.url);
     const filePath = decodeURIComponent(parsed.pathname);
-    return net.fetch(`file://${filePath}`);
+    // Assets live inside the open project (copyImage writes them there).
+    // Contain the path to the active project root so a forged URL like
+    // `scamp-asset://localhost/etc/passwd` can't exfiltrate arbitrary
+    // files; serve a 404 instead.
+    const projectRoot = getWatchedPath();
+    if (projectRoot === null) {
+      return new Response(null, { status: 404 });
+    }
+    let resolved: string;
+    try {
+      resolved = resolveInsideProject(filePath, projectRoot);
+    } catch {
+      return new Response(null, { status: 404 });
+    }
+    return net.fetch(`file://${resolved}`);
   });
 
   registerProjectIpc();
@@ -232,6 +259,7 @@ app.whenReady().then(() => {
  */
 const performShutdownCleanup = async (): Promise<void> => {
   disposeWatcher();
+  setSentryProjectRoot(null);
   closeAllPreviewWindows();
   await Promise.all([disposeAllTerminals(), stopAllDevServers()]);
 };

@@ -14,6 +14,8 @@ _Phased rollout of the work surfaced in `docs/code-quality-review.md`. Phases ar
 
 ## Phase 1 — Quick wins (low risk, high readability)
 
+> **Status: ✅ COMPLETE (2026-06-09).** All 10 tasks done; full typecheck (node + web) and the 1441-test suite pass. New tested helpers: `@shared/errorMessage`, `@lib/safeAccess`. New notes: `docs/notes/{save-status-machine,round-trip-contract,history-coverage}.md`. New component: `ParseErrorBanner`. Note: several source line refs below were stale (the codebase had shifted) — 1.1 was already resolved in a prior session, and the `!`-assertion set in 1.8 was larger than listed. Changes are staged in the working tree on `release-0-3-5`, not yet committed/split into PRs.
+
 **Goal:** Pay down the cheap stuff first. Most of these are <1 hour each, lots of which are docs or 5-line code changes. Done in a week.
 
 ### 1.1 Resolve the dangling `docs/known-issues.md` references — S, Low
@@ -106,6 +108,8 @@ CLAUDE.md forbids `!`. Violations:
 
 ## Phase 2 — Security hardening (defense in depth)
 
+> **Status: ✅ COMPLETE (code) — needs a manual security/regression pass before merge.** Typecheck (node + web) and the 1456-test suite pass; production build succeeds with the CSP injected into the main window only. New: `src/main/ipc/pathContainment.ts` (`resolveInsideProject` / `assertInsideActiveProject`, 9 tests), `docs/notes/sandbox-tradeoffs.md`. Key design deltas from the plan, all because the plan's uniform "containment everywhere" would have broken legitimate flows: **(a)** the active project root is sourced from the watcher's `watchedPath` (main-tracked, fail-closed) — validating a renderer path against a renderer-supplied root gives no protection; **(b)** export writes to a dialog-chosen path (anywhere the user picks), so it's guarded by a session allowlist of dialog-approved paths, not project containment; **(c)** image *source* is a user-chosen file (left uncontained); only the copy *destination* (`projectPath`) is; **(d)** the CSP ships as a build-time `<meta>` (prod only, main window only) via a `transformIndexHtml` hook, not a static tag — a static strict CSP breaks Vite dev HMR, and a global session header would break the preview window's `<webview>`; **(e)** 2.7 flipped sandbox on the **main window only** — preview deferred (webview interaction needs runtime verification, documented in the note). **Manual pass still required** (the plan flagged this): exercise file save, theme/config write, image insert, export, terminal, fonts, preview, and a packaged sandbox run; confirm no CSP console violations.
+
 **Goal:** No known exploitable issues today; close the easy defense-in-depth gaps so a future renderer-side bug doesn't escalate.
 
 **Depends on:** Phase 1 is independent; you can do Phase 2 in parallel. But these need careful manual testing because they restrict things that currently work.
@@ -180,6 +184,8 @@ Apply at the top of every handler in:
 ---
 
 ## Phase 3 — Reuse and consolidation (no behaviour changes)
+
+> **Status: ✅ COMPLETE (committed `f3ccb51`; raw-button exceptions documented later).** 3.1 `useColorPickerContext`, 3.2 `useGroupToggle` (in `store/useResolvedElement.ts` — centralizes the `hasContent || !isOn` gating; used by all 7 group sections), 3.3 `useListField`, 3.4 `patchCustomProperties` (now on the `elementsEdit` slice), 3.6 `<SectionEmptyState>`, 3.7 `ErrorBoundary` hex, 3.8 `SegmentedControl` discriminated union, 3.9 `Record<string, unknown>` casts removed, 3.10 `exhaustive-deps` suppressions removed (`ProjectShell` was later fully rewritten in 5.2). **3.5** — all labeled / row-action buttons migrated to `controls/Button` (9 sections) and the old `rowAddButton` / `rowRemoveButton` CSS deleted. The ~6 raw `<button>`s that remain are intentional special-purpose widgets `Button` deliberately doesn't model — `aria-pressed` toggles, an `aria-expanded` disclosure + `role="menuitemradio"` menu, a 3×3 anchor-picker grid, a custom hint row, and the `Section` chrome — each now carries an inline comment justifying it.
 
 **Goal:** Reduce duplication, enforce CLAUDE.md rules, make the section files less bloated. No new features; no behaviour changes.
 
@@ -262,6 +268,8 @@ Three suppressions at lines 302, 807, 839. CLAUDE.md forbids them.
 
 ## Phase 4 — File splits (pure logic first)
 
+> **Status: ✅ COMPLETE (committed `50ee139`, `5f7f080`, `6838bc8`, `d0fe58c`).** 4.1 `@lib/elementToStyle.ts` + tests, 4.2 `lib/element/` types+tree split (barrel re-export), 4.3 `lib/parsers/` per-shorthand split, 4.4 `lib/parseCode/` split, 4.5 `lib/generateCode/` split (`generateCodeLegacy` deleted per resolved-decision #4), 4.6 `agentMd.ts` → `shared/templates/`, 4.7 ipc `*Ops.ts` pattern (every `src/main/ipc/*.ts` has an `Ops` sibling).
+
 **Goal:** Break up the easier-to-split monoliths (the pure-logic ones), where the seams are already obvious. Defer the React + store splits to Phase 5.
 
 **Depends on:** Phase 1 docs make this easier to navigate, but not strictly required.
@@ -316,6 +324,15 @@ The pattern is half-applied. Clean pairs: `component.ts`/`componentOps.ts`, `pag
 ---
 
 ## Phase 5 — The big refactors (highest risk, biggest payoff)
+
+> **Status: ✅ COMPLETE (2026-06-18).** All five tasks landed across `f4c4f93`, `80bc2ab`, `253ff17` (5.1), `d8633cd`→`217de72` (5.2, 9 commits), `0d9d7b4`+`825d6e9` (5.3), `da85d33`+`e7e76ef` (5.4), `0e7d609` (5.5):
+> - **5.1** `canvasSlice.ts` 2277 → 674; 7 domain slices via Zustand `StateCreator` + `Pick<CanvasState>` (largest 709). `selectProjectColors` → `@lib/projectColors.ts`. No `@store/` file >800.
+> - **5.2** `ProjectShell.tsx` 2254 → 465 — a layout shell composing `ProjectHeader` / `PageSidebar` / `ComponentSidebar` / `CanvasArea` / `ProjectModals` + 10 hooks under `components/projectShell/`.
+> - **5.3** `CanvasInteractionLayer.tsx` 874 → 259 — per-tool hooks under `canvas/interactions/` (`useDraw/Move/Resize/Reorder/DropInsert`), each <250; pure `canvasHitTest` + `useCanvasGeometry`.
+> - **5.4** `syncBridge.ts` 993 → 192 + the deep `initSyncBridge` split — mutable save cache lifted into a `SaveContext` threaded through 8 handler files; no file in `syncBridge/` >400 (largest 242).
+> - **5.5** history-coverage audit + locked-in prop-override undo test (`test/historyPropOverride.test.ts`).
+>
+> Full typecheck (node + web) clean; **1509 unit + 148 integration tests pass**. **CAVEAT:** 5.2 / 5.3 / 5.4 are runtime-heavy (canvas pointer interaction + the live save pipeline) and not exercised end-to-end by the automated suite — logic was moved verbatim and typechecked, but a **manual smoke test** of the canvas (draw / move / resize / reorder / drag-drop) and save flows (edit+save, external/agent edit, page-swap mid-edit, conflict) is advisable before a release.
 
 **Goal:** Split the two files that drive the bulk of merge-conflict pain: `canvasSlice.ts` and `ProjectShell.tsx`. Plus the canvas interaction layer and sync bridge.
 
@@ -413,10 +430,18 @@ Per Phase 1.5's history-coverage doc: identify mutations that should push but do
 
 ---
 
-## Open questions for your review
+## Resolved decisions
 
-1. **Phase 2.7 (sandbox: true) risk tolerance:** comfortable doing this in a release branch with a manual test pass, or do you want a feature-flag rollout?
-2. **Phase 5.1 (canvasSlice split) approach:** one big PR with `combine()`, or incremental migration with both old and new slices coexisting?
-3. **Phase 5.2 (ProjectShell split) timing:** before or after a major feature freeze? It will create merge conflict pain for anyone with in-flight branches.
-4. **`generateCodeLegacy`:** keep or delete? (Affects Phase 4.5 scope.)
-5. **`agent.md` overwrite behaviour (review §3 moderate):** opt-out via `scamp.config.json`, or stay as-is and document?
+_Reviewed 2026-06-05. Each open question was checked against the code; conclusions below._
+
+1. **Phase 2.7 (sandbox: true): release branch + manual test pass, no feature flag.** Both preloads (`src/preload/index.ts`, `src/preload/preview.ts`) are pure `contextBridge` + `ipcRenderer` bridges with zero direct Node usage — all Node work (terminal/node-pty, file IO, watcher) is already in main. That's the configuration where `sandbox: true` is a near-no-op, so the one-line flip in `src/main/index.ts:94` and `src/main/previewWindow.ts:126` doesn't warrant a flag. Watch one thing during the manual pass: the sandboxed preload must stay CommonJS-compatible (only imports `electron` + a type-only `@shared` import today, so it's fine).
+
+2. **Phase 5.1 (canvasSlice split): one PR with `combine()`, NOT coexistence.** Today the store is a single monolithic `create<CanvasState>()((set) => ({...}))` (`canvasSlice.ts:912`, ~2200 lines, 44 consumers) — not yet using `combine()`. Coexisting old+new slices would create two sources of truth for element/selection state and require sync glue (worse than the split). `combine()` preserves the `useCanvasStore(selector)` public API, so consumer blast radius is zero if selectors stay stable. De-risk inside the branch: commit 1 mechanically extracts each domain into its own slice-creator module (pure move, shape unchanged); commit 2 wires them with `combine()`.
+
+3. **Phase 5.2 (ProjectShell split): incremental, no feature freeze.** §5.2 already specifies leaf-to-root, one hook/component per PR — done that way each PR is small and the merge-conflict warning only applies to a big-bang approach. Sequence the self-contained leaf extractions first (`useFontLinkReconciler`, `useComponentTreeCache`, `useNavigationRequests`); save the big handler blocks (`<PageSidebar>` 852-950, `<ComponentSidebar>` 1084-1507) for a quiet window or right after in-flight branches merge.
+
+4. **`generateCodeLegacy`: DELETE it and its test.** The only references are its own definition (`generateCode.ts:1389`), its build shims, and its dedicated test (`generateCodeImportName.test.ts`) — no app/main/renderer callsite imports it. It's a one-line wrapper kept alive only by a test for behaviour nothing depends on. The legacy *project format* still exists but is not wired to this function (its codegen path passes `cssModuleImportName` explicitly). Removing it shrinks Phase 4.5 scope — no `generateCode/legacy.ts` needed.
+
+5. **`agent.md` overwrite: ADD an opt-out via `scamp.config.json`.** `refreshManagedFile` (`projectScaffold.ts:359`) overwrites `agent.md` + `CLAUDE.md` on every open when content differs from the shipped template — silently clobbering user hand-edits to a file presented as user-facing agent instructions. The `ProjectConfig` parser (`src/shared/projectConfig.ts`) already has the exact pattern to reuse (present-when-true boolean flags like `nextjsMigrationDismissed`). Add `agentMdManaged?: boolean`; when explicitly `false`, skip the `agent.md` refresh (keep `CLAUDE.md` managed — it's the loader stub). ~10 lines following an existing pattern.
+
+**Cross-phase ordering note:** Phase 3.4 (`patchCustomProperties` action) and 3.9 (the `Record<string,unknown>` cast fixes) both touch `canvasSlice.ts`, which Phase 5.1 splits. The plan already orders 3.x before 5.1 — keep it that way so that work isn't written twice across the split.

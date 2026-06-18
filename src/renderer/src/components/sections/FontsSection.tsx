@@ -5,7 +5,9 @@ import { removeFamilyFromUrl } from '@lib/googleFontsEmbed';
 import { parseFontEmbed } from '@lib/fontEmbed';
 import { fetchAdobeKitFamilies } from '@lib/adobeFontsFetch';
 import { serializeThemeFile } from '@lib/parseTheme';
+import { errorMessage } from '@shared/errorMessage';
 import { unionFamiliesFromUrls } from '../../lib/applyThemeFonts';
+import { Button } from '../controls/Button';
 import styles from './FontsSection.module.css';
 
 type Props = {
@@ -147,7 +149,7 @@ export const FontsSection = ({ projectPath }: Props): JSX.Element => {
       await writeTheme(nextUrls);
       setDraft('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -181,7 +183,7 @@ export const FontsSection = ({ projectPath }: Props): JSX.Element => {
       setProjectFonts({ families: allFamilies, urls: nextUrls });
       await writeTheme(nextUrls);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -209,14 +211,13 @@ export const FontsSection = ({ projectPath }: Props): JSX.Element => {
           autoCapitalize="off"
           autoCorrect="off"
         />
-        <button
-          type="button"
-          className={styles.addButton}
+        <Button
+          variant="secondary"
           onClick={() => void handleAdd()}
           disabled={busy || draft.trim().length === 0}
         >
           {busy ? 'Adding…' : 'Add'}
-        </button>
+        </Button>
       </div>
       {error && <div className={styles.error}>{error}</div>}
       <div className={styles.help}>
@@ -254,15 +255,15 @@ export const FontsSection = ({ projectPath }: Props): JSX.Element => {
                     {label}
                   </span>
                 )}
-                <button
-                  type="button"
-                  className={styles.removeButton}
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => void handleRemove(row)}
                   disabled={busy}
                   title={removeTooltip(row)}
                 >
                   Remove
-                </button>
+                </Button>
               </div>
             );
           })}

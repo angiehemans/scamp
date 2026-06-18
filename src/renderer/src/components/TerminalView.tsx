@@ -2,6 +2,9 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+
+import { errorMessage } from '@shared/errorMessage';
+
 import styles from './TerminalView.module.css';
 
 type Props = {
@@ -89,7 +92,7 @@ export const TerminalView = ({ cwd, onExit }: Props): JSX.Element => {
     // cursor with no prompt and no clue why. Writing the error directly
     // into the xterm tells them what to do (reload).
     setup().catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       term.write(`\r\n\x1b[31mTerminal failed to start:\x1b[0m ${message}\r\n`);
       term.write('\x1b[2mTry reloading the window (Ctrl+R) to clear orphaned shells.\x1b[0m\r\n');
     });

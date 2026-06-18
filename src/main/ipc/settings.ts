@@ -3,48 +3,16 @@ import { promises as fs, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type { Settings } from '@shared/types';
+import { DEFAULT_SETTINGS, parseSettingsBlob } from './settingsOps';
 
 /**
  * Persistent app-level settings stored next to the recent projects list in
  * Electron's userData directory. Right now this is only the default
  * projects folder; the file format is a JSON object so we can grow it
- * without a migration.
+ * without a migration. Parsing/defaulting lives in `settingsOps.ts`.
  */
 
 const storePath = (): string => join(app.getPath('userData'), 'settings.json');
-
-const DEFAULT_SETTINGS: Settings = {
-  defaultProjectsFolder: null,
-  artboardBackground: '#0f0f0f',
-  sentryOptIn: null,
-};
-
-/**
- * Parse a Settings JSON blob with the same migration / defaulting
- * logic the async path uses. Pulled into its own pure helper so the
- * sync startup read and the async IPC read share one source of truth.
- */
-const parseSettingsBlob = (raw: string): Settings => {
-  const parsed: unknown = JSON.parse(raw);
-  if (!parsed || typeof parsed !== 'object') return { ...DEFAULT_SETTINGS };
-  const obj = parsed as Record<string, unknown>;
-  const folder = obj['defaultProjectsFolder'];
-  const artboard = obj['artboardBackground'];
-  // Migrate: old `canvasBackground` key mapped to the same concept.
-  const legacy = obj['canvasBackground'];
-  const artboardValue =
-    typeof artboard === 'string'
-      ? artboard
-      : typeof legacy === 'string'
-        ? legacy
-        : DEFAULT_SETTINGS.artboardBackground;
-  const optIn = obj['sentryOptIn'];
-  return {
-    defaultProjectsFolder: typeof folder === 'string' ? folder : null,
-    artboardBackground: artboardValue,
-    sentryOptIn: typeof optIn === 'boolean' ? optIn : null,
-  };
-};
 
 const readStore = async (): Promise<Settings> => {
   try {

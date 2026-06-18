@@ -3,6 +3,7 @@ import { Button } from './controls/Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useAppLogStore } from '@store/appLogSlice';
 import type { ProjectData } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import styles from './NextjsMigrationBanner.module.css';
 
 type Props = {
@@ -38,7 +39,7 @@ export const NextjsMigrationBanner = ({
       );
       onMigrated(result.project);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       log('error', `Migration failed: ${message}`);
     } finally {
       setMigrating(false);

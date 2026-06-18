@@ -1,5 +1,33 @@
 import { app } from 'electron';
+import { resolve } from 'path';
 import * as Sentry from '@sentry/electron/main';
+
+/**
+ * The open project's root, scrubbed from crash payloads. The username
+ * regexes below only catch `/Users/<name>` / `/home/<name>` — a project
+ * at `/opt/work/secret-client/...` would otherwise leak its full path.
+ * Set when a project opens (`setSentryProjectRoot`), cleared on close.
+ */
+let projectRootToScrub: string | null = null;
+
+/**
+ * Register (or clear, with `null`) the project root to strip from Sentry
+ * events. Stored resolved so it matches the absolute paths in stack
+ * frames and breadcrumbs.
+ */
+export const setSentryProjectRoot = (root: string | null): void => {
+  projectRootToScrub = root === null ? null : resolve(root);
+};
+
+/**
+ * Replace every occurrence of `root` in `s` with `<project>`. Literal
+ * (not regex) match so path characters need no escaping. Pure — exported
+ * for tests.
+ */
+export const scrubRoot = (
+  s: string,
+  root: string | null
+): string => (root ? s.split(root).join('<project>') : s);
 
 /**
  * Sentry crash-reporting init for Scamp's main process.
@@ -22,7 +50,10 @@ import * as Sentry from '@sentry/electron/main';
  */
 export const scrubPaths = (s: string | undefined): string | undefined => {
   if (s === undefined) return undefined;
-  return s
+  // Scrub the project root FIRST — it usually contains the home prefix
+  // (`/Users/alice/projects/secret`), so redacting the username first
+  // would stop the literal root match below.
+  return scrubRoot(s, projectRootToScrub)
     .replace(/\/Users\/[^/]+/g, '/Users/[redacted]')
     .replace(/\/home\/[^/]+/g, '/home/[redacted]')
     .replace(/C:\\Users\\[^\\]+/g, 'C:\\Users\\[redacted]');

@@ -1,0 +1,54 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
+import { useCanvasStore } from '@store/canvasSlice';
+import { ROOT_ELEMENT_ID } from '@lib/element';
+import { Viewport } from '@renderer/src/canvas/Viewport';
+import { CanvasSizeControl } from '../CanvasSizeControl';
+import { Toolbar } from '../Toolbar';
+import styles from '../ProjectShell.module.css';
+/**
+ * The artboard column: component-editor banner + breadcrumb, the canvas
+ * size control, the scrollable Viewport, and the element toolbar. Page
+ * mode uses the project-wide canvas width; component mode uses the
+ * per-component canvas size and enables drag-handle resize.
+ */
+export const CanvasArea = ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, onOpenSettings, onOpenTheme, }) => {
+    return (_jsxs("div", { className: styles.artboard, children: [_jsx("div", { ref: artboardScrollRef, className: styles.artboardScroll, style: { backgroundColor: projectConfig.artboardBackground }, children: _jsxs("div", { className: styles.canvasContent, children: [activeComponent !== null && (_jsxs("div", { className: styles.componentEditorBanner, "data-testid": "component-editor-banner", children: [_jsxs("span", { children: ["Editing component:", ' ', _jsx("strong", { children: activeComponent.name }), ". Changes affect all instances."] }), _jsx("button", { type: "button", className: styles.componentEditorExit, onClick: onExitComponentEditor, children: "Exit" })] })), _jsxs("div", { className: styles.canvasHeader, children: [activeComponent !== null ? (
+                                // Breadcrumb: "<return page> > <component>" when
+                                // entered from a page, otherwise just the
+                                // component name. Clicking a non-current segment
+                                // navigates back to it; clicking the current
+                                // segment selects the root element same as the
+                                // page badge.
+                                _jsxs("div", { className: styles.canvasHeaderBadge, role: "navigation", "aria-label": "Component editor breadcrumb", children: [activeComponent.returnToPage !== null && (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", className: styles.canvasBreadcrumbLink, onClick: onExitComponentEditor, children: activeComponent.returnToPage }), _jsx("span", { "aria-hidden": "true", children: ' › ' })] })), _jsx("button", { type: "button", className: styles.canvasBreadcrumbCurrent, onClick: () => useCanvasStore
+                                                .getState()
+                                                .selectElement(ROOT_ELEMENT_ID), title: "Select component root", children: activeComponent.name })] })) : (_jsx("button", { type: "button", className: styles.canvasHeaderBadge, onClick: () => useCanvasStore
+                                        .getState()
+                                        .selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(CanvasSizeControl, { config: projectConfig, onChange: onProjectConfigChange, componentName: activeComponent !== null
+                                        ? activeComponent.name
+                                        : undefined })] }), _jsx(Viewport, { canvasWidth: activeComponent !== null
+                                ? (projectConfig.componentCanvas?.[activeComponent.name]
+                                    ?.width ?? DEFAULT_COMPONENT_CANVAS_SIZE.width)
+                                : projectConfig.canvasWidth, canvasHeight: activeComponent !== null
+                                ? (projectConfig.componentCanvas?.[activeComponent.name]
+                                    ?.height ?? DEFAULT_COMPONENT_CANVAS_SIZE.height)
+                                : undefined, canvasOverflowHidden: projectConfig.canvasOverflowHidden, scrollContainerRef: artboardScrollRef, 
+                            // Drag-handle resize is enabled only in component
+                            // mode; the page canvas uses the project-wide
+                            // `canvasWidth` setting (no resize handle, no
+                            // explicit height — page canvases grow with
+                            // content).
+                            onResize: activeComponent !== null
+                                ? (width, height) => {
+                                    const name = activeComponent.name;
+                                    const nextMap = {
+                                        ...(projectConfig.componentCanvas ?? {}),
+                                        [name]: { width, height },
+                                    };
+                                    onProjectConfigChange({
+                                        ...projectConfig,
+                                        componentCanvas: nextMap,
+                                    });
+                                }
+                                : undefined })] }) }), _jsx("div", { className: styles.elementToolbar, children: _jsx(Toolbar, { onOpenSettings: onOpenSettings, onOpenTheme: onOpenTheme }) })] }));
+};

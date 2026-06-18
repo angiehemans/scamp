@@ -12,6 +12,7 @@ import {
 import { createCssCompletion } from '@lib/cssCompletion';
 import type { ScampElement } from '@lib/element';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import { savePatch } from '../syncBridge';
 import styles from './PropertiesPanel.module.css';
 
@@ -134,7 +135,7 @@ export const CssPanel = (): JSX.Element => {
       setDirty(false);
       dirtyRef.current = false;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     }
   };
 

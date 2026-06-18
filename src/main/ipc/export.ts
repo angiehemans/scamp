@@ -10,11 +10,18 @@ import type {
   ExportResult,
   ExportSvgArgs,
 } from '@shared/types';
+import { EXTENSION_FOR, sanitizeFilename, decodeDataUrl } from './exportOps';
 
-const EXTENSION_FOR: Record<ExportFormat, string> = {
-  png: 'png',
-  svg: 'svg',
-};
+/**
+ * Paths the user has approved this session via the native save dialog.
+ * Export writes go to an arbitrary user-chosen location (Desktop, etc.),
+ * so project containment doesn't apply — instead the dialog is the trust
+ * boundary, and `writePng` / `writeSvg` only accept a path that came back
+ * from `chooseSavePath`. Blocks a compromised renderer from writing
+ * arbitrary files (e.g. overwriting `~/.bashrc`) by calling the export
+ * IPC directly with a forged path.
+ */
+const dialogApprovedPaths = new Set<string>();
 
 const FILTER_FOR: Record<ExportFormat, Electron.FileFilter> = {
   png: { name: 'PNG image', extensions: ['png'] },
@@ -58,23 +65,24 @@ const chooseSavePath = async (
   if (result.canceled || !result.filePath) {
     return { canceled: true, path: null };
   }
+  dialogApprovedPaths.add(path.resolve(result.filePath));
   return { canceled: false, path: result.filePath };
 };
 
-/** Strip path separators and other characters that don't belong in a filename. */
-const sanitizeFilename = (raw: string): string =>
-  raw.replace(/[\\/:*?"<>|]+/g, '').trim();
-
-/** Decode a `data:image/png;base64,…` URL into a buffer. */
-const decodeDataUrl = (dataUrl: string): Buffer => {
-  const comma = dataUrl.indexOf(',');
-  if (comma < 0) throw new Error('Malformed data URL');
-  const base64 = dataUrl.slice(comma + 1);
-  return Buffer.from(base64, 'base64');
+/**
+ * Reject an export write whose path the user didn't approve via the save
+ * dialog this session. Throws so the IPC rejects and the caller surfaces
+ * the failure.
+ */
+const assertDialogApproved = (filePath: string): void => {
+  if (!dialogApprovedPaths.has(path.resolve(filePath))) {
+    throw new Error('Export path was not approved via the save dialog.');
+  }
 };
 
 const writePng = async (args: ExportPngArgs): Promise<ExportResult> => {
   try {
+    assertDialogApproved(args.path);
     const buf = decodeDataUrl(args.dataUrl);
     await fs.writeFile(args.path, buf);
     return { ok: true };
@@ -88,6 +96,7 @@ const writePng = async (args: ExportPngArgs): Promise<ExportResult> => {
 
 const writeSvg = async (args: ExportSvgArgs): Promise<ExportResult> => {
   try {
+    assertDialogApproved(args.path);
     await fs.writeFile(args.path, args.svgString, 'utf-8');
     return { ok: true };
   } catch (err) {

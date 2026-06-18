@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useCallback, useEffect, useState } from 'react';
+import { errorMessage } from '@shared/errorMessage';
 import { basename } from '../lib/path';
 import { CreateProjectModal } from './CreateProjectModal';
 import { Tooltip } from './controls/Tooltip';
@@ -37,7 +38,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }) => {
             }
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
     };
     const handleClearDefaultFolder = async () => {
@@ -52,7 +53,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }) => {
             }
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
     };
     const handleCreateProject = async (name) => {
@@ -74,7 +75,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }) => {
             onProjectOpened(project);
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
     };
     const handleOpenRecent = async (recent) => {
@@ -86,7 +87,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }) => {
             onProjectOpened(project);
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(errorMessage(e));
         }
     };
     const handleRemoveRecent = async (path) => {

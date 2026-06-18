@@ -1,42 +1,16 @@
 import { ipcMain } from 'electron';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
-import { dirname, basename, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { patchClassBlock } from '@shared/patchClass';
 import { cancelPendingWrite, registerPendingWrite } from '../watcher';
 import { checkWriteConflict } from './fileConflict';
-const RENAME_RACE_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
-// see docs/notes/windows-rename-race.md
-const renameWithRetry = async (from, to) => {
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-        try {
-            await fs.rename(from, to);
-            return;
-        }
-        catch (err) {
-            const code = err.code ?? '';
-            if (!RENAME_RACE_CODES.has(code))
-                throw err;
-            await new Promise((r) => setTimeout(r, 20 + attempt * 30));
-        }
-    }
-    await fs.rename(from, to);
-};
-/**
- * Atomic write: write to a sibling .tmp file then rename. Prevents readers
- * (chokidar / external editors) from seeing a half-written file.
- *
- * Each write uses a unique tmp filename so concurrent writes to the same
- * target don't collide (one rename consuming the other's tmp → ENOENT).
- */
-const atomicWrite = async (path, content) => {
-    const suffix = randomBytes(4).toString('hex');
-    const tmp = join(dirname(path), `.${basename(path)}.${suffix}.tmp`);
-    await fs.writeFile(tmp, content, 'utf-8');
-    await renameWithRetry(tmp, path);
-};
+import { atomicWrite } from './fileOps';
+import { assertInsideActiveProject } from './pathContainment';
+
 const handleWrite = async (args) => {
+    assertInsideActiveProject(args.tsxPath);
+    assertInsideActiveProject(args.cssPath);
     const conflict = await checkWriteConflict(args);
     if (conflict) {
         return { ok: false, conflict };
@@ -68,6 +42,7 @@ const handleWrite = async (args) => {
  * drives the save-status indicator.
  */
 const handlePatch = async (args) => {
+    assertInsideActiveProject(args.cssPath);
     const writeId = randomUUID();
     registerPendingWrite(args.cssPath, writeId, false);
     try {

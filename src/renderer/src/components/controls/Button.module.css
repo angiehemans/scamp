@@ -70,3 +70,51 @@
 .ghost:not(:disabled):hover {
   background: var(--bg-hover);
 }
+
+/* ---------- Section row actions ----------
+   Migrated verbatim from the per-section `rowAddButton` /
+   `rowRemoveButton` rules (see 3.5). Self-contained: they set their
+   own padding / sizing and so override the size class above (source
+   order wins at equal specificity). */
+.addRow {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--border);
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.addRow:not(:disabled):hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.removeRow {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+}
+
+.removeRow:not(:disabled):hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* Transparent, error-tinted action (e.g. "Remove background image").
+   Replaces the per-section red ghost buttons; tokenized so the old
+   inline #e55 / rgba red literals are gone. Pair with size="sm". */
+.dangerGhost {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--status-error);
+}
+
+.dangerGhost:not(:disabled):hover {
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+}

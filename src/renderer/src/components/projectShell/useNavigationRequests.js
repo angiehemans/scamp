@@ -1,0 +1,30 @@
+import { useEffect } from 'react';
+import { useCanvasStore } from '@store/canvasSlice';
+/**
+ * Consumes the one-shot canvas → navigation requests the store exposes:
+ * the link indicator's page jump, and the page canvas's double-click into
+ * a component instance's editor. Both route through the same flows the
+ * sidebar uses, then clear the pending field. The component-nav effect
+ * reads `openComponent` / `activePageName` via a `useLatest` ref so it
+ * fires only when the one-shot request flips, with no stale-closure dep.
+ */
+export const useNavigationRequests = (project, setActivePageName, componentNav) => {
+    const pendingPageNavigation = useCanvasStore((s) => s.pendingPageNavigation);
+    useEffect(() => {
+        if (pendingPageNavigation === null)
+            return;
+        if (project.pages.some((p) => p.name === pendingPageNavigation)) {
+            setActivePageName(pendingPageNavigation);
+        }
+        useCanvasStore.getState().requestPageNavigation(null);
+    }, [pendingPageNavigation, project.pages, setActivePageName]);
+    const pendingComponentNavigation = useCanvasStore((s) => s.pendingComponentNavigation);
+    useEffect(() => {
+        if (pendingComponentNavigation === null)
+            return;
+        if (project.components.some((c) => c.name === pendingComponentNavigation)) {
+            componentNav.current.openComponent(pendingComponentNavigation, componentNav.current.activePageName);
+        }
+        useCanvasStore.getState().requestComponentNavigation(null);
+    }, [pendingComponentNavigation, project.components, componentNav]);
+};

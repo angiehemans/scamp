@@ -1,0 +1,122 @@
+import { useCanvasStore } from '@store/canvasSlice';
+import { ROOT_ELEMENT_ID } from '@lib/element';
+/**
+ * Builds the frame-local geometry helpers the interaction hooks share:
+ * coordinate conversion, DOM measurement, and the parent-bounds lookups
+ * used to clamp draw / move / resize. Bound to the current frame element,
+ * render scale, and element tree.
+ *
+ * The frame is rendered via `transform: scale`, which has well-defined,
+ * platform-consistent behavior: `getBoundingClientRect()` returns the
+ * visible (scaled) rect while `offsetWidth/Left` stay in logical pixels.
+ */
+export const useCanvasGeometry = (frameRef, scale) => {
+    const elements = useCanvasStore((s) => s.elements);
+    const toFrame = (clientX, clientY) => {
+        const frame = frameRef.current;
+        if (!frame)
+            return { x: 0, y: 0 };
+        const rect = frame.getBoundingClientRect();
+        return {
+            x: (clientX - rect.left) / scale,
+            y: (clientY - rect.top) / scale,
+        };
+    };
+    /**
+     * Measure an element's bounding box in frame-local (logical)
+     * coordinates by querying the rendered DOM. Source of truth for the
+     * selection overlay and the draw-tool parent offset.
+     *
+     * The frame is scaled with `transform: scale`, which doesn't touch
+     * layout — so `offsetLeft/offsetTop/offsetWidth/offsetHeight` are
+     * already in logical pixels and don't need to be divided by scale.
+     */
+    const measureElementInFrame = (id) => {
+        const frame = frameRef.current;
+        if (!frame)
+            return null;
+        const node = frame.querySelector(`[data-element-id="${id}"]`);
+        if (!(node instanceof HTMLElement))
+            return null;
+        // Walk up the offsetParent chain to the frame, accumulating logical
+        // pixel offsets. offsetLeft/Top are always unaffected by ancestor
+        // `transform: scale` since transforms don't reflow layout.
+        let x = 0;
+        let y = 0;
+        let current = node;
+        while (current && current !== frame) {
+            x += current.offsetLeft;
+            y += current.offsetTop;
+            current = current.offsetParent;
+        }
+        return {
+            x,
+            y,
+            w: node.offsetWidth,
+            h: node.offsetHeight,
+        };
+    };
+    /**
+     * Look up a parent element's inner-bounds size for clamping at the
+     * end of a draw. For non-root rects the stored
+     * widthValue/heightValue is authoritative. For the root, stored
+     * values are stale (root defaults to stretch/auto), so width comes
+     * from the DOM and height is treated as unbounded — a user should
+     * be able to draw a rectangle below the current content extent and
+     * have the page grow to accommodate it.
+     */
+    const parentSizeOf = (parentId) => {
+        const id = parentId ?? ROOT_ELEMENT_ID;
+        if (id === ROOT_ELEMENT_ID) {
+            const measured = measureElementInFrame(ROOT_ELEMENT_ID);
+            const rootWidth = measured?.w ?? elements[ROOT_ELEMENT_ID]?.widthValue ?? 1440;
+            return { w: rootWidth, h: Number.POSITIVE_INFINITY };
+        }
+        const el = elements[id];
+        if (!el)
+            return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
+        return { w: el.widthValue, h: el.heightValue };
+    };
+    /**
+     * Bounds for clamping move / resize operations. Unlike
+     * `parentSizeOf` (which treats root height as unbounded so draws
+     * can extend the page), move and resize clamp against the parent's
+     * CURRENT visible extent — otherwise the user can drag an element
+     * completely off the bottom of the page with no way to get it back.
+     *
+     * For root we use the canvas frame's rendered height rather than
+     * root's own offsetHeight: root defaults to `height: auto` and its
+     * children are `position: absolute`, which contribute nothing to
+     * the CSS content-driven height — root would measure as zero and
+     * every move would be locked at y=0.
+     */
+    const parentMoveBoundsOf = (parentId) => {
+        const id = parentId ?? ROOT_ELEMENT_ID;
+        if (id === ROOT_ELEMENT_ID) {
+            const frame = frameRef.current;
+            const measured = measureElementInFrame(ROOT_ELEMENT_ID);
+            const el = elements[ROOT_ELEMENT_ID];
+            return {
+                w: measured?.w ?? el?.widthValue ?? 1440,
+                h: frame?.offsetHeight ?? el?.heightValue ?? 900,
+            };
+        }
+        const el = elements[id];
+        if (!el)
+            return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
+        return { w: el.widthValue, h: el.heightValue };
+    };
+    /** True if `el`'s parent is a flex container — i.e. flex layout owns its position. */
+    const isFlexChild = (el) => {
+        if (!el || !el.parentId)
+            return false;
+        return elements[el.parentId]?.display === 'flex';
+    };
+    return {
+        toFrame,
+        measureElementInFrame,
+        parentSizeOf,
+        parentMoveBoundsOf,
+        isFlexChild,
+    };
+};

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from './controls/Button';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useAppLogStore } from '@store/appLogSlice';
+import { errorMessage } from '@shared/errorMessage';
 import styles from './NextjsMigrationBanner.module.css';
 /**
  * Shown above the canvas on legacy-format projects. Offers an opt-in
@@ -24,7 +25,7 @@ export const NextjsMigrationBanner = ({ project, onMigrated, onDismiss, }) => {
             onMigrated(result.project);
         }
         catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
+            const message = errorMessage(err);
             log('error', `Migration failed: ${message}`);
         }
         finally {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ProjectData, RecentProject, Settings } from '@shared/types';
+import { errorMessage } from '@shared/errorMessage';
 import { basename } from '../lib/path';
 import { CreateProjectModal } from './CreateProjectModal';
 import { Tooltip } from './controls/Tooltip';
@@ -47,7 +48,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
         await refreshSettings();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     }
   };
 
@@ -61,7 +62,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
         await refreshSettings();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     }
   };
 
@@ -82,7 +83,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
       const project = await window.scamp.openProject({ folderPath: result.path });
       onProjectOpened(project);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     }
   };
 
@@ -93,7 +94,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
       const project = await window.scamp.openProject({ folderPath: recent.path });
       onProjectOpened(project);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     }
   };
 
