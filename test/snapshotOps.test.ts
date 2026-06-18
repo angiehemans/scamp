@@ -358,4 +358,22 @@ describe('restoreSnapshot', () => {
     const res = await restoreSnapshot(root, 'nextjs', 'snap_nope');
     expect(res).toEqual({ ok: false, error: 'Snapshot not found.' });
   });
+
+  it('announces every restored file via beforeWrite (watcher suppression hook)', async () => {
+    // The IPC handler registers a suppressed pending-write per dest so the
+    // watcher doesn't treat the restore burst as external edits.
+    const root = await makeNextjsProject();
+    const snap = await createSnapshot(root, 'nextjs', 'manual', 'good', now);
+    const announced: string[] = [];
+    await restoreSnapshot(root, 'nextjs', snap!.id, {
+      nowMs: now + 1000,
+      beforeWrite: (dest) => announced.push(path.relative(root, dest)),
+    });
+    expect(announced).toContain(path.join('app', 'page.tsx'));
+    expect(announced).toContain(
+      path.join('components', 'Button', 'Button.module.css')
+    );
+    // Every page + component file (6) was announced before being written.
+    expect(announced).toHaveLength(6);
+  });
 });

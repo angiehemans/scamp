@@ -1,6 +1,6 @@
 # Plan: Project Snapshots
 
-_Status: **APPROVED — in progress.** D1 disk-capture, D2 replace-panel, D3 `snapshotAutoSave` flag, D4 both close hooks — all confirmed by reviewer. Source PRD: persistent local snapshots stored in `.scamp/`. Written 2026-06-18._
+_Status: **IMPLEMENTED (awaiting manual verification).** All five phases landed on `feature/project-snapshots` (commits `5a39082` A, `9e89b71` B, `f0f3573` C, `f9a6437` D, + E test). Full typecheck (node+web) clean; 1548 tests pass (39 new snapshot tests). D1 disk-capture, D2 replace-panel, D3 `snapshotAutoSave` flag, D4 both close hooks — all confirmed. The runtime-heavy paths (the agent_edit watcher trigger, the restore reload round-trip, session-close timing) are verified by typecheck + the Ops-level contract tests; a manual smoke test of the live triggers + a real restore is the remaining sign-off. Source PRD: persistent local snapshots stored in `.scamp/`. Written 2026-06-18._
 
 A persistent snapshot system that saves the full state of a project at meaningful moments, stored inside the project folder (`.scamp/`). Snapshots survive sessions, protect against accidental overwrites, and lay the groundwork for cloud backup. The history **panel** is repurposed to show snapshots; **Cmd+Z / Cmd+Shift+Z** in-session undo is unchanged.
 
@@ -69,7 +69,11 @@ Wired the three main-side triggers: `session_open` (fire-and-forget in `openProj
 - **Session close** — main `before-quit` snapshots the active project from disk; renderer `ProjectShell.onClose` calls `flushPendingPageWrite()` then `snapshot:create('session_close')`.
 - **Tests:** unit-test the collapse/trigger-label helpers; an integration test that simulates two external edits <5 s apart producing one snapshot; assert a session-open snapshot exists after `openProject` against a scaffolded project.
 
-### Phase C — Renderer integration (the UI)
+### Phase C — Renderer integration (the UI) — ✅ DONE
+
+`snapshotsSlice` + pure `snapshotDisplay` helpers; `HistoryPanel` rewritten to list snapshots (per-trigger icons, "Now" marker, relative/absolute time, page count, "Save snapshot" name input, restore confirm dialog). `App.tsx onClose` session_close; `useSnapshotAutoSave` (5-min activity, `snapshotAutoSave` config flag). Restore was made safe here (folded in Phase E's guard): the handler registers a suppressed pending-write per copied file, then broadcasts `ProjectPagesChanged` for a full renderer re-read; the redundant `snapshot:restore:complete` channel was dropped. Tests: `snapshotsSlice` (window.scamp stubbed) + `snapshotDisplay`.
+
+
 
 - **`src/renderer/store/snapshotsSlice.ts`** (new) — snapshot list, `loadSnapshots()` (via `snapshot:list`), `createSnapshot`, `restoreSnapshot`, `deleteSnapshot`, subscribe to `snapshot:restore:complete`. Pure helpers (`relativeTime`, `triggerIcon`, sort) extracted for unit tests.
 - **Rewrite `HistoryPanel.tsx`** — same visual design (list, per-trigger icon, label, relative-time with absolute-on-hover, page count, "Now" marker at top), now reading `snapshotsSlice`. Add the **"Save snapshot"** button (name prompt → `manual`) and the **restore confirm dialog** (reuse `ConfirmDialog`, PRD copy).
@@ -77,13 +81,21 @@ Wired the three main-side triggers: `session_open` (fire-and-forget in `openProj
 - **Auto-save (5-min)** — a renderer timer keyed to "continuous canvas activity," gated by the `snapshotAutoSave` config flag (D3); flushes then `snapshot:create('auto_save')`.
 - **Tests:** unit-test the pure slice helpers (relative-time buckets, trigger→icon map, newest-first sort, "Now" marker logic). Component rendering consistency with the existing panel approach.
 
-### Phase D — Scaffold + docs
+### Phase D — Scaffold + docs — ✅ DONE
+
+"## Snapshot history" section added to both agent.md templates (auto-refreshed on open; scaffold test stays in sync by comparing to the constant). `docs/notes/snapshots.md` written. `.gitignore` already covered `.scamp/`.
+
+
 
 - **`src/shared/templates/agentMd.ts`** — add the PRD's "## Snapshot history" section to both `AGENT_MD_CONTENT` and `AGENT_MD_CONTENT_LEGACY` (auto-refreshed on open via `refreshAgentMdIfNeeded`). **Locate and update any agent.md golden/content test.**
 - **`.gitignore`** — already covers `.scamp/`; verify in an integration assertion (no code change).
 - **`docs/notes/snapshots.md`** — storage layout, triggers, restore flow, undo-stack relationship, and the cloud-backup mapping (PRD foundation section), referenced from the new modules.
 
-### Phase E — Restore reliability + save-pipeline interaction (risk area)
+### Phase E — Restore reliability + save-pipeline interaction (risk area) — ✅ DONE (folded into C)
+
+The restore guard shipped with the restore button in Phase C: copied files are registered as suppressed pending-writes (no `agent_edit` snapshot, no per-file reload), the project re-reads through `ProjectPagesChanged`, and the renderer clears the undo stack. Tests: the Ops-level restore round-trip (Phase A integration) + a `beforeWrite`-per-file contract test. The watcher-level "no `agent_edit` spawned by the restore burst" and the full multi-page reload are electron-runtime behaviours for the manual pass.
+
+
 
 The restore reload intersects the live save pipeline (the subsystem the PRD calls buggy), so it gets its own hardening pass:
 
