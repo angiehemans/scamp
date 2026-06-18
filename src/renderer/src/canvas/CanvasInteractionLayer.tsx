@@ -1,27 +1,18 @@
-import { DragEvent, MouseEvent, PointerEvent, RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { MouseEvent, PointerEvent, RefObject, useLayoutEffect, useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useHistoryStore } from '@store/historySlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
-import { clampToParent, MIN_SIZE } from '@lib/bounds';
-import { assetsDirSegment } from '@renderer/src/lib/path';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
 import { GridOverlay } from './GridOverlay';
 import { LinkIndicators } from './LinkIndicators';
-import {
-  hitTest,
-  propTextHitTest,
-  isResizeHandle,
-} from './interactions/canvasHitTest';
+import { hitTest, propTextHitTest } from './interactions/canvasHitTest';
 import { useCanvasGeometry } from './interactions/useCanvasGeometry';
-import type {
-  DrawState,
-  MoveState,
-  ResizeState,
-  ReorderState,
-  DropIndicator,
-  SelectedRect,
-} from './interactions/types';
+import { useDrawInteraction } from './interactions/useDrawInteraction';
+import { useMoveInteraction } from './interactions/useMoveInteraction';
+import { useResizeInteraction } from './interactions/useResizeInteraction';
+import { useReorderInteraction } from './interactions/useReorderInteraction';
+import { useDropInsert } from './interactions/useDropInsert';
+import type { SelectedRect } from './interactions/types';
 import styles from './CanvasInteractionLayer.module.css';
 
 type Props = {
@@ -29,29 +20,15 @@ type Props = {
   scale: number;
 };
 
-/** Default size for image elements placed via click (not drag). */
-const DEFAULT_IMAGE_SIZE = 200;
-
 /**
- * If the user just clicks (rather than drag-drawing) with the rectangle
- * tool, we drop a default-sized rect centered on the cursor. Anything
- * smaller than `CLICK_DRAG_THRESHOLD` on either axis counts as "click,
- * not drag".
+ * The chrome layer that sits above the rendered canvas and owns all
+ * pointer interaction. It holds the selection-overlay measurement and the
+ * select-tool hit-testing, and dispatches drags to the per-tool state
+ * machines: draw (rectangle / input / text / image), move, resize, reorder
+ * (flex children), and OS image drop. See interactions/ for each hook.
  */
-const CLICK_DRAG_THRESHOLD = 5;
-const DEFAULT_NEW_RECT_SIZE = 200;
-
-/** Default size for an input element placed via click (not drag). */
-const DEFAULT_NEW_INPUT_WIDTH = 240;
-const DEFAULT_NEW_INPUT_HEIGHT = 32;
-
 export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element => {
   const layerRef = useRef<HTMLDivElement>(null);
-  const [draw, setDraw] = useState<DrawState | null>(null);
-  const [move, setMove] = useState<MoveState | null>(null);
-  const [resize, setResize] = useState<ResizeState | null>(null);
-  const [reorder, setReorder] = useState<ReorderState | null>(null);
-  const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   // The selected element's bounding box, measured straight from the DOM in
   // frame-local (unscaled) coordinates. We measure rather than compute from
   // `el.x/el.y` so the overlay matches the rendered position exactly even
@@ -59,15 +36,6 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   // its stored coordinates.
   const [selectedRect, setSelectedRect] = useState<SelectedRect | null>(null);
 
-  // Image tool: the chosen image's relative path + filename, set after the
-  // user picks a file from the dialog. While this is non-null and the tool
-  // is 'image', the pointer handlers work like the rectangle draw tool —
-  // when the draw completes, an image element is created at the drawn rect.
-  const [pendingImage, setPendingImage] = useState<{ src: string; alt: string } | null>(null);
-
-  const activeTool = useCanvasStore((s) => s.activeTool);
-  const projectFormat = useCanvasStore((s) => s.projectFormat);
-  const projectPath = useCanvasStore((s) => s.projectPath);
   const elements = useCanvasStore((s) => s.elements);
   // The "primary" selection — used for resize-handle positioning, drag-to-
   // move, and as the focus of the properties panel. Multi-select highlights
@@ -86,65 +54,19 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   );
   const selectElement = useCanvasStore((s) => s.selectElement);
   const toggleSelectElement = useCanvasStore((s) => s.toggleSelectElement);
-  const setTool = useCanvasStore((s) => s.setTool);
-  const createRectangle = useCanvasStore((s) => s.createRectangle);
-  const createText = useCanvasStore((s) => s.createText);
-  const createImage = useCanvasStore((s) => s.createImage);
-  const createInput = useCanvasStore((s) => s.createInput);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
-  const moveElement = useCanvasStore((s) => s.moveElement);
-  const resizeElement = useCanvasStore((s) => s.resizeElement);
-  const reorderElement = useCanvasStore((s) => s.reorderElement);
-  const activePage = useCanvasStore((s) => s.activePage);
 
   // Frame-local geometry helpers (coord conversion, DOM measurement,
   // parent-bounds lookups) shared by every pointer handler.
-  const {
-    toFrame,
-    measureElementInFrame,
-    parentSizeOf,
-    parentMoveBoundsOf,
-    isFlexChild,
-  } = useCanvasGeometry(frameRef, scale);
+  const geometry = useCanvasGeometry(frameRef, scale);
+  const { measureElementInFrame, isFlexChild } = geometry;
 
-  // When the image tool is activated, immediately open a file dialog so
-  // the user picks a file before drawing. If they cancel, revert to the
-  // select tool. If they pick a file, copy it into assets/ and store the
-  // result so the draw handler can create an image element on pointer-up.
-  useEffect(() => {
-    if (activeTool !== 'image') {
-      setPendingImage(null);
-      return;
-    }
-    // Already have a pending image (e.g. re-render), don't re-open dialog.
-    if (pendingImage) return;
-    if (!activePage) {
-      setTool('select');
-      return;
-    }
-    if (!projectPath) {
-      setTool('select');
-      return;
-    }
-    const assetsPath = `${projectPath}/${assetsDirSegment(projectFormat)}`;
-    let cancelled = false;
-    void (async (): Promise<void> => {
-      const chosen = await window.scamp.chooseImage({ defaultPath: assetsPath });
-      if (cancelled) return;
-      if (chosen.canceled || !chosen.path) {
-        setTool('select');
-        return;
-      }
-      const copied = await window.scamp.copyImage({
-        sourcePath: chosen.path,
-        projectPath,
-      });
-      if (cancelled) return;
-      setPendingImage({ src: copied.relativePath, alt: copied.fileName });
-    })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTool]);
+  // Per-tool pointer state machines.
+  const draw = useDrawInteraction(geometry);
+  const move = useMoveInteraction(geometry, scale);
+  const resize = useResizeInteraction(geometry, scale);
+  const reorder = useReorderInteraction(geometry);
+  const dropInsert = useDropInsert(geometry);
 
   // Re-measure the selected element from the DOM whenever anything that
   // could move it changes. useLayoutEffect runs after layout/render but
@@ -162,97 +84,11 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;
-    const target = e.target as HTMLElement;
-    const handle = isResizeHandle(e.clientX, e.clientY);
 
-    // Resize takes precedence — handles sit on top of everything. Only
-    // active when exactly one element is selected (we don't show handles
-    // for multi-select).
-    if (handle && selectedElementId && isSingleSelection) {
-      const el = elements[selectedElementId];
-      if (!el) return;
-      e.preventDefault();
-      target.setPointerCapture(e.pointerId);
-      // Open a history transaction so the per-tick `resizeElement`
-      // calls during the drag don't each create their own history
-      // entry. The wrapping `endHistoryTransaction` in
-      // `handlePointerUp` commits a single `resize` entry on
-      // pointer release.
-      useHistoryStore.getState().beginHistoryTransaction();
-      setResize({
-        id: selectedElementId,
-        handle,
-        pointerStartX: e.clientX,
-        pointerStartY: e.clientY,
-        originX: el.x,
-        originY: el.y,
-        originW: el.widthValue,
-        originH: el.heightValue,
-      });
-      return;
-    }
-
-    if (activeTool === 'rectangle' || activeTool === 'input') {
-      const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
-      const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
-      const { x, y } = toFrame(e.clientX, e.clientY);
-      e.preventDefault();
-      target.setPointerCapture(e.pointerId);
-      setDraw({
-        parentId: hitId,
-        startX: x - parentRect.x,
-        startY: y - parentRect.y,
-        currentX: x - parentRect.x,
-        currentY: y - parentRect.y,
-        parentOffsetX: parentRect.x,
-        parentOffsetY: parentRect.y,
-      });
-      return;
-    }
-
-    if (activeTool === 'text') {
-      const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
-      const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
-      const { x, y } = toFrame(e.clientX, e.clientY);
-      const localX = x - parentRect.x;
-      const localY = y - parentRect.y;
-      // Keep the top-left inside the parent so the text isn't placed at
-      // a negative offset, but don't force the whole text box to fit —
-      // a `parent.w - TEXT_W` clamp drags the text leftward whenever the
-      // parent is narrower than the click position plus the default
-      // text width, which makes the text land well away from the cursor.
-      // Landing at the click point matches user expectation; spill is
-      // harmless because the text element sits in its own layer.
-      const clampedX = Math.max(0, localX);
-      const clampedY = Math.max(0, localY);
-      e.preventDefault();
-      createText({
-        parentId: hitId,
-        x: Math.round(clampedX),
-        y: Math.round(clampedY),
-      });
-      setTool('select');
-      return;
-    }
-
-    if (activeTool === 'image' && pendingImage) {
-      // File already chosen — draw a rectangle for the image to fill.
-      const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
-      const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
-      const { x, y } = toFrame(e.clientX, e.clientY);
-      e.preventDefault();
-      target.setPointerCapture(e.pointerId);
-      setDraw({
-        parentId: hitId,
-        startX: x - parentRect.x,
-        startY: y - parentRect.y,
-        currentX: x - parentRect.x,
-        currentY: y - parentRect.y,
-        parentOffsetX: parentRect.x,
-        parentOffsetY: parentRect.y,
-      });
-      return;
-    }
+    // Resize takes precedence — handles sit on top of everything. Then the
+    // active draw tool (rectangle / input / text / image).
+    if (resize.tryStart(e)) return;
+    if (draw.tryStart(e)) return;
 
     // Select tool
     const hitId = hitTest(e.clientX, e.clientY);
@@ -280,241 +116,27 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     // let pointermove figure out where in the sibling list the drop will
     // land.
     if (isFlexChild(el) && el.parentId) {
-      e.preventDefault();
-      target.setPointerCapture(e.pointerId);
-      setReorder({ id: hitId, parentId: el.parentId });
+      reorder.start(e, hitId, el.parentId);
       return;
     }
-    e.preventDefault();
-    target.setPointerCapture(e.pointerId);
-    // Open a history transaction so per-tick `moveElement` calls
-    // during the drag coalesce into a single `move` entry on
-    // pointer release.
-    useHistoryStore.getState().beginHistoryTransaction();
-    setMove({
-      id: hitId,
-      pointerStartX: e.clientX,
-      pointerStartY: e.clientY,
-      originX: el.x,
-      originY: el.y,
-    });
+    move.start(e, hitId, el);
   };
 
+  // Only one state machine is ever active per gesture, so each onMove
+  // no-ops unless it owns the drag. Priority mirrors the original
+  // draw → move → reorder → resize ordering.
   const handlePointerMove = (e: PointerEvent<HTMLDivElement>): void => {
-    if (draw) {
-      const { x, y } = toFrame(e.clientX, e.clientY);
-      setDraw({
-        ...draw,
-        currentX: x - draw.parentOffsetX,
-        currentY: y - draw.parentOffsetY,
-      });
-      return;
-    }
-    if (move) {
-      const el = elements[move.id];
-      if (!el) return;
-      const parent = parentMoveBoundsOf(el.parentId);
-      const dx = (e.clientX - move.pointerStartX) / scale;
-      const dy = (e.clientY - move.pointerStartY) / scale;
-      const proposedX = move.originX + dx;
-      const proposedY = move.originY + dy;
-      // Move-only clamp: width/height don't change, just keep the rect
-      // fully inside the parent box.
-      const clampedX = Math.max(0, Math.min(proposedX, parent.w - el.widthValue));
-      const clampedY = Math.max(0, Math.min(proposedY, parent.h - el.heightValue));
-      moveElement(move.id, Math.round(clampedX), Math.round(clampedY));
-      return;
-    }
-    if (reorder) {
-      // Compute the drop indicator + target index based on which sibling
-      // (if any) is under the cursor and which side of its center.
-      const parent = elements[reorder.parentId];
-      if (!parent) return;
-      const siblingIds = parent.childIds.filter((id) => id !== reorder.id);
-
-      // Find the topmost sibling under the cursor via elementsFromPoint.
-      let hitSiblingId: string | null = null;
-      const candidates = document.elementsFromPoint(e.clientX, e.clientY);
-      for (const node of candidates) {
-        if (!(node instanceof HTMLElement)) continue;
-        const id = node.dataset['elementId'];
-        if (id && siblingIds.includes(id)) {
-          hitSiblingId = id;
-          break;
-        }
-      }
-
-      if (!hitSiblingId) {
-        // Cursor isn't over any sibling — clear the indicator. We could
-        // also compute an "end of list" indicator but it's simpler to
-        // require the user to drop on a sibling.
-        setDropIndicator(null);
-        return;
-      }
-
-      const siblingRect = measureElementInFrame(hitSiblingId);
-      if (!siblingRect) {
-        setDropIndicator(null);
-        return;
-      }
-
-      const isRow = parent.flexDirection === 'row';
-      const { x: cursorX, y: cursorY } = toFrame(e.clientX, e.clientY);
-      const before = isRow
-        ? cursorX < siblingRect.x + siblingRect.w / 2
-        : cursorY < siblingRect.y + siblingRect.h / 2;
-
-      // The drop index is the position in the parent's childIds where
-      // the dragged element will end up AFTER its removal — exactly what
-      // reorderElementPure expects.
-      const siblingIdx = parent.childIds.indexOf(hitSiblingId);
-      const newIndex = before ? siblingIdx : siblingIdx + 1;
-
-      const LINE = 2;
-      const indicatorRect = isRow
-        ? {
-            x: before
-              ? siblingRect.x - LINE / 2
-              : siblingRect.x + siblingRect.w - LINE / 2,
-            y: siblingRect.y,
-            w: LINE,
-            h: siblingRect.h,
-          }
-        : {
-            x: siblingRect.x,
-            y: before
-              ? siblingRect.y - LINE / 2
-              : siblingRect.y + siblingRect.h - LINE / 2,
-            w: siblingRect.w,
-            h: LINE,
-          };
-
-      setDropIndicator({ rect: indicatorRect, newIndex });
-      return;
-    }
-    if (resize) {
-      const el = elements[resize.id];
-      if (!el) return;
-      const parent = parentMoveBoundsOf(el.parentId);
-      const dx = (e.clientX - resize.pointerStartX) / scale;
-      const dy = (e.clientY - resize.pointerStartY) / scale;
-      let { originX: nx, originY: ny, originW: nw, originH: nh } = resize;
-      if (resize.handle.includes('e')) nw = Math.max(MIN_SIZE, resize.originW + dx);
-      if (resize.handle.includes('s')) nh = Math.max(MIN_SIZE, resize.originH + dy);
-      if (resize.handle.includes('w')) {
-        const proposedW = Math.max(MIN_SIZE, resize.originW - dx);
-        nx = resize.originX + (resize.originW - proposedW);
-        nw = proposedW;
-      }
-      if (resize.handle.includes('n')) {
-        const proposedH = Math.max(MIN_SIZE, resize.originH - dy);
-        ny = resize.originY + (resize.originH - proposedH);
-        nh = proposedH;
-      }
-      const clamped = clampToParent(nx, ny, nw, nh, parent.w, parent.h);
-      resizeElement(
-        resize.id,
-        Math.round(clamped.x),
-        Math.round(clamped.y),
-        Math.round(clamped.w),
-        Math.round(clamped.h)
-      );
-    }
+    if (draw.onMove(e)) return;
+    if (move.onMove(e)) return;
+    if (reorder.onMove(e)) return;
+    resize.onMove(e);
   };
 
   const handlePointerUp = (e: PointerEvent<HTMLDivElement>): void => {
-    if (reorder && dropIndicator) {
-      // Commit the flex-sibling reorder. parentId stays the same — this
-      // drag mode never re-parents.
-      reorderElement(reorder.id, reorder.parentId, dropIndicator.newIndex);
-    }
-    if (reorder) {
-      setReorder(null);
-      setDropIndicator(null);
-    }
-    if (draw) {
-      const dragX = Math.min(draw.startX, draw.currentX);
-      const dragY = Math.min(draw.startY, draw.currentY);
-      const dragW = Math.abs(draw.currentX - draw.startX);
-      const dragH = Math.abs(draw.currentY - draw.startY);
-      const parent = parentSizeOf(draw.parentId);
-
-      // If the gesture was effectively a click (no meaningful drag),
-      // drop a default-sized rect centered on the cursor instead. The
-      // clamp helper afterwards keeps it inside the parent bounds.
-      const wasInput = activeTool === 'input';
-      const defaultWidth = pendingImage
-        ? DEFAULT_IMAGE_SIZE
-        : wasInput
-          ? DEFAULT_NEW_INPUT_WIDTH
-          : DEFAULT_NEW_RECT_SIZE;
-      const defaultHeight = pendingImage
-        ? DEFAULT_IMAGE_SIZE
-        : wasInput
-          ? DEFAULT_NEW_INPUT_HEIGHT
-          : DEFAULT_NEW_RECT_SIZE;
-      const wasClick =
-        dragW < CLICK_DRAG_THRESHOLD && dragH < CLICK_DRAG_THRESHOLD;
-      const x = wasClick ? draw.startX - defaultWidth / 2 : dragX;
-      const y = wasClick ? draw.startY - defaultHeight / 2 : dragY;
-      const w = wasClick ? defaultWidth : dragW;
-      const h = wasClick ? defaultHeight : dragH;
-
-      const clamped = clampToParent(x, y, w, h, parent.w, parent.h);
-      if (clamped.w >= MIN_SIZE && clamped.h >= MIN_SIZE) {
-        if (pendingImage) {
-          createImage({
-            parentId: draw.parentId,
-            x: Math.round(clamped.x),
-            y: Math.round(clamped.y),
-            width: Math.round(clamped.w),
-            height: Math.round(clamped.h),
-            src: pendingImage.src,
-            alt: pendingImage.alt,
-          });
-          setPendingImage(null);
-        } else if (wasInput) {
-          createInput({
-            parentId: draw.parentId,
-            x: Math.round(clamped.x),
-            y: Math.round(clamped.y),
-            width: Math.round(clamped.w),
-            height: Math.round(clamped.h),
-          });
-        } else {
-          createRectangle({
-            parentId: draw.parentId,
-            x: Math.round(clamped.x),
-            y: Math.round(clamped.y),
-            width: Math.round(clamped.w),
-            height: Math.round(clamped.h),
-          });
-        }
-        setTool('select');
-      }
-      setDraw(null);
-    }
-    if (move) {
-      // Close the move transaction — commits one `move` entry
-      // covering the drag and drains any external edit that
-      // arrived mid-drag.
-      useHistoryStore
-        .getState()
-        .endHistoryTransaction(
-          { kind: 'move', elementIds: [move.id] },
-          useCanvasStore.getState().elements
-        );
-    }
-    if (resize) {
-      useHistoryStore
-        .getState()
-        .endHistoryTransaction(
-          { kind: 'resize', elementIds: [resize.id] },
-          useCanvasStore.getState().elements
-        );
-    }
-    setMove(null);
-    setResize(null);
+    reorder.onEnd();
+    draw.onEnd();
+    move.onEnd();
+    resize.onEnd();
     const target = e.target as HTMLElement;
     if (target.hasPointerCapture(e.pointerId)) {
       target.releasePointerCapture(e.pointerId);
@@ -542,53 +164,6 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     setEditingElement(hitId);
   };
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
-    // Accept image files from the OS file manager.
-    if (e.dataTransfer.types.includes('Files')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-    }
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
-    e.preventDefault();
-    if (!activePage) return;
-    const files = e.dataTransfer.files;
-    if (files.length === 0) return;
-    const file = files[0]!;
-    // Only accept image types.
-    if (!file.type.startsWith('image/')) return;
-    // Electron gives us the file path on the `path` property.
-    const filePath = (file as File & { path?: string }).path;
-    if (!filePath) return;
-
-    if (!projectPath) return;
-    const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
-    const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
-    const { x, y } = toFrame(e.clientX, e.clientY);
-    const parent = parentSizeOf(hitId);
-
-    void (async (): Promise<void> => {
-      const copied = await window.scamp.copyImage({
-        sourcePath: filePath,
-        projectPath,
-      });
-      const localX = x - parentRect.x;
-      const localY = y - parentRect.y;
-      const clampedX = Math.max(0, Math.min(localX, parent.w - DEFAULT_IMAGE_SIZE));
-      const clampedY = Math.max(0, Math.min(localY, parent.h - DEFAULT_IMAGE_SIZE));
-      createImage({
-        parentId: hitId,
-        x: Math.round(clampedX),
-        y: Math.round(clampedY),
-        width: DEFAULT_IMAGE_SIZE,
-        height: DEFAULT_IMAGE_SIZE,
-        src: copied.relativePath,
-        alt: copied.fileName,
-      });
-    })();
-  };
-
   // Right-click on the canvas opens the element context menu. The layer
   // sits above all canvas elements (z-index: 100), so element-level
   // onContextMenu handlers never fire — without this, Electron suppresses
@@ -609,6 +184,8 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const selectedEl = selectedElementId ? elements[selectedElementId] : null;
   const isEditing =
     editingElementId !== null || editingInstanceProp !== null;
+  const drawState = draw.draw;
+  const dropIndicator = reorder.dropIndicator;
 
   return (
     <div
@@ -622,15 +199,15 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       onPointerCancel={handlePointerUp}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragOver={dropInsert.handleDragOver}
+      onDrop={dropInsert.handleDrop}
     >
-      {draw && (
+      {drawState && (
         <DrawPreview
-          x={Math.min(draw.startX, draw.currentX) + draw.parentOffsetX}
-          y={Math.min(draw.startY, draw.currentY) + draw.parentOffsetY}
-          width={Math.abs(draw.currentX - draw.startX)}
-          height={Math.abs(draw.currentY - draw.startY)}
+          x={Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX}
+          y={Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY}
+          width={Math.abs(drawState.currentX - drawState.startX)}
+          height={Math.abs(drawState.currentY - drawState.startY)}
         />
       )}
       {dropIndicator && (
