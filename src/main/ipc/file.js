@@ -7,6 +7,7 @@ import { cancelPendingWrite, registerPendingWrite } from '../watcher';
 import { checkWriteConflict } from './fileConflict';
 import { atomicWrite } from './fileOps';
 import { assertInsideActiveProject } from './pathContainment';
+
 const handleWrite = async (args) => {
     assertInsideActiveProject(args.tsxPath);
     assertInsideActiveProject(args.cssPath);
