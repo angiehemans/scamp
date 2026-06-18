@@ -1,45 +1,59 @@
 // Renderer side of the save / sync pipeline. See
 // docs/notes/save-status-machine.md.
 //
-// 5.4 (partial) pulled the stateless + cleanly-separable pieces into a
-// `syncBridge/` folder: editTarget (pure path helpers), pendingSaves
-// (the ack / pending-save Maps + confirm logic), writeDispatch (the IPC
-// dispatch + retry). They cross only via function calls, so no mutable
-// state spans files. `initSyncBridge` below is left whole on purpose:
-// its handlers share four init-local vars (writeTimer, lastSerialized*,
-// canvasChangedDuringQuiet), and splitting it means lifting that save
-// cache to module scope — a live-pipeline change best done with the app
-// running, which this pass couldn't verify.
-import { generateCode } from '@lib/generateCode';
-import { parseCode } from '@lib/parseCode';
-import { parseThemeFile } from '@lib/parseTheme';
-import { applyThemeFonts } from './lib/applyThemeFonts';
-import { externalEditTracker } from './lib/externalEditTracker';
-import { createQuietWindow } from './lib/quietWindow';
-import {
-  selectAnyAgentActive,
-  selectPauseReason,
-  useTerminalActivityStore,
-} from '@store/terminalActivitySlice';
-import { captureAndPersistComponentThumbnail } from './lib/componentThumbnail';
+// Phase 5.4 split `initSyncBridge` into the `syncBridge/` folder. The
+// mutable per-bridge save cache (writeTimer, lastSerialized*,
+// canvasChangedDuringQuiet, quietResumeTimer) lives in a `SaveContext`
+// (saveContext.ts) threaded through the handler factories, which call
+// each other through `ctx.*` so construction order doesn't matter:
+//   writeIfDirty.ts      — serialize the canvas + write, conflict resolve
+//   quietReconcile.ts    — debounce timer + quiet-window resume
+//   divergence.ts        — save / discard a diverged canvas
+//   storeSubscription.ts — canvas + terminal-activity subscriptions
+//   externalEdit.ts      — chokidar file:changed handler
+//   themeListener.ts     — theme.css changed handler
+// editTarget / pendingSaves / writeDispatch / targetSwapSuppression hold
+// the stateless-ish helpers. `initSyncBridge` below just builds the
+// context, wires the handlers onto it, and registers / tears down the
+// subscriptions + IPC listeners.
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
-import { errorMessage } from '@shared/errorMessage';
-import { useSaveStatusStore } from '@store/saveStatusSlice';
-import { useAppLogStore } from '@store/appLogSlice';
-import type { KeyframesBlock, ScampElement } from '@lib/element';
+import { useTerminalActivityStore } from '@store/terminalActivitySlice';
+
+import { createQuietWindow } from './lib/quietWindow';
+import { handleAck } from './syncBridge/pendingSaves';
+import { createSaveContext } from './syncBridge/saveContext';
 import {
-  WRITE_DEBOUNCE_MS,
-  importNameForTarget,
-  toEditTarget,
-  type EditTarget,
-} from './syncBridge/editTarget';
-import { handleAck, notifyWriteAborted } from './syncBridge/pendingSaves';
-import { dispatchPageWrite } from './syncBridge/writeDispatch';
+  makeOnWriteConflict,
+  makeWriteIfDirty,
+} from './syncBridge/writeIfDirty';
+import {
+  makeCancelWriteTimer,
+  makeFlushDebouncedWrite,
+  makeReconcileAfterQuiet,
+  makeResumeFromPause,
+  makeScheduleQuietResume,
+} from './syncBridge/quietReconcile';
+import {
+  makeDiscardDivergedCanvas,
+  makeSaveDivergedCanvas,
+} from './syncBridge/divergence';
+import {
+  makeAgentSubscriptionHandler,
+  makeStoreSubscriptionHandler,
+} from './syncBridge/storeSubscription';
+import { makeFileChangedHandler } from './syncBridge/externalEdit';
+import { makeThemeChangedHandler } from './syncBridge/themeListener';
 
 // savePatch / retryLastSave moved to writeDispatch; re-exported so
 // CssPanel + the save-status retry button keep importing from here.
 export { savePatch, retryLastSave } from './syncBridge/writeDispatch';
+// Target-swap write suppression moved to its own module; re-exported so
+// component rename / delete keep importing from here.
+export {
+  armTargetSwapSuppression,
+  disarmTargetSwapSuppression,
+} from './syncBridge/targetSwapSuppression';
 
 /**
  * Module-scoped handle to the active bridge's debounced-write flusher.
@@ -56,930 +70,115 @@ export const flushPendingPageWrite = (): void => {
 };
 
 /**
- * Phase 3 quiet window. Set on every chokidar event for a project
- * file; rolls forward on each subsequent event. While open,
- * `writeIfDirty` skips IPC dispatch and the bridge sits in a
- * `paused` save-status. The bridge schedules a single timer to fire
- * when the window expires, at which point it reconciles canvas
- * state against disk (resume → `saved` or `diverged`).
- */
-const quietWindow = createQuietWindow();
-let quietResumeTimer: ReturnType<typeof setTimeout> | null = null;
-
-/**
- * Module-scoped handle to the bridge's "resume from pause" action.
- * Populated by `initSyncBridge`. The save-status indicator's
- * `Resume now` button calls this; we expose it as a free function so
- * the indicator component doesn't have to import the whole bridge.
+ * Module-scoped handles to the active bridge's pause/divergence actions,
+ * populated by `initSyncBridge`. Exposed as free functions so the
+ * save-status indicator + diverged popover don't import the whole bridge.
  */
 let resumeFromPauseImpl: (() => void) | null = null;
 let saveDivergedCanvasImpl: (() => void) | null = null;
 let discardDivergedCanvasImpl: (() => void) | null = null;
 
+/** Save-status indicator's `Resume now` button. */
 export const resumeFromPause = (): void => {
   resumeFromPauseImpl?.();
 };
 
 /**
- * Phase 5.2 — force-write the canvas's current state to disk,
- * overwriting whatever the external editor wrote. Called from the
- * diverged-state popover's `Save canvas` button.
+ * Phase 5.2 — force-write the canvas's current state to disk, overwriting
+ * whatever the external editor wrote. Diverged popover's `Save canvas`.
  */
 export const saveDivergedCanvas = (): void => {
   saveDivergedCanvasImpl?.();
 };
 
 /**
- * Phase 5.2 — abandon the canvas's in-memory state and reload from
- * disk. Called from the diverged-state popover's `Discard canvas`
- * button.
+ * Phase 5.2 — abandon the canvas's in-memory state and reload from disk.
+ * Diverged popover's `Discard canvas`.
  */
 export const discardDivergedCanvas = (): void => {
   discardDivergedCanvasImpl?.();
 };
 
-// see docs/notes/components-sync.md — target-swap suppression
-let suppressNextTargetSwapWrite = false;
-let suppressTargetSwapTimer: ReturnType<typeof setTimeout> | null = null;
-const SUPPRESS_TARGET_SWAP_TTL_MS = 5000;
-
-export const armTargetSwapSuppression = (): void => {
-  suppressNextTargetSwapWrite = true;
-  if (suppressTargetSwapTimer !== null) clearTimeout(suppressTargetSwapTimer);
-  suppressTargetSwapTimer = setTimeout(() => {
-    suppressNextTargetSwapWrite = false;
-    suppressTargetSwapTimer = null;
-  }, SUPPRESS_TARGET_SWAP_TTL_MS);
-};
-
-export const disarmTargetSwapSuppression = (): void => {
-  suppressNextTargetSwapWrite = false;
-  if (suppressTargetSwapTimer !== null) {
-    clearTimeout(suppressTargetSwapTimer);
-    suppressTargetSwapTimer = null;
-  }
-};
-
 /**
- * Wires the canvas store to the file system.
+ * Wires the canvas store to the file system. See the per-handler files in
+ * `syncBridge/` for the detailed behaviour; in summary:
  *
  *   - On any canvas state change: regenerate code and write the page files
- *     after a 200ms debounce. The write is acked by the main process so
- *     chokidar won't re-read what we just wrote.
- *   - On `file:changed` for the active page: parse the new file content
- *     and reload the canvas — but only if the parsed tree differs from
- *     the current state, so external no-op changes don't cause flicker.
- *   - On `file:writeAck`: correlate against the pending-saves map and
- *     transition the save-status indicator to "Saved" once both IPC
- *     resolution and all expected path acks have landed.
- *   - When the canvas state is loaded from a parse result, the next
- *     subscribe tick refreshes a "last written" cache so the load doesn't
- *     immediately write itself back to disk.
+ *     after a debounce, acked by main so chokidar won't re-read our write.
+ *   - On `file:changed` for the active page: parse + reload the canvas, but
+ *     only if the parsed tree differs from current state.
+ *   - On `file:writeAck`: correlate against pending saves and advance the
+ *     save-status indicator to "Saved".
+ *   - On load: refresh the "last written" cache so the load doesn't write
+ *     itself straight back to disk.
  *
- * Pending-write durability:
- *   - When the active page changes, any pending debounced write is
- *     IMMEDIATELY flushed against the OUTGOING page's state before the
- *     timer is cleared. Without this, switching pages within 200ms of an
- *     edit would silently drop the edit because the timer would fire
- *     against the new page's state and write a no-op.
- *   - When the renderer is unloading (window close, full reload),
- *     `beforeunload` flushes any pending write the same way. The IPC
- *     message is queued for the main process to complete after the
- *     renderer is gone.
+ * Pending-write durability: a pending debounced write is flushed against
+ * the OUTGOING page's state before a target swap and on `beforeunload`,
+ * so an edit made within the debounce window is never silently dropped.
  */
 export const initSyncBridge = (): (() => void) => {
-  let writeTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastSerializedTsx: string | null = null;
-  let lastSerializedCss: string | null = null;
-  /**
-   * Set when a canvas edit lands while the quiet window is open
-   * (its `writeIfDirty` gets deferred). `reconcileAfterQuiet`
-   * consults this to decide whether to flush the pending canvas
-   * change after the window expires, or to leave disk alone (the
-   * canvas state's regen differs from disk only because of
-   * non-round-tripping user-typed CSS — clobbering disk would lose
-   * the user's intent). Cleared on chokidar event (start of quiet
-   * window) and after `reconcileAfterQuiet` runs.
-   */
-  let canvasChangedDuringQuiet = false;
+  const quietWindow = createQuietWindow();
+  const ctx = createSaveContext(quietWindow);
 
   // Register the snapshot-restore callback so the history slice can
-  // apply a saved elements map when the user navigates (undo /
-  // redo / click an entry in the panel). The callback writes
-  // through `setState` rather than the typed `reloadElements`
-  // mutator so it doesn't toggle `isLoading` or push another
-  // history entry — restoration is not an external edit.
+  // apply a saved elements map when the user navigates (undo / redo /
+  // click an entry). The callback writes through `setState` rather than
+  // the typed `reloadElements` mutator so it doesn't toggle `isLoading`
+  // or push another history entry — restoration is not an external edit.
   useHistoryStore.getState().setRestoreSnapshot((snapshot) => {
     useCanvasStore.setState({ elements: snapshot });
   });
 
-  /**
-   * Resync the canvas to a competing on-disk version when main
-   * rejects our write with a conflict. See
-   * docs/notes/agent-coexistence.md. Adopts the actual disk content as
-   * the new synced state, parses + reloads elements so the canvas
-   * reflects the external editor's view, and surfaces a one-line
-   * app-log message so the user knows their pending edit was
-   * dropped in favour of the external version.
-   */
-  /**
-   * `silent: true` is set by the initial-load canonical migration —
-   * see `writeIfDirty`'s `silent` option below. The reload still
-   * happens (we adopt disk content), but we suppress the
-   * `reloaded-from-disk` indicator and the "your in-flight edit was
-   * dropped" app-log line, because the user had NO in-flight edit:
-   * the write was Scamp's own format-canonicalisation, not a user
-   * action. Showing the warning there frightens users when an agent
-   * was racing the project open.
-   */
-  const onWriteConflict = (
-    target: EditTarget,
-    conflict: { actualTsxContent: string; actualCssContent: string },
-    silent: boolean = false
-  ): void => {
-    const store = useCanvasStore.getState();
-    // The write was kicked off against `target`, but the user may
-    // have navigated away in the meantime. Reloading the store's
-    // elements / pageSource for a stale target would clobber the
-    // canvas with the wrong page's content (visible as "Page B's
-    // breadcrumb with Page A's design"). Bail out without touching
-    // the store — the abandoned target's disk state will reconcile
-    // on the next visit via the initial-load path.
-    const currentTarget = toEditTarget(store.activePage, store.activeComponent);
-    if (
-      !currentTarget ||
-      currentTarget.tsxPath !== target.tsxPath ||
-      currentTarget.cssPath !== target.cssPath
-    ) {
-      useAppLogStore
-        .getState()
-        .log(
-          'warn',
-          `Write conflict on ${target.name} arrived after navigation; skipping canvas reload.`
-        );
-      return;
-    }
-    lastSerializedTsx = conflict.actualTsxContent;
-    lastSerializedCss = conflict.actualCssContent;
-    store.setPageSource({
-      tsx: conflict.actualTsxContent,
-      css: conflict.actualCssContent,
-    });
-    try {
-      const parsed = parseCode(
-        conflict.actualTsxContent,
-        conflict.actualCssContent,
-        { breakpoints: store.breakpoints }
-      );
-      store.reloadElements(
-        parsed.elements,
-        { tsx: conflict.actualTsxContent, css: conflict.actualCssContent },
-        parsed.customMediaBlocks,
-        parsed.keyframesBlocks,
-        parsed.cssDuplicates
-      );
-    } catch (err) {
-      const message = errorMessage(err);
-      useAppLogStore
-        .getState()
-        .log(
-          'warn',
-          `External edit on ${target.name}.tsx couldn't be parsed: ${message}`
-        );
-      return;
-    }
-    // Phase 1.2: surface the conflict through the status indicator
-    // rather than as a transient app-log message. `reloaded-from-disk`
-    // is a terminal state — there's nothing to retry against — so
-    // the indicator shows it until the next successful save cycle
-    // (markSaving will transition out). The app-log line stays as a
-    // secondary audit trail.
-    //
-    // Silent mode (initial-load canonical migration): adopt disk
-    // content but transition straight back to `saved`. The user had
-    // no in-flight edit — surfacing "Reloaded" here is misleading.
-    if (silent) {
-      useSaveStatusStore.setState({
-        state: { kind: 'saved' },
-        toast: null,
-        dirtyDuringSave: false,
-      });
-      return;
-    }
-    useSaveStatusStore.getState().markReloadedFromDisk(target.name);
-    useAppLogStore
-      .getState()
-      .log(
-        'warn',
-        `${target.name} was edited outside Scamp; reloaded to that version. Your in-flight edit was dropped.`
-      );
-  };
+  // Wire the cross-referencing handlers onto the context. Order is
+  // irrelevant — each reads its collaborators via `ctx.*` at call time.
+  ctx.cancelWriteTimer = makeCancelWriteTimer(ctx);
+  ctx.onWriteConflict = makeOnWriteConflict(ctx);
+  ctx.writeIfDirty = makeWriteIfDirty(ctx);
+  ctx.flushDebouncedWrite = makeFlushDebouncedWrite(ctx);
+  ctx.reconcileAfterQuiet = makeReconcileAfterQuiet(ctx);
+  ctx.scheduleQuietResume = makeScheduleQuietResume(ctx);
 
-  /**
-   * Generate code for the given (elements, rootId, page) tuple and write
-   * it to disk if it differs from the last-written cache. Pure with
-   * respect to its arguments — used by the debounced flush, the page-
-   * switch flush, and the beforeunload flush, all of which need to
-   * write a SPECIFIC snapshot rather than whatever the store currently
-   * holds.
-   *
-   * `customMediaBlocks` and `pageKeyframesBlocks` are passed in (not
-   * read from the store) because the page-switch flush fires AFTER
-   * `loadPage(B)` has swapped the store's per-page CSS into B's
-   * values. Reading from the store there would write A's elements
-   * paired with B's `@media` / `@keyframes` to A's `.module.css` —
-   * silent file corruption on every navigation between pages with
-   * different custom CSS.
-   */
-  /**
-   * `silent` is set by the canonical-migration call site (initial
-   * load). It propagates through to `onWriteConflict` so a conflict
-   * adopts disk without flashing the "Reloaded" indicator — the user
-   * hasn't made an edit yet, so the standard conflict UX is wrong here.
-   */
-  const writeIfDirty = (
-    elements: Record<string, ScampElement>,
-    rootElementId: string,
-    target: EditTarget,
-    customMediaBlocks: ReadonlyArray<string>,
-    pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>,
-    silent: boolean = false
-  ): void => {
-    // Phase 1.1: bail when chokidar is mid-event for this target.
-    // `lastSerialized` is stale until the chokidar handler finishes
-    // its reload; dispatching now would race the agent's edit. The
-    // canvas state stays in memory — when the handler completes, the
-    // user's next interaction triggers a fresh `writeIfDirty` with a
-    // correct expected baseline.
-    if (externalEditTracker.isPending(target.tsxPath, target.cssPath)) {
-      useSaveStatusStore.getState().markPaused('external-edit');
-      notifyWriteAborted(target.name);
-      return;
-    }
-    // Phase 3.2: even outside the synchronous chokidar handler, if
-    // we're inside the quiet window (an external edit landed in the
-    // last QUIET_WINDOW_MS), defer the write. Agents typically write
-    // the same file 2-5 times back-to-back; the window absorbs the
-    // burst so we don't race the in-between writes.
-    if (quietWindow.isQuiet()) {
-      useSaveStatusStore.getState().markPaused('external-edit');
-      // Don't toast here — the toast was already shown when the
-      // window opened or when a write was aborted at the start of
-      // the burst. Subsequent aborts inside the same window are silent.
-      return;
-    }
-    // Phase 4.3: pause when an agent is running. Either auto-detected
-    // (a non-shell foreground process in any integrated terminal) OR
-    // user-engaged (manual pause toggle). The reason carries through
-    // so the indicator popover shows the right copy.
-    {
-      const activity = useTerminalActivityStore.getState();
-      if (selectAnyAgentActive(activity)) {
-        const reason = selectPauseReason(activity) ?? 'agent-terminal';
-        useSaveStatusStore.getState().markPaused(reason);
-        return;
-      }
-    }
-    const store = useCanvasStore.getState();
-    const code = generateCode({
-      elements,
-      rootId: rootElementId,
-      // generateCode uses `pageName` for the function name AND the
-      // CSS-module import basename. For components the name IS the
-      // PascalCase component name, which generateCode passes through
-      // unchanged — both halves come out right.
-      pageName: target.name,
-      breakpoints: store.breakpoints,
-      customMediaBlocks,
-      pageKeyframesBlocks,
-      cssModuleImportName: importNameForTarget(target, store.projectFormat),
-      isComponent: target.kind === 'component',
-    });
-    if (code.tsx === lastSerializedTsx && code.css === lastSerializedCss) {
-      // No-op dedupe: the debounce fired but the generated code matches
-      // what's already on disk. Advance the indicator out of "unsaved"
-      // anyway so idle canvases don't get stuck showing pending work.
-      useSaveStatusStore.getState().markClean();
-      return;
-    }
-    // Capture the OLD lastSerialized for the conflict check —
-    // that's what we believe is currently on disk. Then advance to
-    // the new content so subsequent dedupes work.
-    const expectedTsx = lastSerializedTsx;
-    const expectedCss = lastSerializedCss;
-    lastSerializedTsx = code.tsx;
-    lastSerializedCss = code.css;
-    // Mirror the just-written content into the store so the bottom code
-    // panel reflects what's on disk without waiting for chokidar.
-    useCanvasStore.getState().setPageSource({ tsx: code.tsx, css: code.css });
-    dispatchPageWrite(
-      {
-        kind: 'write',
-        tsxPath: target.tsxPath,
-        cssPath: target.cssPath,
-        tsxContent: code.tsx,
-        cssContent: code.css,
-        ...(expectedTsx !== null && expectedCss !== null
-          ? {
-              expectedTsxContent: expectedTsx,
-              expectedCssContent: expectedCss,
-            }
-          : {}),
-      },
-      (conflict) => onWriteConflict(target, conflict, silent)
-    );
-    // Sidebar thumbnail capture for component saves.
-    // see docs/notes/components-thumbnails.md
-    if (target.kind === 'component') {
-      const projectPath = store.projectPath;
-      if (projectPath) {
-        // rAF so React commits the latest paint before we rasterise.
-        requestAnimationFrame(() => {
-          captureAndPersistComponentThumbnail({
-            projectPath,
-            componentName: target.name,
-          });
-        });
-      }
-    }
-  };
-
-  /** Flush a queued debounced write against the CURRENT store state. */
-  const flushDebouncedWrite = (): void => {
-    const state = useCanvasStore.getState();
-    const target = toEditTarget(state.activePage, state.activeComponent);
-    if (!target) return;
-    writeIfDirty(
-      state.elements,
-      state.rootElementId,
-      target,
-      state.pageCustomMediaBlocks,
-      state.pageKeyframesBlocks
-    );
-  };
-
+  // Module-scoped action handles for the free-function exports.
   pendingFlush = (): void => {
-    cancelWriteTimer();
-    flushDebouncedWrite();
+    ctx.cancelWriteTimer();
+    ctx.flushDebouncedWrite();
   };
+  resumeFromPauseImpl = makeResumeFromPause(ctx);
+  saveDivergedCanvasImpl = makeSaveDivergedCanvas(ctx);
+  discardDivergedCanvasImpl = makeDiscardDivergedCanvas(ctx);
 
-  const cancelWriteTimer = (): void => {
-    if (writeTimer !== null) {
-      clearTimeout(writeTimer);
-      writeTimer = null;
-    }
-  };
-
-  /**
-   * After the quiet window expires, decide whether the canvas
-   * matches disk (resume cleanly → `saved`) or diverges (user
-   * picks Save canvas / Discard canvas → `diverged`).
-   *
-   * The divergence attempt has NO `expected*` field — Save canvas
-   * means "force overwrite," intentionally bypassing the conflict
-   * check the user already saw with `markReloadedFromDisk`. The
-   * intent of clicking Save is "I know there's an external edit,
-   * I want mine to win." Saying yes to the user's explicit choice
-   * is preferable to deferring to disk a second time.
-   */
-  const reconcileAfterQuiet = (): void => {
-    // Decision #3: don't resume while the OTHER signal still says
-    // pause. If the user clicks `Resume now` we'll still bypass this
-    // (resumeFromPauseImpl clears the quiet window and we land here;
-    // but the agent flag is checked separately and the user's
-    // explicit override should win even mid-burst).
-    {
-      const activity = useTerminalActivityStore.getState();
-      if (selectAnyAgentActive(activity)) {
-        // Refresh the indicator's reason — quiet may have expired
-        // but an agent (auto or manual) is still keeping us paused.
-        const reason = selectPauseReason(activity) ?? 'agent-terminal';
-        useSaveStatusStore.getState().markPaused(reason);
-        return;
-      }
-    }
-    const state = useCanvasStore.getState();
-    const target = toEditTarget(state.activePage, state.activeComponent);
-    if (!target) {
-      useSaveStatusStore.getState().markResumed(null);
-      return;
-    }
-    const code = generateCode({
-      elements: state.elements,
-      rootId: state.rootElementId,
-      pageName: target.name,
-      breakpoints: state.breakpoints,
-      customMediaBlocks: state.pageCustomMediaBlocks,
-      pageKeyframesBlocks: state.pageKeyframesBlocks,
-      cssModuleImportName: importNameForTarget(target, state.projectFormat),
-      isComponent: target.kind === 'component',
-    });
-    if (
-      code.tsx === lastSerializedTsx &&
-      code.css === lastSerializedCss
-    ) {
-      useSaveStatusStore.getState().markResumed(null);
-      return;
-    }
-    // Canvas state differs from what's on disk. Two interpretations:
-    //
-    //   (a) The user made a canvas edit during the quiet window —
-    //       it was deferred by `writeIfDirty`'s quietWindow guard
-    //       and is now waiting to be flushed.
-    //   (b) The user typed CSS directly into the file (or via the
-    //       raw-CSS panel) that doesn't round-trip cleanly through
-    //       Scamp's typed model (e.g. `letter-spacing` on a rect —
-    //       parseCode stores it on the element, generateCode drops
-    //       it because the typed emitter is text-only). Canvas
-    //       state regenerates to a different string than what's on
-    //       disk, but the on-disk version is the user's intent.
-    //
-    // We tell these apart by remembering whether `state.elements`
-    // changed during the quiet window. If yes (a) → flush.
-    // If no (b) → leave disk alone, just resume.
-    if (canvasChangedDuringQuiet) {
-      flushDebouncedWrite();
-    }
-    canvasChangedDuringQuiet = false;
-    useSaveStatusStore.getState().markResumed(null);
-  };
-
-  /**
-   * Schedule the resume check to fire when the quiet window expires.
-   * If a fresh chokidar event extends the window before the timer
-   * fires, the timer (re-)schedules itself rather than reconciling
-   * mid-burst. Idempotent — re-calling cancels any prior timer.
-   */
-  const scheduleQuietResume = (): void => {
-    if (quietResumeTimer !== null) {
-      clearTimeout(quietResumeTimer);
-      quietResumeTimer = null;
-    }
-    const remaining = quietWindow.remainingMs();
-    if (remaining === 0) {
-      reconcileAfterQuiet();
-      return;
-    }
-    // +50ms grace so the timer fires AFTER the window expires,
-    // not exactly on it. Avoids a tight loop on slow event loops.
-    quietResumeTimer = setTimeout(() => {
-      quietResumeTimer = null;
-      if (quietWindow.isQuiet()) {
-        // Extended in flight; re-schedule for the new deadline.
-        scheduleQuietResume();
-        return;
-      }
-      reconcileAfterQuiet();
-    }, remaining + 50);
-  };
-
-  // Phase 3.3: expose the resume action via the module-scoped
-  // setter so the indicator's `Resume now` button can call it.
-  resumeFromPauseImpl = (): void => {
-    quietWindow.clear();
-    if (quietResumeTimer !== null) {
-      clearTimeout(quietResumeTimer);
-      quietResumeTimer = null;
-    }
-    reconcileAfterQuiet();
-  };
-
-  /**
-   * Phase 5.2 — apply the pending diverged attempt to disk, force-
-   * overwriting whatever the external editor wrote. The attempt was
-   * captured in `reconcileAfterQuiet` from the canvas's state at
-   * window expiry; the canvas may have had MORE edits since then.
-   * Re-generate from current state so the save reflects everything
-   * the user has done.
-   */
-  saveDivergedCanvasImpl = (): void => {
-    const state = useCanvasStore.getState();
-    const target = toEditTarget(state.activePage, state.activeComponent);
-    if (!target) return;
-    const code = generateCode({
-      elements: state.elements,
-      rootId: state.rootElementId,
-      pageName: target.name,
-      breakpoints: state.breakpoints,
-      customMediaBlocks: state.pageCustomMediaBlocks,
-      pageKeyframesBlocks: state.pageKeyframesBlocks,
-      cssModuleImportName: importNameForTarget(target, state.projectFormat),
-      isComponent: target.kind === 'component',
-    });
-    lastSerializedTsx = code.tsx;
-    lastSerializedCss = code.css;
-    state.setPageSource({ tsx: code.tsx, css: code.css });
-    // Force-overwrite: no expectedTsxContent. The user has
-    // explicitly chosen canvas wins.
-    dispatchPageWrite({
-      kind: 'write',
-      tsxPath: target.tsxPath,
-      cssPath: target.cssPath,
-      tsxContent: code.tsx,
-      cssContent: code.css,
-    });
-  };
-
-  /**
-   * Phase 5.2 — abandon canvas state and reload from disk. Uses the
-   * same path as `onWriteConflict` so the reload feels identical to
-   * any other "external edit won" outcome.
-   */
-  discardDivergedCanvasImpl = (): void => {
-    const state = useCanvasStore.getState();
-    const target = toEditTarget(state.activePage, state.activeComponent);
-    if (!target) {
-      useSaveStatusStore.getState().markResumed(null);
-      return;
-    }
-    // Read disk synchronously via the renderer-side `pageSource` —
-    // it was kept in sync by the chokidar handler at line 893. The
-    // user is choosing to abandon canvas state, so re-parsing that
-    // disk content into elements is the right "discard" semantic.
-    const onDisk = state.pageSource;
-    if (!onDisk) {
-      useSaveStatusStore.getState().markResumed(null);
-      return;
-    }
-    try {
-      const parsed = parseCode(onDisk.tsx, onDisk.css, {
-        breakpoints: state.breakpoints,
-      });
-      state.reloadElements(
-        parsed.elements,
-        onDisk,
-        parsed.customMediaBlocks,
-        parsed.keyframesBlocks,
-        parsed.cssDuplicates
-      );
-      lastSerializedTsx = onDisk.tsx;
-      lastSerializedCss = onDisk.css;
-      useSaveStatusStore.setState({
-        state: { kind: 'saved' },
-        toast: null,
-        dirtyDuringSave: false,
-      });
-    } catch (err) {
-      const message = errorMessage(err);
-      useAppLogStore
-        .getState()
-        .log('warn', `Could not discard canvas (parse failed): ${message}`);
-    }
-  };
-
-  /**
-   * Phase 4.3 — subscribe to the terminal activity slice so the
-   * sync engine reacts immediately when an agent appears or finishes
-   * in any of Scamp's integrated terminals. Two transitions matter:
-   *
-   *   - idle → busy: cancel the debounce timer, transition status
-   *     to `paused('agent-terminal')`. We pause PROACTIVELY here so
-   *     the first canvas write the user attempts won't race the
-   *     agent's first write.
-   *   - busy → idle: if the quiet window is also clear, reconcile
-   *     immediately. Otherwise the quiet-window timer will pick it
-   *     up when IT expires (decision: stay paused until BOTH signals
-   *     clear; see agent-coexistence-plan.md decision #3).
-   */
-  let prevAgentActive = selectAnyAgentActive(
-    useTerminalActivityStore.getState()
+  const unsubAgent = useTerminalActivityStore.subscribe(
+    makeAgentSubscriptionHandler(ctx)
   );
-  const unsubAgent = useTerminalActivityStore.subscribe((s) => {
-    const nextAgentActive = selectAnyAgentActive(s);
-    if (nextAgentActive === prevAgentActive) return;
-    prevAgentActive = nextAgentActive;
-    if (nextAgentActive) {
-      cancelWriteTimer();
-      const reason = selectPauseReason(s) ?? 'agent-terminal';
-      useSaveStatusStore.getState().markPaused(reason);
-      return;
-    }
-    // Agent just went idle. If the chokidar quiet window is also
-    // closed, reconcile now. If not, leave the existing quiet-resume
-    // timer to do the reconcile when its window expires.
-    if (!quietWindow.isQuiet()) {
-      reconcileAfterQuiet();
-    }
-  });
-
-  const unsubStore = useCanvasStore.subscribe((state, prev) => {
-    try {
-      // Detect target change against the STABLE underlying refs.
-      // `toEditTarget` returns a fresh object each call, so
-      // comparing its return values directly would always trip
-      // "target changed" and tank performance — every Zustand
-      // mutation (selection, hover, etc.) would flush, regen,
-      // and re-arm the debounce timer.
-      const targetChanged =
-        state.activePage !== prev.activePage ||
-        state.activeComponent !== prev.activeComponent;
-      const currentTarget = toEditTarget(
-        state.activePage,
-        state.activeComponent
-      );
-
-      // Target swap — flush outgoing, then transition.
-      // see docs/notes/components-sync.md
-      if (targetChanged) {
-        cancelWriteTimer();
-        const consumeSuppress = suppressNextTargetSwapWrite;
-        suppressNextTargetSwapWrite = false;
-        if (suppressTargetSwapTimer !== null) {
-          clearTimeout(suppressTargetSwapTimer);
-          suppressTargetSwapTimer = null;
-        }
-        const prevTarget = toEditTarget(
-          prev.activePage,
-          prev.activeComponent
-        );
-        if (prevTarget && !consumeSuppress) {
-          // Pass the OUTGOING page's per-page CSS — loadPage() has
-          // already swapped the store's pageCustomMediaBlocks /
-          // pageKeyframesBlocks to the incoming page's values, so
-          // reading from the store here would write A's elements
-          // paired with B's @media / @keyframes to A's file.
-          writeIfDirty(
-            prev.elements,
-            prev.rootElementId,
-            prevTarget,
-            prev.pageCustomMediaBlocks,
-            prev.pageKeyframesBlocks
-          );
-        }
-        lastSerializedTsx = null;
-        lastSerializedCss = null;
-      }
-
-      // Nothing relevant changed.
-      if (state.elements === prev.elements && !targetChanged) {
-        return;
-      }
-
-      if (!currentTarget) return;
-
-      // The change came from a load — refresh the write cache. For
-      // initial page loads (`'initial'`), if the re-generated code
-      // differs from what's on disk (e.g. old-format data-scamp-id,
-      // `<div></div>` vs `<div />`), write the canonical version back
-      // to migrate the file to the current format.
-      //
-      // For external edits (`'external'`, fired from chokidar when an
-      // agent / hand edit landed on disk), we NEVER auto-write back.
-      // Even when generateCode would produce something slightly
-      // different — declaration ordering, whitespace, comments —
-      // the agent's content is the source of truth on disk. Auto-
-      // writing here would clobber agent-written formatting and
-      // preserved customProperties values, which is the bug Track C
-      // exists to fix. The next user-driven canvas edit will write a
-      // canonical version on its own debounce cycle.
-      if (state.isLoading) {
-        const onDisk = state.pageSource;
-        const isExternal = state.lastLoadKind === 'external';
-        // Anchor `lastSerialized` to whatever is ACTUALLY on disk,
-        // regardless of load kind. The previous behaviour optimistically
-        // pinned it to the regenerated `code.tsx` before the
-        // format-migration write landed — so if the user edited the
-        // canvas and navigated away while that write was still in
-        // flight, the follow-up flush would dispatch with
-        // `expectedTsxContent = code.tsx` while disk still held
-        // `onDisk.tsx`. The conflict path then ran for a no-longer-
-        // active target and dropped the edit.
-        if (onDisk) {
-          lastSerializedTsx = onDisk.tsx;
-          lastSerializedCss = onDisk.css;
-        } else {
-          lastSerializedTsx = null;
-          lastSerializedCss = null;
-        }
-        // Initial loads: if the parsed-and-regenerated form differs
-        // from disk (legacy format, whitespace drift, etc.), dispatch
-        // a canonical write through the tracked path. `writeIfDirty`
-        // will diff the code against `lastSerialized` (set above to
-        // `onDisk`), capture the right expected baseline, and update
-        // `lastSerialized` to the new content via the normal flow.
-        //
-        // External edits skip this entirely — the agent's content on
-        // disk is the source of truth and round-tripping through
-        // generateCode could clobber preserved formatting / customProps.
-        if (!isExternal && onDisk) {
-          // silent=true: this is Scamp's own canonical migration of
-          // whatever just landed on disk, not a user edit. If an
-          // agent races us during a project open and the optimistic-
-          // concurrency check rejects, we adopt disk silently rather
-          // than scaring the user with "Reloaded — your edit was
-          // dropped" (they made no edit).
-          writeIfDirty(
-            state.elements,
-            state.rootElementId,
-            currentTarget,
-            state.pageCustomMediaBlocks,
-            state.pageKeyframesBlocks,
-            true
-          );
-        }
-        // Defer clearing the flag so any in-flight subscribers also see it.
-        queueMicrotask(() => {
-          useCanvasStore.setState({ isLoading: false, lastLoadKind: null });
-        });
-        return;
-      }
-
-      // Genuine canvas edit — mark the indicator and update the code
-      // preview immediately so the user sees changes reflected without
-      // waiting for the debounced write.
-      useSaveStatusStore.getState().markUnsaved();
-      if (quietWindow.isQuiet()) {
-        // The actual `writeIfDirty` won't fire until after the quiet
-        // window expires (or it'll bail when the debounce flushes
-        // inside the window). Remember that the user did edit the
-        // canvas so `reconcileAfterQuiet` knows to flush instead of
-        // silently dropping the change.
-        canvasChangedDuringQuiet = true;
-      }
-      const previewCode = generateCode({
-        elements: state.elements,
-        rootId: state.rootElementId,
-        pageName: currentTarget.name,
-        breakpoints: state.breakpoints,
-        customMediaBlocks: state.pageCustomMediaBlocks,
-        pageKeyframesBlocks: state.pageKeyframesBlocks,
-        cssModuleImportName: importNameForTarget(
-          currentTarget,
-          state.projectFormat
-        ),
-        isComponent: currentTarget.kind === 'component',
-      });
-      state.setPageSource({ tsx: previewCode.tsx, css: previewCode.css });
-
-      // Schedule the debounced disk write.
-      cancelWriteTimer();
-      writeTimer = setTimeout(flushDebouncedWrite, WRITE_DEBOUNCE_MS);
-    } catch (err) {
-      console.warn('[syncBridge] store subscription error:', err);
-    }
-  });
+  const unsubStore = useCanvasStore.subscribe(
+    makeStoreSubscriptionHandler(ctx)
+  );
 
   const offAck = window.scamp.onFileWriteAck((payload) => {
     handleAck(payload.writeId, payload.path);
   });
-
-  const offFile = window.scamp.onFileChanged((payload) => {
-    const state = useCanvasStore.getState();
-    const target = toEditTarget(state.activePage, state.activeComponent);
-    if (!target) return;
-    if (
-      payload.path !== target.tsxPath &&
-      payload.path !== target.cssPath
-    ) {
-      return;
-    }
-    if (payload.tsxContent === null || payload.cssContent === null) return;
-
-    // Late-echo guard: if the incoming payload byte-matches what
-    // we last wrote, this is chokidar replaying our own save past
-    // the main-side pending-write expiry. Ignore it — re-parsing
-    // would either no-op (best case) or clobber an in-memory edit
-    // the user made since the save (worst case).
-    // see docs/notes/agent-coexistence.md — late-chokidar echo race.
-    if (
-      payload.tsxContent === lastSerializedTsx &&
-      payload.cssContent === lastSerializedCss
-    ) {
-      return;
-    }
-
-    // Phase 1.1: mark this path as actively being reloaded so any
-    // concurrent canvas-side `writeIfDirty` bails until we've
-    // refreshed `lastSerialized`. We mark both sibling paths even
-    // though chokidar only reported one — they ride together
-    // through `dispatchPageWrite` so the protection should too.
-    externalEditTracker.markPair(target.tsxPath, target.cssPath);
-
-    // Phase 3.2: open / extend the quiet window. Agents typically
-    // write the same file multiple times in a burst; the window
-    // absorbs the rest of the burst so we don't race the in-between
-    // writes. Each chokidar event rolls the deadline forward, so a
-    // long agent task keeps Scamp paused until the agent settles.
-    quietWindow.extend();
-    cancelWriteTimer();
-    // Reset the canvas-changed-during-quiet flag at the start of
-    // (or extension to) the quiet window. We're now watching for
-    // canvas edits arriving DURING this window — anything before
-    // doesn't count.
-    canvasChangedDuringQuiet = false;
-    useSaveStatusStore.getState().markPaused('external-edit');
-    scheduleQuietResume();
-
-    // External editors (Claude Code, vim, etc.) can trigger chokidar
-    // mid-write — the file content may be truncated or malformed. Guard
-    // the entire parse → diff → reload pipeline so a transient bad read
-    // logs a warning instead of crashing the renderer process.
-    try {
-      const parsed = parseCode(payload.tsxContent, payload.cssContent, {
-        breakpoints: state.breakpoints,
-      });
-
-      // Always mirror the new on-disk source into the store so the code
-      // panel reflects exactly what the agent / external editor wrote
-      // (including comments, ordering, etc.) — even if the parsed tree
-      // round-trips to the same canvas state.
-      const nextSource = { tsx: payload.tsxContent, css: payload.cssContent };
-      state.setPageSource(nextSource);
-
-      // Skip the canvas reload when the parsed tree round-trips to the
-      // same code — prevents flicker during agent edits that don't actually
-      // change a canvas-mappable property.
-      const importName = importNameForTarget(target, state.projectFormat);
-      const isComponent = target.kind === 'component';
-      const currentCode = generateCode({
-        elements: state.elements,
-        rootId: state.rootElementId,
-        pageName: target.name,
-        breakpoints: state.breakpoints,
-        customMediaBlocks: state.pageCustomMediaBlocks,
-        pageKeyframesBlocks: state.pageKeyframesBlocks,
-        cssModuleImportName: importName,
-        isComponent,
-      });
-      const nextCode = generateCode({
-        elements: parsed.elements,
-        rootId: parsed.rootId,
-        pageName: target.name,
-        breakpoints: state.breakpoints,
-        customMediaBlocks: parsed.customMediaBlocks,
-        pageKeyframesBlocks: parsed.keyframesBlocks,
-        cssModuleImportName: importName,
-        isComponent,
-      });
-      if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
-        return;
-      }
-
-      // If a canvas drag is in flight (transactionDepth > 0), defer
-      // the reload until the transaction ends — option B from the
-      // history-panel plan. The history slice queues the snapshot
-      // and applies it via `restoreSnapshot` once the user releases
-      // the mouse.
-      const history = useHistoryStore.getState();
-      if (history.transactionDepth > 0) {
-        history.enqueueExternalEdit(parsed.elements);
-        // The page source still needs to update so the bottom code
-        // panel reflects the disk content; we update the source but
-        // leave the canvas elements alone until the drag ends.
-        return;
-      }
-      state.reloadElements(
-        parsed.elements,
-        nextSource,
-        parsed.customMediaBlocks,
-        parsed.keyframesBlocks,
-        parsed.cssDuplicates
-      );
-      // Push an `external-edit` entry rather than clearing — the
-      // history panel surfaces the agent's edit as a navigable
-      // step. Future entries can undo past it; new user actions
-      // discard the forward history as usual.
-      history.enqueueExternalEdit(parsed.elements);
-    } catch (err) {
-      // Transient parse failure — the next chokidar event (once the
-      // external write settles) will deliver valid content and succeed.
-      console.warn('[syncBridge] skipping malformed file change:', err);
-    } finally {
-      // Phase 1.1: clear the per-path "external edit pending" flag
-      // for both sibling files regardless of which paths through
-      // the handler we took (success, no-op round-trip, transaction
-      // defer, parse failure). `writeIfDirty` will now proceed again.
-      externalEditTracker.clearPair(target.tsxPath, target.cssPath);
-    }
-  });
+  const offFile = window.scamp.onFileChanged(makeFileChangedHandler(ctx));
 
   // Flush any queued write when the renderer is about to go away
   // (window close, full reload, HMR). The main-process IPC handler
-  // will complete the file write after the renderer is gone — Electron
-  // keeps the main process alive long enough to drain its message
-  // queue.
+  // completes the file write after the renderer is gone — Electron
+  // keeps the main process alive long enough to drain its queue.
   const handleBeforeUnload = (): void => {
-    cancelWriteTimer();
-    flushDebouncedWrite();
+    ctx.cancelWriteTimer();
+    ctx.flushDebouncedWrite();
   };
   window.addEventListener('beforeunload', handleBeforeUnload);
 
-  // Listen for theme.css changes and update both the token store and
-  // the project-fonts store — the file now holds both.
-  const offTheme = window.scamp.onThemeChanged((content: string) => {
-    const parsed = parseThemeFile(content);
-    useCanvasStore.getState().setThemeTokens(parsed.tokens);
-    applyThemeFonts(parsed.fontImportUrls);
-  });
+  const offTheme = window.scamp.onThemeChanged(makeThemeChangedHandler());
 
   return () => {
-    cancelWriteTimer();
+    ctx.cancelWriteTimer();
     pendingFlush = null;
-    if (quietResumeTimer !== null) {
-      clearTimeout(quietResumeTimer);
-      quietResumeTimer = null;
+    if (ctx.quietResumeTimer !== null) {
+      clearTimeout(ctx.quietResumeTimer);
+      ctx.quietResumeTimer = null;
     }
-    quietWindow.clear();
+    ctx.quietWindow.clear();
     resumeFromPauseImpl = null;
     saveDivergedCanvasImpl = null;
     discardDivergedCanvasImpl = null;

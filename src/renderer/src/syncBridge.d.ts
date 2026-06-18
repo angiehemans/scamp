@@ -1,45 +1,33 @@
 export { savePatch, retryLastSave } from './syncBridge/writeDispatch';
+export { armTargetSwapSuppression, disarmTargetSwapSuppression, } from './syncBridge/targetSwapSuppression';
 export declare const flushPendingPageWrite: () => void;
+/** Save-status indicator's `Resume now` button. */
 export declare const resumeFromPause: () => void;
 /**
- * Phase 5.2 — force-write the canvas's current state to disk,
- * overwriting whatever the external editor wrote. Called from the
- * diverged-state popover's `Save canvas` button.
+ * Phase 5.2 — force-write the canvas's current state to disk, overwriting
+ * whatever the external editor wrote. Diverged popover's `Save canvas`.
  */
 export declare const saveDivergedCanvas: () => void;
 /**
- * Phase 5.2 — abandon the canvas's in-memory state and reload from
- * disk. Called from the diverged-state popover's `Discard canvas`
- * button.
+ * Phase 5.2 — abandon the canvas's in-memory state and reload from disk.
+ * Diverged popover's `Discard canvas`.
  */
 export declare const discardDivergedCanvas: () => void;
-export declare const armTargetSwapSuppression: () => void;
-export declare const disarmTargetSwapSuppression: () => void;
 /**
- * Wires the canvas store to the file system.
+ * Wires the canvas store to the file system. See the per-handler files in
+ * `syncBridge/` for the detailed behaviour; in summary:
  *
  *   - On any canvas state change: regenerate code and write the page files
- *     after a 200ms debounce. The write is acked by the main process so
- *     chokidar won't re-read what we just wrote.
- *   - On `file:changed` for the active page: parse the new file content
- *     and reload the canvas — but only if the parsed tree differs from
- *     the current state, so external no-op changes don't cause flicker.
- *   - On `file:writeAck`: correlate against the pending-saves map and
- *     transition the save-status indicator to "Saved" once both IPC
- *     resolution and all expected path acks have landed.
- *   - When the canvas state is loaded from a parse result, the next
- *     subscribe tick refreshes a "last written" cache so the load doesn't
- *     immediately write itself back to disk.
+ *     after a debounce, acked by main so chokidar won't re-read our write.
+ *   - On `file:changed` for the active page: parse + reload the canvas, but
+ *     only if the parsed tree differs from current state.
+ *   - On `file:writeAck`: correlate against pending saves and advance the
+ *     save-status indicator to "Saved".
+ *   - On load: refresh the "last written" cache so the load doesn't write
+ *     itself straight back to disk.
  *
- * Pending-write durability:
- *   - When the active page changes, any pending debounced write is
- *     IMMEDIATELY flushed against the OUTGOING page's state before the
- *     timer is cleared. Without this, switching pages within 200ms of an
- *     edit would silently drop the edit because the timer would fire
- *     against the new page's state and write a no-op.
- *   - When the renderer is unloading (window close, full reload),
- *     `beforeunload` flushes any pending write the same way. The IPC
- *     message is queued for the main process to complete after the
- *     renderer is gone.
+ * Pending-write durability: a pending debounced write is flushed against
+ * the OUTGOING page's state before a target swap and on `beforeunload`,
+ * so an edit made within the debounce window is never silently dropped.
  */
 export declare const initSyncBridge: () => (() => void);
