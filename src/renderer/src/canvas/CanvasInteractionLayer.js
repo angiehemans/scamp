@@ -9,6 +9,8 @@ import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
 import { GridOverlay } from './GridOverlay';
 import { LinkIndicators } from './LinkIndicators';
+import { hitTest, propTextHitTest, isResizeHandle, } from './interactions/canvasHitTest';
+import { useCanvasGeometry } from './interactions/useCanvasGeometry';
 import styles from './CanvasInteractionLayer.module.css';
 /** Default size for image elements placed via click (not drag). */
 const DEFAULT_IMAGE_SIZE = 200;
@@ -23,54 +25,6 @@ const DEFAULT_NEW_RECT_SIZE = 200;
 /** Default size for an input element placed via click (not drag). */
 const DEFAULT_NEW_INPUT_WIDTH = 240;
 const DEFAULT_NEW_INPUT_HEIGHT = 32;
-/**
- * Hit-test the cursor against existing elements. Returns the deepest
- * `data-element-id` under the point. We rely on `document.elementsFromPoint`
- * rather than maintaining a parallel quadtree — the canvas DOM is small
- * and React's render is the source of truth.
- */
-const hitTest = (clientX, clientY) => {
-    const candidates = document.elementsFromPoint(clientX, clientY);
-    for (const node of candidates) {
-        if (node instanceof HTMLElement) {
-            const id = node.dataset['elementId'];
-            if (id)
-                return id;
-        }
-    }
-    return null;
-};
-/**
- * Look for a prop-text span under the cursor. Prop-text on a component
- * instance carries `data-scamp-instance-id` + `data-scamp-prop`
- * (set in ElementRenderer's `renderComponentSubtree`). We only surface
- * a hit if we see those before we walk through the instance's
- * `data-element-id` wrapper — otherwise a deeper match would jump out
- * of the instance we actually clicked.
- */
-const propTextHitTest = (clientX, clientY) => {
-    const candidates = document.elementsFromPoint(clientX, clientY);
-    for (const node of candidates) {
-        if (!(node instanceof HTMLElement))
-            continue;
-        const instanceId = node.dataset['scampInstanceId'];
-        const propName = node.dataset['scampProp'];
-        if (instanceId && propName)
-            return { instanceId, propName };
-        if (node.dataset['elementId'])
-            return null;
-    }
-    return null;
-};
-const isResizeHandle = (clientX, clientY) => {
-    const candidates = document.elementsFromPoint(clientX, clientY);
-    for (const node of candidates) {
-        if (node instanceof HTMLElement && node.dataset['handle']) {
-            return node.dataset['handle'];
-        }
-    }
-    return null;
-};
 export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const layerRef = useRef(null);
     const [draw, setDraw] = useState(null);
@@ -118,117 +72,9 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const resizeElement = useCanvasStore((s) => s.resizeElement);
     const reorderElement = useCanvasStore((s) => s.reorderElement);
     const activePage = useCanvasStore((s) => s.activePage);
-    /**
-     * Convert viewport pointer coords to frame-local (logical) coords.
-     *
-     * The frame is rendered via `transform: scale`, which has well-defined,
-     * platform-consistent behavior: `getBoundingClientRect()` returns the
-     * visible (scaled) rect and `offsetWidth/Left` stay in logical pixels.
-     * So subtract the visible frame origin and divide by the scale factor
-     * to recover logical frame-local coordinates.
-     */
-    const toFrame = (clientX, clientY) => {
-        const frame = frameRef.current;
-        if (!frame)
-            return { x: 0, y: 0 };
-        const rect = frame.getBoundingClientRect();
-        return {
-            x: (clientX - rect.left) / scale,
-            y: (clientY - rect.top) / scale,
-        };
-    };
-    /**
-     * Measure an element's bounding box in frame-local (logical)
-     * coordinates by querying the rendered DOM. Source of truth for the
-     * selection overlay and the draw-tool parent offset.
-     *
-     * The frame is scaled with `transform: scale`, which doesn't touch
-     * layout — so `offsetLeft/offsetTop/offsetWidth/offsetHeight` are
-     * already in logical pixels and don't need to be divided by scale.
-     * The overlay/preview are children of the transformed frame, so
-     * positioning them with these logical coords renders correctly.
-     */
-    const measureElementInFrame = (id) => {
-        const frame = frameRef.current;
-        if (!frame)
-            return null;
-        const node = frame.querySelector(`[data-element-id="${id}"]`);
-        if (!(node instanceof HTMLElement))
-            return null;
-        // Walk up the offsetParent chain to the frame, accumulating logical
-        // pixel offsets. offsetLeft/Top are always unaffected by ancestor
-        // `transform: scale` since transforms don't reflow layout.
-        let x = 0;
-        let y = 0;
-        let current = node;
-        while (current && current !== frame) {
-            x += current.offsetLeft;
-            y += current.offsetTop;
-            current = current.offsetParent;
-        }
-        return {
-            x,
-            y,
-            w: node.offsetWidth,
-            h: node.offsetHeight,
-        };
-    };
-    /**
-     * Look up a parent element's inner-bounds size for clamping at the
-     * end of a draw. For non-root rects the stored
-     * widthValue/heightValue is authoritative. For the root, stored
-     * values are stale (root defaults to stretch/auto), so width comes
-     * from the DOM and height is treated as unbounded — a user should
-     * be able to draw a rectangle below the current content extent and
-     * have the page grow to accommodate it.
-     */
-    const parentSizeOf = (parentId) => {
-        const id = parentId ?? ROOT_ELEMENT_ID;
-        if (id === ROOT_ELEMENT_ID) {
-            const measured = measureElementInFrame(ROOT_ELEMENT_ID);
-            const rootWidth = measured?.w ?? elements[ROOT_ELEMENT_ID]?.widthValue ?? 1440;
-            return { w: rootWidth, h: Number.POSITIVE_INFINITY };
-        }
-        const el = elements[id];
-        if (!el)
-            return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
-        return { w: el.widthValue, h: el.heightValue };
-    };
-    /**
-     * Bounds for clamping move / resize operations. Unlike
-     * `parentSizeOf` (which treats root height as unbounded so draws
-     * can extend the page), move and resize clamp against the parent's
-     * CURRENT visible extent — otherwise the user can drag an element
-     * completely off the bottom of the page with no way to get it back.
-     *
-     * For root we use the canvas frame's rendered height rather than
-     * root's own offsetHeight: root defaults to `height: auto` and its
-     * children are `position: absolute`, which contribute nothing to
-     * the CSS content-driven height — root would measure as zero and
-     * every move would be locked at y=0.
-     */
-    const parentMoveBoundsOf = (parentId) => {
-        const id = parentId ?? ROOT_ELEMENT_ID;
-        if (id === ROOT_ELEMENT_ID) {
-            const frame = frameRef.current;
-            const measured = measureElementInFrame(ROOT_ELEMENT_ID);
-            const el = elements[ROOT_ELEMENT_ID];
-            return {
-                w: measured?.w ?? el?.widthValue ?? 1440,
-                h: frame?.offsetHeight ?? el?.heightValue ?? 900,
-            };
-        }
-        const el = elements[id];
-        if (!el)
-            return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
-        return { w: el.widthValue, h: el.heightValue };
-    };
-    /** True if `el`'s parent is a flex container — i.e. flex layout owns its position. */
-    const isFlexChild = (el) => {
-        if (!el || !el.parentId)
-            return false;
-        return elements[el.parentId]?.display === 'flex';
-    };
+    // Frame-local geometry helpers (coord conversion, DOM measurement,
+    // parent-bounds lookups) shared by every pointer handler.
+    const { toFrame, measureElementInFrame, parentSizeOf, parentMoveBoundsOf, isFlexChild, } = useCanvasGeometry(frameRef, scale);
     // When the image tool is activated, immediately open a file dialog so
     // the user picks a file before drawing. If they cancel, revert to the
     // select tool. If they pick a file, copy it into assets/ and store the
