@@ -185,6 +185,8 @@ Apply at the top of every handler in:
 
 ## Phase 3 — Reuse and consolidation (no behaviour changes)
 
+> **Status: ◐ MOSTLY COMPLETE (committed `f3ccb51`).** Done: 3.1 `useColorPickerContext`, 3.3 `useListField`, 3.4 `patchCustomProperties` (now on the `elementsEdit` slice), 3.6 `<SectionEmptyState>`, 3.7 `ErrorBoundary` hex, 3.8 `SegmentedControl` discriminated union, 3.9 `Record<string, unknown>` casts removed, 3.10 `exhaustive-deps` suppressions removed (`ProjectShell` was later fully rewritten in 5.2). **NOT done:** **3.2** — no dedicated `useGroupToggle` hook was added; the inline ternary is consolidated into `Section.tsx` but not extracted as the spec'd hook. **3.5** — button migration is partial: 9 sections now use `controls/Button`, but 6 still contain raw `<button>` (`Section`, `LinkField`, `ImageSection`, `AnimationSection`, `ElementSection`, `BackgroundSection`).
+
 **Goal:** Reduce duplication, enforce CLAUDE.md rules, make the section files less bloated. No new features; no behaviour changes.
 
 **Depends on:** None, but easier after Phase 1 so docs are in place.
@@ -266,6 +268,8 @@ Three suppressions at lines 302, 807, 839. CLAUDE.md forbids them.
 
 ## Phase 4 — File splits (pure logic first)
 
+> **Status: ✅ COMPLETE (committed `50ee139`, `5f7f080`, `6838bc8`, `d0fe58c`).** 4.1 `@lib/elementToStyle.ts` + tests, 4.2 `lib/element/` types+tree split (barrel re-export), 4.3 `lib/parsers/` per-shorthand split, 4.4 `lib/parseCode/` split, 4.5 `lib/generateCode/` split (`generateCodeLegacy` deleted per resolved-decision #4), 4.6 `agentMd.ts` → `shared/templates/`, 4.7 ipc `*Ops.ts` pattern (every `src/main/ipc/*.ts` has an `Ops` sibling).
+
 **Goal:** Break up the easier-to-split monoliths (the pure-logic ones), where the seams are already obvious. Defer the React + store splits to Phase 5.
 
 **Depends on:** Phase 1 docs make this easier to navigate, but not strictly required.
@@ -320,6 +324,15 @@ The pattern is half-applied. Clean pairs: `component.ts`/`componentOps.ts`, `pag
 ---
 
 ## Phase 5 — The big refactors (highest risk, biggest payoff)
+
+> **Status: ✅ COMPLETE (2026-06-18).** All five tasks landed across `f4c4f93`, `80bc2ab`, `253ff17` (5.1), `d8633cd`→`217de72` (5.2, 9 commits), `0d9d7b4`+`825d6e9` (5.3), `da85d33`+`e7e76ef` (5.4), `0e7d609` (5.5):
+> - **5.1** `canvasSlice.ts` 2277 → 674; 7 domain slices via Zustand `StateCreator` + `Pick<CanvasState>` (largest 709). `selectProjectColors` → `@lib/projectColors.ts`. No `@store/` file >800.
+> - **5.2** `ProjectShell.tsx` 2254 → 465 — a layout shell composing `ProjectHeader` / `PageSidebar` / `ComponentSidebar` / `CanvasArea` / `ProjectModals` + 10 hooks under `components/projectShell/`.
+> - **5.3** `CanvasInteractionLayer.tsx` 874 → 259 — per-tool hooks under `canvas/interactions/` (`useDraw/Move/Resize/Reorder/DropInsert`), each <250; pure `canvasHitTest` + `useCanvasGeometry`.
+> - **5.4** `syncBridge.ts` 993 → 192 + the deep `initSyncBridge` split — mutable save cache lifted into a `SaveContext` threaded through 8 handler files; no file in `syncBridge/` >400 (largest 242).
+> - **5.5** history-coverage audit + locked-in prop-override undo test (`test/historyPropOverride.test.ts`).
+>
+> Full typecheck (node + web) clean; **1509 unit + 148 integration tests pass**. **CAVEAT:** 5.2 / 5.3 / 5.4 are runtime-heavy (canvas pointer interaction + the live save pipeline) and not exercised end-to-end by the automated suite — logic was moved verbatim and typechecked, but a **manual smoke test** of the canvas (draw / move / resize / reorder / drag-drop) and save flows (edit+save, external/agent edit, page-swap mid-edit, conflict) is advisable before a release.
 
 **Goal:** Split the two files that drive the bulk of merge-conflict pain: `canvasSlice.ts` and `ProjectShell.tsx`. Plus the canvas interaction layer and sync bridge.
 
