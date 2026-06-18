@@ -903,6 +903,12 @@ Each project also has a \`scamp.config.json\` file at the root. It holds
 per-project settings like the artboard background colour. Scamp
 reads and writes this file; don't modify it unless the user asks.
 
+## Snapshot history
+
+Scamp saves snapshots of the project in a \`.scamp/\` folder.
+Do not modify or delete anything inside \`.scamp/\`.
+Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
+
 ## What NOT to change
 - Do not alter the import line at the top of the TSX file.
 - Do not rename the default export function.
@@ -1790,6 +1796,12 @@ Implications for agents:
   \`page.data.json\` next to \`app/about/page.tsx\`) is set aside
   for a future feature that injects mock data as page props during
   preview. Don't repurpose this name for unrelated files.
+
+## Snapshot history
+
+Scamp saves snapshots of the project in a \`.scamp/\` folder.
+Do not modify or delete anything inside \`.scamp/\`.
+Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
 
 ## What NOT to change
 - Do not alter the import line at the top of any \`page.tsx\` file.
