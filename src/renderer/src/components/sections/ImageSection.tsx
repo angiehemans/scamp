@@ -90,6 +90,8 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
         />
       </Row>
       <Row label="Position">
+        {/* Raw <button>s: a 3x3 anchor-picker grid of empty cells, not
+            labeled action buttons — controls/Button doesn't model this. */}
         <div className={styles.positionGrid}>
           {OBJ_POSITION_OPTIONS.map((opt) => (
             <Tooltip key={opt} label={`Anchor the image to the ${opt}`}>

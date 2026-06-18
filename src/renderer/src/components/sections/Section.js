@@ -24,6 +24,9 @@ export const Section = ({ title, children, collapsible = false, defaultOpen = tr
     // section's collapse state so the user can flip without
     // expanding first.
     const groupLabel = groupToggle?.label ?? title;
+    // The raw <button>s in this wrapper (the eye toggle here + the collapse
+    // disclosure below) are section chrome with aria-pressed / aria-expanded
+    // semantics, not labeled actions — controls/Button doesn't model them.
     const groupToggleButton = groupToggle ? (_jsx(Tooltip, { label: groupToggle.isOn ? `Hide ${groupLabel}` : `Show ${groupLabel}`, children: _jsx("button", { type: "button", className: styles.groupToggleButton, onClick: (e) => {
                 // Stop propagation so clicking the toggle doesn't
                 // also collapse the section (when the title row IS the

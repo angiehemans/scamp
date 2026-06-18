@@ -211,6 +211,8 @@ const SelectOptionsEditor = ({ elementId, element }: EditorProps): JSX.Element =
             placeholder="label"
             onCommit={(next) => patchOption(idx, { label: next })}
           />
+          {/* Raw <button>: a toggle pill (selected/unselected), not a
+              labeled action — controls/Button has no toggle variant. */}
           <button
             type="button"
             className={`${styles.pill} ${opt.selected ? styles.pillActive : ''}`}

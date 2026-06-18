@@ -412,6 +412,10 @@ const IterationField = ({ value, onChange }: IterationFieldProps): JSX.Element =
     };
   }, [menuOpen]);
 
+  // Raw <button>s here (caret + the menuitemradio rows below) form a
+  // custom disclosure menu with ARIA menu semantics, not labeled
+  // actions — controls/Button models neither aria-haspopup nor
+  // role=menuitemradio.
   const caret = (
     <button
       type="button"

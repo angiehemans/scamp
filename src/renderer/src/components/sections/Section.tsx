@@ -86,6 +86,9 @@ export const Section = ({
   // section's collapse state so the user can flip without
   // expanding first.
   const groupLabel = groupToggle?.label ?? title;
+  // The raw <button>s in this wrapper (the eye toggle here + the collapse
+  // disclosure below) are section chrome with aria-pressed / aria-expanded
+  // semantics, not labeled actions — controls/Button doesn't model them.
   const groupToggleButton = groupToggle ? (
     <Tooltip label={groupToggle.isOn ? `Hide ${groupLabel}` : `Show ${groupLabel}`}>
       <button

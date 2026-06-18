@@ -192,6 +192,10 @@ const IterationField = ({ value, onChange }) => {
             document.removeEventListener('keydown', handleKey);
         };
     }, [menuOpen]);
+    // Raw <button>s here (caret + the menuitemradio rows below) form a
+    // custom disclosure menu with ARIA menu semantics, not labeled
+    // actions — controls/Button models neither aria-haspopup nor
+    // role=menuitemradio.
     const caret = (_jsx("button", { type: "button", className: styles.iterationCaret, onClick: () => setMenuOpen((v) => !v), "aria-label": "Iteration mode", "aria-haspopup": "menu", "aria-expanded": menuOpen, children: "\u25BE" }));
     const handleNumberCommit = (n) => {
         lastNumericRef.current = n;
