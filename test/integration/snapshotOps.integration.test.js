@@ -40,6 +40,23 @@ describe('snapshot operations — nextjs format', () => {
         const list = await listSnapshots(projectDir);
         expect(list.some((s) => s.trigger === 'before_restore')).toBe(true);
     });
+    it('models the trigger timeline: open + rapid agent edits (collapsed) + close', async () => {
+        // The watcher / lifecycle hooks call createSnapshot with these
+        // triggers; this asserts the resulting snapshot timeline.
+        const t0 = Date.parse('2026-05-01T10:00:00.000Z');
+        await createSnapshot(projectDir, 'nextjs', 'session_open', undefined, t0);
+        await createSnapshot(projectDir, 'nextjs', 'agent_edit', 'page.tsx', t0 + 1000);
+        // Second agent edit <5s later collapses into the first — no new snapshot.
+        await createSnapshot(projectDir, 'nextjs', 'agent_edit', 'page.module.css', t0 + 2000);
+        await createSnapshot(projectDir, 'nextjs', 'session_close', undefined, t0 + 10000);
+        const list = await listSnapshots(projectDir);
+        expect(list.map((s) => s.trigger)).toEqual([
+            'session_open',
+            'agent_edit',
+            'session_close',
+        ]);
+        expect(list[1]?.label).toBe('External edit — page.tsx');
+    });
     it('lists newest-appended and supports delete', async () => {
         const a = await createSnapshot(projectDir, 'nextjs', 'manual', 'one');
         const b = await createSnapshot(projectDir, 'nextjs', 'manual', 'two');

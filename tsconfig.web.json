@@ -36,6 +36,7 @@
     "src/main/ipc/pageRename.ts",
     "src/main/ipc/terminalForeground.ts",
     "src/main/ipc/projectFormat.ts",
+    "src/main/ipc/projectFormatCache.ts",
     "src/main/ipc/projectMigrate.ts",
     "src/main/ipc/projectScaffold.ts",
     "src/main/ipc/settings.ts",

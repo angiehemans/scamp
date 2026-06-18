@@ -58,7 +58,11 @@ The foundation; everything here is unit/integration-testable without the app run
   - `test/snapshotOps.test.ts` (unit, temp dirs, real fs): create writes folder+json; list sorts newest-first; **prune at 51 drops oldest folder+entry**; **5-s collapse** skips/merges; delete removes both; malformed/missing `snapshots.json` tolerated; **simulated write failure stays silent** (no throw).
   - `test/integration/snapshotOps.integration.test.ts`: scaffold a real legacy + nextjs project → create → assert `.scamp/snapshots/<id>/` mirrors `app/`+`components/` → restore → assert files copied back + a `before_restore` entry exists → list reflects state.
 
-### Phase B — Triggers (main + lifecycle)
+### Phase B — Triggers (main + lifecycle) — ✅ DONE (main-side)
+
+Wired the three main-side triggers: `session_open` (fire-and-forget in `openProject`, before the open-time scaffolding writes), `agent_edit` (in `watcher.ts emitChange` when `consumed === null` — i.e. no pending-write entry, which cleanly means external since every Scamp write registers one), `session_close` (`before-quit` / `performShutdownCleanup`, from disk, before disposing the watcher). Added a trigger-timeline integration test. The **renderer-driven `session_close` on in-app project close** (flush + `snapshot:create`) is wired in Phase C (it's a renderer edit to `App.tsx`/`ProjectShell`). Typecheck clean; 1539 tests pass. Electron glue (watcher/app hooks) is verified by typecheck + the Ops timeline contract; full runtime verification is part of the manual pass.
+
+
 
 - **Session open** — fire-and-forget `createSnapshot(..., 'session_open')` inside main's `openProject()` *before* returning `ProjectData` (non-blocking; never delays load).
 - **Agent edit** — in `watcher.ts` `emitChange`, *after* the existing self-write/pending-write suppression confirms it's genuinely external, call `createSnapshot(..., 'agent_edit', filename)` (collapse lives in `snapshotOps`). Must **not** fire for `.scamp/` (already ignored) or for restore-driven writes (guarded in Phase E).
