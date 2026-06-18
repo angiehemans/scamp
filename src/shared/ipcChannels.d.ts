@@ -58,6 +58,11 @@ export declare const IPC: {
     readonly TerminalData: "terminal:data";
     readonly TerminalExit: "terminal:exit";
     readonly TerminalForegroundProcess: "terminal:foregroundProcess";
+    readonly SnapshotCreate: "snapshot:create";
+    readonly SnapshotList: "snapshot:list";
+    readonly SnapshotRestore: "snapshot:restore";
+    readonly SnapshotRestoreComplete: "snapshot:restore:complete";
+    readonly SnapshotDelete: "snapshot:delete";
     readonly ExportChooseSavePath: "export:chooseSavePath";
     readonly ExportPng: "export:png";
     readonly ExportSvg: "export:svg";

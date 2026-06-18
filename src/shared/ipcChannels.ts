@@ -99,6 +99,17 @@ export const IPC = {
   // engine into pause + show the appropriate status pill.
   TerminalForegroundProcess: 'terminal:foregroundProcess',
 
+  // Project snapshots — persistent point-in-time copies of all page +
+  // component files, stored under `.scamp/snapshots/`. All file I/O
+  // happens main-side; see docs/notes/snapshots.md.
+  SnapshotCreate: 'snapshot:create',
+  SnapshotList: 'snapshot:list',
+  SnapshotRestore: 'snapshot:restore',
+  // Main → renderer: the restore's file copies have landed, so the
+  // renderer can refresh the project + clear the in-session undo stack.
+  SnapshotRestoreComplete: 'snapshot:restore:complete',
+  SnapshotDelete: 'snapshot:delete',
+
   // Export (page or element)
   ExportChooseSavePath: 'export:chooseSavePath',
   ExportPng: 'export:png',

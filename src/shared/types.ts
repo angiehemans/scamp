@@ -427,6 +427,54 @@ export type ComponentReadThumbnailResult = {
   base64: string | null;
 };
 
+// ---- Project snapshots ----
+// Persistent point-in-time copies of all page + component files, stored
+// under `.scamp/snapshots/`. See docs/notes/snapshots.md.
+
+export type SnapshotTrigger =
+  | 'session_open'
+  | 'agent_edit'
+  | 'session_close'
+  | 'manual'
+  | 'auto_save'
+  | 'before_restore';
+
+export type SnapshotMeta = {
+  id: string;
+  /** ISO 8601 UTC timestamp the snapshot was taken. */
+  timestamp: string;
+  trigger: SnapshotTrigger;
+  /** Display label (e.g. "External edit — page.module.css", a manual name). */
+  label: string;
+  /** Number of pages captured at snapshot time. */
+  pageCount: number;
+};
+
+export type SnapshotCreateArgs = {
+  projectPath: string;
+  trigger: SnapshotTrigger;
+  /**
+   * Trigger detail: the user-typed name for `manual`, the changed
+   * filename for `agent_edit`. Ignored for the time-based triggers.
+   */
+  label?: string;
+};
+/** `snapshot: null` means the create was collapsed or silently failed. */
+export type SnapshotCreateResult = { snapshot: SnapshotMeta | null };
+
+export type SnapshotListArgs = { projectPath: string };
+export type SnapshotListResult = { snapshots: SnapshotMeta[] };
+
+export type SnapshotRestoreArgs = { projectPath: string; snapshotId: string };
+export type SnapshotRestoreResult =
+  | { ok: true; snapshotId: string }
+  | { ok: false; error: string };
+
+export type SnapshotRestoreCompletePayload = { snapshotId: string };
+
+export type SnapshotDeleteArgs = { projectPath: string; snapshotId: string };
+export type SnapshotDeleteResult = { ok: boolean };
+
 export type ProjectMigrateArgs = {
   projectPath: string;
 };

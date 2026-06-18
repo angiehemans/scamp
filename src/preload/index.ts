@@ -41,6 +41,15 @@ import type {
   ProjectMigrateResult,
   RecentProject,
   Settings,
+  SnapshotCreateArgs,
+  SnapshotCreateResult,
+  SnapshotDeleteArgs,
+  SnapshotDeleteResult,
+  SnapshotListArgs,
+  SnapshotListResult,
+  SnapshotRestoreArgs,
+  SnapshotRestoreResult,
+  SnapshotRestoreCompletePayload,
   TerminalCreateArgs,
   TerminalCreateResult,
   TerminalDataPayload,
@@ -135,6 +144,25 @@ const api = {
   ): Promise<ComponentReadThumbnailResult> =>
     ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
 
+  // Project snapshots (persistent `.scamp/` point-in-time copies).
+  createSnapshot: (
+    args: SnapshotCreateArgs
+  ): Promise<SnapshotCreateResult> =>
+    ipcRenderer.invoke(IPC.SnapshotCreate, args),
+
+  listSnapshots: (args: SnapshotListArgs): Promise<SnapshotListResult> =>
+    ipcRenderer.invoke(IPC.SnapshotList, args),
+
+  restoreSnapshot: (
+    args: SnapshotRestoreArgs
+  ): Promise<SnapshotRestoreResult> =>
+    ipcRenderer.invoke(IPC.SnapshotRestore, args),
+
+  deleteSnapshot: (
+    args: SnapshotDeleteArgs
+  ): Promise<SnapshotDeleteResult> =>
+    ipcRenderer.invoke(IPC.SnapshotDelete, args),
+
   getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
     ipcRenderer.invoke(IPC.RecentProjectsGet),
 
@@ -183,6 +211,17 @@ const api = {
     const listener = (_e: IpcRendererEvent, payload: FileWriteAckPayload): void => handler(payload);
     ipcRenderer.on(IPC.FileWriteAck, listener);
     return () => ipcRenderer.removeListener(IPC.FileWriteAck, listener);
+  },
+
+  onSnapshotRestoreComplete: (
+    handler: (payload: SnapshotRestoreCompletePayload) => void
+  ): (() => void) => {
+    const listener = (
+      _e: IpcRendererEvent,
+      payload: SnapshotRestoreCompletePayload
+    ): void => handler(payload);
+    ipcRenderer.on(IPC.SnapshotRestoreComplete, listener);
+    return () => ipcRenderer.removeListener(IPC.SnapshotRestoreComplete, listener);
   },
 
   // Images

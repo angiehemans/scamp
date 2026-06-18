@@ -1,4 +1,4 @@
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotRestoreArgs, SnapshotRestoreResult, SnapshotRestoreCompletePayload, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -42,6 +42,10 @@ declare const api: {
     readComponent: (args: ComponentReadArgs) => Promise<ComponentFile | null>;
     writeComponentThumbnail: (args: ComponentWriteThumbnailArgs) => Promise<ComponentWriteThumbnailResult>;
     readComponentThumbnail: (args: ComponentReadThumbnailArgs) => Promise<ComponentReadThumbnailResult>;
+    createSnapshot: (args: SnapshotCreateArgs) => Promise<SnapshotCreateResult>;
+    listSnapshots: (args: SnapshotListArgs) => Promise<SnapshotListResult>;
+    restoreSnapshot: (args: SnapshotRestoreArgs) => Promise<SnapshotRestoreResult>;
+    deleteSnapshot: (args: SnapshotDeleteArgs) => Promise<SnapshotDeleteResult>;
     getRecentProjects: () => Promise<Array<RecentProject & {
         exists: boolean;
     }>>;
@@ -61,6 +65,7 @@ declare const api: {
     onFileChanged: (handler: (payload: FileChangedPayload) => void) => (() => void);
     onProjectPagesChanged: (handler: () => void) => (() => void);
     onFileWriteAck: (handler: (payload: FileWriteAckPayload) => void) => (() => void);
+    onSnapshotRestoreComplete: (handler: (payload: SnapshotRestoreCompletePayload) => void) => (() => void);
     copyImage: (args: CopyImageArgs) => Promise<CopyImageResult>;
     chooseImage: (args?: ChooseImageArgs) => Promise<ChooseImageResult>;
     exportChooseSavePath: (args: ExportChooseSavePathArgs) => Promise<ExportChooseSavePathResult>;

@@ -6,6 +6,7 @@ import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
 import { registerComponentIpc } from './ipc/component';
+import { registerSnapshotIpc } from './ipc/snapshot';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
 import { registerSettingsIpc, readSettingsSync } from './ipc/settings';
 import { registerProjectConfigIpc } from './ipc/projectConfig';
@@ -209,6 +210,7 @@ app.whenReady().then(() => {
   registerFileIpc();
   registerPageIpc();
   registerComponentIpc();
+  registerSnapshotIpc();
   registerRecentProjectsIpc();
   registerSettingsIpc();
   registerProjectConfigIpc();
