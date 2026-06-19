@@ -8,6 +8,8 @@ import type {
   SnapshotDeleteResult,
   SnapshotListArgs,
   SnapshotListResult,
+  SnapshotReadPageArgs,
+  SnapshotReadPageResult,
   SnapshotRestoreArgs,
   SnapshotRestoreResult,
 } from '@shared/types';
@@ -18,6 +20,7 @@ import {
   createSnapshot,
   deleteSnapshot,
   listSnapshots,
+  readSnapshotPage,
   restoreSnapshot,
 } from './snapshotOps';
 
@@ -81,5 +84,16 @@ export const registerSnapshotIpc = (): void => {
     async (_e, args: SnapshotDeleteArgs): Promise<SnapshotDeleteResult> => {
       return deleteSnapshot(args.projectPath, args.snapshotId);
     }
+  );
+
+  ipcMain.handle(
+    IPC.SnapshotReadPage,
+    async (_e, args: SnapshotReadPageArgs): Promise<SnapshotReadPageResult> =>
+      readSnapshotPage(
+        args.projectPath,
+        args.snapshotId,
+        args.tsxPath,
+        args.cssPath
+      )
   );
 };

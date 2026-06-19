@@ -50,6 +50,8 @@ import {
   type ActiveComponent,
   type ComponentTree,
   type PageSource,
+  type SnapshotPreviewContent,
+  type SnapshotPreviewMeta,
   type Tool,
   type NewRectInput,
   type NewTextInput,
@@ -73,6 +75,10 @@ export const createDocumentSlice: StateCreator<
   | 'pageCustomMediaBlocks'
   | 'pageKeyframesBlocks'
   | 'componentTrees'
+  | 'snapshotPreview'
+  | 'enterSnapshotPreview'
+  | 'exitSnapshotPreview'
+  | 'clearSnapshotPreview'
   | 'loadPage'
   | 'loadComponent'
   | 'reloadElements'
@@ -90,6 +96,56 @@ export const createDocumentSlice: StateCreator<
   pageCustomMediaBlocks: [],
   pageKeyframesBlocks: [],
   componentTrees: {},
+  snapshotPreview: null,
+
+  enterSnapshotPreview: (
+    meta: SnapshotPreviewMeta,
+    content: SnapshotPreviewContent
+  ) => {
+    set((state) => ({
+      snapshotPreview: {
+        ...meta,
+        // Keep the ORIGINAL stash when switching between previews, so
+        // Exit always returns to the real pre-preview state.
+        stash: state.snapshotPreview?.stash ?? {
+          elements: state.elements,
+          source: state.pageSource,
+          customMediaBlocks: state.pageCustomMediaBlocks,
+          keyframesBlocks: state.pageKeyframesBlocks,
+          cssDuplicates: state.cssDuplicates,
+        },
+      },
+      elements: content.elements,
+      pageSource: content.source,
+      pageCustomMediaBlocks: content.customMediaBlocks,
+      pageKeyframesBlocks: content.keyframesBlocks,
+      cssDuplicates: content.cssDuplicates,
+      selectedElementIds: [],
+    }));
+  },
+
+  exitSnapshotPreview: () => {
+    set((state) => {
+      const preview = state.snapshotPreview;
+      if (preview === null) return state;
+      return {
+        snapshotPreview: null,
+        elements: preview.stash.elements,
+        pageSource: preview.stash.source,
+        pageCustomMediaBlocks: preview.stash.customMediaBlocks,
+        pageKeyframesBlocks: preview.stash.keyframesBlocks,
+        cssDuplicates: preview.stash.cssDuplicates,
+        selectedElementIds: [],
+      };
+    });
+  },
+
+  clearSnapshotPreview: () => {
+    set((state) =>
+      state.snapshotPreview === null ? state : { snapshotPreview: null }
+    );
+  },
+
   loadPage: (
     page,
     elements,

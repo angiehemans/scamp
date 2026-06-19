@@ -82,6 +82,37 @@ export type PageSource = {
     tsx: string;
     css: string;
 };
+/** Identity of the snapshot currently being previewed read-only. */
+export type SnapshotPreviewMeta = {
+    id: string;
+    label: string;
+    /** ISO 8601 timestamp — for the banner's relative time. */
+    timestamp: string;
+    /** Stashed so the banner's Restore can target the right project. */
+    projectPath: string;
+};
+/**
+ * The active-page document state a snapshot preview swaps onto the canvas.
+ * `source` is nullable so the same shape doubles as the pre-preview stash
+ * (where `pageSource` may be null).
+ */
+export type SnapshotPreviewContent = {
+    elements: Record<string, ScampElement>;
+    source: PageSource | null;
+    customMediaBlocks: ReadonlyArray<string>;
+    keyframesBlocks: ReadonlyArray<KeyframesBlock>;
+    cssDuplicates: Record<string, ReadonlyArray<string>>;
+};
+/**
+ * Active read-only snapshot preview. Carries the snapshot identity plus a
+ * `stash` of the pre-preview document state so `exitSnapshotPreview` can
+ * put the canvas back without a disk round-trip. While set, the canvas is
+ * read-only and the sync bridge suppresses all writes. See
+ * docs/notes/snapshots.md.
+ */
+export type SnapshotPreview = SnapshotPreviewMeta & {
+    stash: SnapshotPreviewContent;
+};
 export type BottomPanel = 'code' | 'terminal' | 'none';
 /**
  * Which tab is active in the left sidebar. `'layers'` shows the
@@ -407,6 +438,25 @@ export type CanvasState = {
      * element so round-trips stay text-stable.
      */
     resetElementFieldsAtState: (id: string, stateName: ElementStateName, fields: ReadonlyArray<keyof BreakpointOverride>) => void;
+    /**
+     * Active read-only snapshot preview, or null. When set, the canvas
+     * shows the snapshot's active-page content and is non-editable; the
+     * sync bridge suppresses writes so the preview never reaches disk.
+     */
+    snapshotPreview: SnapshotPreview | null;
+    /**
+     * Enter read-only preview: stash the current document state and swap in
+     * the snapshot's. Switching previews while one is active keeps the
+     * original (pre-preview) stash.
+     */
+    enterSnapshotPreview: (meta: SnapshotPreviewMeta, content: SnapshotPreviewContent) => void;
+    /** Leave preview, restoring the stashed pre-preview document state. */
+    exitSnapshotPreview: () => void;
+    /**
+     * Drop the preview without restoring the stash — used after a real
+     * restore, where the disk re-read already replaced the canvas content.
+     */
+    clearSnapshotPreview: () => void;
     loadPage: (page: ActivePage, elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
     /**
      * Switch the canvas into the component editor. Same signature

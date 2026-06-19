@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { createSnapshot, deleteSnapshot, listSnapshots, restoreSnapshot, } from '../../src/main/ipc/snapshotOps';
+import { createSnapshot, deleteSnapshot, listSnapshots, readSnapshotPage, restoreSnapshot, } from '../../src/main/ipc/snapshotOps';
 import { scaffoldLegacyProject, scaffoldNextjsProject, } from '../../src/main/ipc/projectScaffold';
 // Real scaffolded projects on a temp dir; no mocking. Mirrors the existing
 // pageOps / componentOps integration-test convention.
@@ -56,6 +56,27 @@ describe('snapshot operations — nextjs format', () => {
             'session_close',
         ]);
         expect(list[1]?.label).toBe('External edit — page.tsx');
+    });
+    it('reads a page from a snapshot without restoring (preview path)', async () => {
+        const homeTsx = path.join(projectDir, 'app', 'page.tsx');
+        const homeCss = path.join(projectDir, 'app', 'page.module.css');
+        const originalTsx = await fs.readFile(homeTsx, 'utf-8');
+        const snap = await createSnapshot(projectDir, 'nextjs', 'manual', 'pre');
+        // Mutate the live files AFTER the snapshot — the read must return the
+        // snapshot's content, and disk must stay clobbered (no restore).
+        await fs.writeFile(homeTsx, '// live edit');
+        const read = await readSnapshotPage(projectDir, snap.id, homeTsx, homeCss);
+        expect(read.tsx).toBe(originalTsx);
+        expect(read.css).not.toBeNull();
+        // The live file is untouched — preview is read-only.
+        expect(await fs.readFile(homeTsx, 'utf-8')).toBe('// live edit');
+    });
+    it('returns null for a page the snapshot does not contain', async () => {
+        const snap = await createSnapshot(projectDir, 'nextjs', 'manual', 'pre');
+        const ghostTsx = path.join(projectDir, 'app', 'ghost', 'page.tsx');
+        const ghostCss = path.join(projectDir, 'app', 'ghost', 'page.module.css');
+        const read = await readSnapshotPage(projectDir, snap.id, ghostTsx, ghostCss);
+        expect(read).toEqual({ tsx: null, css: null });
     });
     it('lists newest-appended and supports delete', async () => {
         const a = await createSnapshot(projectDir, 'nextjs', 'manual', 'one');

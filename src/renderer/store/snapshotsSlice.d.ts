@@ -13,6 +13,19 @@ type SnapshotsState = {
      */
     restoreSnapshot: (projectPath: string, snapshotId: string) => Promise<SnapshotRestoreResult>;
     deleteSnapshot: (projectPath: string, snapshotId: string) => Promise<void>;
+    /**
+     * Enter a read-only preview of `snapshot` on the canvas: read the active
+     * page's files from the snapshot, parse them, and swap them onto the
+     * canvas via `enterSnapshotPreview`. No-op if no page is active or the
+     * snapshot doesn't contain the active page (e.g. added later).
+     */
+    previewSnapshot: (projectPath: string, snapshot: SnapshotMeta) => Promise<void>;
+    /**
+     * Commit the snapshot currently being previewed — runs the real restore
+     * (whole project) and clears the preview. Errors leave the preview up so
+     * the user can retry or Exit.
+     */
+    restorePreview: () => Promise<SnapshotRestoreResult>;
 };
 export declare const useSnapshotsStore: import("zustand").UseBoundStore<import("zustand").StoreApi<SnapshotsState>>;
 export {};

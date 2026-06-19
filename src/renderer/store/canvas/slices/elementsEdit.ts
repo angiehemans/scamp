@@ -84,6 +84,7 @@ export const createElementsEditSlice: StateCreator<
 > = (set) => ({
   previewAnimation: null,
   setPropOverride: (instanceId, propName, value) => {
+    if (useCanvasStore.getState().snapshotPreview !== null) return;
     let didChange = false;
     set((state) => {
       const el = state.elements[instanceId];
@@ -134,6 +135,7 @@ export const createElementsEditSlice: StateCreator<
   },
 
   setElementText: (id, text) => {
+    if (useCanvasStore.getState().snapshotPreview !== null) return;
     set((state) => {
       const el = state.elements[id];
       if (!el) return state;
@@ -256,6 +258,8 @@ export const createElementsEditSlice: StateCreator<
   },
 
   patchElement: (id, patch) => {
+    // Read-only while previewing a snapshot — drop all panel/style edits.
+    if (useCanvasStore.getState().snapshotPreview !== null) return;
     // Special-case: a rename-only patch gets a `rename` history
     // entry with the previous display name, so the panel reads
     // "Renamed old to new" instead of "Changed name — new".
@@ -327,6 +331,7 @@ export const createElementsEditSlice: StateCreator<
   },
 
   resetElementFieldsAtBreakpoint: (id, breakpointId, fields) => {
+    if (useCanvasStore.getState().snapshotPreview !== null) return;
     set((state) => {
       if (breakpointId === 'desktop') return state;
       const el = state.elements[id];
@@ -364,6 +369,7 @@ export const createElementsEditSlice: StateCreator<
   },
 
   resetElementFieldsAtState: (id, stateName, fields) => {
+    if (useCanvasStore.getState().snapshotPreview !== null) return;
     set((state) => {
       const el = state.elements[id];
       if (!el || !el.stateOverrides) return state;

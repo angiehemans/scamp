@@ -3,7 +3,7 @@ import { ipcMain } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import { getProjectFormat } from './projectFormatCache';
 import { notifyPagesChanged, registerPendingWrite } from '../watcher';
-import { createSnapshot, deleteSnapshot, listSnapshots, restoreSnapshot, } from './snapshotOps';
+import { createSnapshot, deleteSnapshot, listSnapshots, readSnapshotPage, restoreSnapshot, } from './snapshotOps';
 /**
  * Wire up the project-snapshot IPC channels. Every handler resolves the
  * project format from the cached lookup before delegating, mirroring the
@@ -45,4 +45,5 @@ export const registerSnapshotIpc = () => {
     ipcMain.handle(IPC.SnapshotDelete, async (_e, args) => {
         return deleteSnapshot(args.projectPath, args.snapshotId);
     });
+    ipcMain.handle(IPC.SnapshotReadPage, async (_e, args) => readSnapshotPage(args.projectPath, args.snapshotId, args.tsxPath, args.cssPath));
 };

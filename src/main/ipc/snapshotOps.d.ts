@@ -43,6 +43,17 @@ export declare const enumerateProjectFiles: (projectPath: string, format: Projec
  */
 export declare const createSnapshot: (projectPath: string, format: ProjectFormat, trigger: SnapshotTrigger, detail?: string, nowMs?: number) => Promise<SnapshotMeta | null>;
 export declare const listSnapshots: (projectPath: string) => Promise<SnapshotMeta[]>;
+/**
+ * Read a single page's `.tsx` + `.css` from a snapshot WITHOUT restoring —
+ * powers the read-only preview. The snapshot mirrors the project layout
+ * (`join(dir, relative(projectPath, abs))`), so the current absolute page
+ * paths map straight back in. Returns `null` for either file the snapshot
+ * doesn't contain (e.g. a page added after the snapshot was taken).
+ */
+export declare const readSnapshotPage: (projectPath: string, snapshotId: string, tsxPath: string, cssPath: string) => Promise<{
+    tsx: string | null;
+    css: string | null;
+}>;
 export declare const deleteSnapshot: (projectPath: string, snapshotId: string) => Promise<{
     ok: boolean;
 }>;

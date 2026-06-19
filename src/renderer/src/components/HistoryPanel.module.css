@@ -36,11 +36,35 @@
   font-weight: 500;
 }
 
+/* While previewing, the "Now" row becomes a clickable Exit affordance. */
+.nowRow .nowExit {
+  cursor: pointer;
+}
+
 .icon {
   width: 14px;
   display: flex;
   align-items: center;
   color: var(--text-secondary);
+}
+
+/* In-session undo entries: indented under the snapshot checkpoints, lighter
+   and smaller so the durable snapshots read as the primary timeline. */
+.undoRow .rowButton {
+  padding-left: 22px;
+  color: var(--text-secondary);
+}
+
+.undoRow .label {
+  font-size: 11px;
+}
+
+.tick {
+  width: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--border);
 }
 
 .list {

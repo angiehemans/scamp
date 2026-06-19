@@ -12,6 +12,9 @@ export const useMoveInteraction = (geometry, scale) => {
     const elements = useCanvasStore((s) => s.elements);
     const moveElement = useCanvasStore((s) => s.moveElement);
     const start = (e, id, el) => {
+        // Read-only while previewing a snapshot — no element moves.
+        if (useCanvasStore.getState().snapshotPreview !== null)
+            return;
         e.preventDefault();
         e.target.setPointerCapture(e.pointerId);
         // Open a history transaction so per-tick `moveElement` calls

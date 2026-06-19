@@ -3,6 +3,7 @@ import { type RefObject } from 'react';
 import type { ProjectConfig } from '@shared/types';
 import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useSnapshotsStore } from '@store/snapshotsSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { Viewport } from '@renderer/src/canvas/Viewport';
 
@@ -38,6 +39,15 @@ export const CanvasArea = ({
   onOpenSettings,
   onOpenTheme,
 }: Props): JSX.Element => {
+  const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
+
+  const handleRestorePreview = (): void => {
+    void useSnapshotsStore.getState().restorePreview();
+  };
+  const handleExitPreview = (): void => {
+    useCanvasStore.getState().exitSnapshotPreview();
+  };
+
   return (
     <div className={styles.artboard}>
       <div
@@ -46,6 +56,34 @@ export const CanvasArea = ({
         style={{ backgroundColor: projectConfig.artboardBackground }}
       >
         <div className={styles.canvasContent}>
+          {snapshotPreview !== null && (
+            <div
+              className={styles.snapshotPreviewBanner}
+              data-testid="snapshot-preview-banner"
+            >
+              <span>
+                Previewing snapshot:{' '}
+                <strong>{snapshotPreview.label}</strong>. The canvas is
+                read-only — restoring replaces all project files.
+              </span>
+              <div className={styles.snapshotPreviewActions}>
+                <button
+                  type="button"
+                  className={styles.snapshotPreviewRestore}
+                  onClick={handleRestorePreview}
+                >
+                  Restore
+                </button>
+                <button
+                  type="button"
+                  className={styles.snapshotPreviewExit}
+                  onClick={handleExitPreview}
+                >
+                  Exit
+                </button>
+              </div>
+            </div>
+          )}
           {activeComponent !== null && (
             <div
               className={styles.componentEditorBanner}

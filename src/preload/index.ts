@@ -47,6 +47,8 @@ import type {
   SnapshotDeleteResult,
   SnapshotListArgs,
   SnapshotListResult,
+  SnapshotReadPageArgs,
+  SnapshotReadPageResult,
   SnapshotRestoreArgs,
   SnapshotRestoreResult,
   TerminalCreateArgs,
@@ -161,6 +163,11 @@ const api = {
     args: SnapshotDeleteArgs
   ): Promise<SnapshotDeleteResult> =>
     ipcRenderer.invoke(IPC.SnapshotDelete, args),
+
+  readSnapshotPage: (
+    args: SnapshotReadPageArgs
+  ): Promise<SnapshotReadPageResult> =>
+    ipcRenderer.invoke(IPC.SnapshotReadPage, args),
 
   getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
     ipcRenderer.invoke(IPC.RecentProjectsGet),

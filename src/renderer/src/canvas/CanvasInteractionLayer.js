@@ -134,6 +134,9 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
         }
     };
     const handleDoubleClick = (e) => {
+        // Read-only while previewing a snapshot — no inline text editing.
+        if (useCanvasStore.getState().snapshotPreview !== null)
+            return;
         // Prop-text on a component instance — enter inline edit on
         // that prop. We check this BEFORE the regular text-element path
         // so prop-text on a `<p>` tag hits the per-instance flow rather

@@ -62,6 +62,7 @@ export declare const IPC: {
     readonly SnapshotList: "snapshot:list";
     readonly SnapshotRestore: "snapshot:restore";
     readonly SnapshotDelete: "snapshot:delete";
+    readonly SnapshotReadPage: "snapshot:read-page";
     readonly ExportChooseSavePath: "export:chooseSavePath";
     readonly ExportPng: "export:png";
     readonly ExportSvg: "export:svg";

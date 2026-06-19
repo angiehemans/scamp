@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
+import { useSnapshotsStore } from '@store/snapshotsSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { Viewport } from '@renderer/src/canvas/Viewport';
 import { CanvasSizeControl } from '../CanvasSizeControl';
@@ -13,7 +14,14 @@ import styles from '../ProjectShell.module.css';
  * per-component canvas size and enables drag-handle resize.
  */
 export const CanvasArea = ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, onOpenSettings, onOpenTheme, }) => {
-    return (_jsxs("div", { className: styles.artboard, children: [_jsx("div", { ref: artboardScrollRef, className: styles.artboardScroll, style: { backgroundColor: projectConfig.artboardBackground }, children: _jsxs("div", { className: styles.canvasContent, children: [activeComponent !== null && (_jsxs("div", { className: styles.componentEditorBanner, "data-testid": "component-editor-banner", children: [_jsxs("span", { children: ["Editing component:", ' ', _jsx("strong", { children: activeComponent.name }), ". Changes affect all instances."] }), _jsx("button", { type: "button", className: styles.componentEditorExit, onClick: onExitComponentEditor, children: "Exit" })] })), _jsxs("div", { className: styles.canvasHeader, children: [activeComponent !== null ? (
+    const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
+    const handleRestorePreview = () => {
+        void useSnapshotsStore.getState().restorePreview();
+    };
+    const handleExitPreview = () => {
+        useCanvasStore.getState().exitSnapshotPreview();
+    };
+    return (_jsxs("div", { className: styles.artboard, children: [_jsx("div", { ref: artboardScrollRef, className: styles.artboardScroll, style: { backgroundColor: projectConfig.artboardBackground }, children: _jsxs("div", { className: styles.canvasContent, children: [snapshotPreview !== null && (_jsxs("div", { className: styles.snapshotPreviewBanner, "data-testid": "snapshot-preview-banner", children: [_jsxs("span", { children: ["Previewing snapshot:", ' ', _jsx("strong", { children: snapshotPreview.label }), ". The canvas is read-only \u2014 restoring replaces all project files."] }), _jsxs("div", { className: styles.snapshotPreviewActions, children: [_jsx("button", { type: "button", className: styles.snapshotPreviewRestore, onClick: handleRestorePreview, children: "Restore" }), _jsx("button", { type: "button", className: styles.snapshotPreviewExit, onClick: handleExitPreview, children: "Exit" })] })] })), activeComponent !== null && (_jsxs("div", { className: styles.componentEditorBanner, "data-testid": "component-editor-banner", children: [_jsxs("span", { children: ["Editing component:", ' ', _jsx("strong", { children: activeComponent.name }), ". Changes affect all instances."] }), _jsx("button", { type: "button", className: styles.componentEditorExit, onClick: onExitComponentEditor, children: "Exit" })] })), _jsxs("div", { className: styles.canvasHeader, children: [activeComponent !== null ? (
                                 // Breadcrumb: "<return page> > <component>" when
                                 // entered from a page, otherwise just the
                                 // component name. Clicking a non-current segment

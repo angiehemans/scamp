@@ -46,6 +46,7 @@ const api = {
     listSnapshots: (args) => ipcRenderer.invoke(IPC.SnapshotList, args),
     restoreSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotRestore, args),
     deleteSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotDelete, args),
+    readSnapshotPage: (args) => ipcRenderer.invoke(IPC.SnapshotReadPage, args),
     getRecentProjects: () => ipcRenderer.invoke(IPC.RecentProjectsGet),
     removeRecentProject: (path) => ipcRenderer.invoke(IPC.RecentProjectsRemove, { path }),
     // Settings

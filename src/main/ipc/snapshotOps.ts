@@ -281,6 +281,30 @@ export const listSnapshots = async (
   projectPath: string
 ): Promise<SnapshotMeta[]> => readIndex(projectPath);
 
+/**
+ * Read a single page's `.tsx` + `.css` from a snapshot WITHOUT restoring —
+ * powers the read-only preview. The snapshot mirrors the project layout
+ * (`join(dir, relative(projectPath, abs))`), so the current absolute page
+ * paths map straight back in. Returns `null` for either file the snapshot
+ * doesn't contain (e.g. a page added after the snapshot was taken).
+ */
+export const readSnapshotPage = async (
+  projectPath: string,
+  snapshotId: string,
+  tsxPath: string,
+  cssPath: string
+): Promise<{ tsx: string | null; css: string | null }> => {
+  const dir = snapshotDirFor(projectPath, snapshotId);
+  const read = async (abs: string): Promise<string | null> => {
+    try {
+      return await fs.readFile(join(dir, relative(projectPath, abs)), 'utf-8');
+    } catch {
+      return null;
+    }
+  };
+  return { tsx: await read(tsxPath), css: await read(cssPath) };
+};
+
 export const deleteSnapshot = async (
   projectPath: string,
   snapshotId: string

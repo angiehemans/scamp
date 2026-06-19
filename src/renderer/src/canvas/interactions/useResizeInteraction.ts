@@ -34,6 +34,8 @@ export const useResizeInteraction = (
   const isSingleSelection = selectedElementIds.length === 1;
 
   const tryStart = (e: PointerEvent<HTMLDivElement>): boolean => {
+    // Read-only while previewing a snapshot — no resize.
+    if (useCanvasStore.getState().snapshotPreview !== null) return false;
     const handle = isResizeHandle(e.clientX, e.clientY);
     if (!(handle && selectedElementId && isSingleSelection)) return false;
     const el = elements[selectedElementId];

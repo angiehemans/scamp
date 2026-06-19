@@ -49,15 +49,60 @@ snapshots; **Cmd+Z / Cmd+Shift+Z** in-session undo is a separate system
 | `agent_edit` | `watcher.ts emitChange` | When `consumed === null` (no pending-write entry ⇒ external). 5-s collapse coalesces an agent's burst. Captures detection-time disk (the edit has already landed; the prior snapshot is the true pre-edit state). |
 | `session_close` | `index.ts before-quit` + `App.tsx onClose` | From disk on app-quit; renderer flush + `snapshot:create` on in-app project close. |
 | `manual` | History panel "Save snapshot" | User-typed name or "Manual snapshot". |
-| `auto_save` | `useSnapshotAutoSave` | ≤ once per 5 min of canvas activity; gated by the `snapshotAutoSave` config flag (default on). |
+| `auto_save` | `useSnapshotAutoSave` | ≤ once per 2 min of canvas activity; gated by the `snapshotAutoSave` config flag (default on). Kept coarse on purpose — fine per-edit granularity comes from the undo entries the panel interleaves (see "Panel timeline"), not from more disk writes. |
 | `before_restore` | inside `restoreSnapshot` | Snapshots the current state so a restore is itself undoable. |
 
 All snapshot creation is **silent-fail** — `createSnapshot` never throws,
 so a failed snapshot can't block opening/closing a project.
 
+## Panel timeline (snapshots + undo)
+
+The History panel renders a single newest-first timeline that interleaves
+two sources, built by the pure `mergeHistoryTimeline` in
+`store/snapshotDisplay.ts`:
+
+- **Snapshot rows** — the durable on-disk snapshots above. Clicking one
+  opens the restore confirm and replaces files from disk (whole project).
+- **Undo rows** — the active page's in-memory undo entries
+  (`historySlice`), shown indented/lighter between the snapshots. Clicking
+  one calls `jumpToHistory` — an instant in-session jump on the current
+  page, no disk write, no confirm. The cursor entry is `current`
+  (non-clickable); redoable entries past it are `future` (greyed).
+
+This gives per-edit granularity between the coarser 2-min snapshots
+without writing every edit to disk. Two intentional limits: undo rows are
+**per-page** (only the page you're viewing) and **session-only** (the
+in-memory stack is lost on close, so past sessions show only snapshots).
+Clicks are suppressed while a canvas drag is in flight (`transactionDepth`).
+
+## Preview before restore
+
+Clicking a snapshot row doesn't restore immediately — it enters a
+**read-only preview**. `previewSnapshot` (snapshotsSlice) reads the active
+page's files from the snapshot via `snapshot:read-page` (a non-mutating
+read; never touches disk), parses them, and calls
+`enterSnapshotPreview` (canvas store) which **stashes** the live document
+state and swaps the snapshot's onto the canvas. A banner over the canvas
+(`CanvasArea`) offers **Restore** / **Exit**.
+
+While `snapshotPreview` is set:
+- The canvas is non-editable. Guards bail in the pointer interactions
+  (draw / move / resize), the double-click-to-edit-text entry, the
+  keyboard-shortcut handler (incl. undo/redo), and the store mutators
+  (`patchElement`, the reset actions, `setElementText`, `setPropOverride`),
+  plus the toolbar. Zoom / terminal / preview-window shortcuts stay live.
+- The History panel's **"Now"** row becomes an Exit button (alongside the
+  banner's Exit), and its undo rows + "Save snapshot" are inert.
+- The sync bridge **suppresses all writes** (and the exit transition), so
+  preview content — and any edit that slips a guard — can never reach
+  disk. Auto-save is likewise skipped.
+- **Exit** (`exitSnapshotPreview`) restores the stash from memory — no disk
+  round-trip. **Restore** runs the flow below, then `clearSnapshotPreview`
+  drops the stash (the disk re-read already replaced the canvas content).
+
 ## Restore flow
 
-1. Panel → `snapshot:restore` (renderer awaits).
+1. Banner Restore → `restorePreview` → `snapshot:restore` (renderer awaits).
 2. Main: `before_restore` snapshot, then copy the snapshot's files back.
    Each copied file is registered as a **suppressed pending-write** so the
    watcher treats the burst as Scamp's own writes — no `agent_edit`

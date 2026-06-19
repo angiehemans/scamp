@@ -433,6 +433,23 @@ export type SnapshotDeleteArgs = {
 export type SnapshotDeleteResult = {
     ok: boolean;
 };
+/**
+ * Read one page's `.tsx` + `.css` from a snapshot WITHOUT restoring —
+ * powers the read-only preview. `tsxPath` / `cssPath` are the project's
+ * current absolute page paths; the snapshot mirrors the project layout so
+ * they map straight in. Either field is `null` when the snapshot doesn't
+ * contain that file (e.g. a page added after the snapshot was taken).
+ */
+export type SnapshotReadPageArgs = {
+    projectPath: string;
+    snapshotId: string;
+    tsxPath: string;
+    cssPath: string;
+};
+export type SnapshotReadPageResult = {
+    tsx: string | null;
+    css: string | null;
+};
 export type ProjectMigrateArgs = {
     projectPath: string;
 };

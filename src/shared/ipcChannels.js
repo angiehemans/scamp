@@ -97,6 +97,9 @@ export const IPC = {
     // re-read, so it needs no dedicated completion channel.
     SnapshotRestore: 'snapshot:restore',
     SnapshotDelete: 'snapshot:delete',
+    // Read one page's files from a snapshot without restoring — the
+    // read-only preview shows the snapshot on the canvas before committing.
+    SnapshotReadPage: 'snapshot:read-page',
     // Export (page or element)
     ExportChooseSavePath: 'export:chooseSavePath',
     ExportPng: 'export:png',
