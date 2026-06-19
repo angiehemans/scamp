@@ -214,6 +214,58 @@ const parseMaxWidthParam = (params: string): number | null => {
  * Unrecognised @media blocks are preserved verbatim so the generator
  * can re-emit them untouched on round-trip.
  */
+/**
+ * Split a stylesheet into its top-level blocks (`selector { … }`,
+ * `@media { … }`, etc.) by brace depth. Whitespace/comments between blocks
+ * attach to the following block. Used only on the recovery path below.
+ */
+const splitTopLevelBlocks = (css: string): string[] => {
+  const blocks: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < css.length; i += 1) {
+    const ch = css[i];
+    if (ch === '{') {
+      depth += 1;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        blocks.push(css.slice(start, i + 1));
+        start = i + 1;
+      }
+    }
+  }
+  const tail = css.slice(start).trim();
+  if (tail.length > 0) blocks.push(tail);
+  return blocks;
+};
+
+/**
+ * Parse CSS, recovering from syntax errors instead of failing the whole
+ * file. A single malformed block (e.g. an agent edit — or, historically, a
+ * raw block scamp itself emitted without separating semicolons) must never
+ * wipe styling for the entire page: on a strict-parse failure we re-parse
+ * each top-level block independently and keep the ones that succeed, so a
+ * bad block loses only its own declarations. The well-formed fast path is
+ * unchanged. See docs/plans/2026-06-19-style-loss-on-css-edit.md.
+ */
+const parseCssLenient = (css: string): postcss.Root => {
+  try {
+    return postcss.parse(css);
+  } catch {
+    const recovered = postcss.parse('');
+    for (const block of splitTopLevelBlocks(css)) {
+      try {
+        const sub = postcss.parse(block);
+        for (const node of sub.nodes) recovered.append(node.clone());
+      } catch {
+        // Drop only this unparseable block — keep every other rule.
+      }
+    }
+    return recovered;
+  }
+};
+
 export const parseCssDeclarations = (
   css: string,
   breakpoints: ReadonlyArray<Breakpoint>
@@ -236,20 +288,9 @@ export const parseCssDeclarations = (
     toggledOffByClass.set(className, canonicalizeGroupList([...existing, ...groups]) as PropertyGroup[]);
   };
 
-  let root: postcss.Root;
-  try {
-    root = postcss.parse(css);
-  } catch {
-    return {
-      byClass,
-      byBreakpoint,
-      byState,
-      rawByClass,
-      customMediaBlocks,
-      keyframesBlocks,
-      toggledOffByClass,
-    };
-  }
+  // Recover from malformed CSS rather than collapsing every element to
+  // defaults — see parseCssLenient. A single bad block only loses itself.
+  const root = parseCssLenient(css);
 
   // Walk top-level rules first — these are the base class blocks
   // and per-state pseudo-class blocks. Using direct iteration (not
@@ -264,10 +305,17 @@ export const parseCssDeclarations = (
     if (classification.kind === 'raw') {
       // Preserve verbatim. Format the body as a single string —
       // postcss's `raws` give us original whitespace and comments.
+      // `Declaration.toString()` omits the trailing `;`, so re-append it
+      // for declarations: without it a raw block with two+ declarations
+      // re-emits as invalid CSS and the next parse fails for the whole
+      // page. See docs/plans/2026-06-19-style-loss-on-css-edit.md.
       const decls = node.nodes
-        .map((child) => child.toString().trim())
+        .map((child) => {
+          const s = child.toString().trim();
+          if (s.length === 0) return '';
+          return child.type === 'decl' ? `  ${s};` : `  ${s}`;
+        })
         .filter((s) => s.length > 0)
-        .map((s) => `  ${s}`)
         .join('\n');
       const list = rawByClass.get(classification.className) ?? [];
       list.push({ selector, body: decls });

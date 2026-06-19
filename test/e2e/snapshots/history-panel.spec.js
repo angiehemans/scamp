@@ -77,8 +77,9 @@ test.describe('history panel — snapshots', () => {
         await window.getByText('one rect').click();
         const banner = window.getByTestId('snapshot-preview-banner');
         await expect(banner).toBeVisible();
-        // "Now" is the way back to the live state while previewing.
-        await window.getByRole('button', { name: 'Now' }).click();
+        // "Now" is the way back to the live state while previewing. Exact
+        // match — the relative timestamps ("just now") also contain "Now".
+        await window.getByRole('button', { name: 'Now', exact: true }).click();
         await expect(banner).toBeHidden();
         await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(2);
     });

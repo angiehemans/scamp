@@ -64,10 +64,62 @@ const stripLegacyRootSizing = (decls) => {
     const stripped = decls.filter((_, i) => i !== widthIdx && i !== minHeightIdx && i !== positionIdx);
     return { decls: stripped, migrated: true };
 };
+/** Trailing `_<4-char-hex>` id segment of a class name (scamp's stable id). */
+const CLASS_ID_SUFFIX_RE = /_([0-9a-f]{4})$/;
+/** Every class name that appears anywhere in the parsed CSS. */
+const collectCssClassNames = (parsed) => {
+    const names = new Set();
+    for (const k of parsed.byClass.keys())
+        names.add(k);
+    for (const k of parsed.rawByClass.keys())
+        names.add(k);
+    for (const k of parsed.toggledOffByClass.keys())
+        names.add(k);
+    for (const m of parsed.byState.values())
+        for (const k of m.keys())
+            names.add(k);
+    for (const m of parsed.byBreakpoint.values())
+        for (const k of m.keys())
+            names.add(k);
+    return names;
+};
+/**
+ * Index CSS class names by their stable `_<hex>` id suffix. Ambiguous
+ * suffixes (shared by two distinct class names) map to `null` so we never
+ * guess. Used to recover an element whose class was renamed on only one
+ * side (TSX vs CSS) — see docs/plans/2026-06-19-style-loss-on-css-edit.md.
+ */
+const indexCssClassesByIdSuffix = (names) => {
+    const map = new Map();
+    for (const name of names) {
+        const m = CLASS_ID_SUFFIX_RE.exec(name);
+        const id = m?.[1];
+        if (id === undefined)
+            continue;
+        map.set(id, map.has(id) ? null : name);
+    }
+    return map;
+};
 export const parseCode = (tsx, css, options) => {
     const breakpoints = options?.breakpoints ?? DEFAULT_BREAKPOINTS;
     const rawElements = parseTsxStructure(tsx);
     const parsedCss = parseCssDeclarations(css, breakpoints);
+    // Rename resilience: if a TSX className has no matching CSS class (the
+    // class was renamed on only one side), fall back to the CSS class sharing
+    // this element's stable 4-char hex id. Exact matches — the normal case —
+    // are unaffected.
+    const cssClassNames = collectCssClassNames(parsedCss);
+    const classByIdSuffix = indexCssClassesByIdSuffix(cssClassNames);
+    const resolveClassName = (className, id) => {
+        if (className.length > 0 && cssClassNames.has(className))
+            return className;
+        if (id !== ROOT_ELEMENT_ID) {
+            const bySuffix = classByIdSuffix.get(id);
+            if (bySuffix != null)
+                return bySuffix;
+        }
+        return className;
+    };
     const elements = {};
     const cssDuplicates = {};
     // Map of `propName → defaultText` extracted from the component's
@@ -84,8 +136,11 @@ export const parseCode = (tsx, css, options) => {
         const isRoot = raw.id === ROOT_ELEMENT_ID;
         if (isRoot)
             rootSeen = true;
+        // Resolve the CSS class this element's styles live under — exact match
+        // normally, or the same-hex-id class if it was renamed on one side only.
+        const cls = resolveClassName(raw.className, raw.id);
         const baseline = makeBaseline(raw);
-        let decls = parsedCss.byClass.get(raw.className) ?? [];
+        let decls = parsedCss.byClass.get(cls) ?? [];
         if (isRoot) {
             // Detect and strip the legacy three-tuple (pre-canvas-rework)
             // so the new stretch/auto defaults take over. Leaves any other
@@ -122,7 +177,7 @@ export const parseCode = (tsx, css, options) => {
             const classesForBp = parsedCss.byBreakpoint.get(bp.id);
             if (!classesForBp)
                 continue;
-            const bpDecls = classesForBp.get(raw.className);
+            const bpDecls = classesForBp.get(cls);
             if (!bpDecls || bpDecls.length === 0)
                 continue;
             const override = applyDeclarationsAsOverride(bpDecls);
@@ -142,7 +197,7 @@ export const parseCode = (tsx, css, options) => {
             const classesForState = parsedCss.byState.get(state);
             if (!classesForState)
                 continue;
-            const stateDecls = classesForState.get(raw.className);
+            const stateDecls = classesForState.get(cls);
             if (!stateDecls || stateDecls.length === 0)
                 continue;
             const override = applyDeclarationsAsStateOverride(stateDecls);
@@ -153,7 +208,7 @@ export const parseCode = (tsx, css, options) => {
             finalElement = { ...finalElement, stateOverrides };
         }
         // Verbatim-preserved pseudo-class blocks for this element.
-        const rawBlocks = parsedCss.rawByClass.get(raw.className);
+        const rawBlocks = parsedCss.rawByClass.get(cls);
         if (rawBlocks && rawBlocks.length > 0) {
             finalElement = {
                 ...finalElement,
@@ -164,7 +219,7 @@ export const parseCode = (tsx, css, options) => {
         // off in any rule (base / state / breakpoint) is treated as off
         // for the whole element — same surface the user toggles in the
         // panel. `toggledOffByClass` is already canonicalised.
-        const toggledOff = parsedCss.toggledOffByClass.get(raw.className);
+        const toggledOff = parsedCss.toggledOffByClass.get(cls);
         if (toggledOff && toggledOff.length > 0) {
             finalElement = {
                 ...finalElement,

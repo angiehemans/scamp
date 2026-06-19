@@ -62,7 +62,9 @@
       "Bash(git show *)",
       "Bash(sed -n '24,40p' src/renderer/src/syncBridge.ts)",
       "Bash(echo \"regen exit $?\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(npm test *)"
     ]
   }
 }

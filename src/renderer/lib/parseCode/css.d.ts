@@ -50,11 +50,5 @@ export type ParsedCss = {
      */
     keyframesBlocks: KeyframesBlock[];
 };
-/**
- * Parse a CSS module file into class-keyed declarations plus any
- * `@media` declarations the parser can route to a known breakpoint.
- * Unrecognised @media blocks are preserved verbatim so the generator
- * can re-emit them untouched on round-trip.
- */
 export declare const parseCssDeclarations: (css: string, breakpoints: ReadonlyArray<Breakpoint>) => ParsedCss;
 export {};
