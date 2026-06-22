@@ -1,107 +1,116 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { ProjectData, RecentProject, Settings } from '@shared/types';
-import { errorMessage } from '@shared/errorMessage';
-import { basename } from '../lib/path';
-import { CreateProjectModal } from './CreateProjectModal';
-import { Tooltip } from './controls/Tooltip';
-import styles from './StartScreen.module.css';
+import { useCallback, useEffect, useState } from "react"
+import type { ProjectData, RecentProject, Settings } from "@shared/types"
+import { errorMessage } from "@shared/errorMessage"
+import { basename } from "../lib/path"
+import { CreateProjectModal } from "./CreateProjectModal"
+import { Tooltip } from "./controls/Tooltip"
+import styles from "./StartScreen.module.css"
 
-type RecentProjectWithExistence = RecentProject & { exists: boolean };
+type RecentProjectWithExistence = RecentProject & { exists: boolean }
 
 type Props = {
-  onProjectOpened: (project: ProjectData) => void;
-  onOpenSettings: () => void;
-};
+  onProjectOpened: (project: ProjectData) => void
+  onOpenSettings: () => void
+}
 
-export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Element => {
-  const [recents, setRecents] = useState<RecentProjectWithExistence[]>([]);
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+export const StartScreen = ({
+  onProjectOpened,
+  onOpenSettings,
+}: Props): JSX.Element => {
+  const [recents, setRecents] = useState<RecentProjectWithExistence[]>([])
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   const refreshRecents = useCallback(async (): Promise<void> => {
-    const list = await window.scamp.getRecentProjects();
-    setRecents(list);
-  }, []);
+    const list = await window.scamp.getRecentProjects()
+    setRecents(list)
+  }, [])
 
   const refreshSettings = useCallback(async (): Promise<void> => {
-    const next = await window.scamp.getSettings();
-    setSettings(next);
-  }, []);
+    const next = await window.scamp.getSettings()
+    setSettings(next)
+  }, [])
 
   useEffect(() => {
-    void refreshRecents();
-    void refreshSettings();
-  }, [refreshRecents, refreshSettings]);
+    void refreshRecents()
+    void refreshSettings()
+  }, [refreshRecents, refreshSettings])
 
-  const defaultFolder = settings?.defaultProjectsFolder ?? null;
+  const defaultFolder = settings?.defaultProjectsFolder ?? null
 
   const handlePickDefaultFolder = async (): Promise<void> => {
-    setError(null);
+    setError(null)
     try {
-      const result = await window.scamp.chooseFolder();
-      if (result.canceled || !result.path) return;
-      const next = await window.scamp.setDefaultProjectsFolder(result.path);
-      if (next && typeof next === 'object' && 'defaultProjectsFolder' in next) {
-        setSettings(next);
+      const result = await window.scamp.chooseFolder()
+      if (result.canceled || !result.path) return
+      const next = await window.scamp.setDefaultProjectsFolder(result.path)
+      if (next && typeof next === "object" && "defaultProjectsFolder" in next) {
+        setSettings(next)
       } else {
-        await refreshSettings();
+        await refreshSettings()
       }
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e))
     }
-  };
+  }
 
   const handleClearDefaultFolder = async (): Promise<void> => {
-    setError(null);
+    setError(null)
     try {
-      const next = await window.scamp.setDefaultProjectsFolder(null);
-      if (next && typeof next === 'object' && 'defaultProjectsFolder' in next) {
-        setSettings(next);
+      const next = await window.scamp.setDefaultProjectsFolder(null)
+      if (next && typeof next === "object" && "defaultProjectsFolder" in next) {
+        setSettings(next)
       } else {
-        await refreshSettings();
+        await refreshSettings()
       }
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e))
     }
-  };
+  }
 
   const handleCreateProject = async (name: string): Promise<void> => {
-    if (!defaultFolder) return;
+    if (!defaultFolder) return
     const project = await window.scamp.createProject({
       parentPath: defaultFolder,
       name,
-    });
-    onProjectOpened(project);
-  };
+    })
+    onProjectOpened(project)
+  }
 
   const handleOpenProject = async (): Promise<void> => {
-    setError(null);
-    const result = await window.scamp.chooseFolder();
-    if (result.canceled || !result.path) return;
+    setError(null)
+    const result = await window.scamp.chooseFolder()
+    if (result.canceled || !result.path) return
     try {
-      const project = await window.scamp.openProject({ folderPath: result.path });
-      onProjectOpened(project);
+      const project = await window.scamp.openProject({
+        folderPath: result.path,
+      })
+      onProjectOpened(project)
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e))
     }
-  };
+  }
 
-  const handleOpenRecent = async (recent: RecentProjectWithExistence): Promise<void> => {
-    if (!recent.exists) return;
-    setError(null);
+  const handleOpenRecent = async (
+    recent: RecentProjectWithExistence,
+  ): Promise<void> => {
+    if (!recent.exists) return
+    setError(null)
     try {
-      const project = await window.scamp.openProject({ folderPath: recent.path });
-      onProjectOpened(project);
+      const project = await window.scamp.openProject({
+        folderPath: recent.path,
+      })
+      onProjectOpened(project)
     } catch (e) {
-      setError(errorMessage(e));
+      setError(errorMessage(e))
     }
-  };
+  }
 
   const handleRemoveRecent = async (path: string): Promise<void> => {
-    await window.scamp.removeRecentProject(path);
-    await refreshRecents();
-  };
+    await window.scamp.removeRecentProject(path)
+    await refreshRecents()
+  }
 
   // ---- Render ----
 
@@ -123,7 +132,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
             Choose Folder
           </button>
         </div>
-      );
+      )
     }
 
     return (
@@ -137,7 +146,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
             {recents.map((recent) => (
               <li
                 key={recent.path}
-                className={`${styles.recentItem} ${recent.exists ? '' : styles.recentMissing}`}
+                className={`${styles.recentItem} ${recent.exists ? "" : styles.recentMissing}`}
               >
                 <button
                   className={styles.recentButton}
@@ -165,14 +174,16 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
           </ul>
         )}
       </>
-    );
-  };
+    )
+  }
 
   return (
     <div className={styles.screen}>
       <aside className={styles.sidebar}>
         <h1 className={styles.sidebarTitle}>Scamp</h1>
-        <p className={styles.sidebarSubtitle}>Local design tool — draw, get real code.</p>
+        <p className={styles.sidebarSubtitle}>
+          Local design tool — draw, get real code.
+        </p>
 
         <div className={styles.sidebarActions}>
           <button
@@ -200,9 +211,9 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
             className={styles.linkButton}
             onClick={() =>
               window.open(
-                'https://discord.com/invite/VhA3uBT4t',
-                '_blank',
-                'noopener,noreferrer'
+                "https://discord.com/invite/xyx5WwVbEG",
+                "_blank",
+                "noopener,noreferrer",
               )
             }
             type="button"
@@ -213,9 +224,9 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
             className={styles.linkButton}
             onClick={() =>
               window.open(
-                'https://scampdesign.app/docs',
-                '_blank',
-                'noopener,noreferrer'
+                "https://scampdesign.app/docs",
+                "_blank",
+                "noopener,noreferrer",
               )
             }
             type="button"
@@ -226,9 +237,9 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
             className={styles.linkButton}
             onClick={() =>
               window.open(
-                'https://scampdesign.app/changelog',
-                '_blank',
-                'noopener,noreferrer'
+                "https://scampdesign.app/changelog",
+                "_blank",
+                "noopener,noreferrer",
               )
             }
             type="button"
@@ -282,7 +293,7 @@ export const StartScreen = ({ onProjectOpened, onOpenSettings }: Props): JSX.Ele
         />
       )}
     </div>
-  );
-};
+  )
+}
 
-export const projectNameFromPath = (p: string): string => basename(p);
+export const projectNameFromPath = (p: string): string => basename(p)
