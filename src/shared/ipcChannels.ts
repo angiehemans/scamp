@@ -118,6 +118,17 @@ export const IPC = {
   ExportPng: 'export:png',
   ExportSvg: 'export:svg',
 
+  // Auto-update (electron-updater). Main → renderer status events drive
+  // the in-app update banner; the renderer → main install trigger fires
+  // when the user clicks "Restart and install". See docs/notes/auto-update.md.
+  UpdaterChecking: 'updater:checking',
+  UpdaterAvailable: 'updater:available',
+  UpdaterNotAvailable: 'updater:not-available',
+  UpdaterProgress: 'updater:progress',
+  UpdaterDownloaded: 'updater:downloaded',
+  UpdaterError: 'updater:error',
+  UpdaterInstallNow: 'updater:install-now',
+
   // E2E test bootstrap (only live when SCAMP_E2E=1)
   TestGetBootstrap: 'test:getBootstrap',
 } as const;

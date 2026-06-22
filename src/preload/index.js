@@ -112,6 +112,29 @@ const api = {
         ipcRenderer.on(IPC.TerminalForegroundProcess, listener);
         return () => ipcRenderer.removeListener(IPC.TerminalForegroundProcess, listener);
     },
+    // Auto-update. The renderer subscribes to status events to drive the
+    // update banner; `installUpdateNow` triggers quit-and-install.
+    installUpdateNow: () => ipcRenderer.invoke(IPC.UpdaterInstallNow),
+    onUpdaterAvailable: (handler) => {
+        const listener = (_e, info) => handler(info);
+        ipcRenderer.on(IPC.UpdaterAvailable, listener);
+        return () => ipcRenderer.removeListener(IPC.UpdaterAvailable, listener);
+    },
+    onUpdaterProgress: (handler) => {
+        const listener = (_e, progress) => handler(progress);
+        ipcRenderer.on(IPC.UpdaterProgress, listener);
+        return () => ipcRenderer.removeListener(IPC.UpdaterProgress, listener);
+    },
+    onUpdaterDownloaded: (handler) => {
+        const listener = (_e, info) => handler(info);
+        ipcRenderer.on(IPC.UpdaterDownloaded, listener);
+        return () => ipcRenderer.removeListener(IPC.UpdaterDownloaded, listener);
+    },
+    onUpdaterError: (handler) => {
+        const listener = (_e, message) => handler(message);
+        ipcRenderer.on(IPC.UpdaterError, listener);
+        return () => ipcRenderer.removeListener(IPC.UpdaterError, listener);
+    },
     // E2E test bootstrap. Returns { e2e: false, autoOpenProjectPath: null }
     // in normal use; only populated when the main process was launched
     // with SCAMP_E2E=1.

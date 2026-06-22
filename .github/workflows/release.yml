@@ -1,0 +1,77 @@
+name: Release
+
+# Pushing a version tag (e.g. `v1.1.0`) builds all three platform
+# targets, signs + notarizes them, and publishes to GitHub Releases.
+# electron-updater clients pick the new version up on their next launch
+# or 4-hour check. See docs/notes/auto-update.md and Part 2.8 of
+# docs/plans/auto-update-prd.md.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Don't cancel the other platforms if one fails — a partial release
+      # is recoverable, a cancelled one wastes the successful builds.
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Runs the postinstall hook (patch-package + electron-rebuild of
+      # node-pty for the runner's platform).
+      - name: Install dependencies
+        run: npm ci
+
+      # macOS: import the Developer ID cert into a temporary keychain so
+      # electron-builder auto-discovers it. Notarization is driven by the
+      # APPLE_* env vars on the build step below.
+      - name: Import macOS certificate
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "$MAC_CERTS" | base64 --decode > certificate.p12
+          security create-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain \
+            -P "$MAC_CERTS_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "" build.keychain
+        env:
+          MAC_CERTS: ${{ secrets.MAC_CERTS }}
+          MAC_CERTS_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+
+      # Windows: write the cert to disk and point electron-builder at it
+      # via CSC_LINK / CSC_KEY_PASSWORD for the build step. These are
+      # exported to GITHUB_ENV (not set globally) so the macOS/Linux
+      # runners — where certificate.p12 doesn't exist — aren't affected.
+      - name: Import Windows certificate
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "$WIN_CERTS" | base64 -d > certificate.p12
+          echo "CSC_LINK=certificate.p12" >> "$GITHUB_ENV"
+          echo "CSC_KEY_PASSWORD=$WIN_CERTS_PASSWORD" >> "$GITHUB_ENV"
+        shell: bash
+        env:
+          WIN_CERTS: ${{ secrets.WIN_CERTS }}
+          WIN_CERTS_PASSWORD: ${{ secrets.WIN_CERTS_PASSWORD }}
+
+      - name: Build and publish
+        run: npm run build && npx electron-builder --config electron-builder.yml --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # macOS notarization (notarytool). electron-builder reads these
+          # when `mac.notarize` is enabled.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

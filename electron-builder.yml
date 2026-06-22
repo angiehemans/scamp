@@ -21,15 +21,38 @@ extraResources:
 # Native modules (node-pty) need to be rebuilt for the target platform.
 npmRebuild: true
 
+# Auto-update feed. electron-builder writes an `app-update.yml` into the
+# package pointing at these GitHub Releases; electron-updater reads it at
+# runtime to discover new versions. The repo is public, so no token is
+# baked into the binary. See docs/notes/auto-update.md.
+publish:
+  provider: github
+  owner: angiehemans
+  repo: scamp
+
 mac:
   category: public.app-category.developer-tools
   icon: src/renderer/src/assets/scamp-icon.png
+  # `zip` is required alongside `dmg`: electron-updater downloads the zip
+  # for macOS auto-updates (a dmg alone can't self-update).
   target:
     - dmg
     - zip
+  # Hardened runtime + entitlements + notarization are required for
+  # Gatekeeper to allow the downloaded app and for auto-updates to apply.
+  # The signing identity is auto-discovered from the keychain (CI imports
+  # the Developer ID cert); notarization runs only when the APPLE_* env
+  # vars are present, so unsigned local `npm run package` builds still work.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true
 
 win:
   icon: src/renderer/src/assets/scamp-icon.png
+  # Signing is driven by the CSC_LINK / CSC_KEY_PASSWORD env vars set in
+  # CI (see .github/workflows/release.yml); unsigned local builds skip it.
   target:
     - nsis
     - portable

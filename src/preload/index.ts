@@ -60,6 +60,8 @@ import type {
   TerminalResizeArgs,
   TerminalWriteArgs,
   TestBootstrap,
+  UpdaterInfoPayload,
+  UpdaterProgressPayload,
 } from '@shared/types';
 
 /**
@@ -286,6 +288,47 @@ const api = {
     ipcRenderer.on(IPC.TerminalForegroundProcess, listener);
     return () =>
       ipcRenderer.removeListener(IPC.TerminalForegroundProcess, listener);
+  },
+
+  // Auto-update. The renderer subscribes to status events to drive the
+  // update banner; `installUpdateNow` triggers quit-and-install.
+  installUpdateNow: (): Promise<void> =>
+    ipcRenderer.invoke(IPC.UpdaterInstallNow),
+
+  onUpdaterAvailable: (
+    handler: (info: UpdaterInfoPayload) => void
+  ): (() => void) => {
+    const listener = (_e: IpcRendererEvent, info: UpdaterInfoPayload): void =>
+      handler(info);
+    ipcRenderer.on(IPC.UpdaterAvailable, listener);
+    return () => ipcRenderer.removeListener(IPC.UpdaterAvailable, listener);
+  },
+
+  onUpdaterProgress: (
+    handler: (progress: UpdaterProgressPayload) => void
+  ): (() => void) => {
+    const listener = (
+      _e: IpcRendererEvent,
+      progress: UpdaterProgressPayload
+    ): void => handler(progress);
+    ipcRenderer.on(IPC.UpdaterProgress, listener);
+    return () => ipcRenderer.removeListener(IPC.UpdaterProgress, listener);
+  },
+
+  onUpdaterDownloaded: (
+    handler: (info: UpdaterInfoPayload) => void
+  ): (() => void) => {
+    const listener = (_e: IpcRendererEvent, info: UpdaterInfoPayload): void =>
+      handler(info);
+    ipcRenderer.on(IPC.UpdaterDownloaded, listener);
+    return () => ipcRenderer.removeListener(IPC.UpdaterDownloaded, listener);
+  },
+
+  onUpdaterError: (handler: (message: string) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, message: string): void =>
+      handler(message);
+    ipcRenderer.on(IPC.UpdaterError, listener);
+    return () => ipcRenderer.removeListener(IPC.UpdaterError, listener);
   },
 
   // E2E test bootstrap. Returns { e2e: false, autoOpenProjectPath: null }

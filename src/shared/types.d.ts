@@ -598,6 +598,23 @@ export type TestBootstrap = {
     e2e: boolean;
     autoOpenProjectPath: string | null;
 };
+/**
+ * Subset of electron-updater's `UpdateInfo` forwarded to the renderer.
+ * The main process maps the full object down to this minimal shape so
+ * neither shared nor renderer code has to import electron-updater's
+ * main-only types. See docs/notes/auto-update.md.
+ */
+export type UpdaterInfoPayload = {
+    version: string;
+};
+/** Subset of electron-updater's `ProgressInfo` for the download banner. */
+export type UpdaterProgressPayload = {
+    /** 0–100. */
+    percent: number;
+    transferred: number;
+    total: number;
+    bytesPerSecond: number;
+};
 export type ExportFormat = 'png' | 'svg';
 export type ExportChooseSavePathArgs = {
     /** Suggested filename (no extension — the handler appends it). */

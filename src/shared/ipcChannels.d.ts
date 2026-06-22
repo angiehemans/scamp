@@ -66,6 +66,13 @@ export declare const IPC: {
     readonly ExportChooseSavePath: "export:chooseSavePath";
     readonly ExportPng: "export:png";
     readonly ExportSvg: "export:svg";
+    readonly UpdaterChecking: "updater:checking";
+    readonly UpdaterAvailable: "updater:available";
+    readonly UpdaterNotAvailable: "updater:not-available";
+    readonly UpdaterProgress: "updater:progress";
+    readonly UpdaterDownloaded: "updater:downloaded";
+    readonly UpdaterError: "updater:error";
+    readonly UpdaterInstallNow: "updater:install-now";
     readonly TestGetBootstrap: "test:getBootstrap";
 };
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];

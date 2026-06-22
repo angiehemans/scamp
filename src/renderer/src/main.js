@@ -1,8 +1,9 @@
-import { jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/electron/renderer';
 import { App } from './App';
+import { UpdateBanner } from './components/UpdateBanner';
 // `theme.css` must come first — it declares the `--*` variables that
 // global.css and every module CSS reference.
 import './styles/theme.css';
@@ -48,4 +49,4 @@ window.addEventListener('unhandledrejection', (e) => {
 const container = document.getElementById('root');
 if (!container)
     throw new Error('Root container missing');
-createRoot(container).render(_jsx(React.StrictMode, { children: _jsx(App, {}) }));
+createRoot(container).render(_jsxs(React.StrictMode, { children: [_jsx(App, {}), _jsx(UpdateBanner, {})] }));

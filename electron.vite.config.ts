@@ -128,7 +128,10 @@ export default defineConfig(({ mode }) => {
     main: {
       build: {
         rollupOptions: {
-          external: ['chokidar', 'postcss', 'node-pty'],
+          // electron-updater / electron-log are CJS with dynamic
+          // requires that don't survive Rollup bundling — keep them
+          // external so they load from node_modules in the asar.
+          external: ['chokidar', 'postcss', 'node-pty', 'electron-updater', 'electron-log'],
         },
       },
       // String-substitute references to `process.env.SENTRY_DSN`

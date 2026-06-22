@@ -15,6 +15,8 @@ import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
 import { registerExportIpc } from './ipc/export';
+import { registerUpdaterIpc } from './ipc/updater';
+import { initAutoUpdater } from './updater';
 import { registerPreviewIpc } from './ipc/preview';
 import { closeAllPreviewWindows, closePreviewWindow, openPreviewWindow, updatePreviewWindow, } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
@@ -131,6 +133,10 @@ const createWindow = () => {
         win.loadFile(join(__dirname, '../renderer/index.html'));
     }
     initWatcher(win);
+    // Background auto-update: checks GitHub Releases on launch and every
+    // 4 hours, downloads silently, and notifies the renderer's update
+    // banner when ready. No-op in dev. See docs/notes/auto-update.md.
+    initAutoUpdater(win);
 };
 // Register a custom protocol that serves project asset files. The renderer
 // uses `scamp-asset://<absolute-path>` URLs for `<img>` elements so they
@@ -194,6 +200,7 @@ app.whenReady().then(() => {
     registerThemeIpc();
     registerImageIpc();
     registerExportIpc();
+    registerUpdaterIpc();
     registerPreviewIpc({
         open: openPreviewWindow,
         close: closePreviewWindow,

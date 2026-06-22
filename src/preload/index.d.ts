@@ -1,4 +1,4 @@
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -86,6 +86,11 @@ declare const api: {
     onTerminalData: (handler: (payload: TerminalDataPayload) => void) => (() => void);
     onTerminalExit: (handler: (payload: TerminalExitPayload) => void) => (() => void);
     onTerminalForegroundProcess: (handler: (payload: TerminalForegroundProcessPayload) => void) => (() => void);
+    installUpdateNow: () => Promise<void>;
+    onUpdaterAvailable: (handler: (info: UpdaterInfoPayload) => void) => (() => void);
+    onUpdaterProgress: (handler: (progress: UpdaterProgressPayload) => void) => (() => void);
+    onUpdaterDownloaded: (handler: (info: UpdaterInfoPayload) => void) => (() => void);
+    onUpdaterError: (handler: (message: string) => void) => (() => void);
     getTestBootstrap: () => Promise<TestBootstrap>;
 };
 export type ScampApi = typeof api;

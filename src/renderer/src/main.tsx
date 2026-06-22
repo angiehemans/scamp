@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/electron/renderer';
 import { App } from './App';
+import { UpdateBanner } from './components/UpdateBanner';
 // `theme.css` must come first — it declares the `--*` variables that
 // global.css and every module CSS reference.
 import './styles/theme.css';
@@ -50,5 +51,6 @@ if (!container) throw new Error('Root container missing');
 createRoot(container).render(
   <React.StrictMode>
     <App />
+    <UpdateBanner />
   </React.StrictMode>
 );
