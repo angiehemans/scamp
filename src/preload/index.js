@@ -47,7 +47,11 @@ const api = {
     restoreSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotRestore, args),
     deleteSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotDelete, args),
     readSnapshotPage: (args) => ipcRenderer.invoke(IPC.SnapshotReadPage, args),
-    getRecentProjects: () => ipcRenderer.invoke(IPC.RecentProjectsGet),
+    /**
+     * Every project in the default folder, merged with recently-opened
+     * projects (deduped, most-recent first). See IPC.ProjectsList.
+     */
+    getStartScreenProjects: () => ipcRenderer.invoke(IPC.ProjectsList),
     removeRecentProject: (path) => ipcRenderer.invoke(IPC.RecentProjectsRemove, { path }),
     // Settings
     getSettings: () => ipcRenderer.invoke(IPC.SettingsGet),

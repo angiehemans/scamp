@@ -1,4 +1,4 @@
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, RecentProject, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -47,9 +47,11 @@ declare const api: {
     restoreSnapshot: (args: SnapshotRestoreArgs) => Promise<SnapshotRestoreResult>;
     deleteSnapshot: (args: SnapshotDeleteArgs) => Promise<SnapshotDeleteResult>;
     readSnapshotPage: (args: SnapshotReadPageArgs) => Promise<SnapshotReadPageResult>;
-    getRecentProjects: () => Promise<Array<RecentProject & {
-        exists: boolean;
-    }>>;
+    /**
+     * Every project in the default folder, merged with recently-opened
+     * projects (deduped, most-recent first). See IPC.ProjectsList.
+     */
+    getStartScreenProjects: () => Promise<StartScreenProject[]>;
     removeRecentProject: (path: string) => Promise<void>;
     getSettings: () => Promise<Settings>;
     setDefaultProjectsFolder: (path: string | null) => Promise<Settings>;

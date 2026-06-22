@@ -22,7 +22,7 @@ export declare const IPC: {
     readonly ComponentRead: "component:read";
     readonly ComponentWriteThumbnail: "component:writeThumbnail";
     readonly ComponentReadThumbnail: "component:readThumbnail";
-    readonly RecentProjectsGet: "recentProjects:get";
+    readonly ProjectsList: "projects:list";
     readonly RecentProjectsRemove: "recentProjects:remove";
     readonly SettingsGet: "settings:get";
     readonly SettingsSetDefaultFolder: "settings:setDefaultFolder";

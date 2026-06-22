@@ -1,7 +1,11 @@
 import { normalizeRecentProjectEntry } from '@shared/recentProjectNormalize';
 import type { ProjectFormat, RecentProject } from '@shared/types';
 
-export const MAX_RECENT = 5;
+// The Start Screen now lists every project in the default folder, so the
+// recents store's job is narrower: carry open timestamps for ordering and
+// remember projects opened from outside the default folder. Keep a
+// generous cap so recency ordering survives for realistic project counts.
+export const MAX_RECENT = 30;
 
 /**
  * Parse the on-disk store blob into a clean `RecentProject[]`. Tolerant

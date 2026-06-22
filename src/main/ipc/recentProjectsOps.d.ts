@@ -1,5 +1,5 @@
 import type { ProjectFormat, RecentProject } from '@shared/types';
-export declare const MAX_RECENT = 5;
+export declare const MAX_RECENT = 30;
 /**
  * Parse the on-disk store blob into a clean `RecentProject[]`. Tolerant
  * of any structural surprise (missing key, non-array, malformed

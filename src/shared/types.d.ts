@@ -62,6 +62,31 @@ export type RecentProject = {
     format: ProjectFormat;
     lastOpened: string;
 };
+/**
+ * A project discovered by scanning the default projects folder one
+ * level deep. Distinct from `RecentProject` — it has no open history,
+ * just an on-disk presence and a freshly-detected format.
+ */
+export type ScannedProject = {
+    name: string;
+    path: string;
+    format: ProjectFormat;
+};
+/**
+ * A project surfaced on the Start Screen — the union of the recent-opens
+ * store and a scan of the default projects folder, deduped by path. The
+ * list shows every project in the default folder, not just the last few
+ * opened. `lastOpened` is null for projects present on disk but never
+ * opened in Scamp; `exists` is false for stale recents whose folder is
+ * gone.
+ */
+export type StartScreenProject = {
+    name: string;
+    path: string;
+    format: ProjectFormat;
+    lastOpened: string | null;
+    exists: boolean;
+};
 export type ChooseFolderResult = {
     canceled: boolean;
     path: string | null;

@@ -46,6 +46,7 @@
     "src/main/ipc/exportOps.ts",
     "src/main/ipc/projectConfigOps.ts",
     "src/main/ipc/recentProjectsOps.ts",
+    "src/main/ipc/projectListOps.ts",
     "src/main/devServer/portAlloc.ts",
     "src/main/devServer/readyDetector.ts",
     "src/main/pendingWrites.ts",

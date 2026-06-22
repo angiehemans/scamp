@@ -35,8 +35,10 @@ export const IPC = {
     // stays local-only (the scaffolded `.gitignore` ignores `.scamp/`).
     ComponentWriteThumbnail: 'component:writeThumbnail',
     ComponentReadThumbnail: 'component:readThumbnail',
-    // Recent projects
-    RecentProjectsGet: 'recentProjects:get',
+    // Start Screen project list — the union of the recent-opens store and
+    // a scan of the default projects folder (deduped, sorted recent-first),
+    // so every project in the folder shows, not just the last few opened.
+    ProjectsList: 'projects:list',
     RecentProjectsRemove: 'recentProjects:remove',
     // App settings
     SettingsGet: 'settings:get',

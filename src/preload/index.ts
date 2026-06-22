@@ -39,7 +39,6 @@ import type {
   PreviewOpenArgs,
   ProjectMigrateArgs,
   ProjectMigrateResult,
-  RecentProject,
   Settings,
   SnapshotCreateArgs,
   SnapshotCreateResult,
@@ -51,6 +50,7 @@ import type {
   SnapshotReadPageResult,
   SnapshotRestoreArgs,
   SnapshotRestoreResult,
+  StartScreenProject,
   TerminalCreateArgs,
   TerminalCreateResult,
   TerminalDataPayload,
@@ -171,8 +171,12 @@ const api = {
   ): Promise<SnapshotReadPageResult> =>
     ipcRenderer.invoke(IPC.SnapshotReadPage, args),
 
-  getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
-    ipcRenderer.invoke(IPC.RecentProjectsGet),
+  /**
+   * Every project in the default folder, merged with recently-opened
+   * projects (deduped, most-recent first). See IPC.ProjectsList.
+   */
+  getStartScreenProjects: (): Promise<StartScreenProject[]> =>
+    ipcRenderer.invoke(IPC.ProjectsList),
 
   removeRecentProject: (path: string): Promise<void> =>
     ipcRenderer.invoke(IPC.RecentProjectsRemove, { path }),

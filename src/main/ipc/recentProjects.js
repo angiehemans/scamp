@@ -3,6 +3,9 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { parseRecentStore, upsertRecent, setRecentFormat, removeRecentByPath, } from './recentProjectsOps';
+import { mergeProjectsForDisplay } from './projectListOps';
+import { scanProjectsInFolder } from './projectScan';
+import { getSettings } from './settings';
 const storePath = () => join(app.getPath('userData'), 'recentProjects.json');
 const readStore = async () => {
     try {
@@ -47,7 +50,22 @@ const getWithExistence = async () => {
 const removeRecentProject = async (path) => {
     await writeStore(removeRecentByPath(await readStore(), path));
 };
+/**
+ * The Start Screen project list: every project in the default folder
+ * merged with the recent-opens store (which supplies open timestamps and
+ * any projects opened from outside the default folder). Deduped by path,
+ * sorted most-recently-opened first. A missing/unset default folder just
+ * yields the recents — the scan contributes nothing.
+ */
+const listStartScreenProjects = async () => {
+    const recents = await getWithExistence();
+    const { defaultProjectsFolder } = await getSettings();
+    const scanned = defaultProjectsFolder
+        ? await scanProjectsInFolder(defaultProjectsFolder)
+        : [];
+    return mergeProjectsForDisplay(recents, scanned);
+};
 export const registerRecentProjectsIpc = () => {
-    ipcMain.handle(IPC.RecentProjectsGet, () => getWithExistence());
+    ipcMain.handle(IPC.ProjectsList, () => listStartScreenProjects());
     ipcMain.handle(IPC.RecentProjectsRemove, (_e, args) => removeRecentProject(args.path));
 };

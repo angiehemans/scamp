@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import type { ProjectData, RecentProject, Settings } from "@shared/types"
+import type { ProjectData, Settings, StartScreenProject } from "@shared/types"
 import { errorMessage } from "@shared/errorMessage"
 import { basename } from "../lib/path"
 import { CreateProjectModal } from "./CreateProjectModal"
 import { Tooltip } from "./controls/Tooltip"
 import styles from "./StartScreen.module.css"
-
-type RecentProjectWithExistence = RecentProject & { exists: boolean }
 
 type Props = {
   onProjectOpened: (project: ProjectData) => void
@@ -17,14 +15,14 @@ export const StartScreen = ({
   onProjectOpened,
   onOpenSettings,
 }: Props): JSX.Element => {
-  const [recents, setRecents] = useState<RecentProjectWithExistence[]>([])
+  const [projects, setProjects] = useState<StartScreenProject[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const refreshRecents = useCallback(async (): Promise<void> => {
-    const list = await window.scamp.getRecentProjects()
-    setRecents(list)
+  const refreshProjects = useCallback(async (): Promise<void> => {
+    const list = await window.scamp.getStartScreenProjects()
+    setProjects(list)
   }, [])
 
   const refreshSettings = useCallback(async (): Promise<void> => {
@@ -33,9 +31,9 @@ export const StartScreen = ({
   }, [])
 
   useEffect(() => {
-    void refreshRecents()
+    void refreshProjects()
     void refreshSettings()
-  }, [refreshRecents, refreshSettings])
+  }, [refreshProjects, refreshSettings])
 
   const defaultFolder = settings?.defaultProjectsFolder ?? null
 
@@ -50,6 +48,8 @@ export const StartScreen = ({
       } else {
         await refreshSettings()
       }
+      // The folder changed — re-scan so its projects show.
+      await refreshProjects()
     } catch (e) {
       setError(errorMessage(e))
     }
@@ -64,6 +64,7 @@ export const StartScreen = ({
       } else {
         await refreshSettings()
       }
+      await refreshProjects()
     } catch (e) {
       setError(errorMessage(e))
     }
@@ -92,14 +93,14 @@ export const StartScreen = ({
     }
   }
 
-  const handleOpenRecent = async (
-    recent: RecentProjectWithExistence,
+  const handleOpenProjectItem = async (
+    item: StartScreenProject,
   ): Promise<void> => {
-    if (!recent.exists) return
+    if (!item.exists) return
     setError(null)
     try {
       const project = await window.scamp.openProject({
-        folderPath: recent.path,
+        folderPath: item.path,
       })
       onProjectOpened(project)
     } catch (e) {
@@ -109,7 +110,7 @@ export const StartScreen = ({
 
   const handleRemoveRecent = async (path: string): Promise<void> => {
     await window.scamp.removeRecentProject(path)
-    await refreshRecents()
+    await refreshProjects()
   }
 
   // ---- Render ----
@@ -137,38 +138,45 @@ export const StartScreen = ({
 
     return (
       <>
-        <h2 className={styles.recentTitle}>Recent Projects</h2>
+        <h2 className={styles.recentTitle}>Projects</h2>
         {error && <div className={styles.error}>{error}</div>}
-        {recents.length === 0 ? (
-          <div className={styles.emptyState}>No recent projects yet.</div>
+        {projects.length === 0 ? (
+          <div className={styles.emptyState}>
+            No projects yet — create one or open a folder.
+          </div>
         ) : (
           <ul className={styles.recentList}>
-            {recents.map((recent) => (
+            {projects.map((project) => (
               <li
-                key={recent.path}
-                className={`${styles.recentItem} ${recent.exists ? "" : styles.recentMissing}`}
+                key={project.path}
+                className={`${styles.recentItem} ${project.exists ? "" : styles.recentMissing}`}
               >
                 <button
                   className={styles.recentButton}
-                  onClick={() => handleOpenRecent(recent)}
-                  disabled={!recent.exists}
+                  onClick={() => handleOpenProjectItem(project)}
+                  disabled={!project.exists}
                   type="button"
                 >
-                  <span className={styles.recentName}>{recent.name}</span>
-                  <span className={styles.recentPath}>{recent.path}</span>
-                  {!recent.exists && (
+                  <span className={styles.recentName}>{project.name}</span>
+                  <span className={styles.recentPath}>{project.path}</span>
+                  {!project.exists && (
                     <span className={styles.recentLabel}>Folder not found</span>
                   )}
                 </button>
-                <Tooltip label="Remove from list">
-                  <button
-                    className={styles.recentRemove}
-                    onClick={() => handleRemoveRecent(recent.path)}
-                    type="button"
-                  >
-                    x
-                  </button>
-                </Tooltip>
+                {/* The remove (x) only clears stale entries from the recents
+                    store. Projects that exist on disk reappear on the next
+                    scan, so offering "remove" for them would be misleading. */}
+                {!project.exists && (
+                  <Tooltip label="Remove from list">
+                    <button
+                      className={styles.recentRemove}
+                      onClick={() => handleRemoveRecent(project.path)}
+                      type="button"
+                    >
+                      x
+                    </button>
+                  </Tooltip>
+                )}
               </li>
             ))}
           </ul>
