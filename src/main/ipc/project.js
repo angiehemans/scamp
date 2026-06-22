@@ -12,6 +12,7 @@ import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
 import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponents, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
+import { createSnapshot } from './snapshotOps';
 export { detectProjectFormat };
 export { scaffoldLegacyProject, scaffoldNextjsProject };
 const chooseFolder = async () => {
@@ -88,6 +89,14 @@ const createProject = async (args) => {
 };
 const openProject = async (args) => {
     const project = await readProject(args.folderPath);
+    // Session-open snapshot: capture the project's pre-open on-disk state
+    // (whatever changed externally between sessions) BEFORE the canvas
+    // loads and before Scamp's own open-time scaffolding writes below.
+    // Fire-and-forget + silent — never delay the canvas load. The
+    // scaffolding writes (theme.css / layout.tsx / agent.md) don't touch
+    // snapshotted page/component files, so there's no race on captured
+    // content. See docs/notes/snapshots.md.
+    void createSnapshot(args.folderPath, project.format, 'session_open');
     // Ensure older projects get a theme.css if they don't have one.
     // For nextjs the file lives at `app/theme.css` (the `app/` folder
     // exists by virtue of detection having found a `page.tsx` inside it).

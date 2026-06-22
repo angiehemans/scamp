@@ -44,6 +44,13 @@ export const makeAgentSubscriptionHandler = (ctx) => {
  */
 export const makeStoreSubscriptionHandler = (ctx) => (state, prev) => {
     try {
+        // A read-only snapshot preview holds snapshot content in the canvas
+        // in memory only — never persist it. Also covers the exit
+        // transition (prev was previewing) so restoring the real state
+        // doesn't dispatch a write. See docs/notes/snapshots.md.
+        if (state.snapshotPreview !== null || prev.snapshotPreview !== null) {
+            return;
+        }
         // Detect target change against the STABLE underlying refs.
         // `toEditTarget` returns a fresh object each call, so
         // comparing its return values directly would always trip

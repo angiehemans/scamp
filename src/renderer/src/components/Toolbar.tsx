@@ -37,9 +37,12 @@ type Props = {
 export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
+  // Tools are disabled while previewing a snapshot (read-only canvas).
+  const isPreviewing = useCanvasStore((s) => s.snapshotPreview !== null);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent): void => {
+      if (useCanvasStore.getState().snapshotPreview !== null) return;
       const target = e.target as HTMLElement;
       if (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName)) {
         return;
@@ -63,6 +66,7 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
             className={`${styles.button} ${activeTool === t.tool ? styles.active : ''}`}
             onClick={() => setTool(t.tool)}
             type="button"
+            disabled={isPreviewing}
             aria-pressed={activeTool === t.tool}
             aria-label={t.label}
             data-tool={t.tool}

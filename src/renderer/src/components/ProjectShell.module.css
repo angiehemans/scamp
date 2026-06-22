@@ -184,6 +184,63 @@
   color: var(--text-inverse);
 }
 
+/* Snapshot preview banner — same accent treatment as the component
+   editor banner, but with a primary Restore action + an Exit. */
+.snapshotPreviewBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--accent-muted, rgba(99, 102, 241, 0.12));
+  border-bottom: 1px solid var(--accent, #6366f1);
+  color: var(--text-primary);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.snapshotPreviewBanner strong {
+  font-weight: 600;
+}
+
+.snapshotPreviewActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.snapshotPreviewRestore {
+  background: var(--accent, #6366f1);
+  border: 1px solid var(--accent, #6366f1);
+  border-radius: var(--radius-sm);
+  color: var(--text-inverse);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.snapshotPreviewRestore:hover {
+  opacity: 0.9;
+}
+
+.snapshotPreviewExit {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.snapshotPreviewExit:hover {
+  background: var(--bg-hover);
+  color: var(--text-inverse);
+}
+
 .backButton {
   background: none;
   border: none;

@@ -130,6 +130,15 @@ state. Scamp will catch up.
   is parsed (see "Responsive breakpoints").
 - One class = one rule block, always.
 - \`data-scamp-id\` must always match the CSS class name exactly.
+- Renaming an element? Change its class name in BOTH files in the SAME
+  edit — the \`.tsx\` (\`className\` AND \`data-scamp-id\`) and the
+  \`.module.css\` selector. (Scamp can recover a one-sided rename via the
+  shared 4-char hex id, but only while that id is unchanged on both sides.)
+- Put element states on the element's OWN class —
+  \`.card_a1b2:hover { … }\` — which Scamp parses into an editable state. A
+  cross-element interaction (\`.card_a1b2:hover .arrow_c3d4 { … }\`) is kept
+  verbatim but is NOT editable on the canvas; keep any such block
+  self-contained and valid (every declaration ends in \`;\`).
 
 ### Each rendered element needs its OWN unique class
 
@@ -623,9 +632,12 @@ browser-default bullets. The reset block zeros their margin but not
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
 Scamp resolves the variable at render time through \`theme.css\`.
 
-Pseudo-selectors (\`:hover\`, \`:focus\`, \`:active\`, \`:nth-child\`) and
-at-rules other than \`@media (max-width: Npx)\` are preserved verbatim
-but not parsed into the canvas model.
+\`:hover\`, \`:focus\`, and \`:active\` on an element's OWN class
+(\`.card_a1b2:hover { … }\`) are parsed into editable per-state overrides —
+tweakable from the panel. Other pseudo-selectors (\`:nth-child\`,
+\`::before\`), descendant / combined forms (\`.a:hover .b { … }\`), and
+at-rules other than \`@media (max-width: Npx)\` are preserved verbatim but
+not parsed into the canvas model.
 
 ## Responsive breakpoints
 
@@ -906,6 +918,12 @@ Each project also has a \`scamp.config.json\` file at the root. It holds
 per-project settings like the artboard background colour. Scamp
 reads and writes this file; don't modify it unless the user asks.
 
+## Snapshot history
+
+Scamp saves snapshots of the project in a \`.scamp/\` folder.
+Do not modify or delete anything inside \`.scamp/\`.
+Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
+
 ## What NOT to change
 - Do not alter the import line at the top of the TSX file.
 - Do not rename the default export function.
@@ -1026,6 +1044,15 @@ state. Scamp will catch up.
   is parsed (see "Responsive breakpoints").
 - One class = one rule block, always.
 - \`data-scamp-id\` must always match the CSS class name exactly.
+- Renaming an element? Change its class name in BOTH files in the SAME
+  edit — the \`.tsx\` (\`className\` AND \`data-scamp-id\`) and the
+  \`.module.css\` selector. (Scamp can recover a one-sided rename via the
+  shared 4-char hex id, but only while that id is unchanged on both sides.)
+- Put element states on the element's OWN class —
+  \`.card_a1b2:hover { … }\` — which Scamp parses into an editable state. A
+  cross-element interaction (\`.card_a1b2:hover .arrow_c3d4 { … }\`) is kept
+  verbatim but is NOT editable on the canvas; keep any such block
+  self-contained and valid (every declaration ends in \`;\`).
 
 ### Each rendered element needs its OWN unique class
 
@@ -1545,9 +1572,12 @@ browser-default bullets. The reset block zeros their margin but not
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
 Scamp resolves the variable at render time through \`app/theme.css\`.
 
-Pseudo-selectors (\`:hover\`, \`:focus\`, \`:active\`, \`:nth-child\`) and
-at-rules other than \`@media (max-width: Npx)\` are preserved verbatim
-but not parsed into the canvas model.
+\`:hover\`, \`:focus\`, and \`:active\` on an element's OWN class
+(\`.card_a1b2:hover { … }\`) are parsed into editable per-state overrides —
+tweakable from the panel. Other pseudo-selectors (\`:nth-child\`,
+\`::before\`), descendant / combined forms (\`.a:hover .b { … }\`), and
+at-rules other than \`@media (max-width: Npx)\` are preserved verbatim but
+not parsed into the canvas model.
 
 ## Responsive breakpoints
 
@@ -1795,6 +1825,12 @@ Implications for agents:
   \`page.data.json\` next to \`app/about/page.tsx\`) is set aside
   for a future feature that injects mock data as page props during
   preview. Don't repurpose this name for unrelated files.
+
+## Snapshot history
+
+Scamp saves snapshots of the project in a \`.scamp/\` folder.
+Do not modify or delete anything inside \`.scamp/\`.
+Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
 
 ## What NOT to change
 - Do not alter the import line at the top of any \`page.tsx\` file.

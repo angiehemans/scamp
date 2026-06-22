@@ -145,6 +145,12 @@ export type ProjectConfig = {
      */
     nextjsMigrationDismissed?: boolean;
     /**
+     * Auto-save snapshots (the 5-minutes-of-activity trigger). Enabled by
+     * default; only stored when explicitly disabled (`false`). Disable it
+     * if the 50-snapshot limit is being hit too often.
+     */
+    snapshotAutoSave?: boolean;
+    /**
      * Responsive breakpoints for this project, ordered widest first.
      * Style edits in non-desktop mode land inside `@media
      * (max-width: Npx)` blocks keyed by each breakpoint's width.
@@ -378,6 +384,71 @@ export type ComponentReadThumbnailArgs = {
  */
 export type ComponentReadThumbnailResult = {
     base64: string | null;
+};
+export type SnapshotTrigger = 'session_open' | 'agent_edit' | 'session_close' | 'manual' | 'auto_save' | 'before_restore';
+export type SnapshotMeta = {
+    id: string;
+    /** ISO 8601 UTC timestamp the snapshot was taken. */
+    timestamp: string;
+    trigger: SnapshotTrigger;
+    /** Display label (e.g. "External edit — page.module.css", a manual name). */
+    label: string;
+    /** Number of pages captured at snapshot time. */
+    pageCount: number;
+};
+export type SnapshotCreateArgs = {
+    projectPath: string;
+    trigger: SnapshotTrigger;
+    /**
+     * Trigger detail: the user-typed name for `manual`, the changed
+     * filename for `agent_edit`. Ignored for the time-based triggers.
+     */
+    label?: string;
+};
+/** `snapshot: null` means the create was collapsed or silently failed. */
+export type SnapshotCreateResult = {
+    snapshot: SnapshotMeta | null;
+};
+export type SnapshotListArgs = {
+    projectPath: string;
+};
+export type SnapshotListResult = {
+    snapshots: SnapshotMeta[];
+};
+export type SnapshotRestoreArgs = {
+    projectPath: string;
+    snapshotId: string;
+};
+export type SnapshotRestoreResult = {
+    ok: true;
+    snapshotId: string;
+} | {
+    ok: false;
+    error: string;
+};
+export type SnapshotDeleteArgs = {
+    projectPath: string;
+    snapshotId: string;
+};
+export type SnapshotDeleteResult = {
+    ok: boolean;
+};
+/**
+ * Read one page's `.tsx` + `.css` from a snapshot WITHOUT restoring —
+ * powers the read-only preview. `tsxPath` / `cssPath` are the project's
+ * current absolute page paths; the snapshot mirrors the project layout so
+ * they map straight in. Either field is `null` when the snapshot doesn't
+ * contain that file (e.g. a page added after the snapshot was taken).
+ */
+export type SnapshotReadPageArgs = {
+    projectPath: string;
+    snapshotId: string;
+    tsxPath: string;
+    cssPath: string;
+};
+export type SnapshotReadPageResult = {
+    tsx: string | null;
+    css: string | null;
 };
 export type ProjectMigrateArgs = {
     projectPath: string;

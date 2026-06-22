@@ -41,6 +41,12 @@ const api = {
     readComponent: (args) => ipcRenderer.invoke(IPC.ComponentRead, args),
     writeComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentWriteThumbnail, args),
     readComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
+    // Project snapshots (persistent `.scamp/` point-in-time copies).
+    createSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotCreate, args),
+    listSnapshots: (args) => ipcRenderer.invoke(IPC.SnapshotList, args),
+    restoreSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotRestore, args),
+    deleteSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotDelete, args),
+    readSnapshotPage: (args) => ipcRenderer.invoke(IPC.SnapshotReadPage, args),
     getRecentProjects: () => ipcRenderer.invoke(IPC.RecentProjectsGet),
     removeRecentProject: (path) => ipcRenderer.invoke(IPC.RecentProjectsRemove, { path }),
     // Settings

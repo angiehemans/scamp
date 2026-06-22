@@ -16,3 +16,10 @@ export declare const cancelPendingWrite: (path: string) => void;
  */
 export declare const suppressNextChange: (path: string) => void;
 export declare const getWatchedPath: () => string | null;
+/**
+ * Broadcast `ProjectPagesChanged` to the renderer so it re-reads the
+ * project from disk. Used after a snapshot restore (whose copies are
+ * suppressed at the watcher) to drive a full project refresh through the
+ * existing pages-changed path.
+ */
+export declare const notifyPagesChanged: () => void;

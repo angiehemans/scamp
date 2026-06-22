@@ -1,12 +1,16 @@
+type Props = {
+    /** Active project root — snapshots are scoped to it. */
+    projectPath: string;
+};
 /**
- * Visual history panel — the second tab in the left sidebar.
- * Renders the active page's history list with the current cursor
- * highlighted. Clicking an entry jumps to that point in history.
- *
- * Past entries (cursor and below in time) display solid; future
- * entries (greyed out, after a divider) are the redoable steps.
- *
- * Per the story spec: clicks are dropped silently while a canvas
- * drag is in flight, so the panel is display-only during drag.
+ * The History panel — the second tab in the left sidebar. Shows a unified,
+ * newest-first timeline (with a "Now" marker) that interleaves the
+ * project's durable on-disk snapshots with the active page's in-memory
+ * undo entries, so users get per-edit granularity between the coarser
+ * snapshots without extra disk writes. Clicking a snapshot restores it
+ * from disk (after confirming); clicking an undo entry jumps the canvas to
+ * that point in-session (current page, no disk write). "Save snapshot"
+ * takes a manual one. See docs/notes/snapshots.md.
  */
-export declare const HistoryPanel: () => JSX.Element;
+export declare const HistoryPanel: ({ projectPath }: Props) => JSX.Element;
+export {};

@@ -130,6 +130,9 @@ export const parseProjectConfig = (raw: string | null): ProjectConfig => {
     obj['canvasMigrationAcknowledged'] === true ? true : undefined;
   const nextjsMigrationDismissed =
     obj['nextjsMigrationDismissed'] === true ? true : undefined;
+  // Auto-save snapshots default on; only persist an explicit disable.
+  const snapshotAutoSave =
+    obj['snapshotAutoSave'] === false ? false : undefined;
   const breakpoints =
     obj['breakpoints'] === undefined
       ? [...DEFAULT_BREAKPOINTS]
@@ -144,6 +147,7 @@ export const parseProjectConfig = (raw: string | null): ProjectConfig => {
     breakpoints,
     ...(canvasMigrationAcknowledged ? { canvasMigrationAcknowledged: true } : {}),
     ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
+    ...(snapshotAutoSave === false ? { snapshotAutoSave: false } : {}),
     ...(componentCanvas ? { componentCanvas } : {}),
   };
 };

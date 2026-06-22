@@ -41,6 +41,16 @@ import type {
   ProjectMigrateResult,
   RecentProject,
   Settings,
+  SnapshotCreateArgs,
+  SnapshotCreateResult,
+  SnapshotDeleteArgs,
+  SnapshotDeleteResult,
+  SnapshotListArgs,
+  SnapshotListResult,
+  SnapshotReadPageArgs,
+  SnapshotReadPageResult,
+  SnapshotRestoreArgs,
+  SnapshotRestoreResult,
   TerminalCreateArgs,
   TerminalCreateResult,
   TerminalDataPayload,
@@ -134,6 +144,30 @@ const api = {
     args: ComponentReadThumbnailArgs
   ): Promise<ComponentReadThumbnailResult> =>
     ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
+
+  // Project snapshots (persistent `.scamp/` point-in-time copies).
+  createSnapshot: (
+    args: SnapshotCreateArgs
+  ): Promise<SnapshotCreateResult> =>
+    ipcRenderer.invoke(IPC.SnapshotCreate, args),
+
+  listSnapshots: (args: SnapshotListArgs): Promise<SnapshotListResult> =>
+    ipcRenderer.invoke(IPC.SnapshotList, args),
+
+  restoreSnapshot: (
+    args: SnapshotRestoreArgs
+  ): Promise<SnapshotRestoreResult> =>
+    ipcRenderer.invoke(IPC.SnapshotRestore, args),
+
+  deleteSnapshot: (
+    args: SnapshotDeleteArgs
+  ): Promise<SnapshotDeleteResult> =>
+    ipcRenderer.invoke(IPC.SnapshotDelete, args),
+
+  readSnapshotPage: (
+    args: SnapshotReadPageArgs
+  ): Promise<SnapshotReadPageResult> =>
+    ipcRenderer.invoke(IPC.SnapshotReadPage, args),
 
   getRecentProjects: (): Promise<Array<RecentProject & { exists: boolean }>> =>
     ipcRenderer.invoke(IPC.RecentProjectsGet),

@@ -15,8 +15,12 @@ const TOOLS = [
 export const Toolbar = ({ onOpenSettings, onOpenTheme }) => {
     const activeTool = useCanvasStore((s) => s.activeTool);
     const setTool = useCanvasStore((s) => s.setTool);
+    // Tools are disabled while previewing a snapshot (read-only canvas).
+    const isPreviewing = useCanvasStore((s) => s.snapshotPreview !== null);
     useEffect(() => {
         const handleKey = (e) => {
+            if (useCanvasStore.getState().snapshotPreview !== null)
+                return;
             const target = e.target;
             if (target.isContentEditable || ['INPUT', 'TEXTAREA'].includes(target.tagName)) {
                 return;
@@ -37,5 +41,5 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }) => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [setTool]);
-    return (_jsxs("div", { className: styles.toolbar, "data-testid": "element-toolbar", "data-active-tool": activeTool, children: [TOOLS.map((t) => (_jsx(Tooltip, { label: `${t.label} (${t.shortcut})`, children: _jsx("button", { className: `${styles.button} ${activeTool === t.tool ? styles.active : ''}`, onClick: () => setTool(t.tool), type: "button", "aria-pressed": activeTool === t.tool, "aria-label": t.label, "data-tool": t.tool, children: t.icon }) }, t.tool))), _jsx("span", { className: styles.spacer }), onOpenTheme && (_jsx(Tooltip, { label: "Theme tokens", children: _jsx("button", { className: styles.button, onClick: onOpenTheme, type: "button", "aria-label": "Theme tokens", children: _jsx(IconPalette, { size: ICON_SIZE }) }) })), onOpenSettings && (_jsx(Tooltip, { label: "Settings", children: _jsx("button", { className: styles.button, onClick: onOpenSettings, type: "button", "aria-label": "Settings", children: _jsx(IconSettings, { size: ICON_SIZE }) }) }))] }));
+    return (_jsxs("div", { className: styles.toolbar, "data-testid": "element-toolbar", "data-active-tool": activeTool, children: [TOOLS.map((t) => (_jsx(Tooltip, { label: `${t.label} (${t.shortcut})`, children: _jsx("button", { className: `${styles.button} ${activeTool === t.tool ? styles.active : ''}`, onClick: () => setTool(t.tool), type: "button", disabled: isPreviewing, "aria-pressed": activeTool === t.tool, "aria-label": t.label, "data-tool": t.tool, children: t.icon }) }, t.tool))), _jsx("span", { className: styles.spacer }), onOpenTheme && (_jsx(Tooltip, { label: "Theme tokens", children: _jsx("button", { className: styles.button, onClick: onOpenTheme, type: "button", "aria-label": "Theme tokens", children: _jsx(IconPalette, { size: ICON_SIZE }) }) })), onOpenSettings && (_jsx(Tooltip, { label: "Settings", children: _jsx("button", { className: styles.button, onClick: onOpenSettings, type: "button", "aria-label": "Settings", children: _jsx(IconSettings, { size: ICON_SIZE }) }) }))] }));
 };

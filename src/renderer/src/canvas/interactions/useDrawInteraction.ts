@@ -112,6 +112,8 @@ export const useDrawInteraction = (geometry: CanvasGeometry): DrawInteraction =>
   };
 
   const tryStart = (e: PointerEvent<HTMLDivElement>): boolean => {
+    // Read-only while previewing a snapshot — no draws or marquee selects.
+    if (useCanvasStore.getState().snapshotPreview !== null) return false;
     if (activeTool === 'rectangle' || activeTool === 'input') {
       beginDrawAt(e);
       return true;

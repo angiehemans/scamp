@@ -5,6 +5,9 @@ import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
 import { registerComponentIpc } from './ipc/component';
+import { registerSnapshotIpc } from './ipc/snapshot';
+import { createSnapshot } from './ipc/snapshotOps';
+import { getProjectFormat } from './ipc/projectFormatCache';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
 import { registerSettingsIpc, readSettingsSync } from './ipc/settings';
 import { registerProjectConfigIpc } from './ipc/projectConfig';
@@ -183,6 +186,7 @@ app.whenReady().then(() => {
     registerFileIpc();
     registerPageIpc();
     registerComponentIpc();
+    registerSnapshotIpc();
     registerRecentProjectsIpc();
     registerSettingsIpc();
     registerProjectConfigIpc();
@@ -226,7 +230,28 @@ app.whenReady().then(() => {
  * Safe to call concurrently — disposeAllTerminals clears its map
  * synchronously and stopAllDevServers does the same.
  */
+/**
+ * Final `session_close` snapshot of the active project before shutdown,
+ * read straight from disk. Best-effort + silent — never blocks the quit.
+ * Runs before `disposeWatcher()` so `getWatchedPath()` still resolves.
+ * Note: a canvas edit within the last debounce window may not have
+ * flushed to disk yet; the renderer-driven onClose snapshot covers the
+ * clean in-app project-close path (see ProjectShell).
+ */
+const snapshotOnShutdown = async () => {
+    const root = getWatchedPath();
+    if (!root)
+        return;
+    try {
+        const format = await getProjectFormat(root);
+        await createSnapshot(root, format, 'session_close');
+    }
+    catch {
+        // never let snapshotting block shutdown
+    }
+};
 const performShutdownCleanup = async () => {
+    await snapshotOnShutdown();
     disposeWatcher();
     setSentryProjectRoot(null);
     closeAllPreviewWindows();

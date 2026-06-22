@@ -87,6 +87,19 @@ export const IPC = {
     // (agent activity). The renderer uses this to flip the sync
     // engine into pause + show the appropriate status pill.
     TerminalForegroundProcess: 'terminal:foregroundProcess',
+    // Project snapshots — persistent point-in-time copies of all page +
+    // component files, stored under `.scamp/snapshots/`. All file I/O
+    // happens main-side; see docs/notes/snapshots.md.
+    SnapshotCreate: 'snapshot:create',
+    SnapshotList: 'snapshot:list',
+    // Restore broadcasts the existing ProjectPagesChanged afterwards (its
+    // file copies are suppressed at the watcher) to drive a full renderer
+    // re-read, so it needs no dedicated completion channel.
+    SnapshotRestore: 'snapshot:restore',
+    SnapshotDelete: 'snapshot:delete',
+    // Read one page's files from a snapshot without restoring — the
+    // read-only preview shows the snapshot on the canvas before committing.
+    SnapshotReadPage: 'snapshot:read-page',
     // Export (page or element)
     ExportChooseSavePath: 'export:chooseSavePath',
     ExportPng: 'export:png',

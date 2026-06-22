@@ -39,6 +39,7 @@ import { ComponentSidebar } from './projectShell/ComponentSidebar';
 import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
+import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import {
   useFontLinkReconciler,
@@ -200,6 +201,10 @@ export const ProjectShell = ({
   useFontLinkReconciler();
   useProjectTheme(project.path);
 
+  // Auto-save snapshot trigger (every ~5 min of canvas activity), unless
+  // disabled via the project's `snapshotAutoSave` config flag.
+  useSnapshotAutoSave(project.path, projectConfig.snapshotAutoSave !== false);
+
   // Background click on the artboard scroll area (outside any frame
   // content) clears selection. Lives here rather than inside Viewport
   // because the scroll container moved up with the "artboard is the
@@ -353,7 +358,9 @@ export const ProjectShell = ({
               History
             </button>
           </div>
-          {leftSidebarTab === 'history' && <HistoryPanel />}
+          {leftSidebarTab === 'history' && (
+            <HistoryPanel projectPath={project.path} />
+          )}
           {leftSidebarTab === 'layers' && <>
           <PageSidebar
             pages={project.pages}

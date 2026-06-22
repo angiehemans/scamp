@@ -93,6 +93,11 @@ export const useCanvasKeyboardShortcuts = (
         return;
       }
 
+      // Read-only while previewing a snapshot — block every mutating
+      // shortcut below (undo/redo, delete, paste, group, nudge, …). Zoom,
+      // terminal, and the preview window above stay available.
+      if (useCanvasStore.getState().snapshotPreview !== null) return;
+
       // Shift+Cmd/Ctrl+G — ungroup the selected element. We check this
       // BEFORE the plain Cmd+G branch so the shift modifier wins.
       if (

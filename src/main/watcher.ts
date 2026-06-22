@@ -1,13 +1,15 @@
 import { BrowserWindow } from 'electron';
 import chokidar, { FSWatcher } from 'chokidar';
 import { promises as fs } from 'fs';
-import { extname, basename, dirname, join } from 'path';
+import { extname, basename, dirname, join, relative } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type { FileChangedPayload } from '@shared/types';
 import {
   createPendingWriteTracker,
   type PendingWriteTracker,
 } from './pendingWrites';
+import { getProjectFormat } from './ipc/projectFormatCache';
+import { createSnapshot } from './ipc/snapshotOps';
 
 let watcher: FSWatcher | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -153,6 +155,16 @@ const emitChange = async (changedPath: string): Promise<void> => {
   const isCss = changedPath.endsWith('.module.css');
   if (!isTsx && !isCss) return;
 
+  // Genuinely external edit — no pending-write entry means Scamp didn't
+  // write this (handleWrite / handlePatch always register one). Capture
+  // an `agent_edit` snapshot as a restore point before the renderer
+  // reloads the canvas. Fire-and-forget + silent so it never delays the
+  // file:changed broadcast; snapshotOps' 5-second collapse coalesces an
+  // agent's rapid multi-file burst into one snapshot.
+  if (consumed === null) {
+    void snapshotExternalEdit(changedPath);
+  }
+
   // Resolve sibling file so the renderer always receives both halves of a page.
   const dir = dirname(changedPath);
   const base = basename(changedPath).replace(/\.tsx$|\.module\.css$/, '');
@@ -173,6 +185,24 @@ const emitChange = async (changedPath: string): Promise<void> => {
   mainWindow.webContents.send(IPC.FileChanged, payload);
 };
 
+/**
+ * Capture an `agent_edit` project snapshot for an external file change.
+ * Best-effort: bails if there's no active project, ignores `.scamp/`
+ * paths defensively (chokidar already excludes them), and swallows
+ * errors so a snapshot failure can't disturb the watcher.
+ */
+const snapshotExternalEdit = async (changedPath: string): Promise<void> => {
+  const root = watchedPath;
+  if (!root) return;
+  if (relative(root, changedPath).startsWith('.scamp')) return;
+  try {
+    const format = await getProjectFormat(root);
+    await createSnapshot(root, format, 'agent_edit', basename(changedPath));
+  } catch {
+    // never let snapshotting interfere with file watching
+  }
+};
+
 const readIfExists = async (p: string): Promise<string | null> => {
   try {
     return await fs.readFile(p, 'utf-8');
@@ -182,3 +212,14 @@ const readIfExists = async (p: string): Promise<string | null> => {
 };
 
 export const getWatchedPath = (): string | null => watchedPath;
+
+/**
+ * Broadcast `ProjectPagesChanged` to the renderer so it re-reads the
+ * project from disk. Used after a snapshot restore (whose copies are
+ * suppressed at the watcher) to drive a full project refresh through the
+ * existing pages-changed path.
+ */
+export const notifyPagesChanged = (): void => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send(IPC.ProjectPagesChanged);
+};

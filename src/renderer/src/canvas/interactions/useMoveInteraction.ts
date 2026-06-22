@@ -35,6 +35,8 @@ export const useMoveInteraction = (
     id: string,
     el: ScampElement
   ): void => {
+    // Read-only while previewing a snapshot — no element moves.
+    if (useCanvasStore.getState().snapshotPreview !== null) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     // Open a history transaction so per-tick `moveElement` calls

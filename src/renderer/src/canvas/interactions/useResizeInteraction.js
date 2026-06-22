@@ -17,6 +17,9 @@ export const useResizeInteraction = (geometry, scale) => {
     const selectedElementId = selectedElementIds[0] ?? null;
     const isSingleSelection = selectedElementIds.length === 1;
     const tryStart = (e) => {
+        // Read-only while previewing a snapshot — no resize.
+        if (useCanvasStore.getState().snapshotPreview !== null)
+            return false;
         const handle = isResizeHandle(e.clientX, e.clientY);
         if (!(handle && selectedElementId && isSingleSelection))
             return false;
