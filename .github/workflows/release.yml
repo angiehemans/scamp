@@ -13,17 +13,27 @@ on:
 jobs:
   release:
     runs-on: ${{ matrix.os }}
+    # WIN_CERTS is surfaced as an env var so the Windows signing step can
+    # gate on it (secrets can't be referenced directly in `if:`). When the
+    # secret is absent the import step is skipped and electron-builder
+    # produces an UNSIGNED Windows build instead of failing — flips back to
+    # signed automatically once the WIN_CERTS secret is added.
+    env:
+      WIN_CERTS: ${{ secrets.WIN_CERTS }}
     strategy:
       # Don't cancel the other platforms if one fails — a partial release
       # is recoverable, a cancelled one wastes the successful builds.
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # Pin windows-2022 (VS 2022): windows-latest migrated to a newer
+        # Visual Studio that the bundled node-gyp can't detect, breaking
+        # the node-pty native rebuild in postinstall. See docs/notes/auto-update.md.
+        os: [macos-latest, windows-2022, ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
 
@@ -36,7 +46,7 @@ jobs:
       # electron-builder auto-discovers it. Notarization is driven by the
       # APPLE_* env vars on the build step below.
       - name: Import macOS certificate
-        if: matrix.os == 'macos-latest'
+        if: runner.os == 'macOS'
         run: |
           echo "$MAC_CERTS" | base64 --decode > certificate.p12
           security create-keychain -p "" build.keychain
@@ -56,7 +66,9 @@ jobs:
       # exported to GITHUB_ENV (not set globally) so the macOS/Linux
       # runners — where certificate.p12 doesn't exist — aren't affected.
       - name: Import Windows certificate
-        if: matrix.os == 'windows-latest'
+        # Skipped when WIN_CERTS isn't configured yet — the build then ships
+        # unsigned (SmartScreen "unknown publisher") rather than failing.
+        if: runner.os == 'Windows' && env.WIN_CERTS != ''
         run: |
           echo "$WIN_CERTS" | base64 -d > certificate.p12
           echo "CSC_LINK=certificate.p12" >> "$GITHUB_ENV"

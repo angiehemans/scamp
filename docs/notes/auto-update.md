@@ -51,6 +51,16 @@ Dismissing the banner does **not** cancel the update —
   cleanly when absent, so unsigned local `npm run package` builds work.
 - `.github/workflows/release.yml` runs on `v*` tags: imports certs,
   builds the matrix, and publishes with `--publish always`.
+- The Windows runner is pinned to **`windows-2022`**, not
+  `windows-latest`. `windows-latest` migrated to a newer Visual Studio
+  that the node-gyp bundled with Node 20 can't detect, so the `node-pty`
+  rebuild in `postinstall` fails with "Could not find any Visual Studio
+  installation to use". windows-2022 ships VS 2022, which node-gyp finds.
+- The Windows cert-import step is gated on the `WIN_CERTS` secret
+  (surfaced as a job-level env var because secrets can't be referenced
+  in `if:`). With no cert configured the step is skipped and the build
+  ships **unsigned** (SmartScreen "unknown publisher") instead of
+  failing; it re-enables signing automatically once `WIN_CERTS` is set.
 
 ## Gotchas
 
