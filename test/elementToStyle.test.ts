@@ -111,13 +111,31 @@ describe('elementToStyle — flex parent stretch routing', () => {
     expect(s.width).toBeUndefined();
   });
 
-  it('cross-axis stretch in a row parent becomes align-self:stretch', () => {
+  it('cross-axis (block) stretch in a row parent becomes align-self:stretch', () => {
+    // Cross axis of a row is the BLOCK axis (height); `height: 100%`
+    // collapses against an indefinite container height, so we fall back
+    // to align-self:stretch.
     const s = style(makeEl({ heightMode: 'stretch' }), {
       parentDisplay: 'flex',
       parentDirection: 'row',
     });
     expect(s.alignSelf).toBe('stretch');
     expect(s.height).toBeUndefined();
+  });
+
+  it('cross-axis (inline) stretch in a column parent keeps width:100% and does NOT set align-self', () => {
+    // Cross axis of a column is the INLINE axis (width); `width: 100%`
+    // resolves against the definite container width. Keeping it (rather
+    // than align-self:stretch) lets the parent's align-items position the
+    // item — e.g. `align-items: center` + a child `max-width` centres it,
+    // matching the browser/preview. Regression for the html-test feed
+    // rendering left-aligned on the canvas while centred in the preview.
+    const s = style(makeEl({ widthMode: 'stretch' }), {
+      parentDisplay: 'flex',
+      parentDirection: 'column',
+    });
+    expect(s.width).toBe('100%');
+    expect(s.alignSelf).toBeUndefined();
   });
 });
 

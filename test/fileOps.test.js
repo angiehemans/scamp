@@ -1,8 +1,26 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { atomicWrite } from '../src/main/ipc/fileOps';
+const tmpFiles = async (dir) => (await fs.readdir(dir)).filter((f) => f.endsWith('.tmp'));
+const errnoError = (code) => {
+    const err = new Error(code);
+    err.code = code;
+    return err;
+};
+/** Force the Windows code path regardless of the host running the test. */
+const withWin32 = async (fn) => {
+    const original = Object.getOwnPropertyDescriptor(process, 'platform');
+    Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+    try {
+        await fn();
+    }
+    finally {
+        if (original)
+            Object.defineProperty(process, 'platform', original);
+    }
+};
 describe('atomicWrite', () => {
     let dir;
     beforeEach(async () => {
@@ -24,7 +42,52 @@ describe('atomicWrite', () => {
     });
     it('leaves no .tmp file behind after a successful write', async () => {
         await atomicWrite(path.join(dir, 'a.tsx'), 'x');
-        const leftover = (await fs.readdir(dir)).filter((f) => f.endsWith('.tmp'));
-        expect(leftover).toEqual([]);
+        expect(await tmpFiles(dir)).toEqual([]);
+    });
+    describe('Windows transient rename lock', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+        it('retries the rename when it fails with a transient EPERM, then succeeds', async () => {
+            await withWin32(async () => {
+                const target = path.join(dir, 'home.module.css');
+                const realRename = fs.rename.bind(fs);
+                let calls = 0;
+                const spy = vi
+                    .spyOn(fs, 'rename')
+                    .mockImplementation(async (from, to) => {
+                    calls += 1;
+                    if (calls <= 2)
+                        throw errnoError('EPERM');
+                    return realRename(from, to);
+                });
+                await atomicWrite(target, 'after-retry');
+                expect(spy).toHaveBeenCalledTimes(3);
+                expect(await fs.readFile(target, 'utf-8')).toBe('after-retry');
+                expect(await tmpFiles(dir)).toEqual([]);
+            });
+        });
+        it('rethrows and cleans up the .tmp when retries are exhausted', async () => {
+            await withWin32(async () => {
+                const target = path.join(dir, 'home.module.css');
+                vi.spyOn(fs, 'rename').mockImplementation(async () => {
+                    throw errnoError('EPERM');
+                });
+                await expect(atomicWrite(target, 'never-lands')).rejects.toThrow('EPERM');
+                expect(await tmpFiles(dir)).toEqual([]);
+                await expect(fs.access(target)).rejects.toThrow();
+            });
+        });
+        it('does not retry a non-transient error and cleans up the .tmp', async () => {
+            await withWin32(async () => {
+                const target = path.join(dir, 'home.module.css');
+                const spy = vi.spyOn(fs, 'rename').mockImplementation(async () => {
+                    throw errnoError('ENOENT');
+                });
+                await expect(atomicWrite(target, 'nope')).rejects.toThrow('ENOENT');
+                expect(spy).toHaveBeenCalledTimes(1);
+                expect(await tmpFiles(dir)).toEqual([]);
+            });
+        });
     });
 });

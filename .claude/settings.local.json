@@ -64,7 +64,8 @@
       "Bash(echo \"regen exit $?\")",
       "Bash(git checkout *)",
       "Bash(grep -E \"\\\\.ts$\")",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Read(//c/Users/angie/Documents/scamp-files/html-test/**)"
     ]
   }
 }

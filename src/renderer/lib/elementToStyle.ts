@@ -168,11 +168,20 @@ export const elementToStyle = (
       flexProps.minHeight = 0;
       effectiveHeight = undefined;
     }
-    // Cross axis stretch → align-self: stretch (drop the explicit size)
-    if (el.widthMode === 'stretch' && !widthIsMain) {
-      flexProps.alignSelf = 'stretch';
-      effectiveWidth = undefined;
-    } else if (el.heightMode === 'stretch' && widthIsMain) {
+    // Cross-axis stretch fill. The two axes are NOT symmetric:
+    //   - Row parent → cross axis is the BLOCK axis (height). A
+    //     percentage `height: 100%` collapses when the container's
+    //     height is indefinite, so fall back to `align-self: stretch`
+    //     to fill the cross axis.
+    //   - Column parent → cross axis is the INLINE axis (width). A
+    //     percentage `width: 100%` resolves against the container's
+    //     definite inline size, so we KEEP it. Substituting
+    //     `align-self: stretch` here would override the parent's
+    //     `align-items` (e.g. `center` + a child `max-width` should
+    //     centre the item) and pin the item to the start edge instead —
+    //     diverging from the browser/preview. see
+    //     docs/notes/canvas-cross-axis-stretch.md
+    if (el.heightMode === 'stretch' && widthIsMain) {
       flexProps.alignSelf = 'stretch';
       effectiveHeight = undefined;
     }
