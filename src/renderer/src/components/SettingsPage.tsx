@@ -9,6 +9,7 @@ type Props = {
 
 export const SettingsPage = ({ onBack }: Props): JSX.Element => {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [version, setVersion] = useState<string | null>(null);
 
   const refresh = useCallback(async (): Promise<void> => {
     const next = await window.scamp.getSettings();
@@ -18,6 +19,10 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void window.scamp.getAppVersion().then(setVersion);
+  }, []);
 
   const handlePickFolder = async (): Promise<void> => {
     const result = await window.scamp.chooseFolder();
@@ -117,6 +122,18 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
               >
                 Off
               </button>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>About</h2>
+          <div className={styles.row}>
+            <span className={styles.rowLabel}>Version</span>
+            <div className={styles.rowControl}>
+              <span className={styles.versionValue}>
+                {version === null ? '—' : `Scamp ${version}`}
+              </span>
             </div>
           </div>
         </div>
