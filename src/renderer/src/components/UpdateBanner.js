@@ -2,6 +2,7 @@ import { jsxs as _jsxs, jsx as _jsx, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useState } from 'react';
 import { useSaveStatusStore } from '@store/saveStatusSlice';
 import { Button } from './controls/Button';
+import { describeUpdateError } from './updateError';
 import styles from './UpdateBanner.module.css';
 export const UpdateBanner = () => {
     const [status, setStatus] = useState({ kind: 'idle' });
@@ -21,9 +22,9 @@ export const UpdateBanner = () => {
             setDismissed(false);
             setStatus({ kind: 'ready', version: info.version });
         });
-        const offError = window.scamp.onUpdaterError(() => {
+        const offError = window.scamp.onUpdaterError((message) => {
             setDismissed(false);
-            setStatus({ kind: 'error' });
+            setStatus({ kind: 'error', message: describeUpdateError(message) });
         });
         return () => {
             offAvailable();
@@ -40,5 +41,5 @@ export const UpdateBanner = () => {
         void window.scamp.installUpdateNow();
     };
     const handleDismiss = () => setDismissed(true);
-    return (_jsxs("div", { className: styles.banner, role: "status", "aria-live": "polite", "data-testid": "update-banner", children: [status.kind === 'downloading' && (_jsxs("span", { className: styles.message, children: ["Downloading update\u2026 ", status.percent, "%"] })), status.kind === 'ready' && (_jsxs(_Fragment, { children: [_jsxs("span", { className: styles.message, children: ["Scamp ", status.version, " is ready to install"] }), _jsxs("div", { className: styles.actions, children: [_jsx(Button, { variant: "primary", size: "sm", onClick: handleInstall, children: "Restart and install" }), _jsx(Button, { variant: "ghost", size: "sm", onClick: handleDismiss, children: "Later" })] })] })), status.kind === 'error' && (_jsxs(_Fragment, { children: [_jsx("span", { className: styles.message, children: "Update failed \u2014 check your connection" }), _jsx("div", { className: styles.actions, children: _jsx(Button, { variant: "ghost", size: "sm", onClick: handleDismiss, children: "Dismiss" }) })] }))] }));
+    return (_jsxs("div", { className: styles.banner, role: "status", "aria-live": "polite", "data-testid": "update-banner", children: [status.kind === 'downloading' && (_jsxs("span", { className: styles.message, children: ["Downloading update\u2026 ", status.percent, "%"] })), status.kind === 'ready' && (_jsxs(_Fragment, { children: [_jsxs("span", { className: styles.message, children: ["Scamp ", status.version, " is ready to install"] }), _jsxs("div", { className: styles.actions, children: [_jsx(Button, { variant: "primary", size: "sm", onClick: handleInstall, children: "Restart and install" }), _jsx(Button, { variant: "ghost", size: "sm", onClick: handleDismiss, children: "Later" })] })] })), status.kind === 'error' && (_jsxs(_Fragment, { children: [_jsx("span", { className: styles.message, children: status.message }), _jsx("div", { className: styles.actions, children: _jsx(Button, { variant: "ghost", size: "sm", onClick: handleDismiss, children: "Dismiss" }) })] }))] }));
 };

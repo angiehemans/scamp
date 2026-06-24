@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSaveStatusStore } from '@store/saveStatusSlice';
 
 import { Button } from './controls/Button';
+import { describeUpdateError } from './updateError';
 import styles from './UpdateBanner.module.css';
 
 /**
@@ -19,7 +20,7 @@ type UpdateStatus =
   | { kind: 'idle' }
   | { kind: 'downloading'; percent: number }
   | { kind: 'ready'; version: string }
-  | { kind: 'error' };
+  | { kind: 'error'; message: string };
 
 export const UpdateBanner = (): JSX.Element | null => {
   const [status, setStatus] = useState<UpdateStatus>({ kind: 'idle' });
@@ -40,9 +41,9 @@ export const UpdateBanner = (): JSX.Element | null => {
       setDismissed(false);
       setStatus({ kind: 'ready', version: info.version });
     });
-    const offError = window.scamp.onUpdaterError(() => {
+    const offError = window.scamp.onUpdaterError((message) => {
       setDismissed(false);
-      setStatus({ kind: 'error' });
+      setStatus({ kind: 'error', message: describeUpdateError(message) });
     });
     return () => {
       offAvailable();
@@ -91,9 +92,7 @@ export const UpdateBanner = (): JSX.Element | null => {
 
       {status.kind === 'error' && (
         <>
-          <span className={styles.message}>
-            Update failed — check your connection
-          </span>
+          <span className={styles.message}>{status.message}</span>
           <div className={styles.actions}>
             <Button variant="ghost" size="sm" onClick={handleDismiss}>
               Dismiss
