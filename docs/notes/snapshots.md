@@ -100,6 +100,18 @@ While `snapshotPreview` is set:
   round-trip. **Restore** runs the flow below, then `clearSnapshotPreview`
   drops the stash (the disk re-read already replaced the canvas content).
 
+The lock is keyed only on `snapshotPreview` being non-null, so anything
+that **authoritatively replaces the canvas content while a preview is up
+must also clear it** — otherwise the read-only lock leaks onto content the
+user never previewed (a stuck "can't delete / can't edit" state). The
+content-replacing actions in the document slice all set
+`snapshotPreview: null`: `loadPage` / `loadComponent` (navigating to a
+different target), `reloadElements` (an external/agent edit reloads the
+active file), and `resetForNewPage`. The stash is intentionally discarded
+in these paths — the new content is now authoritative, so there's nothing
+to restore back to. Exit/Restore from the banner remain the only paths
+that go *back* to the stashed pre-preview state.
+
 ## Restore flow
 
 1. Banner Restore → `restorePreview` → `snapshot:restore` (renderer awaits).

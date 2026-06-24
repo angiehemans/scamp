@@ -69,6 +69,10 @@ export const createDocumentSlice = (set) => ({
             selectedElementIds: [],
             isLoading: true,
             lastLoadKind: 'initial',
+            // Navigating to a page voids any snapshot-preview lock so the new
+            // page is editable — without this the read-only lock leaks across
+            // navigation. See docs/notes/snapshots.md.
+            snapshotPreview: null,
             // Data tab is component-only; fall back when leaving a component.
             panelMode: state.panelMode === 'data' ? 'ui' : state.panelMode,
         }));
@@ -92,6 +96,8 @@ export const createDocumentSlice = (set) => ({
             selectedElementIds: [],
             isLoading: true,
             lastLoadKind: 'initial',
+            // Entering a component voids any snapshot-preview lock (snapshots.md).
+            snapshotPreview: null,
         });
         // Components get their own per-target history bucket keyed by
         // their tsxPath — same shape as pages so the history slice
@@ -111,6 +117,9 @@ export const createDocumentSlice = (set) => ({
             selectedElementIds: state.selectedElementIds.filter((id) => id in elements),
             isLoading: true,
             lastLoadKind: 'external',
+            // An external edit replacing the canvas voids any snapshot-preview
+            // lock — drop it so the reloaded content stays editable (snapshots.md).
+            snapshotPreview: null,
         }));
         // syncBridge is responsible for pushing the `external-edit`
         // history entry (it calls enqueueExternalEdit AFTER reloadElements
@@ -126,6 +135,8 @@ export const createDocumentSlice = (set) => ({
         activePage: null,
         activeComponent: null,
         pageSource: null,
+        // Clearing the target voids any snapshot-preview lock (snapshots.md).
+        snapshotPreview: null,
         isLoading: false,
         // Drop the manual zoom too — we want a fresh project to start in
         // fit-to-container mode regardless of the previous session.

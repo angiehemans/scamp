@@ -110,6 +110,45 @@ test.describe('history panel — snapshots', () => {
     await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(2);
   });
 
+  test('navigating to another page releases a stuck snapshot-preview lock', async ({
+    window,
+  }) => {
+    // Regression: the read-only preview lock keys only on `snapshotPreview`
+    // being set. Entering preview and then navigating away (without
+    // clicking Exit) used to leak the lock onto the new page — the banner
+    // vanished from the user's attention but draw/move/delete silently
+    // no-op'd. loadPage now clears the lock. See docs/notes/snapshots.md.
+    await oneRectSnapshotThenTwo(window);
+
+    // Enter preview on the snapshot — canvas goes read-only.
+    await window.getByRole('tab', { name: 'History' }).click();
+    await window.getByText('one rect').click();
+    const banner = window.getByTestId('snapshot-preview-banner');
+    await expect(banner).toBeVisible();
+
+    // Switch to a freshly-created page WITHOUT exiting the preview first.
+    await window.getByRole('tab', { name: 'Pages & Layers' }).click();
+    await window.getByRole('button', { name: /\+ Add Page/ }).click();
+    const nameInput = window.getByPlaceholder('page-name');
+    await nameInput.fill('about');
+    await nameInput.press('Enter');
+
+    // The lock must not leak onto About: the banner is gone and the canvas
+    // is editable again. Draw + Delete both exercise snapshotPreview guards
+    // (useDrawInteraction / the keyboard handler), so their success proves
+    // the lock was released.
+    await expect(banner).toBeHidden();
+    await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0);
+
+    await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 200, y: 180 });
+    await waitForSaved(window);
+    await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(1);
+
+    await window.keyboard.press('Delete');
+    await waitForSaved(window);
+    await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0);
+  });
+
   test('interleaves in-session undo steps; clicking one jumps the canvas', async ({
     window,
   }) => {
