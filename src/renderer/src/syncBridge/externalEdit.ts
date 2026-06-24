@@ -69,6 +69,7 @@ export const makeFileChangedHandler =
     try {
       const parsed = parseCode(payload.tsxContent, payload.cssContent, {
         breakpoints: state.breakpoints,
+        isComponent: target.kind === 'component',
       });
 
       // Always mirror the new on-disk source into the store so the code

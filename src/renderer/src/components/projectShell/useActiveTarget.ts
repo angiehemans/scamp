@@ -168,6 +168,7 @@ export const useActiveTarget = ({
     try {
       parsed = parseCode(component.tsxContent, component.cssContent, {
         breakpoints: projectConfig.breakpoints,
+        isComponent: true,
       });
     } catch (err) {
       // Keep the last good canvas; surface inline + in the activity log.

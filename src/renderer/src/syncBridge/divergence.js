@@ -63,6 +63,7 @@ export const makeDiscardDivergedCanvas = (ctx) => () => {
     try {
         const parsed = parseCode(onDisk.tsx, onDisk.css, {
             breakpoints: state.breakpoints,
+            isComponent: target.kind === 'component',
         });
         state.reloadElements(parsed.elements, onDisk, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
         ctx.lastSerializedTsx = onDisk.tsx;

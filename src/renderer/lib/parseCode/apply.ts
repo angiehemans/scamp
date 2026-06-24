@@ -1,6 +1,6 @@
 // parseCode/apply.ts — split out of parseCode.ts (4.4).
 import { cssToScampProperty, isMappedProperty } from "../cssPropertyMap";
-import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from "../defaults";
+import { DEFAULT_COMPONENT_ROOT_STYLES, DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from "../defaults";
 import { ROOT_ELEMENT_ID, type BreakpointOverride, type ElementType, type ScampElement, type StateOverride } from "../element";
 import { parseAnimationShorthand, parsePx, parseSpaceValueOrNull } from "../parsers";
 import { getTagDefaultPadding } from "../tagDefaults";
@@ -133,8 +133,8 @@ export const applyDeclarationsAsStateOverride = (
 };
 
 
-export const makeRoot = (): ScampElement => ({
-  ...DEFAULT_ROOT_STYLES,
+export const makeRoot = (isComponent: boolean = false): ScampElement => ({
+  ...(isComponent ? DEFAULT_COMPONENT_ROOT_STYLES : DEFAULT_ROOT_STYLES),
   id: ROOT_ELEMENT_ID,
   type: 'rectangle',
   parentId: null,
@@ -156,11 +156,20 @@ const defaultTagForType = (type: ElementType): string => {
 };
 
 
-export const makeBaseline = (raw: RawElement): ScampElement => {
+export const makeBaseline = (
+  raw: RawElement,
+  isComponent: boolean = false
+): ScampElement => {
   const isRoot = raw.id === ROOT_ELEMENT_ID;
   // Root has its own default shape (100% stretch / auto height / white
-  // page background); every other element starts from rect defaults.
-  const defaults = isRoot ? DEFAULT_ROOT_STYLES : DEFAULT_RECT_STYLES;
+  // page background); every other element starts from rect defaults. A
+  // COMPONENT root drops the page-root `100vh` floor — see
+  // DEFAULT_COMPONENT_ROOT_STYLES / docs/notes/component-min-height-floor.md.
+  const defaults = isRoot
+    ? isComponent
+      ? DEFAULT_COMPONENT_ROOT_STYLES
+      : DEFAULT_ROOT_STYLES
+    : DEFAULT_RECT_STYLES;
   // Apply UA-padding-aware tag defaults so a file with no `padding`
   // declaration on a `<ul>` parses to the UA-equivalent
   // `[0, 0, 0, 40]` — matching what the browser renders. Without

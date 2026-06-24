@@ -71,7 +71,7 @@ export const makeOnWriteConflict =
       const parsed = parseCode(
         conflict.actualTsxContent,
         conflict.actualCssContent,
-        { breakpoints: store.breakpoints }
+        { breakpoints: store.breakpoints, isComponent: target.kind === 'component' }
       );
       store.reloadElements(
         parsed.elements,

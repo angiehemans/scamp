@@ -50,9 +50,12 @@ export default function ${componentName}() {
   );
 }
 `;
+// No `min-height: 100vh` here, unlike a page root: a component is
+// embedded inside a page, not a full page itself, so a viewport-height
+// floor blows out its layout in previews and on live sites. The root
+// sizes to its content. see docs/notes/component-min-height-floor.md
 const DEFAULT_COMPONENT_CSS = `.root {
   width: 100%;
-  min-height: 100vh;
   position: relative;
 }
 `;

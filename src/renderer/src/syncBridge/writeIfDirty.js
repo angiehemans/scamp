@@ -49,7 +49,7 @@ export const makeOnWriteConflict = (ctx) => (target, conflict, silent = false) =
         css: conflict.actualCssContent,
     });
     try {
-        const parsed = parseCode(conflict.actualTsxContent, conflict.actualCssContent, { breakpoints: store.breakpoints });
+        const parsed = parseCode(conflict.actualTsxContent, conflict.actualCssContent, { breakpoints: store.breakpoints, isComponent: target.kind === 'component' });
         store.reloadElements(parsed.elements, { tsx: conflict.actualTsxContent, css: conflict.actualCssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
     }
     catch (err) {
