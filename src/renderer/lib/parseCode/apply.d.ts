@@ -20,8 +20,8 @@ export declare const applyDeclarationsAsOverride: (decls: RawDeclaration[]) => B
  * picker doesn't model the multi case but the value is preserved.
  */
 export declare const applyDeclarationsAsStateOverride: (decls: RawDeclaration[]) => StateOverride;
-export declare const makeRoot: () => ScampElement;
-export declare const makeBaseline: (raw: RawElement) => ScampElement;
+export declare const makeRoot: (isComponent?: boolean) => ScampElement;
+export declare const makeBaseline: (raw: RawElement, isComponent?: boolean) => ScampElement;
 /**
  * Apply a list of declarations to an element. Returns a new element with
  * mapped properties applied and unmapped ones stored verbatim in

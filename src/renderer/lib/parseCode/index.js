@@ -64,6 +64,16 @@ const stripLegacyRootSizing = (decls) => {
     const stripped = decls.filter((_, i) => i !== widthIdx && i !== minHeightIdx && i !== positionIdx);
     return { decls: stripped, migrated: true };
 };
+/**
+ * Drop an inherited `min-height: 100vh` from a COMPONENT root. Older
+ * components were scaffolded with the page-root viewport floor, which
+ * blows out their layout when embedded (preview / live site). Stripping
+ * it on parse means the floor stops round-tripping back into the file:
+ * the next save writes the cleaned CSS. An explicit non-`100vh`
+ * min-height the user set is left untouched.
+ * see docs/notes/component-min-height-floor.md
+ */
+const stripComponentRootMinHeightFloor = (decls) => decls.filter((d) => !(d.prop === 'min-height' && d.value.trim() === '100vh'));
 /** Trailing `_<4-char-hex>` id segment of a class name (scamp's stable id). */
 const CLASS_ID_SUFFIX_RE = /_([0-9a-f]{4})$/;
 /** Every class name that appears anywhere in the parsed CSS. */
@@ -102,6 +112,7 @@ const indexCssClassesByIdSuffix = (names) => {
 };
 export const parseCode = (tsx, css, options) => {
     const breakpoints = options?.breakpoints ?? DEFAULT_BREAKPOINTS;
+    const isComponent = options?.isComponent ?? false;
     const rawElements = parseTsxStructure(tsx);
     const parsedCss = parseCssDeclarations(css, breakpoints);
     // Rename resilience: if a TSX className has no matching CSS class (the
@@ -139,7 +150,7 @@ export const parseCode = (tsx, css, options) => {
         // Resolve the CSS class this element's styles live under — exact match
         // normally, or the same-hex-id class if it was renamed on one side only.
         const cls = resolveClassName(raw.className, raw.id);
-        const baseline = makeBaseline(raw);
+        const baseline = makeBaseline(raw, isComponent);
         let decls = parsedCss.byClass.get(cls) ?? [];
         if (isRoot) {
             // Detect and strip the legacy three-tuple (pre-canvas-rework)
@@ -149,6 +160,11 @@ export const parseCode = (tsx, css, options) => {
             decls = result.decls;
             if (result.migrated)
                 migrated = true;
+            // Component roots: drop the inherited `100vh` floor so it stops
+            // round-tripping. No `migrated` flag — that drives the page-sizing
+            // banner; this self-heals silently on the next save.
+            if (isComponent)
+                decls = stripComponentRootMinHeightFloor(decls);
         }
         const applied = applyDeclarations(baseline, decls);
         // If the file didn't actually declare a width or a height for this
@@ -236,7 +252,7 @@ export const parseCode = (tsx, css, options) => {
             cssDuplicates[raw.id] = dupes;
     }
     if (!rootSeen) {
-        elements[ROOT_ELEMENT_ID] = makeRoot();
+        elements[ROOT_ELEMENT_ID] = makeRoot(isComponent);
     }
     // Post-pass: hydrate component text-props. When a text element's
     // captured body is a single `{propName}` JSX expression AND the

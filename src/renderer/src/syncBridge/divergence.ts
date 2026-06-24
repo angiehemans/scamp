@@ -66,6 +66,7 @@ export const makeDiscardDivergedCanvas = (ctx: SaveContext) => (): void => {
   try {
     const parsed = parseCode(onDisk.tsx, onDisk.css, {
       breakpoints: state.breakpoints,
+      isComponent: target.kind === 'component',
     });
     state.reloadElements(
       parsed.elements,

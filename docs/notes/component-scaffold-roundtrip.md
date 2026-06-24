@@ -17,17 +17,17 @@ The "Add Component" flow used to write a minimal scaffold to disk:
 ```
 
 That scaffold does NOT round-trip cleanly through
-`parseCode → generateCode`. `parseCode` applies `DEFAULT_ROOT_STYLES`
-as the baseline (root defaults to stretch width, `100vh` min-height,
-relative position), and `generateCode` then emits those defaults
-explicitly. The TSX shape also collapses to a self-closing
+`parseCode → generateCode`. `parseCode` applies the component-root
+baseline (`DEFAULT_COMPONENT_ROOT_STYLES`: stretch width, relative
+position, and — unlike a page root — NO `100vh` floor; see
+docs/notes/component-min-height-floor.md), and `generateCode` then emits
+those defaults explicitly. The TSX shape also collapses to a self-closing
 `<div ... />` because the root has no children. So the regenerated
 form looks like:
 
 ```css
 .root {
   width: 100%;
-  min-height: 100vh;
   position: relative;
 }
 ```
@@ -70,15 +70,15 @@ roots won't immediately re-open the window.
 
 ## When to revisit
 
-If `DEFAULT_ROOT_STYLES` ever changes, `DEFAULT_COMPONENT_CSS` here
-has to track it — otherwise the canonical-migration write fires
+If `DEFAULT_COMPONENT_ROOT_STYLES` ever changes, `DEFAULT_COMPONENT_CSS`
+here has to track it — otherwise the canonical-migration write fires
 again and we're one chokidar-suppression bug away from the same
-race. There's no automated check; the round-trip test added
-alongside this fix in `test/component-scaffold-roundtrip.test.ts`
-is the closest thing.
+race. There's no automated check; the round-trip test in
+`test/component-scaffold-roundtrip.test.ts` is the closest thing.
 
-Long-term, components probably shouldn't inherit page-level root
-defaults (`min-height: 100vh` is wrong for a 480×320 Card). The
-cleaner fix is a separate `DEFAULT_COMPONENT_ROOT_STYLES` plumbed
-through parseCode / generateCode via `isComponent`. That's out of
-scope for this bug fix.
+The "long-term" cleanup this note used to defer is now done: components
+no longer inherit the page-root `min-height: 100vh` floor. A dedicated
+`DEFAULT_COMPONENT_ROOT_STYLES` is plumbed through parseCode /
+generateCode via `isComponent`. See
+docs/notes/component-min-height-floor.md for that mechanism (including
+the self-heal that strips the floor from already-scaffolded components).

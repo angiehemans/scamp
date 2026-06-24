@@ -18,7 +18,10 @@ export const rewriteComponentForRename = (
   newName: string,
   options?: RewriteOptions
 ): { tsx: string; css: string } => {
-  const parsed = parseCode(tsx, css, { breakpoints: options?.breakpoints });
+  const parsed = parseCode(tsx, css, {
+    breakpoints: options?.breakpoints,
+    isComponent: true,
+  });
   return generateCode({
     elements: parsed.elements,
     rootId: parsed.rootId,

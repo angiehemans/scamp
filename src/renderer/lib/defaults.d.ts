@@ -137,3 +137,64 @@ export declare const DEFAULT_ROOT_STYLES: {
     toggledOffGroups: ReadonlyArray<PropertyGroup>;
 };
 export type DefaultRootStyles = typeof DEFAULT_ROOT_STYLES;
+/**
+ * Defaults for a COMPONENT-root element. Identical to the page-root
+ * defaults EXCEPT there is no `100vh` min-height floor: a component is
+ * embedded inside a page, not a full page itself, so forcing viewport
+ * height blows out its layout in previews and on live sites. The root
+ * sizes to its content unless the user sets an explicit min-height.
+ * see docs/notes/component-min-height-floor.md
+ */
+export declare const DEFAULT_COMPONENT_ROOT_STYLES: {
+    minHeight: string | undefined;
+    display: "none";
+    flexDirection: "row";
+    gap: number;
+    alignItems: "flex-start";
+    justifyContent: "flex-start";
+    gridTemplateColumns: string;
+    gridTemplateRows: string;
+    columnGap: number;
+    rowGap: number;
+    justifyItems: "stretch";
+    gridColumn: string;
+    gridRow: string;
+    alignSelf: "stretch";
+    justifySelf: "stretch";
+    padding: SpaceTuple;
+    margin: SpaceTuple;
+    widthMode: "stretch";
+    widthValue: number;
+    heightMode: "auto";
+    heightValue: number;
+    backgroundColor: string;
+    borderRadius: SpaceTuple;
+    borderWidth: SpaceTuple;
+    borderStyle: "none";
+    borderColor: string;
+    opacity: number;
+    visibilityMode: "visible";
+    mixBlendMode: "normal";
+    backgroundBlendMode: "normal";
+    position: "auto";
+    boxShadows: ReadonlyArray<BoxShadowDef>;
+    filters: ReadonlyArray<FilterDef>;
+    backdropFilters: ReadonlyArray<FilterDef>;
+    transitions: ReadonlyArray<{
+        property: string;
+        durationMs: number;
+        easing: string;
+        delayMs: number;
+    }>;
+    inlineFragments: ReadonlyArray<{
+        kind: "text";
+        value: string;
+        afterChildIndex: number;
+    } | {
+        kind: "jsx";
+        source: string;
+        afterChildIndex: number;
+    }>;
+    toggledOffGroups: ReadonlyArray<PropertyGroup>;
+};
+export type DefaultComponentRootStyles = typeof DEFAULT_COMPONENT_ROOT_STYLES;

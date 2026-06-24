@@ -70,6 +70,15 @@ export type ParseCodeOptions = {
    * project config loaded yet.
    */
   breakpoints?: ReadonlyArray<Breakpoint>;
+  /**
+   * `true` when parsing a component file (mirrors `generateCode`'s
+   * `isComponent`). A component root drops the page-root `100vh`
+   * min-height floor and an inherited `min-height: 100vh` is stripped
+   * so it stops round-tripping back into the file. Callers that handle
+   * both pages and components pass `target.kind === 'component'`.
+   * see docs/notes/component-min-height-floor.md
+   */
+  isComponent?: boolean;
 };
 
 
@@ -145,6 +154,22 @@ const stripLegacyRootSizing = (
   return { decls: stripped, migrated: true };
 };
 
+/**
+ * Drop an inherited `min-height: 100vh` from a COMPONENT root. Older
+ * components were scaffolded with the page-root viewport floor, which
+ * blows out their layout when embedded (preview / live site). Stripping
+ * it on parse means the floor stops round-tripping back into the file:
+ * the next save writes the cleaned CSS. An explicit non-`100vh`
+ * min-height the user set is left untouched.
+ * see docs/notes/component-min-height-floor.md
+ */
+const stripComponentRootMinHeightFloor = (
+  decls: ReadonlyArray<RawDeclaration>
+): RawDeclaration[] =>
+  decls.filter(
+    (d) => !(d.prop === 'min-height' && d.value.trim() === '100vh')
+  );
+
 /** Trailing `_<4-char-hex>` id segment of a class name (scamp's stable id). */
 const CLASS_ID_SUFFIX_RE = /_([0-9a-f]{4})$/;
 
@@ -184,6 +209,7 @@ export const parseCode = (
   options?: ParseCodeOptions
 ): ParsedTree => {
   const breakpoints = options?.breakpoints ?? DEFAULT_BREAKPOINTS;
+  const isComponent = options?.isComponent ?? false;
   const rawElements = parseTsxStructure(tsx);
   const parsedCss = parseCssDeclarations(css, breakpoints);
   // Rename resilience: if a TSX className has no matching CSS class (the
@@ -222,7 +248,7 @@ export const parseCode = (
     // normally, or the same-hex-id class if it was renamed on one side only.
     const cls = resolveClassName(raw.className, raw.id);
 
-    const baseline = makeBaseline(raw);
+    const baseline = makeBaseline(raw, isComponent);
     let decls = parsedCss.byClass.get(cls) ?? [];
     if (isRoot) {
       // Detect and strip the legacy three-tuple (pre-canvas-rework)
@@ -231,6 +257,10 @@ export const parseCode = (
       const result = stripLegacyRootSizing(decls);
       decls = result.decls;
       if (result.migrated) migrated = true;
+      // Component roots: drop the inherited `100vh` floor so it stops
+      // round-tripping. No `migrated` flag — that drives the page-sizing
+      // banner; this self-heals silently on the next save.
+      if (isComponent) decls = stripComponentRootMinHeightFloor(decls);
     }
     const applied = applyDeclarations(baseline, decls);
 
@@ -318,7 +348,7 @@ export const parseCode = (
   }
 
   if (!rootSeen) {
-    elements[ROOT_ELEMENT_ID] = makeRoot();
+    elements[ROOT_ELEMENT_ID] = makeRoot(isComponent);
   }
 
   // Post-pass: hydrate component text-props. When a text element's

@@ -28,16 +28,18 @@ export default function ${componentName}() {
 }
 `;
 
+// No `min-height: 100vh`: a component root is embedded, not a full
+// page, so it must not carry the page-root viewport floor.
+// see docs/notes/component-min-height-floor.md
 const scaffoldCss = `.root {
   width: 100%;
-  min-height: 100vh;
   position: relative;
 }
 `;
 
 describe('component scaffold round-trip', () => {
   it('the createComponent scaffold reproduces itself through parseCode → generateCode', () => {
-    const parsed = parseCode(scaffoldTsx, scaffoldCss, {});
+    const parsed = parseCode(scaffoldTsx, scaffoldCss, { isComponent: true });
     const regen = generateCode({
       elements: parsed.elements,
       rootId: parsed.rootId,

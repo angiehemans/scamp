@@ -132,3 +132,18 @@ export const DEFAULT_ROOT_STYLES = {
 };
 
 export type DefaultRootStyles = typeof DEFAULT_ROOT_STYLES;
+
+/**
+ * Defaults for a COMPONENT-root element. Identical to the page-root
+ * defaults EXCEPT there is no `100vh` min-height floor: a component is
+ * embedded inside a page, not a full page itself, so forcing viewport
+ * height blows out its layout in previews and on live sites. The root
+ * sizes to its content unless the user sets an explicit min-height.
+ * see docs/notes/component-min-height-floor.md
+ */
+export const DEFAULT_COMPONENT_ROOT_STYLES = {
+  ...DEFAULT_ROOT_STYLES,
+  minHeight: undefined as string | undefined,
+};
+
+export type DefaultComponentRootStyles = typeof DEFAULT_COMPONENT_ROOT_STYLES;

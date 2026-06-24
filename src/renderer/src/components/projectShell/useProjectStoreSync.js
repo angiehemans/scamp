@@ -41,6 +41,7 @@ export const useProjectStoreSync = ({ project, projectConfig, activeComponent, }
             try {
                 const parsed = parseCode(component.tsxContent, component.cssContent, {
                     breakpoints: projectConfig.breakpoints,
+                    isComponent: true,
                 });
                 trees[component.name] = {
                     elements: parsed.elements,

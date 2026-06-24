@@ -62,6 +62,15 @@ export type ParseCodeOptions = {
      * project config loaded yet.
      */
     breakpoints?: ReadonlyArray<Breakpoint>;
+    /**
+     * `true` when parsing a component file (mirrors `generateCode`'s
+     * `isComponent`). A component root drops the page-root `100vh`
+     * min-height floor and an inherited `min-height: 100vh` is stripped
+     * so it stops round-tripping back into the file. Callers that handle
+     * both pages and components pass `target.kind === 'component'`.
+     * see docs/notes/component-min-height-floor.md
+     */
+    isComponent?: boolean;
 };
 /**
  * Return the set of CSS property names that appear more than once in

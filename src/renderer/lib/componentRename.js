@@ -2,7 +2,10 @@ import { generateCode } from './generateCode';
 import { parseCode } from './parseCode';
 /** Flip a component file's function name, Props type, and import basename. */
 export const rewriteComponentForRename = (tsx, css, _oldName, newName, options) => {
-    const parsed = parseCode(tsx, css, { breakpoints: options?.breakpoints });
+    const parsed = parseCode(tsx, css, {
+        breakpoints: options?.breakpoints,
+        isComponent: true,
+    });
     return generateCode({
         elements: parsed.elements,
         rootId: parsed.rootId,

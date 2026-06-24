@@ -113,6 +113,7 @@ export const useActiveTarget = ({ project, onProjectChange, projectConfig, handl
         try {
             parsed = parseCode(component.tsxContent, component.cssContent, {
                 breakpoints: projectConfig.breakpoints,
+                isComponent: true,
             });
         }
         catch (err) {
