@@ -175,19 +175,24 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const selectedEl = selectedElementId ? elements[selectedElementId] : null;
     const isEditing = editingElementId !== null || editingInstanceProp !== null;
     const drawState = draw.draw;
-    const dropIndicator = reorder.dropIndicator;
-    // Absolute-container reparent target highlighted during a move drag.
-    const dropContainer = move.dropTarget;
-    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: dropInsert.handleDragOver, onDrop: dropInsert.handleDrop, children: [drawState && (_jsx(DrawPreview, { x: Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX, y: Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY, width: Math.abs(drawState.currentX - drawState.startX), height: Math.abs(drawState.currentY - drawState.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
-                    left: dropIndicator.rect.x,
-                    top: dropIndicator.rect.y,
-                    width: dropIndicator.rect.w,
-                    height: dropIndicator.rect.h,
-                } })), dropContainer && (_jsx("div", { className: styles.dropContainer, style: {
-                    left: dropContainer.rect.x,
-                    top: dropContainer.rect.y,
-                    width: dropContainer.rect.w,
-                    height: dropContainer.rect.h,
+    // Cross-parent reparent target — only one drag path is active per
+    // gesture, so move and reorder never both report one.
+    const crossDrop = move.crossDrop ?? reorder.crossDrop;
+    // Gap line: same-parent flex reorder, or a flow (flex/grid) reparent.
+    const gapRect = reorder.dropIndicator?.rect ??
+        (crossDrop?.kind === 'flow' ? crossDrop.indicator.rect : null);
+    // Outline: an absolute-container reparent target.
+    const containerRect = crossDrop?.kind === 'absolute' ? crossDrop.rect : null;
+    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: dropInsert.handleDragOver, onDrop: dropInsert.handleDrop, children: [drawState && (_jsx(DrawPreview, { x: Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX, y: Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY, width: Math.abs(drawState.currentX - drawState.startX), height: Math.abs(drawState.currentY - drawState.startY) })), gapRect && (_jsx("div", { className: styles.dropIndicator, style: {
+                    left: gapRect.x,
+                    top: gapRect.y,
+                    width: gapRect.w,
+                    height: gapRect.h,
+                } })), containerRect && (_jsx("div", { className: styles.dropContainer, style: {
+                    left: containerRect.x,
+                    top: containerRect.y,
+                    width: containerRect.w,
+                    height: containerRect.h,
                 } })), isSingleSelection && selectedEl && selectedRect && (
             // Position and size come from a DOM measurement of the selected
             // element, so the overlay always sits exactly where the user sees

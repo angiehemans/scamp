@@ -1,10 +1,10 @@
 import { type PointerEvent } from 'react';
 import type { ScampElement } from '@lib/element';
-import type { CanvasGeometry, DropContainerTarget, MoveState } from './types';
+import type { CanvasGeometry, MoveState, ReparentDrop } from './types';
 export type MoveInteraction = {
     move: MoveState | null;
-    /** Pending reparent into an absolute container (drives the highlight). */
-    dropTarget: DropContainerTarget | null;
+    /** Pending cross-parent reparent (drives the drop feedback). */
+    crossDrop: ReparentDrop | null;
     /** Begin a move drag for the given (non-flex, non-root) element. */
     start: (e: PointerEvent<HTMLDivElement>, id: string, el: ScampElement) => void;
     /** Apply the move while dragging; returns true if a move is active. */
@@ -18,13 +18,12 @@ export type MoveInteraction = {
  * as a single entry. Position is clamped to the parent's current visible
  * extent so an element can't be dragged off the page.
  *
- * While dragging, the cursor is hit-tested for a different ABSOLUTE
- * container (`resolveDropContainer`); when one is found the element keeps
- * following the cursor inside its current parent AND the target container
- * is highlighted. On release over that target the element is reparented
- * and placed at the cursor point in the target's local space — committed
- * inside the same open transaction so it's a single undo step.
- * Flow (flex/grid) targets are handled in a later phase.
+ * While dragging, the cursor is hit-tested for a DIFFERENT container
+ * (`resolveReparentDrop`). The element keeps following the cursor inside
+ * its current parent AND the target gets drop feedback (gap line for
+ * flex/grid, outline for absolute). On release over that target the
+ * element is reparented — committed inside the same open transaction so
+ * the whole gesture is one undo step.
  * see docs/plans/canvas-drag-reparent-plan.md
  */
 export declare const useMoveInteraction: (geometry: CanvasGeometry, scale: number) => MoveInteraction;

@@ -54,6 +54,13 @@ export type ResizeState = {
 export type ReorderState = {
   id: string;
   parentId: string;
+  /**
+   * Frame-local offset of the cursor within the dragged child at grab
+   * time — used to place the element under the cursor if it's dropped
+   * out into an absolute container.
+   */
+  grabDX: number;
+  grabDY: number;
 };
 
 export type DropIndicator = {
@@ -64,20 +71,25 @@ export type DropIndicator = {
 };
 
 /**
- * A pending reparent into an ABSOLUTE container during a move drag. The
- * container is highlighted (`rect`) and, on release, the dragged element
- * is reparented and placed at `x`/`y` in the container's local space.
+ * A pending cross-parent reparent computed during a drag. Two shapes by
+ * the target container's layout:
+ *   - `flow` (flex/grid): insert at `indicator.newIndex`; the gap line
+ *     (`indicator.rect`) shows where it lands.
+ *   - `absolute`: reparent and place the element at `x`/`y` in the
+ *     container's local space; the container outline (`rect`) highlights.
+ * Shared by the move (absolute element) and reorder (flex child) drag
+ * paths via `reparentDrop.ts`.
  * see docs/plans/canvas-drag-reparent-plan.md
  */
-export type DropContainerTarget = {
-  /** The container element the drop will reparent into. */
-  id: string;
-  /** Frame-local rect of the container, for the highlight outline. */
-  rect: SelectedRect;
-  /** Position for the dragged element in the container's local space. */
-  x: number;
-  y: number;
-};
+export type ReparentDrop =
+  | { kind: 'flow'; targetId: string; indicator: DropIndicator }
+  | {
+      kind: 'absolute';
+      targetId: string;
+      rect: SelectedRect;
+      x: number;
+      y: number;
+    };
 
 /**
  * Geometry helpers shared by every interaction hook, bound to the current
