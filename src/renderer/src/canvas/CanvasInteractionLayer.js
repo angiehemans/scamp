@@ -176,11 +176,18 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const isEditing = editingElementId !== null || editingInstanceProp !== null;
     const drawState = draw.draw;
     const dropIndicator = reorder.dropIndicator;
+    // Absolute-container reparent target highlighted during a move drag.
+    const dropContainer = move.dropTarget;
     return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: dropInsert.handleDragOver, onDrop: dropInsert.handleDrop, children: [drawState && (_jsx(DrawPreview, { x: Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX, y: Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY, width: Math.abs(drawState.currentX - drawState.startX), height: Math.abs(drawState.currentY - drawState.startY) })), dropIndicator && (_jsx("div", { className: styles.dropIndicator, style: {
                     left: dropIndicator.rect.x,
                     top: dropIndicator.rect.y,
                     width: dropIndicator.rect.w,
                     height: dropIndicator.rect.h,
+                } })), dropContainer && (_jsx("div", { className: styles.dropContainer, style: {
+                    left: dropContainer.rect.x,
+                    top: dropContainer.rect.y,
+                    width: dropContainer.rect.w,
+                    height: dropContainer.rect.h,
                 } })), isSingleSelection && selectedEl && selectedRect && (
             // Position and size come from a DOM measurement of the selected
             // element, so the overlay always sits exactly where the user sees

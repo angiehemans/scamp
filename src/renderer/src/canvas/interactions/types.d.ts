@@ -21,6 +21,13 @@ export type MoveState = {
     pointerStartY: number;
     originX: number;
     originY: number;
+    /**
+     * Frame-local offset of the cursor within the dragged element at grab
+     * time. Used to preserve the grab point when reparenting into another
+     * container so the element doesn't jump under the cursor on drop.
+     */
+    grabDX: number;
+    grabDY: number;
 };
 export type ResizeState = {
     id: string;
@@ -53,6 +60,21 @@ export type DropIndicator = {
     newIndex: number;
 };
 /**
+ * A pending reparent into an ABSOLUTE container during a move drag. The
+ * container is highlighted (`rect`) and, on release, the dragged element
+ * is reparented and placed at `x`/`y` in the container's local space.
+ * see docs/plans/canvas-drag-reparent-plan.md
+ */
+export type DropContainerTarget = {
+    /** The container element the drop will reparent into. */
+    id: string;
+    /** Frame-local rect of the container, for the highlight outline. */
+    rect: SelectedRect;
+    /** Position for the dragged element in the container's local space. */
+    x: number;
+    y: number;
+};
+/**
  * Geometry helpers shared by every interaction hook, bound to the current
  * frame + scale + element tree. Produced by `useCanvasGeometry`.
  */
@@ -76,4 +98,16 @@ export type CanvasGeometry = {
     };
     /** True if `el`'s parent is a flex container. */
     isFlexChild: (el: ScampElement | undefined) => boolean;
+    /**
+     * Resolve the deepest container under the cursor that `draggedId`
+     * could reparent into. Skips the dragged element + its subtree and
+     * non-container leaves (text / input / image / component-instance).
+     * `isFlow` is true for flex/grid (insert-index drop) vs absolute
+     * (x/y drop). Null when there's no valid container under the cursor.
+     * see docs/plans/canvas-drag-reparent-plan.md
+     */
+    resolveDropContainer: (clientX: number, clientY: number, draggedId: string) => {
+        parentId: string;
+        isFlow: boolean;
+    } | null;
 };

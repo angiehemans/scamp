@@ -127,11 +127,49 @@ export const useCanvasGeometry = (
     return elements[el.parentId]?.display === 'flex';
   };
 
+  /** True if `id` is `ancestorId` or anywhere below it in the tree. */
+  const isSelfOrDescendant = (id: string, ancestorId: string): boolean => {
+    let cursor: string | null = id;
+    while (cursor) {
+      if (cursor === ancestorId) return true;
+      cursor = elements[cursor]?.parentId ?? null;
+    }
+    return false;
+  };
+
+  const resolveDropContainer = (
+    clientX: number,
+    clientY: number,
+    draggedId: string
+  ): { parentId: string; isFlow: boolean } | null => {
+    // elementsFromPoint is top→bottom in paint order, so the first
+    // container we hit walking outward is the deepest one under the
+    // cursor. The chrome layer has no `data-element-id`, so it's
+    // skipped naturally.
+    const candidates = document.elementsFromPoint(clientX, clientY);
+    for (const node of candidates) {
+      if (!(node instanceof HTMLElement)) continue;
+      const id = node.dataset['elementId'];
+      if (!id) continue;
+      // Never drop into the dragged element or its own subtree.
+      if (isSelfOrDescendant(id, draggedId)) continue;
+      const el = elements[id];
+      if (!el) continue;
+      // Only rectangles hold children; text / image / input are leaves
+      // and a component-instance is opaque on the page.
+      if (el.type !== 'rectangle') continue;
+      const isFlow = el.display === 'flex' || el.display === 'grid';
+      return { parentId: id, isFlow };
+    }
+    return null;
+  };
+
   return {
     toFrame,
     measureElementInFrame,
     parentSizeOf,
     parentMoveBoundsOf,
     isFlexChild,
+    resolveDropContainer,
   };
 };

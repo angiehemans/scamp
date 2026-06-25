@@ -188,6 +188,8 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     editingElementId !== null || editingInstanceProp !== null;
   const drawState = draw.draw;
   const dropIndicator = reorder.dropIndicator;
+  // Absolute-container reparent target highlighted during a move drag.
+  const dropContainer = move.dropTarget;
 
   return (
     <div
@@ -220,6 +222,17 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
             top: dropIndicator.rect.y,
             width: dropIndicator.rect.w,
             height: dropIndicator.rect.h,
+          }}
+        />
+      )}
+      {dropContainer && (
+        <div
+          className={styles.dropContainer}
+          style={{
+            left: dropContainer.rect.x,
+            top: dropContainer.rect.y,
+            width: dropContainer.rect.w,
+            height: dropContainer.rect.h,
           }}
         />
       )}
