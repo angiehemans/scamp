@@ -522,6 +522,18 @@ export type CanvasState = {
   ) => string | null;
   /** Move an element to a new parent / index. Cycle-protected. */
   reorderElement: (elementId: string, newParentId: string, newIndex: number) => void;
+  /**
+   * Reparent an element on the canvas. `pos` sets its x/y in the new
+   * parent's local space for absolute (non-flow) targets; omit it for
+   * flex/grid targets where layout owns position. Cycle-protected.
+   * see docs/plans/canvas-drag-reparent-plan.md
+   */
+  reparentElement: (
+    elementId: string,
+    newParentId: string,
+    newIndex: number,
+    pos?: { x: number; y: number }
+  ) => void;
   setEditingElement: (id: string | null) => void;
   /** Inline contentEditable target for an instance's prop-text. see docs/notes/components-data-model.md */
   editingInstanceProp: { instanceId: string; propName: string } | null;

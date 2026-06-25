@@ -31,6 +31,26 @@ export declare const slugifyName: (name: string) => string;
  */
 export declare const reorderElementPure: (elements: Record<string, ScampElement>, elementId: string, newParentId: string, newIndex: number) => Record<string, ScampElement> | null;
 /**
+ * Reparent an element AND set its position in one shot. Same validity
+ * rules and index handling as `reorderElementPure` (rejects the root,
+ * cycle-checks the destination, clamps the index), but additionally
+ * writes `{ x, y }` onto the moved element.
+ *
+ * Used when dropping onto an **absolute** (non-flow) container on the
+ * canvas, where the element needs explicit coordinates in the new
+ * parent's local space — a flex child dragged out to an absolute parent
+ * has no meaningful stored x/y, and an absolute element moving between
+ * absolute parents needs its drop point translated into the new frame.
+ * Flow (flex/grid) drops use `reorderElementPure` directly because
+ * layout owns the child's position there.
+ *
+ * Pure: returns a new elements map, or null when the move is invalid
+ * (same cases as `reorderElementPure`).
+ *
+ * see docs/plans/canvas-drag-reparent-plan.md
+ */
+export declare const reparentWithPositionPure: (elements: Record<string, ScampElement>, elementId: string, newParentId: string, newIndex: number, x: number, y: number) => Record<string, ScampElement> | null;
+/**
  * Wrap a contiguous-by-parent set of sibling element ids in a new flex
  * container. Pure: takes the current elements map and returns a new one,
  * leaving the input untouched. Returns null when the operation isn't

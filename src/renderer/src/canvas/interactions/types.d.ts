@@ -21,6 +21,13 @@ export type MoveState = {
     pointerStartY: number;
     originX: number;
     originY: number;
+    /**
+     * Frame-local offset of the cursor within the dragged element at grab
+     * time. Used to preserve the grab point when reparenting into another
+     * container so the element doesn't jump under the cursor on drop.
+     */
+    grabDX: number;
+    grabDY: number;
 };
 export type ResizeState = {
     id: string;
@@ -40,6 +47,13 @@ export type ResizeState = {
 export type ReorderState = {
     id: string;
     parentId: string;
+    /**
+     * Frame-local offset of the cursor within the dragged child at grab
+     * time — used to place the element under the cursor if it's dropped
+     * out into an absolute container.
+     */
+    grabDX: number;
+    grabDY: number;
 };
 export type DropIndicator = {
     /** Frame-local rect to draw the drop line. */
@@ -51,6 +65,28 @@ export type DropIndicator = {
     };
     /** The childIds index the drop will resolve to on release. */
     newIndex: number;
+};
+/**
+ * A pending cross-parent reparent computed during a drag. Two shapes by
+ * the target container's layout:
+ *   - `flow` (flex/grid): insert at `indicator.newIndex`; the gap line
+ *     (`indicator.rect`) shows where it lands.
+ *   - `absolute`: reparent and place the element at `x`/`y` in the
+ *     container's local space; the container outline (`rect`) highlights.
+ * Shared by the move (absolute element) and reorder (flex child) drag
+ * paths via `reparentDrop.ts`.
+ * see docs/plans/canvas-drag-reparent-plan.md
+ */
+export type ReparentDrop = {
+    kind: 'flow';
+    targetId: string;
+    indicator: DropIndicator;
+} | {
+    kind: 'absolute';
+    targetId: string;
+    rect: SelectedRect;
+    x: number;
+    y: number;
 };
 /**
  * Geometry helpers shared by every interaction hook, bound to the current
@@ -76,4 +112,16 @@ export type CanvasGeometry = {
     };
     /** True if `el`'s parent is a flex container. */
     isFlexChild: (el: ScampElement | undefined) => boolean;
+    /**
+     * Resolve the deepest container under the cursor that `draggedId`
+     * could reparent into. Skips the dragged element + its subtree and
+     * non-container leaves (text / input / image / component-instance).
+     * `isFlow` is true for flex/grid (insert-index drop) vs absolute
+     * (x/y drop). Null when there's no valid container under the cursor.
+     * see docs/plans/canvas-drag-reparent-plan.md
+     */
+    resolveDropContainer: (clientX: number, clientY: number, draggedId: string) => {
+        parentId: string;
+        isFlow: boolean;
+    } | null;
 };

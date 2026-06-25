@@ -1,32 +1,61 @@
 import { useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { commitReparentDrop, resolveReparentDrop } from './reparentDrop';
 /**
  * Reorder state machine for flex children. Flex layout owns the child's
- * position, so the only meaningful drag is moving it within the parent's
- * sibling order. `onMove` resolves the drop index + indicator rect from
- * whichever sibling is under the cursor; `onEnd` commits via
- * `reorderElement` (parent never changes — this mode doesn't re-parent).
+ * position, so within its own parent the only meaningful drag is moving it
+ * in the sibling order (`dropIndicator` gap line → `reorderElement`).
+ *
+ * When the cursor moves over a DIFFERENT container, the drag becomes a
+ * reparent (`resolveReparentDrop`): into another flex/grid container at an
+ * insert index, or out into an absolute container at the cursor point.
+ * This is what makes "drag a flex child into another container" work — the
+ * case that previously read as "won't drag."
+ * see docs/plans/canvas-drag-reparent-plan.md
  */
 export const useReorderInteraction = (geometry) => {
     const [reorder, setReorder] = useState(null);
     const [dropIndicator, setDropIndicator] = useState(null);
+    const [crossDrop, setCrossDrop] = useState(null);
     const elements = useCanvasStore((s) => s.elements);
     const reorderElement = useCanvasStore((s) => s.reorderElement);
+    const reparentElement = useCanvasStore((s) => s.reparentElement);
     const start = (e, id, parentId) => {
         e.preventDefault();
         e.target.setPointerCapture(e.pointerId);
-        setReorder({ id, parentId });
+        const elRect = geometry.measureElementInFrame(id);
+        const cursor = geometry.toFrame(e.clientX, e.clientY);
+        setReorder({
+            id,
+            parentId,
+            grabDX: elRect ? cursor.x - elRect.x : 0,
+            grabDY: elRect ? cursor.y - elRect.y : 0,
+        });
+        setCrossDrop(null);
     };
     const onMove = (e) => {
         if (!reorder)
             return false;
-        // Compute the drop indicator + target index based on which sibling
-        // (if any) is under the cursor and which side of its center.
+        const el = elements[reorder.id];
+        if (!el)
+            return true;
+        // A different container under the cursor turns this into a reparent.
+        // Take priority over same-parent reordering and clear the gap line.
+        // excludeSiblings: dragging over a sibling here means "reorder next to
+        // it", not "nest into it".
+        const drop = resolveReparentDrop(el, { dx: reorder.grabDX, dy: reorder.grabDY }, e.clientX, e.clientY, geometry, elements, true);
+        if (drop) {
+            setCrossDrop(drop);
+            setDropIndicator(null);
+            return true;
+        }
+        setCrossDrop(null);
+        // Same-parent reorder: drop indicator + index from the sibling under
+        // the cursor and which side of its centre.
         const parent = elements[reorder.parentId];
         if (!parent)
             return true;
         const siblingIds = parent.childIds.filter((id) => id !== reorder.id);
-        // Find the topmost sibling under the cursor via elementsFromPoint.
         let hitSiblingId = null;
         const candidates = document.elementsFromPoint(e.clientX, e.clientY);
         for (const node of candidates) {
@@ -39,9 +68,6 @@ export const useReorderInteraction = (geometry) => {
             }
         }
         if (!hitSiblingId) {
-            // Cursor isn't over any sibling — clear the indicator. We could
-            // also compute an "end of list" indicator but it's simpler to
-            // require the user to drop on a sibling.
             setDropIndicator(null);
             return true;
         }
@@ -55,9 +81,6 @@ export const useReorderInteraction = (geometry) => {
         const before = isRow
             ? cursorX < siblingRect.x + siblingRect.w / 2
             : cursorY < siblingRect.y + siblingRect.h / 2;
-        // The drop index is the position in the parent's childIds where
-        // the dragged element will end up AFTER its removal — exactly what
-        // reorderElementPure expects.
         const siblingIdx = parent.childIds.indexOf(hitSiblingId);
         const newIndex = before ? siblingIdx : siblingIdx + 1;
         const LINE = 2;
@@ -82,15 +105,18 @@ export const useReorderInteraction = (geometry) => {
         return true;
     };
     const onEnd = () => {
-        if (reorder && dropIndicator) {
-            // Commit the flex-sibling reorder. parentId stays the same — this
-            // drag mode never re-parents.
-            reorderElement(reorder.id, reorder.parentId, dropIndicator.newIndex);
-        }
         if (reorder) {
+            if (crossDrop) {
+                commitReparentDrop(crossDrop, reorder.id, elements, reorderElement, reparentElement);
+            }
+            else if (dropIndicator) {
+                // Same-parent reorder — parentId unchanged.
+                reorderElement(reorder.id, reorder.parentId, dropIndicator.newIndex);
+            }
             setReorder(null);
             setDropIndicator(null);
+            setCrossDrop(null);
         }
     };
-    return { dropIndicator, start, onMove, onEnd };
+    return { dropIndicator, crossDrop, start, onMove, onEnd };
 };

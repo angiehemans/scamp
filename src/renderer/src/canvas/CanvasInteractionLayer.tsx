@@ -187,7 +187,15 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const isEditing =
     editingElementId !== null || editingInstanceProp !== null;
   const drawState = draw.draw;
-  const dropIndicator = reorder.dropIndicator;
+  // Cross-parent reparent target — only one drag path is active per
+  // gesture, so move and reorder never both report one.
+  const crossDrop = move.crossDrop ?? reorder.crossDrop;
+  // Gap line: same-parent flex reorder, or a flow (flex/grid) reparent.
+  const gapRect =
+    reorder.dropIndicator?.rect ??
+    (crossDrop?.kind === 'flow' ? crossDrop.indicator.rect : null);
+  // Outline: an absolute-container reparent target.
+  const containerRect = crossDrop?.kind === 'absolute' ? crossDrop.rect : null;
 
   return (
     <div
@@ -212,14 +220,25 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
           height={Math.abs(drawState.currentY - drawState.startY)}
         />
       )}
-      {dropIndicator && (
+      {gapRect && (
         <div
           className={styles.dropIndicator}
           style={{
-            left: dropIndicator.rect.x,
-            top: dropIndicator.rect.y,
-            width: dropIndicator.rect.w,
-            height: dropIndicator.rect.h,
+            left: gapRect.x,
+            top: gapRect.y,
+            width: gapRect.w,
+            height: gapRect.h,
+          }}
+        />
+      )}
+      {containerRect && (
+        <div
+          className={styles.dropContainer}
+          style={{
+            left: containerRect.x,
+            top: containerRect.y,
+            width: containerRect.w,
+            height: containerRect.h,
           }}
         />
       )}

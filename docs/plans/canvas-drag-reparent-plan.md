@@ -238,10 +238,10 @@ Each phase is shippable and independently testable.
    drag an element partly over a sibling without reparenting). Options:
    (a) always-on like Figma; (b) reparent only when the drop target fully
    *contains* the cursor and differs from the current parent; (c) hold a
-   modifier to reparent. **Recommendation: (b)** — natural and low-surprise.
+   modifier to reparent. **Recommendation: (b)** — natural and low-surprise. yes lets go with B
 2. **History entry kind** — reuse `'reorder'` or add `'reparent'` for a
-   clearer history-panel label? (Cosmetic; `'reparent'` reads better.)
+   clearer history-panel label? (Cosmetic; `'reparent'` reads better.) Reorder is fine.
 3. **Grid containers** — treat like flex (insert index) or like absolute
    (x/y)? Grid placement is more complex; simplest first pass is to treat
-   grid as a flow container with append-to-end, refine later.
-4. **Multi-select reparent** — out of scope here; confirm that's acceptable.
+   grid as a flow container with append-to-end, refine later. agreed.
+4. **Multi-select reparent** — out of scope here; confirm that's acceptable. acceptable

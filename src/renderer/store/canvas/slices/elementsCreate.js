@@ -1,4 +1,4 @@
-import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
+import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, reparentWithPositionPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
 import { classNameFor } from '@lib/generateCode';
 import { defaultTextFontFamily, makeComponentInstance, makeImage, makeInput, makeRectangle, makeRootElement, makeText, tagForListChildContext, } from '../factories';
 import { commitElementsToHistory, freshId } from '../history';
@@ -606,5 +606,25 @@ export const createElementsCreateSlice = (set) => ({
             return { elements: next };
         });
         commitElementsToHistory({ kind: 'reorder', elementIds: [elementId] });
+    },
+    reparentElement: (elementId, newParentId, newIndex, pos) => {
+        // `pos` set → dropping onto an absolute container: reparent and
+        // write x/y. `pos` omitted → flow (flex/grid) target where layout
+        // owns position, so this is a plain reorder. Skip the history
+        // commit when the pure fn rejects the move (root / cycle / missing)
+        // so an invalid drop leaves no entry.
+        let changed = false;
+        set((state) => {
+            const next = pos === undefined
+                ? reorderElementPure(state.elements, elementId, newParentId, newIndex)
+                : reparentWithPositionPure(state.elements, elementId, newParentId, newIndex, pos.x, pos.y);
+            if (!next)
+                return state;
+            changed = true;
+            return { elements: next };
+        });
+        if (changed) {
+            commitElementsToHistory({ kind: 'reorder', elementIds: [elementId] });
+        }
     },
 });
