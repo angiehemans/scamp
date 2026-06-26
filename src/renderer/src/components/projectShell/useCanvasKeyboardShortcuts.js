@@ -1,8 +1,11 @@
 import { useEffect } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
+import { ROOT_ELEMENT_ID } from '@lib/element';
 import { clampToParent } from '@lib/bounds';
 import { findInstanceUsagesAcrossPages, groupUsagesByPage, } from '@lib/componentUsage';
+import { prepareSvgForInsert } from '../../lib/svg';
+import { DEFAULT_IMAGE_SIZE } from '../../canvas/interactions/constants';
 const isEditableTarget = (target) => {
     if (!(target instanceof HTMLElement))
         return false;
@@ -103,7 +106,9 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                 state.copyElement(state.selectedElementIds[0]);
                 return;
             }
-            // Cmd/Ctrl+V — paste from internal clipboard.
+            // Cmd/Ctrl+V — paste. Internal element clipboard wins; otherwise
+            // fall back to the OS clipboard (an SVG copied as markup, or a
+            // raster image). see docs/plans/svg-improvements-plan.md
             if ((e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V') && !e.shiftKey) {
                 if (isEditableTarget(e.target))
                     return;
@@ -111,7 +116,46 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                 if (state.editingElementId)
                     return;
                 e.preventDefault();
-                state.pasteElement();
+                if (state.clipboard) {
+                    state.pasteElement();
+                    return;
+                }
+                void (async () => {
+                    const result = await window.scamp.readClipboard();
+                    if (result.kind === 'empty')
+                        return;
+                    const s = useCanvasStore.getState();
+                    if (!s.activePage || !s.elements[ROOT_ELEMENT_ID])
+                        return;
+                    if (result.kind === 'svg') {
+                        const prepared = prepareSvgForInsert(result.svg);
+                        if (!prepared)
+                            return;
+                        s.createSvgElement({
+                            parentId: ROOT_ELEMENT_ID,
+                            x: 20,
+                            y: 20,
+                            width: Math.round(prepared.width ?? DEFAULT_IMAGE_SIZE),
+                            height: Math.round(prepared.height ?? DEFAULT_IMAGE_SIZE),
+                            svgSource: prepared.svgSource,
+                        });
+                    }
+                    else if (result.kind === 'image' && s.projectPath) {
+                        const saved = await window.scamp.saveClipboardImage({
+                            projectPath: s.projectPath,
+                            dataUrl: result.dataUrl,
+                        });
+                        s.createImage({
+                            parentId: ROOT_ELEMENT_ID,
+                            x: 20,
+                            y: 20,
+                            width: DEFAULT_IMAGE_SIZE,
+                            height: DEFAULT_IMAGE_SIZE,
+                            src: saved.relativePath,
+                            alt: saved.fileName,
+                        });
+                    }
+                })();
                 return;
             }
             // Cmd/Ctrl+Z — undo. Cmd/Ctrl+Shift+Z — redo.

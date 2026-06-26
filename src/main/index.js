@@ -14,6 +14,7 @@ import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
 import { registerImageIpc } from './ipc/image';
+import { registerClipboardIpc } from './ipc/clipboard';
 import { registerExportIpc } from './ipc/export';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
@@ -199,6 +200,7 @@ app.whenReady().then(() => {
     registerTerminalIpc();
     registerThemeIpc();
     registerImageIpc();
+    registerClipboardIpc();
     registerExportIpc();
     registerUpdaterIpc();
     registerPreviewIpc({
