@@ -266,17 +266,16 @@ export const elementDeclarationLines = (
     emit('filters', `backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
   }
 
-  // SVG paint — set via the SvgSection on tag==='svg'. Emits ONLY the
-  // `--svg-fill` / `--svg-stroke` custom properties (the shapes reference
-  // them via `var(--svg-fill, …)` after import). Deliberately NOT the
-  // `fill`/`stroke` property: that inherits and would override shapes'
-  // own `fill="none"` (filling transparent bounding boxes). `stroke-width`
-  // is safe to inherit. see docs/notes/svg-recolor.md
+  // SVG paint — set via the SvgSection on tag==='svg'. The fill/stroke
+  // property on the wrapper recolours the shapes inside (it inherits and
+  // overrides their presentation attributes — the standard svg recolour
+  // mechanism). Invisible bounding boxes are dropped on import so this
+  // doesn't paint them. see docs/notes/svg-recolor.md
   if (el.fill !== undefined && el.fill.length > 0) {
-    lines.push(`--svg-fill: ${el.fill};`);
+    lines.push(`fill: ${el.fill};`);
   }
   if (el.stroke !== undefined && el.stroke.length > 0) {
-    lines.push(`--svg-stroke: ${el.stroke};`);
+    lines.push(`stroke: ${el.stroke};`);
   }
   if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
     lines.push(`stroke-width: ${el.strokeWidth}px;`);
@@ -559,13 +558,13 @@ export const breakpointOverrideLines = (
     emit('border', `border-color: ${override.borderColor};`);
   }
 
-  // SVG paint overrides — mirror the base-level emission (custom property
-  // only) so per-breakpoint / per-state icon colours round-trip.
+  // SVG paint overrides — mirror the base-level emission so per-breakpoint
+  // / per-state icon colours round-trip.
   if (has('fill') && override.fill !== undefined) {
-    lines.push(`--svg-fill: ${override.fill};`);
+    lines.push(`fill: ${override.fill};`);
   }
   if (has('stroke') && override.stroke !== undefined) {
-    lines.push(`--svg-stroke: ${override.stroke};`);
+    lines.push(`stroke: ${override.stroke};`);
   }
   if (has('strokeWidth') && override.strokeWidth !== undefined) {
     lines.push(`stroke-width: ${override.strokeWidth}px;`);

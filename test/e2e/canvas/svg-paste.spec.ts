@@ -37,7 +37,7 @@ test.describe('canvas: paste SVG from clipboard', () => {
     expect(tsx).toContain('<circle');
   });
 
-  test('rewrites shape paint to a var and resolves it on the canvas', async ({
+  test('keeps a pasted shape as valid-JSX attributes, rendering its own color', async ({
     window,
     app,
     project,
@@ -54,20 +54,16 @@ test.describe('canvas: paste SVG from clipboard', () => {
     await window.keyboard.press('ControlOrMeta+v');
     await waitForSaved(window);
 
-    // The shape's hardcoded fill is rewritten to var(--svg-fill, #ff0000)
-    // in the stored source...
+    // The shape keeps a plain presentation attribute — valid JSX, no inline
+    // `style` strings (which crash Next.js) and no `var()` (which an SVG
+    // attribute won't resolve). The rect itself is present and rendered.
     const { tsx } = await readPageFiles(project.dir, project.pageName);
-    expect(tsx).toContain('var(--svg-fill, #ff0000)');
-
-    // ...and with no override set yet, real Chromium resolves the var to
-    // the original red — proving it survives sanitize + render and that
-    // setting --svg-fill (the SvgSection's job) would recolour it.
-    const rect = canvasElementsByPrefix(window, 'img_')
-      .first()
-      .locator('rect')
-      .first();
-    const fill = await rect.evaluate((el) => getComputedStyle(el).fill);
-    expect(fill).toBe('rgb(255, 0, 0)');
+    expect(tsx).toContain('fill="#ff0000"');
+    expect(tsx).not.toContain('var(');
+    expect(tsx).not.toContain('style=');
+    await expect(
+      canvasElementsByPrefix(window, 'img_').first().locator('rect').first()
+    ).toHaveAttribute('fill', '#ff0000');
   });
 
   test('setting Fill in the SVG section recolors the shape', async ({
@@ -101,15 +97,15 @@ test.describe('canvas: paste SVG from clipboard', () => {
       .toBe('rgb(0, 0, 255)');
   });
 
-  test('an outline icon: transparent box stays unpainted, strokes recolor', async ({
+  test('an outline icon: invisible box dropped, strokes recolor via Stroke', async ({
     window,
     app,
     project,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    // Lucide/Tabler shape: a transparent bounding box (fill="none") plus a
-    // stroked path, with the paint on the root.
+    // Lucide/Tabler shape: a transparent bounding box (fill="none"
+    // stroke="none") plus a stroked path, with the paint on the root.
     await app.evaluate(({ clipboard }) => {
       clipboard.writeText(
         '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M0 0h24v24H0z" fill="none" stroke="none"/><path d="M4 6h16"/></svg>'
@@ -120,31 +116,29 @@ test.describe('canvas: paste SVG from clipboard', () => {
     await window.keyboard.press('ControlOrMeta+v');
     await waitForSaved(window);
 
-    // The bounding box keeps a real fill="none" attribute — NOT rewritten
-    // into a var() that an element-level colour could fill (the bug). The
-    // stroked path is var-ified so it can recolour.
+    // The fully-transparent bounding box is dropped on import (so an
+    // element-level colour can never paint it as a solid square); the
+    // stroked path remains. Source stays valid JSX (no var/style).
     const { tsx } = await readPageFiles(project.dir, project.pageName);
-    expect(tsx).toMatch(/<path[^>]*\bfill="none"/);
-    expect(tsx).toContain('var(--svg-stroke');
+    expect(tsx).not.toContain('M0 0h24v24H0z');
+    expect(tsx).toContain('M4 6h16');
+    expect(tsx).not.toContain('var(');
+    expect(tsx).not.toContain('style=');
 
-    // Set Stroke to blue → the stroked path recolours via --svg-stroke.
+    // Set Stroke to blue → the stroked path recolours via the wrapper.
     const strokeInput = panelSection(window, 'SVG')
       .locator('input[type="text"]')
       .nth(1);
     await strokeInput.fill('#0000ff');
     await strokeInput.press('Enter');
 
-    const paths = canvasElementsByPrefix(window, 'img_').first().locator('path');
+    const strokePath = canvasElementsByPrefix(window, 'img_')
+      .first()
+      .locator('path')
+      .first();
     await expect
-      .poll(async () =>
-        paths.nth(1).evaluate((el) => getComputedStyle(el).stroke)
-      )
+      .poll(async () => strokePath.evaluate((el) => getComputedStyle(el).stroke))
       .toBe('rgb(0, 0, 255)');
-    // The transparent box never became a coloured square — its fill
-    // attribute is untouched.
-    expect(await paths.nth(0).evaluate((el) => el.getAttribute('fill'))).toBe(
-      'none'
-    );
   });
 
   test('sanitizes <script> out of pasted svg', async ({

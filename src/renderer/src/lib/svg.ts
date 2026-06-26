@@ -39,55 +39,45 @@ export const sanitizeSvgInner = (inner: string): string => {
   return clean.slice(open + 1, close);
 };
 
-/** CSS custom properties the element-level fill/stroke set, that the
- *  shapes' rewritten paint reads. */
-const PAINT_VAR = { fill: '--svg-fill', stroke: '--svg-stroke' } as const;
+/** Basic SVG shapes whose paint we care about. Containers (`g`, `svg`),
+ *  `<defs>` content, gradients, etc. are excluded. */
+const SHAPE_TAGS = new Set([
+  'path',
+  'rect',
+  'circle',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+]);
+
+const isNonePaint = (value: string | null): boolean =>
+  value !== null && value.trim().toLowerCase() === 'none';
 
 /**
- * Rewrite each shape's own `fill`/`stroke` presentation attribute into an
- * inline-style CSS variable with the original as fallback —
- * `fill="#f00"` → `style="fill: var(--svg-fill, #f00)"`. The element-level
- * paint then sets `--svg-fill` / `--svg-stroke` to recolour every shape
- * reliably (including `fill="none"`, `currentColor`, and gradient refs),
- * while the fallback preserves the original until a colour is chosen.
- * The root `<svg>` is handled by hoisting (below), not here.
- * see docs/plans/svg-improvements-plan.md
+ * Drop shapes that paint nothing — `fill:none` AND `stroke:none` once the
+ * root's paint is taken into account. Icon sets (Lucide/Tabler) ship a
+ * transparent `<path d="M0 0h24v24H0z" fill="none" stroke="none"/>`
+ * bounding box; left in place, an element-level `fill` would inherit down
+ * and paint it solid (covering the artwork). Removing it loses nothing
+ * visual and lets recolouring work via the wrapper's fill/stroke without
+ * touching `svgSource` (keeping it valid JSX — no inline `style` strings,
+ * no `var()` that an SVG attribute won't resolve).
+ * see docs/notes/svg-recolor.md
  */
-const varifyShapePaint = (
+const dropInvisibleShapes = (
   svg: SVGElement,
   rootPaint: { fill?: string; stroke?: string }
 ): void => {
   for (const node of Array.from(svg.querySelectorAll('*'))) {
-    const extra: string[] = [];
-    for (const attr of ['fill', 'stroke'] as const) {
-      const value = node.getAttribute(attr);
-      if (value !== null) {
-        // Preserve `none` as-is: it's deliberately unpainted (transparent
-        // bounding boxes, the fill side of outline icons). Var-ifying it
-        // would let an element-level colour fill an invisible shape and
-        // cover the artwork. Everything else becomes recolourable, with
-        // the original kept as the fallback.
-        const v = value.trim();
-        if (v.toLowerCase() === 'none') continue;
-        extra.push(`${attr}: var(${PAINT_VAR[attr]}, ${v})`);
-        node.removeAttribute(attr);
-      } else {
-        // No own paint — the shape would inherit the root's. Make it
-        // recolourable with that inherited value as the fallback so it
-        // keeps its look until a colour is set. (A `none` root means
-        // "unpainted"; leave the shape alone.)
-        const rootVal = rootPaint[attr];
-        if (rootVal !== undefined && rootVal.toLowerCase() !== 'none') {
-          extra.push(`${attr}: var(${PAINT_VAR[attr]}, ${rootVal})`);
-        }
-      }
-    }
-    if (extra.length === 0) continue;
-    const existing = (node.getAttribute('style') ?? '').trim().replace(/;$/, '');
-    node.setAttribute(
-      'style',
-      existing.length > 0 ? `${existing}; ${extra.join('; ')}` : extra.join('; ')
-    );
+    if (!SHAPE_TAGS.has(node.tagName.toLowerCase())) continue;
+    // Effective paint = own attribute, else the (hoisted) root's, else the
+    // SVG initial (fill: black — visible; stroke: none — invisible).
+    const fill = node.getAttribute('fill') ?? rootPaint.fill ?? null;
+    const stroke = node.getAttribute('stroke') ?? rootPaint.stroke ?? null;
+    const fillInvisible = isNonePaint(fill); // null fill = black = visible
+    const strokeInvisible = stroke === null || isNonePaint(stroke);
+    if (fillInvisible && strokeInvisible) node.remove();
   }
 };
 
@@ -153,7 +143,7 @@ export const prepareSvgForInsert = (raw: string): PreparedSvg | null => {
   if (!svg) return null;
 
   const rootPaint = hoistRootPaint(svg);
-  varifyShapePaint(svg, rootPaint);
+  dropInvisibleShapes(svg, rootPaint);
 
   const viewBox = svg.getAttribute('viewBox') ?? undefined;
   let width = parseLength(svg.getAttribute('width'));

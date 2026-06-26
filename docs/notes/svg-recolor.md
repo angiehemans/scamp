@@ -1,78 +1,80 @@
 # SVG recolouring (fill / stroke from the panel)
 
 How the SvgSection's Fill / Stroke / Stroke-width controls recolour an
-inline `<svg>` element's shapes — including shapes that hardcode their own
-paint — without filling shapes that are deliberately `none`.
+inline `<svg>` element's shapes.
 
-## The cascade traps
+## Constraints that shaped this
 
-1. A `fill`/`stroke` **property** on an ancestor *does* override a
-   descendant's `fill`/`stroke` **presentation attribute** (this is how
-   `svg { fill: … }` recolours icons). Convenient — but it also overrides
-   `fill="none"`, so an element-level fill paints transparent bounding
-   boxes solid, covering the artwork.
-2. So we can't just set `fill` on the wrapper. Instead we drive shapes
-   through a **CSS custom property** that only affects shapes which opt in
-   by referencing it.
+`svgSource` is emitted **verbatim into JSX** (the page TSX) and also
+injected into the **canvas DOM** via `dangerouslySetInnerHTML`. So it must
+be valid in both:
+
+- JSX forbids string `style="…"` (it wants `style={{…}}`) — an inline
+  style on a shape crashes the Next.js page.
+- Canvas HTML forbids `style={{…}}`.
+- `var()` in an SVG **presentation attribute** (`fill="var(--x)"`) does
+  **not** resolve in the browser.
+
+So shapes must carry only **plain presentation attributes**
+(`fill="#f00"`, `fill="none"`), and recolouring has to come from outside
+`svgSource`.
 
 ## The mechanism
 
-On import (`prepareSvgForInsert` in `src/renderer/src/lib/svg.ts`):
+Recolour via the **wrapper's `fill` / `stroke` property** — set on the
+`<svg>` element (inline style on the canvas, a class rule in the export).
+A `fill`/`stroke` property inherits to descendants and, in the cascade,
+**beats a descendant's presentation attribute** — which is exactly how
+`svg { fill: … }` recolours an icon whose paths hardcode their own fill.
+So setting the element's `fill` recolours every shape inside.
 
-1. **Hoist root paint.** The original root `<svg>`'s `fill` / `stroke` /
-   `stroke-width` (outline icon sets like Lucide put paint there) become
-   the element's typed `fill` / `stroke` / `strokeWidth` — Scamp
-   regenerates the wrapper, so otherwise they'd be lost. They're the
-   SvgSection's starting values.
-2. **Var-ify shape paint.** Each shape's paint becomes a CSS variable with
-   the original as fallback:
-   - explicit colour → `style="fill: var(--svg-fill, <orig>)"`,
-   - **`none` is left as a plain attribute** (deliberately unpainted —
-     transparent boxes, the fill side of outline icons),
-   - a shape with *no* paint, which would inherit the root's, gets the var
-     with the hoisted root value as fallback (so it keeps its look and
-     stays recolourable).
+The one hazard: that inheritance would also paint a shape's `fill="none"`
+solid — and icon sets (Lucide/Tabler) ship a transparent
+`<path d="M0 0h24v24H0z" fill="none" stroke="none"/>` bounding box, which
+would become a solid square covering the artwork. So on import
+(`prepareSvgForInsert` in `src/renderer/src/lib/svg.ts`):
 
-The element-level paint then emits **only** the custom properties (plus
-`stroke-width`, which is safe to inherit):
+1. **Hoist root paint.** The root `<svg>`'s `fill` / `stroke` /
+   `stroke-width` (outline icons put paint there; Scamp regenerates the
+   wrapper so it'd otherwise be lost) become the element's typed
+   `fill` / `stroke` / `strokeWidth` — the SvgSection's starting values.
+2. **Drop fully-invisible shapes** — leaf shapes whose effective fill AND
+   stroke are both `none` (the transparent bounding box). They paint
+   nothing, so removing them is lossless and means the wrapper colour has
+   nothing transparent to fill.
 
-```
-.icon { --svg-fill: <c>; --svg-stroke: <c2>; stroke-width: <w>px }
-```
+Everything else in `svgSource` is left untouched (valid JSX, byte-close to
+the original).
 
-- Shapes referencing `var(--svg-fill, …)` recolour.
-- `fill="none"` shapes are untouched (the custom property does nothing to
-  a shape that doesn't reference it) — no coloured squares.
+## Emission
 
-When no colour is set, no custom property is emitted: every shape falls
-back to its original.
+- `generateCode` (`declarations.ts`) emits `fill` / `stroke` /
+  `stroke-width` on the element's class when set; the override emitter
+  mirrors it for per-breakpoint / per-state paint.
+- `elementToStyle` applies the same properties so the canvas matches.
+- `cssPropertyMap` maps `fill` / `stroke` / `stroke-width` back to the
+  typed fields (it also still maps the legacy `--svg-fill` / `--svg-stroke`
+  custom properties to them, so any file exported by an earlier build
+  migrates instead of dumping into `customProperties`).
 
-## Round-trip
+## How to recolour, by icon type
 
-`cssPropertyMap` maps `fill`, `stroke`, `stroke-width` **and** the
-`--svg-fill` / `--svg-stroke` custom properties back to the same typed
-fields, so the emitted custom properties round-trip into `fill`/`stroke`
-rather than leaking into `customProperties`. `elementToStyle` applies the
-same `--svg-*` custom properties (not the `fill`/`stroke` property) so the
-canvas matches. The override emitter mirrors this for per-breakpoint /
-per-state paint.
-
-## Safety
-
-The var style survives the render-side sanitizer (`sanitizeSvgInner` →
-DOMPurify, svg profile) and resolves in Chromium — covered by
-`test/svg.test.ts` (jsdom) and `test/e2e/canvas/svg-paste.spec.ts` (real
-engine: setting Stroke recolours an outline icon while its `fill="none"`
-box stays unpainted).
+- **Filled icons** → set **Fill** (the wrapper fill overrides the shapes).
+- **Outline icons** (Lucide/Tabler — visible paths are *stroked*) → set
+  **Stroke**. The hoisted starting values make this clear in the panel.
 
 ## Known limitations
 
-- Element-level paint is a single fill + single stroke, so an icon built
-  from several distinct hardcoded colours collapses to one when recoloured
-  (per-shape editing is a non-goal).
-- Outline icons recolour via **Stroke**, not Fill (their visible paths are
-  stroked, not filled) — the hoisted starting values make this clear in
-  the panel.
-- Edge case: an icon whose root carries paint *and* whose shapes carry a
-  *different* explicit colour — the hoisted root value sets `--svg-fill`,
-  overriding those shapes' fallbacks.
+- Element-level paint is one fill + one stroke, so a multi-colour icon
+  collapses to a single colour when recoloured (per-shape editing is a
+  non-goal).
+- A non-bounding-box shape that's deliberately `fill="none"` but stroked
+  (e.g. an outline circle) will be filled if you set **Fill** — that's the
+  inherent meaning of an element-level fill. Use **Stroke** for outlines.
+
+## Tests
+
+`test/svg.test.ts` (drop-invisible, keep-visible, hoist) and
+`test/e2e/canvas/svg-paste.spec.ts` (real engine: filled icon recolours
+via Fill, outline icon recolours via Stroke with its transparent box
+dropped, source stays valid JSX).

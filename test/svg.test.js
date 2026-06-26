@@ -49,10 +49,6 @@ describe('sanitizeSvgInner', () => {
     it('returns empty string for empty input', () => {
         expect(sanitizeSvgInner('   ')).toBe('');
     });
-    it('preserves a var() paint style on a shape (needed for recoloring)', () => {
-        const out = sanitizeSvgInner('<path d="M0 0" style="fill: var(--svg-fill, #ff0000)"/>');
-        expect(out.toLowerCase()).toContain('var(--svg-fill');
-    });
 });
 describe('prepareSvgForInsert', () => {
     it('returns the inner source and viewBox for a valid svg', () => {
@@ -71,24 +67,26 @@ describe('prepareSvgForInsert', () => {
         expect(result.width).toBe(64);
         expect(result.height).toBe(40);
     });
-    it('rewrites shape fill/stroke to CSS variables with the original as fallback', () => {
+    it('keeps visible shapes and their paint untouched (recolour is via the wrapper)', () => {
         const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><path d="M0 0" fill="#ff0000" stroke="blue"/></svg>');
         const src = result.svgSource.toLowerCase();
-        expect(src).toContain('var(--svg-fill, #ff0000)');
-        expect(src).toContain('var(--svg-stroke, blue)');
-        // No bare presentation attrs left.
-        expect(src).not.toContain('fill="#ff0000"');
-        expect(src).not.toContain('stroke="blue"');
+        // Valid-JSX presentation attributes are left as-is (no inline styles,
+        // no var()). The wrapper fill/stroke recolours them at render.
+        expect(src).toContain('fill="#ff0000"');
+        expect(src).toContain('stroke="blue"');
+        expect(src).not.toContain('var(');
+        expect(src).not.toContain('style=');
     });
-    it('var-ifies currentColor and gradient fills (recolourable) but preserves none', () => {
-        const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><path d="M0 0" fill="none" stroke="currentColor"/><rect fill="url(#g)"/></svg>');
-        const src = result.svgSource.toLowerCase();
-        // none stays an unpainted presentation attribute, never a var.
-        expect(src).toContain('fill="none"');
-        expect(src).not.toContain('var(--svg-fill, none)');
-        // currentColor + gradient become recolourable with the original fallback.
-        expect(src).toContain('var(--svg-stroke, currentcolor)');
-        expect(src).toContain('var(--svg-fill, url(#g))');
+    it('drops a fully-invisible bounding-box shape (fill=none AND stroke=none)', () => {
+        const result = prepareSvgForInsert('<svg viewBox="0 0 24 24" stroke="currentColor"><path d="M0 0h24v24H0z" fill="none" stroke="none"/><path d="M4 6h16"/></svg>');
+        const src = result.svgSource;
+        // The transparent box is gone; the stroked path remains.
+        expect(src).not.toContain('M0 0h24v24H0z');
+        expect(src).toContain('M4 6h16');
+    });
+    it('keeps a shape that is fill=none but visibly stroked', () => {
+        const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><circle r="4" fill="none" stroke="red"/></svg>');
+        expect(result.svgSource).toContain('<circle');
     });
     it('hoists the root <svg> fill/stroke/stroke-width into element paint', () => {
         const result = prepareSvgForInsert('<svg viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2"><path d="M0 0"/></svg>');
