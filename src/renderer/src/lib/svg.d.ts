@@ -11,6 +11,13 @@ export declare const isSvgMarkup: (text: string) => boolean;
  * `<svg>…</svg>` string, or `''` when the input has no usable svg.
  */
 export declare const sanitizeSvg: (raw: string) => string;
+/**
+ * Sanitize the INNER markup of an svg (its shape content, i.e. what
+ * `svgSource` stores) for safe injection into a rendered `<svg>` on the
+ * canvas via `dangerouslySetInnerHTML`. Wraps the fragment so DOMPurify's
+ * svg profile applies, then returns the sanitized inner content.
+ */
+export declare const sanitizeSvgInner: (inner: string) => string;
 export type PreparedSvg = {
     /** Sanitized, normalized inner markup (what `svgSource` stores). */
     svgSource: string;

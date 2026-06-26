@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { isSvgMarkup, sanitizeSvg, prepareSvgForInsert, } from '../src/renderer/src/lib/svg';
+import { isSvgMarkup, sanitizeSvg, sanitizeSvgInner, prepareSvgForInsert, } from '../src/renderer/src/lib/svg';
 describe('isSvgMarkup', () => {
     it('accepts a bare svg element', () => {
         expect(isSvgMarkup('<svg viewBox="0 0 10 10"></svg>')).toBe(true);
@@ -32,6 +32,22 @@ describe('sanitizeSvg', () => {
         const out = sanitizeSvg('<svg><foreignObject><iframe src="x"></iframe></foreignObject></svg>');
         expect(out.toLowerCase()).not.toContain('foreignobject');
         expect(out.toLowerCase()).not.toContain('<iframe');
+    });
+});
+describe('sanitizeSvgInner', () => {
+    it('returns sanitized inner shape markup without the svg wrapper', () => {
+        const out = sanitizeSvgInner('<circle r="5"/><path d="M0 0"/>');
+        expect(out).toMatch(/<circle/i);
+        expect(out).toMatch(/<path/i);
+        expect(out.toLowerCase()).not.toContain('<svg');
+    });
+    it('strips scripts from inner markup', () => {
+        const out = sanitizeSvgInner('<script>alert(1)</script><circle r="5"/>');
+        expect(out.toLowerCase()).not.toContain('<script');
+        expect(out).toMatch(/<circle/i);
+    });
+    it('returns empty string for empty input', () => {
+        expect(sanitizeSvgInner('   ')).toBe('');
     });
 });
 describe('prepareSvgForInsert', () => {

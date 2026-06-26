@@ -24,6 +24,21 @@ export const sanitizeSvg = (raw: string): string =>
     USE_PROFILES: { svg: true, svgFilters: true },
   });
 
+/**
+ * Sanitize the INNER markup of an svg (its shape content, i.e. what
+ * `svgSource` stores) for safe injection into a rendered `<svg>` on the
+ * canvas via `dangerouslySetInnerHTML`. Wraps the fragment so DOMPurify's
+ * svg profile applies, then returns the sanitized inner content.
+ */
+export const sanitizeSvgInner = (inner: string): string => {
+  if (inner.trim().length === 0) return '';
+  const clean = sanitizeSvg(`<svg>${inner}</svg>`);
+  const open = clean.indexOf('>');
+  const close = clean.lastIndexOf('</svg>');
+  if (open < 0 || close < 0 || close <= open) return '';
+  return clean.slice(open + 1, close);
+};
+
 /** A solid-color fill/stroke value the element-level CSS can override by
  *  cascading once the shape's own presentation attribute is removed.
  *  Values we must NOT strip: `none` (intentional), `currentColor` /
