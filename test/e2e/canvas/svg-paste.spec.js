@@ -92,6 +92,31 @@ test.describe('canvas: paste SVG from clipboard', () => {
             .poll(async () => strokePath.evaluate((el) => getComputedStyle(el).stroke))
             .toBe('rgb(0, 0, 255)');
     });
+    test('recolors via a theme TOKEN (resolved on the canvas)', async ({ window, app, }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await app.evaluate(({ clipboard }) => {
+            clipboard.writeText('<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/></svg>');
+        });
+        await canvasFrame(window).click({ position: { x: 4, y: 4 } });
+        await window.keyboard.press('ControlOrMeta+v');
+        // Open the Stroke colour picker (2nd in the SVG section), Tokens tab,
+        // pick --color-primary (#3b82f6).
+        await panelSection(window, 'SVG')
+            .getByRole('button', { name: 'Pick color' })
+            .nth(1)
+            .click();
+        await window.getByRole('button', { name: 'Tokens', exact: true }).click();
+        await window.getByRole('button', { name: /^--color-primary/ }).click();
+        // The token resolves to its value on the canvas (elementToStyle reads
+        // the same themeTokens), and the path inherits it.
+        const path = canvasElementsByPrefix(window, 'img_')
+            .first()
+            .locator('path')
+            .first();
+        await expect
+            .poll(async () => path.evaluate((el) => getComputedStyle(el).stroke))
+            .toBe('rgb(59, 130, 246)');
+    });
     test('sanitizes <script> out of pasted svg', async ({ window, app, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await app.evaluate(({ clipboard }) => {
