@@ -236,6 +236,17 @@ rootMinHeight) => {
         base.borderStyle = el.borderStyle;
         base.borderColor = resolveTokenColor(el.borderColor, tokens);
     }
+    // SVG paint — applied so the canvas reflects the SvgSection controls
+    // (the cascade to the svg's shapes mirrors the exported CSS).
+    if (el.fill !== undefined && el.fill.length > 0) {
+        base.fill = resolveTokenColor(el.fill, tokens);
+    }
+    if (el.stroke !== undefined && el.stroke.length > 0) {
+        base.stroke = resolveTokenColor(el.stroke, tokens);
+    }
+    if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
+        base.strokeWidth = el.strokeWidth;
+    }
     if (el.display === 'flex') {
         base.display = 'flex';
         base.flexDirection = el.flexDirection;
