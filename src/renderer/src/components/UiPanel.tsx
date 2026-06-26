@@ -9,6 +9,7 @@ import { BorderSection } from './sections/BorderSection';
 import { ElementSection } from './sections/ElementSection';
 import { TypographySection } from './sections/TypographySection';
 import { ImageSection } from './sections/ImageSection';
+import { SvgSection } from './sections/SvgSection';
 import { VisibilitySection } from './sections/VisibilitySection';
 import { ShadowsSection } from './sections/ShadowsSection';
 import { FiltersSection } from './sections/FiltersSection';
@@ -42,6 +43,7 @@ export const UiPanel = (): JSX.Element => {
   const isText = element.type === 'text';
   const isImage = element.type === 'image';
   const isInput = element.type === 'input';
+  const isSvg = element.tag === 'svg';
   // Position is only meaningful when there's a non-flex parent to
   // anchor against. Root has no parent; flex children flow with the
   // layout engine.
@@ -63,6 +65,7 @@ export const UiPanel = (): JSX.Element => {
       <ShadowsSection elementId={elementId} />
       <FiltersSection elementId={elementId} />
       {isImage && <ImageSection elementId={elementId} />}
+      {isSvg && <SvgSection elementId={elementId} />}
       {isText && <TypographySection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />
       <TransitionsSection elementId={elementId} />

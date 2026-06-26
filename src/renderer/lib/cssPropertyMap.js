@@ -1,4 +1,4 @@
-import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parseFilterList, parsePaddingShorthandOrNull, parseSizeValue, parseSpaceValueOrNull, parseTransitionShorthand, } from './parsers';
+import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parseFilterList, parsePaddingShorthandOrNull, parsePxOrNull, parseSizeValue, parseSpaceValueOrNull, parseTransitionShorthand, } from './parsers';
 import { isBlendMode } from './blendModes';
 const POSITIONS = new Set([
     'static',
@@ -195,6 +195,26 @@ export const cssToScampProperty = {
         return null;
     },
     color: (v) => ({ color: v }),
+    // SVG paint. Free-form colour strings (hex, currentColor, var(--token),
+    // none); stroke-width is a px number routed to the typed field.
+    fill: (v) => {
+        const trimmed = v.trim();
+        if (trimmed.length === 0)
+            return null;
+        return { fill: trimmed };
+    },
+    stroke: (v) => {
+        const trimmed = v.trim();
+        if (trimmed.length === 0)
+            return null;
+        return { stroke: trimmed };
+    },
+    'stroke-width': (v) => {
+        const n = parsePxOrNull(v);
+        if (n === null)
+            return null;
+        return { strokeWidth: n };
+    },
     'text-align': (v) => {
         if (v === 'left' || v === 'center' || v === 'right') {
             return { textAlign: v };

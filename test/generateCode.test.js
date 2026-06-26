@@ -653,6 +653,26 @@ describe('generateCode — svg source', () => {
         const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
         expect(tsx).toMatch(/<svg[^>]*\/>/);
     });
+    it('emits fill / stroke / stroke-width when set, omits when unset', () => {
+        const elements = {
+            [ROOT_ELEMENT_ID]: makeRoot(['v001', 'v002']),
+            v001: makeRect({
+                id: 'v001',
+                type: 'image',
+                tag: 'svg',
+                fill: '#ff0000',
+                stroke: 'currentColor',
+                strokeWidth: 2,
+            }),
+            v002: makeRect({ id: 'v002', type: 'image', tag: 'svg' }),
+        };
+        const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+        expect(css).toMatch(/\.img_v001[^}]*fill:\s*#ff0000;/s);
+        expect(css).toMatch(/\.img_v001[^}]*stroke:\s*currentColor;/s);
+        expect(css).toMatch(/\.img_v001[^}]*stroke-width:\s*2px;/s);
+        // The unpainted svg emits no paint declarations.
+        expect(css).not.toMatch(/\.img_v002[^}]*fill:/s);
+    });
 });
 describe('generateCode — input element type', () => {
     it('uses input_ class prefix for input-type elements', () => {
