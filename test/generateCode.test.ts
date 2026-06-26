@@ -709,11 +709,15 @@ describe('generateCode — svg source', () => {
       v002: makeRect({ id: 'v002', type: 'image', tag: 'svg' }),
     };
     const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(css).toMatch(/\.img_v001[^}]*fill:\s*#ff0000;/s);
-    expect(css).toMatch(/\.img_v001[^}]*stroke:\s*currentColor;/s);
+    // Emits the --svg-* custom properties (which drive the var-rewritten
+    // shapes), NOT the plain fill/stroke property (which would fill
+    // `fill="none"` shapes via inheritance).
+    expect(css).toMatch(/\.img_v001[^}]*--svg-fill:\s*#ff0000;/s);
+    expect(css).toMatch(/\.img_v001[^}]*--svg-stroke:\s*currentColor;/s);
     expect(css).toMatch(/\.img_v001[^}]*stroke-width:\s*2px;/s);
+    expect(css).not.toMatch(/\.img_v001\s*\{[^}]*[^-]fill:\s*#ff0000/s);
     // The unpainted svg emits no paint declarations.
-    expect(css).not.toMatch(/\.img_v002[^}]*fill:/s);
+    expect(css).not.toMatch(/\.img_v002[^}]*svg-fill:/s);
   });
 });
 

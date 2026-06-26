@@ -266,17 +266,16 @@ export const elementDeclarationLines = (
     emit('filters', `backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
   }
 
-  // SVG paint — set via the SvgSection on tag==='svg'. Emits the property
-  // (for shapes that inherit it) AND the `--svg-fill` / `--svg-stroke`
-  // custom property (for shapes whose own paint was rewritten to
-  // `var(--svg-fill, …)` on import), so the icon recolours reliably.
-  // see docs/notes/svg-recolor.md
+  // SVG paint — set via the SvgSection on tag==='svg'. Emits ONLY the
+  // `--svg-fill` / `--svg-stroke` custom properties (the shapes reference
+  // them via `var(--svg-fill, …)` after import). Deliberately NOT the
+  // `fill`/`stroke` property: that inherits and would override shapes'
+  // own `fill="none"` (filling transparent bounding boxes). `stroke-width`
+  // is safe to inherit. see docs/notes/svg-recolor.md
   if (el.fill !== undefined && el.fill.length > 0) {
-    lines.push(`fill: ${el.fill};`);
     lines.push(`--svg-fill: ${el.fill};`);
   }
   if (el.stroke !== undefined && el.stroke.length > 0) {
-    lines.push(`stroke: ${el.stroke};`);
     lines.push(`--svg-stroke: ${el.stroke};`);
   }
   if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
@@ -560,15 +559,12 @@ export const breakpointOverrideLines = (
     emit('border', `border-color: ${override.borderColor};`);
   }
 
-  // SVG paint overrides — mirror the base-level emission (property +
-  // custom property) so per-breakpoint / per-state icon colours
-  // round-trip rather than silently dropping.
+  // SVG paint overrides — mirror the base-level emission (custom property
+  // only) so per-breakpoint / per-state icon colours round-trip.
   if (has('fill') && override.fill !== undefined) {
-    lines.push(`fill: ${override.fill};`);
     lines.push(`--svg-fill: ${override.fill};`);
   }
   if (has('stroke') && override.stroke !== undefined) {
-    lines.push(`stroke: ${override.stroke};`);
     lines.push(`--svg-stroke: ${override.stroke};`);
   }
   if (has('strokeWidth') && override.strokeWidth !== undefined) {

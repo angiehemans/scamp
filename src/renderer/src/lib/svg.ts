@@ -53,14 +53,34 @@ const PAINT_VAR = { fill: '--svg-fill', stroke: '--svg-stroke' } as const;
  * The root `<svg>` is handled by hoisting (below), not here.
  * see docs/plans/svg-improvements-plan.md
  */
-const varifyShapePaint = (svg: SVGElement): void => {
+const varifyShapePaint = (
+  svg: SVGElement,
+  rootPaint: { fill?: string; stroke?: string }
+): void => {
   for (const node of Array.from(svg.querySelectorAll('*'))) {
     const extra: string[] = [];
     for (const attr of ['fill', 'stroke'] as const) {
       const value = node.getAttribute(attr);
-      if (value === null) continue;
-      extra.push(`${attr}: var(${PAINT_VAR[attr]}, ${value.trim()})`);
-      node.removeAttribute(attr);
+      if (value !== null) {
+        // Preserve `none` as-is: it's deliberately unpainted (transparent
+        // bounding boxes, the fill side of outline icons). Var-ifying it
+        // would let an element-level colour fill an invisible shape and
+        // cover the artwork. Everything else becomes recolourable, with
+        // the original kept as the fallback.
+        const v = value.trim();
+        if (v.toLowerCase() === 'none') continue;
+        extra.push(`${attr}: var(${PAINT_VAR[attr]}, ${v})`);
+        node.removeAttribute(attr);
+      } else {
+        // No own paint — the shape would inherit the root's. Make it
+        // recolourable with that inherited value as the fallback so it
+        // keeps its look until a colour is set. (A `none` root means
+        // "unpainted"; leave the shape alone.)
+        const rootVal = rootPaint[attr];
+        if (rootVal !== undefined && rootVal.toLowerCase() !== 'none') {
+          extra.push(`${attr}: var(${PAINT_VAR[attr]}, ${rootVal})`);
+        }
+      }
     }
     if (extra.length === 0) continue;
     const existing = (node.getAttribute('style') ?? '').trim().replace(/;$/, '');
@@ -133,7 +153,7 @@ export const prepareSvgForInsert = (raw: string): PreparedSvg | null => {
   if (!svg) return null;
 
   const rootPaint = hoistRootPaint(svg);
-  varifyShapePaint(svg);
+  varifyShapePaint(svg, rootPaint);
 
   const viewBox = svg.getAttribute('viewBox') ?? undefined;
   let width = parseLength(svg.getAttribute('width'));

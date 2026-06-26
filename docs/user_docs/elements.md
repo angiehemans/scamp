@@ -81,7 +81,9 @@ For safety, pasted/dropped SVG is sanitized — `<script>`, event handlers, and 
 
 Select an inline SVG and the **SVG** section appears in the Visual panel with **Fill**, **Stroke**, and **Stroke width** controls (theme tokens and `currentColor` supported). These recolor the icon — fill and stroke independently.
 
-This works reliably even for icons that hardcode their own colors (including `fill="none"`): on import, Scamp rewrites each shape's paint to reference a CSS variable the panel controls, keeping the original as a fallback. So an icon looks unchanged until you pick a color, then recolors as a whole. (An icon built from several distinct hardcoded colors collapses to one color when recolored — element-level paint is a single fill/stroke, not per-shape.)
+This works reliably even for icons that hardcode their own colors (including `fill="none"`): on import, Scamp rewrites each shape's paint to reference a CSS variable the panel controls, keeping the original as a fallback. So an icon looks unchanged until you pick a color, then recolors as a whole — and deliberately-transparent parts (like an icon's bounding box) stay transparent.
+
+Tip: **outline icons** (e.g. Lucide, Tabler) are drawn with strokes, not fills — recolor them with the **Stroke** control. Solid/filled icons use **Fill**. The panel starts from the icon's own colors, so it's usually clear which applies. (An icon built from several distinct hardcoded colors collapses to one color when recolored — element-level paint is a single fill/stroke, not per-shape.)
 
 ## List Context Defaults
 

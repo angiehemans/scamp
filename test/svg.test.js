@@ -80,10 +80,13 @@ describe('prepareSvgForInsert', () => {
         expect(src).not.toContain('fill="#ff0000"');
         expect(src).not.toContain('stroke="blue"');
     });
-    it('var-ifies none / currentColor / gradient fills too, preserving them as the fallback', () => {
+    it('var-ifies currentColor and gradient fills (recolourable) but preserves none', () => {
         const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><path d="M0 0" fill="none" stroke="currentColor"/><rect fill="url(#g)"/></svg>');
         const src = result.svgSource.toLowerCase();
-        expect(src).toContain('var(--svg-fill, none)');
+        // none stays an unpainted presentation attribute, never a var.
+        expect(src).toContain('fill="none"');
+        expect(src).not.toContain('var(--svg-fill, none)');
+        // currentColor + gradient become recolourable with the original fallback.
         expect(src).toContain('var(--svg-stroke, currentcolor)');
         expect(src).toContain('var(--svg-fill, url(#g))');
     });

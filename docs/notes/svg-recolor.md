@@ -1,64 +1,78 @@
 # SVG recolouring (fill / stroke from the panel)
 
-How the SvgSection's Fill / Stroke / Stroke-width controls reliably
-recolour an inline `<svg>` element's shapes — including shapes that
-hardcode their own `fill`/`stroke` (even `fill="none"`).
+How the SvgSection's Fill / Stroke / Stroke-width controls recolour an
+inline `<svg>` element's shapes — including shapes that hardcode their own
+paint — without filling shapes that are deliberately `none`.
 
-## The cascade problem
+## The cascade traps
 
-Setting `fill` on the wrapper `<svg>` (or its class) only reaches shapes
-that *don't* declare their own paint: a shape's own `fill="#000"`
-presentation attribute beats an inherited value, so element-level CSS
-can't override it. `fill="none"` is the worst case — it stays invisible
-no matter what you set.
+1. A `fill`/`stroke` **property** on an ancestor *does* override a
+   descendant's `fill`/`stroke` **presentation attribute** (this is how
+   `svg { fill: … }` recolours icons). Convenient — but it also overrides
+   `fill="none"`, so an element-level fill paints transparent bounding
+   boxes solid, covering the artwork.
+2. So we can't just set `fill` on the wrapper. Instead we drive shapes
+   through a **CSS custom property** that only affects shapes which opt in
+   by referencing it.
 
 ## The mechanism
 
 On import (`prepareSvgForInsert` in `src/renderer/src/lib/svg.ts`):
 
 1. **Hoist root paint.** The original root `<svg>`'s `fill` / `stroke` /
-   `stroke-width` (outline icon sets like Lucide put paint there) are
-   read into the element's typed `fill` / `stroke` / `strokeWidth` fields.
-   Scamp regenerates the `<svg>` wrapper, so without this they'd be lost.
-2. **Var-ify shape paint.** Every shape's own `fill`/`stroke` presentation
-   attribute is rewritten into an inline style referencing a CSS variable
-   with the original as the fallback:
-   `fill="#f00"` → `style="fill: var(--svg-fill, #f00)"`.
+   `stroke-width` (outline icon sets like Lucide put paint there) become
+   the element's typed `fill` / `stroke` / `strokeWidth` — Scamp
+   regenerates the wrapper, so otherwise they'd be lost. They're the
+   SvgSection's starting values.
+2. **Var-ify shape paint.** Each shape's paint becomes a CSS variable with
+   the original as fallback:
+   - explicit colour → `style="fill: var(--svg-fill, <orig>)"`,
+   - **`none` is left as a plain attribute** (deliberately unpainted —
+     transparent boxes, the fill side of outline icons),
+   - a shape with *no* paint, which would inherit the root's, gets the var
+     with the hoisted root value as fallback (so it keeps its look and
+     stays recolourable).
 
-Then the element-level paint (`elementDeclarationLines`, `elementToStyle`)
-emits **both** the property and the custom property:
+The element-level paint then emits **only** the custom properties (plus
+`stroke-width`, which is safe to inherit):
 
 ```
-.icon { fill: <c>; --svg-fill: <c>; stroke: <c2>; --svg-stroke: <c2>; stroke-width: <w>px }
+.icon { --svg-fill: <c>; --svg-stroke: <c2>; stroke-width: <w>px }
 ```
 
-- `fill`/`stroke` reach shapes that **inherit** (no own paint).
-- `--svg-fill`/`--svg-stroke` drive shapes whose paint was **var-ified**.
+- Shapes referencing `var(--svg-fill, …)` recolour.
+- `fill="none"` shapes are untouched (the custom property does nothing to
+  a shape that doesn't reference it) — no coloured squares.
 
-When no colour is set, neither is emitted: inheriting shapes use their
-default, var-ified shapes fall back to their original. So unset = original
-look; set = everything recolours.
+When no colour is set, no custom property is emitted: every shape falls
+back to its original.
 
 ## Round-trip
 
 `cssPropertyMap` maps `fill`, `stroke`, `stroke-width` **and** the
 `--svg-fill` / `--svg-stroke` custom properties back to the same typed
-fields, so the double emission collapses to one `fill` value on parse and
-doesn't leak into `customProperties`. The override emitter
-(`breakpointOverrideLines`) mirrors the double emission for per-breakpoint
-/ per-state paint.
+fields, so the emitted custom properties round-trip into `fill`/`stroke`
+rather than leaking into `customProperties`. `elementToStyle` applies the
+same `--svg-*` custom properties (not the `fill`/`stroke` property) so the
+canvas matches. The override emitter mirrors this for per-breakpoint /
+per-state paint.
 
 ## Safety
 
 The var style survives the render-side sanitizer (`sanitizeSvgInner` →
 DOMPurify, svg profile) and resolves in Chromium — covered by
 `test/svg.test.ts` (jsdom) and `test/e2e/canvas/svg-paste.spec.ts` (real
-engine: `var(--svg-fill, #ff0000)` computes to red).
+engine: setting Stroke recolours an outline icon while its `fill="none"`
+box stays unpainted).
 
-## Known limitation
+## Known limitations
 
-Element-level paint is a single fill + single stroke, so an icon with
-several distinct hardcoded colours collapses to one colour when recoloured
-(per-shape editing is a non-goal). A rare edge case: an icon whose root
-carries paint *and* whose shapes carry a *different* explicit paint — the
-hoisted root value sets `--svg-fill`, overriding those shapes' fallbacks.
+- Element-level paint is a single fill + single stroke, so an icon built
+  from several distinct hardcoded colours collapses to one when recoloured
+  (per-shape editing is a non-goal).
+- Outline icons recolour via **Stroke**, not Fill (their visible paths are
+  stroked, not filled) — the hoisted starting values make this clear in
+  the panel.
+- Edge case: an icon whose root carries paint *and* whose shapes carry a
+  *different* explicit colour — the hoisted root value sets `--svg-fill`,
+  overriding those shapes' fallbacks.
