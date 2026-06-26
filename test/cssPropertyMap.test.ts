@@ -624,6 +624,10 @@ describe('cssToScampProperty', () => {
       expect(apply('stroke', '')).toBeNull();
       expect(apply('stroke-width', 'thin')).toBeNull();
     });
+    it('maps the --svg-fill / --svg-stroke custom props back to fill/stroke', () => {
+      expect(apply('--svg-fill', '#abcdef')).toEqual({ fill: '#abcdef' });
+      expect(apply('--svg-stroke', 'red')).toEqual({ stroke: 'red' });
+    });
   });
 });
 

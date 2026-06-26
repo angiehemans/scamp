@@ -79,9 +79,9 @@ For safety, pasted/dropped SVG is sanitized — `<script>`, event handlers, and 
 
 ### Editing fill and stroke
 
-Select an inline SVG and the **SVG** section appears in the Visual panel with **Fill**, **Stroke**, and **Stroke width** controls (theme tokens and `currentColor` supported). These set element-level CSS that cascades to the shapes inside, so you can recolor an icon — fill and stroke independently — without touching the markup.
+Select an inline SVG and the **SVG** section appears in the Visual panel with **Fill**, **Stroke**, and **Stroke width** controls (theme tokens and `currentColor` supported). These recolor the icon — fill and stroke independently.
 
-This works because, on import, Scamp strips the shapes' own hardcoded `fill`/`stroke` so your element-level color wins. (`fill="none"` and gradient references are left intact.) An icon with several distinct hardcoded colors becomes one color when recolored this way — element-level paint is a single fill/stroke, not per-shape.
+This works reliably even for icons that hardcode their own colors (including `fill="none"`): on import, Scamp rewrites each shape's paint to reference a CSS variable the panel controls, keeping the original as a fallback. So an icon looks unchanged until you pick a color, then recolors as a whole. (An icon built from several distinct hardcoded colors collapses to one color when recolored — element-level paint is a single fill/stroke, not per-shape.)
 
 ## List Context Defaults
 

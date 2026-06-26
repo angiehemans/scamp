@@ -261,13 +261,19 @@ export const elementToStyle = (
     base.borderStyle = el.borderStyle;
     base.borderColor = resolveTokenColor(el.borderColor, tokens);
   }
-  // SVG paint — applied so the canvas reflects the SvgSection controls
-  // (the cascade to the svg's shapes mirrors the exported CSS).
+  // SVG paint — applied so the canvas reflects the SvgSection controls.
+  // Both the property (for shapes that inherit it) and the `--svg-*`
+  // custom property (for shapes whose paint was rewritten to
+  // `var(--svg-fill, …)` on import) so recolouring is reliable.
   if (el.fill !== undefined && el.fill.length > 0) {
-    base.fill = resolveTokenColor(el.fill, tokens);
+    const resolved = resolveTokenColor(el.fill, tokens);
+    base.fill = resolved;
+    (base as Record<string, string | number | undefined>)['--svg-fill'] = resolved;
   }
   if (el.stroke !== undefined && el.stroke.length > 0) {
-    base.stroke = resolveTokenColor(el.stroke, tokens);
+    const resolved = resolveTokenColor(el.stroke, tokens);
+    base.stroke = resolved;
+    (base as Record<string, string | number | undefined>)['--svg-stroke'] = resolved;
   }
   if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
     base.strokeWidth = el.strokeWidth;

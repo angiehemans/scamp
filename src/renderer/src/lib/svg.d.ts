@@ -26,6 +26,10 @@ export type PreparedSvg = {
     /** Intrinsic width/height in px when derivable (attrs, else viewBox). */
     width?: number;
     height?: number;
+    /** Root `<svg>` paint hoisted into element-level starting values. */
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
 };
 /**
  * Sanitize + normalize raw SVG markup for insertion as an inline Scamp

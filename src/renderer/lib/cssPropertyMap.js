@@ -215,6 +215,22 @@ export const cssToScampProperty = {
             return null;
         return { strokeWidth: n };
     },
+    // The `--svg-fill` / `--svg-stroke` custom properties are emitted
+    // alongside `fill`/`stroke` (they drive the var-rewritten shapes). Map
+    // them back to the same typed fields so they round-trip there rather
+    // than duplicating into customProperties.
+    '--svg-fill': (v) => {
+        const trimmed = v.trim();
+        if (trimmed.length === 0)
+            return null;
+        return { fill: trimmed };
+    },
+    '--svg-stroke': (v) => {
+        const trimmed = v.trim();
+        if (trimmed.length === 0)
+            return null;
+        return { stroke: trimmed };
+    },
     'text-align': (v) => {
         if (v === 'left' || v === 'center' || v === 'right') {
             return { textAlign: v };

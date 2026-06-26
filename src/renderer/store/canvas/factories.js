@@ -111,6 +111,9 @@ export const makeSvg = (input, id) => ({
     heightValue: input.height,
     customProperties: {},
     svgSource: input.svgSource,
+    ...(input.fill !== undefined ? { fill: input.fill } : {}),
+    ...(input.stroke !== undefined ? { stroke: input.stroke } : {}),
+    ...(input.strokeWidth !== undefined ? { strokeWidth: input.strokeWidth } : {}),
 });
 /**
  * Default visual treatment for an input drawn on the canvas — a

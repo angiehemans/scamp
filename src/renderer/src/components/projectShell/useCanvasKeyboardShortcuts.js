@@ -138,6 +138,11 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                             width: Math.round(prepared.width ?? DEFAULT_IMAGE_SIZE),
                             height: Math.round(prepared.height ?? DEFAULT_IMAGE_SIZE),
                             svgSource: prepared.svgSource,
+                            ...(prepared.fill !== undefined ? { fill: prepared.fill } : {}),
+                            ...(prepared.stroke !== undefined ? { stroke: prepared.stroke } : {}),
+                            ...(prepared.strokeWidth !== undefined
+                                ? { strokeWidth: prepared.strokeWidth }
+                                : {}),
                         });
                     }
                     else if (result.kind === 'image' && s.projectPath) {

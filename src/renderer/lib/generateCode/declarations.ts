@@ -266,13 +266,18 @@ export const elementDeclarationLines = (
     emit('filters', `backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
   }
 
-  // SVG paint — set via the SvgSection on tag==='svg'; cascades to the
-  // svg's (import-stripped) shapes. Ungrouped, emitted only when set.
+  // SVG paint — set via the SvgSection on tag==='svg'. Emits the property
+  // (for shapes that inherit it) AND the `--svg-fill` / `--svg-stroke`
+  // custom property (for shapes whose own paint was rewritten to
+  // `var(--svg-fill, …)` on import), so the icon recolours reliably.
+  // see docs/notes/svg-recolor.md
   if (el.fill !== undefined && el.fill.length > 0) {
     lines.push(`fill: ${el.fill};`);
+    lines.push(`--svg-fill: ${el.fill};`);
   }
   if (el.stroke !== undefined && el.stroke.length > 0) {
     lines.push(`stroke: ${el.stroke};`);
+    lines.push(`--svg-stroke: ${el.stroke};`);
   }
   if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
     lines.push(`stroke-width: ${el.strokeWidth}px;`);
@@ -555,13 +560,16 @@ export const breakpointOverrideLines = (
     emit('border', `border-color: ${override.borderColor};`);
   }
 
-  // SVG paint overrides — mirror the base-level emission so per-breakpoint
-  // / per-state icon colours round-trip rather than silently dropping.
+  // SVG paint overrides — mirror the base-level emission (property +
+  // custom property) so per-breakpoint / per-state icon colours
+  // round-trip rather than silently dropping.
   if (has('fill') && override.fill !== undefined) {
     lines.push(`fill: ${override.fill};`);
+    lines.push(`--svg-fill: ${override.fill};`);
   }
   if (has('stroke') && override.stroke !== undefined) {
     lines.push(`stroke: ${override.stroke};`);
+    lines.push(`--svg-stroke: ${override.stroke};`);
   }
   if (has('strokeWidth') && override.strokeWidth !== undefined) {
     lines.push(`stroke-width: ${override.strokeWidth}px;`);

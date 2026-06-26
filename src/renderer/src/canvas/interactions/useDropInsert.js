@@ -82,6 +82,11 @@ export const useDropInsert = (geometry) => {
                         width: w,
                         height: h,
                         svgSource: prepared.svgSource,
+                        ...(prepared.fill !== undefined ? { fill: prepared.fill } : {}),
+                        ...(prepared.stroke !== undefined ? { stroke: prepared.stroke } : {}),
+                        ...(prepared.strokeWidth !== undefined
+                            ? { strokeWidth: prepared.strokeWidth }
+                            : {}),
                     });
                     return;
                 }

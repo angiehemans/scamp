@@ -49,6 +49,10 @@ describe('sanitizeSvgInner', () => {
     it('returns empty string for empty input', () => {
         expect(sanitizeSvgInner('   ')).toBe('');
     });
+    it('preserves a var() paint style on a shape (needed for recoloring)', () => {
+        const out = sanitizeSvgInner('<path d="M0 0" style="fill: var(--svg-fill, #ff0000)"/>');
+        expect(out.toLowerCase()).toContain('var(--svg-fill');
+    });
 });
 describe('prepareSvgForInsert', () => {
     it('returns the inner source and viewBox for a valid svg', () => {
@@ -67,17 +71,27 @@ describe('prepareSvgForInsert', () => {
         expect(result.width).toBe(64);
         expect(result.height).toBe(40);
     });
-    it('strips solid fill/stroke so element CSS can recolor the shape', () => {
+    it('rewrites shape fill/stroke to CSS variables with the original as fallback', () => {
         const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><path d="M0 0" fill="#ff0000" stroke="blue"/></svg>');
-        expect(result.svgSource.toLowerCase()).not.toContain('fill=');
-        expect(result.svgSource.toLowerCase()).not.toContain('stroke=');
+        const src = result.svgSource.toLowerCase();
+        expect(src).toContain('var(--svg-fill, #ff0000)');
+        expect(src).toContain('var(--svg-stroke, blue)');
+        // No bare presentation attrs left.
+        expect(src).not.toContain('fill="#ff0000"');
+        expect(src).not.toContain('stroke="blue"');
     });
-    it('preserves fill="none", currentColor, and gradient refs', () => {
+    it('var-ifies none / currentColor / gradient fills too, preserving them as the fallback', () => {
         const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><path d="M0 0" fill="none" stroke="currentColor"/><rect fill="url(#g)"/></svg>');
         const src = result.svgSource.toLowerCase();
-        expect(src).toContain('fill="none"');
-        expect(src).toContain('stroke="currentcolor"');
-        expect(src).toContain('url(#g)');
+        expect(src).toContain('var(--svg-fill, none)');
+        expect(src).toContain('var(--svg-stroke, currentcolor)');
+        expect(src).toContain('var(--svg-fill, url(#g))');
+    });
+    it('hoists the root <svg> fill/stroke/stroke-width into element paint', () => {
+        const result = prepareSvgForInsert('<svg viewBox="0 0 24 24" fill="none" stroke="#00ff00" stroke-width="2"><path d="M0 0"/></svg>');
+        expect(result.fill).toBe('none');
+        expect(result.stroke).toBe('#00ff00');
+        expect(result.strokeWidth).toBe(2);
     });
     it('sanitizes script content out of the prepared source', () => {
         const result = prepareSvgForInsert('<svg viewBox="0 0 10 10"><script>alert(1)</script><circle r="5"/></svg>');

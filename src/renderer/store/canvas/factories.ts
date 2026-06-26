@@ -131,6 +131,9 @@ export const makeSvg = (input: NewSvgInput, id: string): ScampElement => ({
   heightValue: input.height,
   customProperties: {},
   svgSource: input.svgSource,
+  ...(input.fill !== undefined ? { fill: input.fill } : {}),
+  ...(input.stroke !== undefined ? { stroke: input.stroke } : {}),
+  ...(input.strokeWidth !== undefined ? { strokeWidth: input.strokeWidth } : {}),
 });
 
 /**

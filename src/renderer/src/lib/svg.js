@@ -35,38 +35,54 @@ export const sanitizeSvgInner = (inner) => {
         return '';
     return clean.slice(open + 1, close);
 };
-/** A solid-color fill/stroke value the element-level CSS can override by
- *  cascading once the shape's own presentation attribute is removed.
- *  Values we must NOT strip: `none` (intentional), `currentColor` /
- *  `inherit` (already cascades), `url(#…)` (gradient/pattern ref), and
- *  the SVG2 `context-fill` / `context-stroke` keywords. */
-const isOverridableColor = (value) => {
-    const v = value.trim().toLowerCase();
-    if (v.length === 0)
-        return false;
-    return (v !== 'none' &&
-        v !== 'currentcolor' &&
-        v !== 'inherit' &&
-        v !== 'context-fill' &&
-        v !== 'context-stroke' &&
-        !v.startsWith('url('));
-};
+/** CSS custom properties the element-level fill/stroke set, that the
+ *  shapes' rewritten paint reads. */
+const PAINT_VAR = { fill: '--svg-fill', stroke: '--svg-stroke' };
 /**
- * Strip solid `fill`/`stroke` presentation attributes from every shape so
- * element-level CSS (`.icon { fill; stroke }`) cascades down to recolor
- * them — independently for fill and stroke. `none` and gradient/pattern
- * refs are left intact so outline-only icons and decorative fills survive.
+ * Rewrite each shape's own `fill`/`stroke` presentation attribute into an
+ * inline-style CSS variable with the original as fallback —
+ * `fill="#f00"` → `style="fill: var(--svg-fill, #f00)"`. The element-level
+ * paint then sets `--svg-fill` / `--svg-stroke` to recolour every shape
+ * reliably (including `fill="none"`, `currentColor`, and gradient refs),
+ * while the fallback preserves the original until a colour is chosen.
+ * The root `<svg>` is handled by hoisting (below), not here.
+ * see docs/plans/svg-improvements-plan.md
  */
-const stripOverridableColors = (svg) => {
-    const nodes = [svg, ...Array.from(svg.querySelectorAll('*'))];
-    for (const node of nodes) {
+const varifyShapePaint = (svg) => {
+    for (const node of Array.from(svg.querySelectorAll('*'))) {
+        const extra = [];
         for (const attr of ['fill', 'stroke']) {
             const value = node.getAttribute(attr);
-            if (value !== null && isOverridableColor(value)) {
-                node.removeAttribute(attr);
-            }
+            if (value === null)
+                continue;
+            extra.push(`${attr}: var(${PAINT_VAR[attr]}, ${value.trim()})`);
+            node.removeAttribute(attr);
         }
+        if (extra.length === 0)
+            continue;
+        const existing = (node.getAttribute('style') ?? '').trim().replace(/;$/, '');
+        node.setAttribute('style', existing.length > 0 ? `${existing}; ${extra.join('; ')}` : extra.join('; '));
     }
+};
+/**
+ * Pull the root `<svg>`'s own `fill` / `stroke` / `stroke-width` (common on
+ * outline icon sets like Lucide) into element-level values — Scamp
+ * regenerates the `<svg>` wrapper, so without this the root's paint is
+ * lost. Inheriting shapes pick these up; they're also the SvgSection's
+ * starting values.
+ */
+const hoistRootPaint = (svg) => {
+    const out = {};
+    const fill = svg.getAttribute('fill');
+    if (fill !== null && fill.trim().length > 0)
+        out.fill = fill.trim();
+    const stroke = svg.getAttribute('stroke');
+    if (stroke !== null && stroke.trim().length > 0)
+        out.stroke = stroke.trim();
+    const sw = parseLength(svg.getAttribute('stroke-width'));
+    if (sw !== undefined)
+        out.strokeWidth = sw;
+    return out;
 };
 /** Parse an SVG length attribute (`24`, `24px`) to a number. Returns
  *  undefined for percentages, ems, or anything non-numeric — the caller
@@ -97,7 +113,8 @@ export const prepareSvgForInsert = (raw) => {
     const svg = doc.querySelector('svg');
     if (!svg)
         return null;
-    stripOverridableColors(svg);
+    const rootPaint = hoistRootPaint(svg);
+    varifyShapePaint(svg);
     const viewBox = svg.getAttribute('viewBox') ?? undefined;
     let width = parseLength(svg.getAttribute('width'));
     let height = parseLength(svg.getAttribute('height'));
@@ -114,5 +131,10 @@ export const prepareSvgForInsert = (raw) => {
         ...(viewBox !== undefined ? { viewBox } : {}),
         ...(width !== undefined ? { width } : {}),
         ...(height !== undefined ? { height } : {}),
+        ...(rootPaint.fill !== undefined ? { fill: rootPaint.fill } : {}),
+        ...(rootPaint.stroke !== undefined ? { stroke: rootPaint.stroke } : {}),
+        ...(rootPaint.strokeWidth !== undefined
+            ? { strokeWidth: rootPaint.strokeWidth }
+            : {}),
     };
 };
