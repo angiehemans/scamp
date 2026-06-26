@@ -67,15 +67,21 @@ Any attribute you add manually in the CSS editor or externally round-trips clean
 
 Options live as a typed list on the select element — they're not drawable canvas elements. Editing them through the panel is the only way to change them.
 
-## SVG Source
+## SVG
 
-`<svg>` elements have a **Source** textarea in the Element section for the raw inner markup:
+SVGs render as real artwork on the canvas — not a placeholder — and the exported TSX contains your source. There are three ways to get one onto the canvas:
 
-```html
-<circle cx="50" cy="50" r="40" fill="currentColor" />
-```
+- **Drag and drop** an `.svg` file from your file manager. Small icons are inlined as an editable `<svg>` (so you can recolor them); large illustrations are copied into your assets and referenced as an `<img>`.
+- **Paste** (**Cmd/Ctrl+V**) SVG markup you've copied from a code editor or design tool. A copied raster image pastes too (saved to your assets).
+- Switch any element's tag to `svg` in the Element section and paste markup into its **Source** textarea.
 
-The SVG renders as a placeholder rectangle on the canvas (so positioning and sizing work cleanly), but the exported TSX contains your source byte-for-byte.
+For safety, pasted/dropped SVG is sanitized — `<script>`, event handlers, and external references are stripped before it's added to your canvas.
+
+### Editing fill and stroke
+
+Select an inline SVG and the **SVG** section appears in the Visual panel with **Fill**, **Stroke**, and **Stroke width** controls (theme tokens and `currentColor` supported). These set element-level CSS that cascades to the shapes inside, so you can recolor an icon — fill and stroke independently — without touching the markup.
+
+This works because, on import, Scamp strips the shapes' own hardcoded `fill`/`stroke` so your element-level color wins. (`fill="none"` and gradient references are left intact.) An icon with several distinct hardcoded colors becomes one color when recolored this way — element-level paint is a single fill/stroke, not per-shape.
 
 ## List Context Defaults
 
