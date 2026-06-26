@@ -94,6 +94,25 @@ export const makeImage = (input, id) => ({
     alt: input.alt ?? '',
 });
 /**
+ * Inline `<svg>` element from a sanitized/normalized source. Image-family
+ * type with the `svg` tag override; `svgSource` is the (already-prepared)
+ * inner markup. see docs/plans/svg-improvements-plan.md
+ */
+export const makeSvg = (input, id) => ({
+    ...DEFAULT_RECT_STYLES,
+    id,
+    type: 'image',
+    tag: 'svg',
+    parentId: input.parentId,
+    childIds: [],
+    x: input.x,
+    y: input.y,
+    widthValue: input.width,
+    heightValue: input.height,
+    customProperties: {},
+    svgSource: input.svgSource,
+});
+/**
  * Default visual treatment for an input drawn on the canvas — a
  * subtle outlined box so the user can see what they drew. Users are
  * free to re-style from the panel.

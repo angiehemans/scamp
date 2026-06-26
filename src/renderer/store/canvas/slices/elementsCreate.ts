@@ -33,6 +33,7 @@ import {
   defaultTextFontFamily,
   makeComponentInstance,
   makeImage,
+  makeSvg,
   makeInput,
   makeRectangle,
   makeRootElement,
@@ -55,6 +56,7 @@ import {
   type NewRectInput,
   type NewTextInput,
   type NewImageInput,
+  type NewSvgInput,
   type NewInputInput,
   type NewComponentInstanceInput,
 } from '../../canvasSlice';
@@ -71,6 +73,7 @@ export const createElementsCreateSlice: StateCreator<
   | 'createRectangle'
   | 'createText'
   | 'createImage'
+  | 'createSvgElement'
   | 'createInput'
   | 'insertComponentInstance'
   | 'replaceSubtreeWithInstance'
@@ -145,6 +148,25 @@ export const createElementsCreateSlice: StateCreator<
         elements: {
           ...state.elements,
           [id]: newImage,
+          [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
+        },
+        selectedElementIds: [id],
+      };
+    });
+    commitElementsToHistory({ kind: 'add-image', elementIds: [id] });
+    return id;
+  },
+
+  createSvgElement: (input: NewSvgInput) => {
+    const id = generateElementId();
+    set((state) => {
+      const parent = state.elements[input.parentId];
+      if (!parent) return state;
+      const newSvg = makeSvg(input, id);
+      return {
+        elements: {
+          ...state.elements,
+          [id]: newSvg,
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
