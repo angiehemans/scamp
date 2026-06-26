@@ -81,6 +81,9 @@ const api = {
         ipcRenderer.on(IPC.FileWriteAck, listener);
         return () => ipcRenderer.removeListener(IPC.FileWriteAck, listener);
     },
+    // Clipboard (paste from OS)
+    readClipboard: () => ipcRenderer.invoke(IPC.ClipboardRead),
+    saveClipboardImage: (args) => ipcRenderer.invoke(IPC.ClipboardSaveImage, args),
     // Images
     copyImage: (args) => ipcRenderer.invoke(IPC.FileCopyImage, args),
     chooseImage: (args) => ipcRenderer.invoke(IPC.FileChooseImage, args),

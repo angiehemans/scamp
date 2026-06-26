@@ -7,6 +7,7 @@ import type {
   NewRectInput,
   NewTextInput,
   NewImageInput,
+  NewSvgInput,
   NewInputInput,
   NewComponentInstanceInput,
 } from '../canvasSlice';
@@ -110,6 +111,29 @@ export const makeImage = (input: NewImageInput, id: string): ScampElement => ({
   customProperties: {},
   src: input.src,
   alt: input.alt ?? '',
+});
+
+/**
+ * Inline `<svg>` element from a sanitized/normalized source. Image-family
+ * type with the `svg` tag override; `svgSource` is the (already-prepared)
+ * inner markup. see docs/plans/svg-improvements-plan.md
+ */
+export const makeSvg = (input: NewSvgInput, id: string): ScampElement => ({
+  ...DEFAULT_RECT_STYLES,
+  id,
+  type: 'image',
+  tag: 'svg',
+  parentId: input.parentId,
+  childIds: [],
+  x: input.x,
+  y: input.y,
+  widthValue: input.width,
+  heightValue: input.height,
+  customProperties: {},
+  svgSource: input.svgSource,
+  ...(input.fill !== undefined ? { fill: input.fill } : {}),
+  ...(input.stroke !== undefined ? { stroke: input.stroke } : {}),
+  ...(input.strokeWidth !== undefined ? { strokeWidth: input.strokeWidth } : {}),
 });
 
 /**

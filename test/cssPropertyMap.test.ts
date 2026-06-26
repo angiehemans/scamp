@@ -606,6 +606,29 @@ describe('cssToScampProperty', () => {
       expect(apply('position', '-webkit-sticky')).toBeNull();
     });
   });
+
+  describe('svg paint', () => {
+    it('maps `fill` to the fill field', () => {
+      expect(apply('fill', '#ff0000')).toEqual({ fill: '#ff0000' });
+      expect(apply('fill', 'currentColor')).toEqual({ fill: 'currentColor' });
+    });
+    it('maps `stroke` to the stroke field', () => {
+      expect(apply('stroke', 'var(--accent)')).toEqual({ stroke: 'var(--accent)' });
+    });
+    it('maps `stroke-width` px to a number', () => {
+      expect(apply('stroke-width', '2px')).toEqual({ strokeWidth: 2 });
+      expect(apply('stroke-width', '3')).toEqual({ strokeWidth: 3 });
+    });
+    it('refuses empty fill/stroke and non-px stroke-width', () => {
+      expect(apply('fill', '   ')).toBeNull();
+      expect(apply('stroke', '')).toBeNull();
+      expect(apply('stroke-width', 'thin')).toBeNull();
+    });
+    it('maps the --svg-fill / --svg-stroke custom props back to fill/stroke', () => {
+      expect(apply('--svg-fill', '#abcdef')).toEqual({ fill: '#abcdef' });
+      expect(apply('--svg-stroke', 'red')).toEqual({ stroke: 'red' });
+    });
+  });
 });
 
 describe('isMappedProperty', () => {

@@ -65,6 +65,10 @@ export const IPC = {
   FileCopyImage: 'file:copyImage',
   FileChooseImage: 'file:chooseImage',
 
+  // Clipboard (paste from OS)
+  ClipboardRead: 'clipboard:read',
+  ClipboardSaveImage: 'clipboard:saveImage',
+
   // Theme
   ThemeRead: 'theme:read',
   ThemeChanged: 'theme:changed',

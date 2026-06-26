@@ -36,6 +36,19 @@ export type NewImageInput = {
     src: string;
     alt?: string;
 };
+export type NewSvgInput = {
+    parentId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    /** Sanitized + normalized inner svg markup (see lib/svg.prepareSvgForInsert). */
+    svgSource: string;
+    /** Element-level paint hoisted from the source's root <svg>. */
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
+};
 export type NewInputInput = {
     parentId: string;
     x: number;
@@ -334,6 +347,8 @@ export type CanvasState = {
     createRectangle: (input: NewRectInput) => string;
     createText: (input: NewTextInput) => string;
     createImage: (input: NewImageInput) => string;
+    /** Insert an inline `<svg>` element (drop / paste). Returns its id. */
+    createSvgElement: (input: NewSvgInput) => string;
     createInput: (input: NewInputInput) => string;
     /**
      * Insert a component instance into the active page's element
