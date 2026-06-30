@@ -263,6 +263,20 @@ mustEstablishPositioningContext = false) => {
     if (el.backdropFilters.length > 0) {
         emit('filters', `backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
     }
+    // SVG paint — set via the SvgSection on tag==='svg'. The fill/stroke
+    // property on the wrapper recolours the shapes inside (it inherits and
+    // overrides their presentation attributes — the standard svg recolour
+    // mechanism). Invisible bounding boxes are dropped on import so this
+    // doesn't paint them. see docs/notes/svg-recolor.md
+    if (el.fill !== undefined && el.fill.length > 0) {
+        lines.push(`fill: ${el.fill};`);
+    }
+    if (el.stroke !== undefined && el.stroke.length > 0) {
+        lines.push(`stroke: ${el.stroke};`);
+    }
+    if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
+        lines.push(`stroke-width: ${el.strokeWidth}px;`);
+    }
     // Transitions — single shorthand per element. Empty list omits.
     if (el.transitions.length > 0) {
         emit('transitions', `transition: ${formatTransitionShorthand(el.transitions)};`);
@@ -541,6 +555,17 @@ export const breakpointOverrideLines = (override, element) => {
     }
     if (has('borderColor') && override.borderColor !== undefined) {
         emit('border', `border-color: ${override.borderColor};`);
+    }
+    // SVG paint overrides — mirror the base-level emission so per-breakpoint
+    // / per-state icon colours round-trip.
+    if (has('fill') && override.fill !== undefined) {
+        lines.push(`fill: ${override.fill};`);
+    }
+    if (has('stroke') && override.stroke !== undefined) {
+        lines.push(`stroke: ${override.stroke};`);
+    }
+    if (has('strokeWidth') && override.strokeWidth !== undefined) {
+        lines.push(`stroke-width: ${override.strokeWidth}px;`);
     }
     // Opacity + visibility are NOT togglable — always active.
     if (has('opacity') && override.opacity !== undefined) {

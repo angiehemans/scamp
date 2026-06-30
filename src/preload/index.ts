@@ -4,6 +4,8 @@ import type {
   ChooseFolderResult,
   ChooseImageArgs,
   ChooseImageResult,
+  ClipboardReadResult,
+  ClipboardSaveImageArgs,
   CopyImageArgs,
   CopyImageResult,
   CreateProjectArgs,
@@ -224,6 +226,14 @@ const api = {
     ipcRenderer.on(IPC.FileWriteAck, listener);
     return () => ipcRenderer.removeListener(IPC.FileWriteAck, listener);
   },
+
+  // Clipboard (paste from OS)
+  readClipboard: (): Promise<ClipboardReadResult> =>
+    ipcRenderer.invoke(IPC.ClipboardRead),
+  saveClipboardImage: (
+    args: ClipboardSaveImageArgs
+  ): Promise<CopyImageResult> =>
+    ipcRenderer.invoke(IPC.ClipboardSaveImage, args),
 
   // Images
   copyImage: (args: CopyImageArgs): Promise<CopyImageResult> =>

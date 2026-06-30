@@ -1,6 +1,6 @@
 import { type ScampElement } from '@lib/element';
 import type { ThemeToken } from '@shared/types';
-import type { NewRectInput, NewTextInput, NewImageInput, NewInputInput, NewComponentInstanceInput } from '../canvasSlice';
+import type { NewRectInput, NewTextInput, NewImageInput, NewSvgInput, NewInputInput, NewComponentInstanceInput } from '../canvasSlice';
 export declare const makeRootElement: () => ScampElement;
 /**
  * Default fill color for any rectangle created via the canvas tool. We
@@ -26,6 +26,12 @@ export declare const makeText: (input: NewTextInput, id: string, fontFamily: str
  */
 export declare const defaultTextFontFamily: (themeTokens: ReadonlyArray<ThemeToken>) => string;
 export declare const makeImage: (input: NewImageInput, id: string) => ScampElement;
+/**
+ * Inline `<svg>` element from a sanitized/normalized source. Image-family
+ * type with the `svg` tag override; `svgSource` is the (already-prepared)
+ * inner markup. see docs/plans/svg-improvements-plan.md
+ */
+export declare const makeSvg: (input: NewSvgInput, id: string) => ScampElement;
 /**
  * Default visual treatment for an input drawn on the canvas — a
  * subtle outlined box so the user can see what they drew. Users are

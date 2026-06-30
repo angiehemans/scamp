@@ -10,6 +10,7 @@ import { BorderSection } from './sections/BorderSection';
 import { ElementSection } from './sections/ElementSection';
 import { TypographySection } from './sections/TypographySection';
 import { ImageSection } from './sections/ImageSection';
+import { SvgSection } from './sections/SvgSection';
 import { VisibilitySection } from './sections/VisibilitySection';
 import { ShadowsSection } from './sections/ShadowsSection';
 import { FiltersSection } from './sections/FiltersSection';
@@ -42,9 +43,10 @@ export const UiPanel = () => {
     const isText = element.type === 'text';
     const isImage = element.type === 'image';
     const isInput = element.type === 'input';
+    const isSvg = element.tag === 'svg';
     // Position is only meaningful when there's a non-flex parent to
     // anchor against. Root has no parent; flex children flow with the
     // layout engine.
     const showPosition = !isRoot && !parentIsFlex;
-    return (_jsxs("div", { className: styles.uiPanelBody, children: [!isRoot && _jsx(ElementSection, { elementId: elementId }), showPosition && _jsx(PositionSection, { elementId: elementId }), _jsx(SizeSection, { elementId: elementId }), !isText && !isInput && _jsx(LayoutSection, { elementId: elementId }), _jsx(SpacingSection, { elementId: elementId, hideMargin: isRoot }), _jsx(BackgroundSection, { elementId: elementId }), _jsx(BorderSection, { elementId: elementId }), _jsx(ShadowsSection, { elementId: elementId }), _jsx(FiltersSection, { elementId: elementId }), isImage && _jsx(ImageSection, { elementId: elementId }), isText && _jsx(TypographySection, { elementId: elementId }), _jsx(VisibilitySection, { elementId: elementId }), _jsx(TransitionsSection, { elementId: elementId }), _jsx(AnimationSection, { elementId: elementId }), _jsx(ExportSection, {})] }));
+    return (_jsxs("div", { className: styles.uiPanelBody, children: [!isRoot && _jsx(ElementSection, { elementId: elementId }), showPosition && _jsx(PositionSection, { elementId: elementId }), _jsx(SizeSection, { elementId: elementId }), !isText && !isInput && _jsx(LayoutSection, { elementId: elementId }), _jsx(SpacingSection, { elementId: elementId, hideMargin: isRoot }), _jsx(BackgroundSection, { elementId: elementId }), _jsx(BorderSection, { elementId: elementId }), _jsx(ShadowsSection, { elementId: elementId }), _jsx(FiltersSection, { elementId: elementId }), isImage && _jsx(ImageSection, { elementId: elementId }), isSvg && _jsx(SvgSection, { elementId: elementId }), isText && _jsx(TypographySection, { elementId: elementId }), _jsx(VisibilitySection, { elementId: elementId }), _jsx(TransitionsSection, { elementId: elementId }), _jsx(AnimationSection, { elementId: elementId }), _jsx(ExportSection, {})] }));
 };
