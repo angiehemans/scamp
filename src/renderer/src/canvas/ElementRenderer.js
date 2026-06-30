@@ -128,9 +128,12 @@ instanceSelected) => {
         return createElement(tag, { ...props, key: element.id });
     }
     // SVG inside a component instance renders its real (sanitized) source
-    // too, so instances on the page match the component definition.
+    // too, so instances on the page match the component definition. Use a
+    // real <svg> element (NOT canvasRenderTag, which maps svg→div for the
+    // legacy placeholder) so the shapes render in the SVG namespace and
+    // the element-level fill/stroke recolour them.
     if (storedTag === 'svg') {
-        return createElement(tag, {
+        return createElement('svg', {
             ...props,
             key: element.id,
             dangerouslySetInnerHTML: {
@@ -607,10 +610,12 @@ export const ElementRenderer = ({ elementId }) => {
     }
     // SVG: inject the stored inner source so the real artwork renders on
     // the canvas (not a placeholder box). Sanitized at this render sink so
-    // even agent-written source can't execute. The element's class still
-    // sizes/recolors it; the chrome layer owns pointer interaction.
+    // even agent-written source can't execute. Must be a real <svg> element
+    // (NOT canvasRenderTag, which maps svg→div for the legacy placeholder) —
+    // otherwise the shapes land in the HTML namespace and don't paint. The
+    // element-level fill/stroke then recolours the shapes inside.
     if (storedTag === 'svg') {
-        return createElement(tag, {
+        return createElement('svg', {
             ...props,
             dangerouslySetInnerHTML: {
                 __html: sanitizeSvgInner(element.svgSource ?? ''),

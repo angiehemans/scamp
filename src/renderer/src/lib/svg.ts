@@ -82,6 +82,24 @@ const dropInvisibleShapes = (
 };
 
 /**
+ * Strip shapes' own `fill`/`stroke` (anything except `none`) so they
+ * inherit the element-level paint and recolour. A shape's own
+ * presentation attribute beats the inherited wrapper colour in the SVG
+ * cascade, so without this the wrapper's fill/stroke can't reach a shape
+ * that hardcodes its colour (or uses `currentColor`). `none` is left as-is
+ * (deliberately unpainted). The original look is preserved via the hoisted
+ * root paint on the wrapper. see docs/notes/svg-recolor.md
+ */
+const stripShapePaint = (svg: SVGElement): void => {
+  for (const node of Array.from(svg.querySelectorAll('*'))) {
+    for (const attr of ['fill', 'stroke'] as const) {
+      const v = node.getAttribute(attr);
+      if (v !== null && !isNonePaint(v)) node.removeAttribute(attr);
+    }
+  }
+};
+
+/**
  * Pull the root `<svg>`'s own `fill` / `stroke` / `stroke-width` (common on
  * outline icon sets like Lucide) into element-level values — Scamp
  * regenerates the `<svg>` wrapper, so without this the root's paint is
@@ -144,6 +162,7 @@ export const prepareSvgForInsert = (raw: string): PreparedSvg | null => {
 
   const rootPaint = hoistRootPaint(svg);
   dropInvisibleShapes(svg, rootPaint);
+  stripShapePaint(svg);
 
   const viewBox = svg.getAttribute('viewBox') ?? undefined;
   let width = parseLength(svg.getAttribute('width'));

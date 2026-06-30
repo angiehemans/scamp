@@ -37,7 +37,7 @@ test.describe('canvas: paste SVG from clipboard', () => {
     expect(tsx).toContain('<circle');
   });
 
-  test('keeps a pasted shape as valid-JSX attributes, rendering its own color', async ({
+  test('pastes a shape as a real, valid-JSX svg child (renders on the canvas)', async ({
     window,
     app,
     project,
@@ -54,16 +54,29 @@ test.describe('canvas: paste SVG from clipboard', () => {
     await window.keyboard.press('ControlOrMeta+v');
     await waitForSaved(window);
 
-    // The shape keeps a plain presentation attribute — valid JSX, no inline
-    // `style` strings (which crash Next.js) and no `var()` (which an SVG
-    // attribute won't resolve). The rect itself is present and rendered.
+    // The shape's own hardcoded fill is stripped on import (so element-level
+    // paint can recolour it); the source stays valid JSX — no inline `style`
+    // strings (which crash Next.js) and no `var()` (which an SVG attribute
+    // won't resolve).
     const { tsx } = await readPageFiles(project.dir, project.pageName);
-    expect(tsx).toContain('fill="#ff0000"');
+    expect(tsx).toContain('<rect');
+    expect(tsx).not.toContain('fill="#ff0000"');
     expect(tsx).not.toContain('var(');
     expect(tsx).not.toContain('style=');
-    await expect(
-      canvasElementsByPrefix(window, 'img_').first().locator('rect').first()
-    ).toHaveAttribute('fill', '#ff0000');
+
+    // The canvas renders a real <svg> (not the legacy <div> placeholder), so
+    // the shape is in the SVG namespace and actually lays out / paints.
+    const node = canvasElementsByPrefix(window, 'img_').first();
+    await expect(node).toHaveJSProperty('tagName', 'svg');
+    const box = await node
+      .locator('rect')
+      .first()
+      .evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height) };
+      });
+    expect(box.w).toBeGreaterThan(0);
+    expect(box.h).toBeGreaterThan(0);
   });
 
   test('setting Fill in the SVG section recolors the shape', async ({

@@ -99,17 +99,31 @@ describe('prepareSvgForInsert', () => {
     expect(result!.height).toBe(40);
   });
 
-  it('keeps visible shapes and their paint untouched (recolour is via the wrapper)', () => {
+  it("strips shapes' own fill/stroke so they inherit the wrapper paint", () => {
     const result = prepareSvgForInsert(
       '<svg viewBox="0 0 10 10"><path d="M0 0" fill="#ff0000" stroke="blue"/></svg>'
     );
     const src = result!.svgSource.toLowerCase();
-    // Valid-JSX presentation attributes are left as-is (no inline styles,
-    // no var()). The wrapper fill/stroke recolours them at render.
-    expect(src).toContain('fill="#ff0000"');
-    expect(src).toContain('stroke="blue"');
+    // A shape's own presentation attribute beats the inherited wrapper
+    // colour, so the hardcoded fill/stroke are removed — the shape then
+    // inherits the element-level paint and recolours. The path stays, and
+    // the source remains valid JSX (no inline style strings, no var()).
+    expect(src).toContain('<path');
+    expect(src).not.toContain('fill="#ff0000"');
+    expect(src).not.toContain('stroke="blue"');
     expect(src).not.toContain('var(');
     expect(src).not.toContain('style=');
+  });
+
+  it('preserves fill="none" while stripping a solid stroke on the same shape', () => {
+    const result = prepareSvgForInsert(
+      '<svg viewBox="0 0 10 10"><circle r="4" fill="none" stroke="red"/></svg>'
+    );
+    const src = result!.svgSource.toLowerCase();
+    // `none` is a deliberate "unpainted" intent — kept so the wrapper fill
+    // can't paint it solid. The solid stroke is stripped so Stroke recolours.
+    expect(src).toContain('fill="none"');
+    expect(src).not.toContain('stroke="red"');
   });
 
   it('drops a fully-invisible bounding-box shape (fill=none AND stroke=none)', () => {

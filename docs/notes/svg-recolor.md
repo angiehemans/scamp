@@ -19,32 +19,48 @@ So shapes must carry only **plain presentation attributes**
 (`fill="#f00"`, `fill="none"`), and recolouring has to come from outside
 `svgSource`.
 
+## Two bugs this had to get right (both subtle)
+
+1. **Render a real `<svg>`.** The canvas must mount the element as an actual
+   `<svg>` and inject the shapes into it. The legacy placeholder mapped
+   `svg → div` (`canvasRenderTag`), so the shapes landed inside a `<div>`
+   — HTML namespace, where `<rect>`/`<path>` **never paint and have zero
+   layout size**. `getComputedStyle().fill` still reported a colour (the CSS
+   cascade), which masked the bug for a long time. `ElementRenderer` now
+   calls `createElement('svg', …)` for `tag === 'svg'`, not
+   `canvasRenderTag(tag)`.
+2. **A shape's own paint beats inherited paint.** In a real SVG cascade a
+   descendant's own `fill="#f00"` presentation attribute **wins over** an
+   inherited `fill` from the wrapper. (The earlier note claimed the
+   opposite — that was the wrong assumption.) So a wrapper colour can only
+   recolour a shape that has *no* own paint. Outline icons work for free
+   (their stroked paths carry no paint and inherit), but any shape that
+   hardcodes a colour won't budge until that paint is removed.
+
 ## The mechanism
 
 Recolour via the **wrapper's `fill` / `stroke` property** — set on the
-`<svg>` element (inline style on the canvas, a class rule in the export).
-A `fill`/`stroke` property inherits to descendants and, in the cascade,
-**beats a descendant's presentation attribute** — which is exactly how
-`svg { fill: … }` recolours an icon whose paths hardcode their own fill.
-So setting the element's `fill` recolours every shape inside.
-
-The one hazard: that inheritance would also paint a shape's `fill="none"`
-solid — and icon sets (Lucide/Tabler) ship a transparent
-`<path d="M0 0h24v24H0z" fill="none" stroke="none"/>` bounding box, which
-would become a solid square covering the artwork. So on import
-(`prepareSvgForInsert` in `src/renderer/src/lib/svg.ts`):
+`<svg>` element (inline style on the canvas, a class rule in the export) —
+which inheriting shapes pick up. To make *every* shape inheriting, on
+import (`prepareSvgForInsert` in `src/renderer/src/lib/svg.ts`):
 
 1. **Hoist root paint.** The root `<svg>`'s `fill` / `stroke` /
    `stroke-width` (outline icons put paint there; Scamp regenerates the
    wrapper so it'd otherwise be lost) become the element's typed
-   `fill` / `stroke` / `strokeWidth` — the SvgSection's starting values.
+   `fill` / `stroke` / `strokeWidth` — the SvgSection's starting values and
+   the icon's original look.
 2. **Drop fully-invisible shapes** — leaf shapes whose effective fill AND
-   stroke are both `none` (the transparent bounding box). They paint
+   stroke are both `none` (the transparent bounding box Lucide/Tabler ship
+   as `<path d="M0 0h24v24H0z" fill="none" stroke="none"/>`). They paint
    nothing, so removing them is lossless and means the wrapper colour has
-   nothing transparent to fill.
+   nothing transparent to paint solid.
+3. **Strip shapes' own `fill` / `stroke`** (anything except `none`). Without
+   this a hardcoded colour beats the wrapper (bug #2) and the shape won't
+   recolour. `none` is kept (deliberate "unpainted" intent). The original
+   look survives via the hoisted root paint on the wrapper.
 
-Everything else in `svgSource` is left untouched (valid JSX, byte-close to
-the original).
+`svgSource` then carries only `none` (or no) paint — valid JSX, and every
+visible shape inherits the element-level fill/stroke.
 
 ## Emission
 
@@ -67,7 +83,10 @@ the original).
 
 - Element-level paint is one fill + one stroke, so a multi-colour icon
   collapses to a single colour when recoloured (per-shape editing is a
-  non-goal).
+  non-goal). Stripping shape paint on import is what makes this uniform —
+  the original per-shape colours aren't preserved (the hoisted root paint
+  is), which is the right trade for icons but wrong for illustrations
+  (those route to `<img>` above the inline size threshold).
 - A non-bounding-box shape that's deliberately `fill="none"` but stroked
   (e.g. an outline circle) will be filled if you set **Fill** — that's the
   inherent meaning of an element-level fill. Use **Stroke** for outlines.
