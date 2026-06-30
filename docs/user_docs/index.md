@@ -29,4 +29,5 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Terminal](terminal.md) — The built-in terminal panel
 - [Settings](settings.md) — App and per-project configuration (breakpoints, artboard, fonts)
 - [Undo, Redo, and History](undo-redo.md) — Keyboard shortcuts plus the visual History panel for per-page history navigation
+- [Snapshots](snapshots.md) — Durable point-in-time project backups, previewing, and restoring from the History panel
 - [Keyboard Shortcuts](keyboard-shortcuts.md) — Complete shortcut reference

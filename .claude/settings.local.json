@@ -65,7 +65,11 @@
       "Bash(git checkout *)",
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(npm test *)",
-      "Read(//c/Users/angie/Documents/scamp-files/html-test/**)"
+      "Read(//c/Users/angie/Documents/scamp-files/html-test/**)",
+      "Bash(gh auth *)",
+      "Bash(gh run *)",
+      "Bash(gh api *)",
+      "WebSearch"
     ]
   }
 }
