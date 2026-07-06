@@ -4,16 +4,26 @@
 import type { ResizeHandle } from './types';
 
 /**
+ * Read a node's `data-element-id`, for both HTML and SVG elements. An
+ * inline `<svg>` on the canvas is an `SVGElement`, not an `HTMLElement`,
+ * so an `instanceof HTMLElement` filter skips it and its shape children —
+ * making the svg unhittable by `elementsFromPoint` (can't click-select it,
+ * can't target it while dragging). Both element kinds carry `dataset`.
+ */
+export const elementIdOf = (node: Element): string | undefined =>
+  node instanceof HTMLElement || node instanceof SVGElement
+    ? node.dataset['elementId']
+    : undefined;
+
+/**
  * Hit-test the cursor against existing elements. Returns the deepest
  * `data-element-id` under the point.
  */
 export const hitTest = (clientX: number, clientY: number): string | null => {
   const candidates = document.elementsFromPoint(clientX, clientY);
   for (const node of candidates) {
-    if (node instanceof HTMLElement) {
-      const id = node.dataset['elementId'];
-      if (id) return id;
-    }
+    const id = elementIdOf(node);
+    if (id) return id;
   }
   return null;
 };

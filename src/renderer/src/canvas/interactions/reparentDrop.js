@@ -1,3 +1,4 @@
+import { elementIdOf } from './canvasHitTest';
 const LINE = 2;
 /**
  * Gap-line indicator + insert index for dropping into a flow (flex/grid)
@@ -14,9 +15,7 @@ const flowIndicator = (parent, draggedId, clientX, clientY, geometry) => {
         const siblingIds = parent.childIds.filter((id) => id !== draggedId);
         let hitSiblingId = null;
         for (const node of document.elementsFromPoint(clientX, clientY)) {
-            if (!(node instanceof HTMLElement))
-                continue;
-            const id = node.dataset['elementId'];
+            const id = elementIdOf(node);
             if (id && siblingIds.includes(id)) {
                 hitSiblingId = id;
                 break;

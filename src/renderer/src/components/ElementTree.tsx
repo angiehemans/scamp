@@ -57,6 +57,8 @@ const labelFor = (el: ScampElement): string => {
     const text = (el.text ?? '').trim();
     return text.length > 0 ? `Text · ${truncate(text, 20)}` : 'Text';
   }
+  if (el.type === 'image') return el.tag === 'svg' ? 'SVG' : 'Image';
+  if (el.type === 'input') return 'Input';
   return 'Rectangle';
 };
 
@@ -208,7 +210,9 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
             ? 'T'
             : element.type === 'component-instance'
               ? '◆'
-              : '▢'}
+              : element.type === 'image' && element.tag === 'svg'
+                ? '✦'
+                : '▢'}
         </span>
         {renaming ? (
           <input

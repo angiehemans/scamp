@@ -4,6 +4,8 @@ import {
   canvasFrame,
   pageRoot,
 } from '../fixtures/selectors';
+import { clickInFrame } from '../fixtures/canvas';
+import { layersRowByClass } from '../fixtures/layers';
 import { panelSection } from '../fixtures/panel';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
 
@@ -77,6 +79,45 @@ test.describe('canvas: paste SVG from clipboard', () => {
       });
     expect(box.w).toBeGreaterThan(0);
     expect(box.h).toBeGreaterThan(0);
+  });
+
+  test('is labeled "SVG" in the layers tree and is click-selectable on the canvas', async ({
+    window,
+    app,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+
+    await app.evaluate(({ clipboard }) => {
+      clipboard.writeText(
+        '<svg viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" fill="#ff0000"/></svg>'
+      );
+    });
+
+    await canvasFrame(window).click({ position: { x: 4, y: 4 } });
+    await window.keyboard.press('ControlOrMeta+v');
+    await waitForSaved(window);
+
+    const svg = canvasElementsByPrefix(window, 'img_').first();
+    const cls = await svg.getAttribute('data-scamp-id');
+    if (!cls) throw new Error('no svg element created');
+
+    // The layers row reads "SVG" (not "Image"/"Rectangle").
+    await expect(
+      layersRowByClass(window, cls).getByText('SVG', { exact: true })
+    ).toBeVisible();
+
+    // Deselect by clicking empty canvas (clears the selection toolbar that
+    // floats over the small icon and drops the SVG panel), then click the
+    // svg's coordinates → it selects and the SVG section reappears. The
+    // click drives the interaction chrome overlay's coordinate hit-testing
+    // (the code path under test). Regression: an inline <svg> is an
+    // SVGElement, so hit-testing that filtered on `instanceof HTMLElement`
+    // skipped it and its shapes, leaving it unselectable from the canvas.
+    // The svg pastes at frame (20,20) at 100×100 → its center is (70,70).
+    await clickInFrame(window, { x: 400, y: 400 });
+    await expect(panelSection(window, 'SVG')).toHaveCount(0);
+    await clickInFrame(window, { x: 70, y: 70 });
+    await expect(panelSection(window, 'SVG')).toBeVisible();
   });
 
   test('setting Fill in the SVG section recolors the shape', async ({

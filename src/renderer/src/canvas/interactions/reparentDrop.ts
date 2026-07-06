@@ -6,6 +6,7 @@
 // neither hook duplicates it. see docs/plans/canvas-drag-reparent-plan.md
 import type { ScampElement } from '@lib/element';
 
+import { elementIdOf } from './canvasHitTest';
 import type { CanvasGeometry, DropIndicator, ReparentDrop } from './types';
 
 const LINE = 2;
@@ -32,8 +33,7 @@ const flowIndicator = (
     const siblingIds = parent.childIds.filter((id) => id !== draggedId);
     let hitSiblingId: string | null = null;
     for (const node of document.elementsFromPoint(clientX, clientY)) {
-      if (!(node instanceof HTMLElement)) continue;
-      const id = node.dataset['elementId'];
+      const id = elementIdOf(node);
       if (id && siblingIds.includes(id)) {
         hitSiblingId = id;
         break;

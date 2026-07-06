@@ -3,6 +3,7 @@ import { type RefObject } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 
+import { elementIdOf } from './canvasHitTest';
 import type { CanvasGeometry, SelectedRect } from './types';
 
 /**
@@ -148,8 +149,7 @@ export const useCanvasGeometry = (
     // skipped naturally.
     const candidates = document.elementsFromPoint(clientX, clientY);
     for (const node of candidates) {
-      if (!(node instanceof HTMLElement)) continue;
-      const id = node.dataset['elementId'];
+      const id = elementIdOf(node);
       if (!id) continue;
       // Never drop into the dragged element or its own subtree.
       if (isSelfOrDescendant(id, draggedId)) continue;

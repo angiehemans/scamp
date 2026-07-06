@@ -41,6 +41,10 @@ const labelFor = (el) => {
         const text = (el.text ?? '').trim();
         return text.length > 0 ? `Text · ${truncate(text, 20)}` : 'Text';
     }
+    if (el.type === 'image')
+        return el.tag === 'svg' ? 'SVG' : 'Image';
+    if (el.type === 'input')
+        return 'Input';
     return 'Rectangle';
 };
 const truncate = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s);
@@ -166,7 +170,9 @@ const Row = ({ element, depth, dragOver, setDragOver }) => {
                                 ? 'T'
                                 : element.type === 'component-instance'
                                     ? '◆'
-                                    : '▢' }), renaming ? (_jsx("input", { ref: inputRef, type: "text", className: styles.renameInput, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: () => {
+                                    : element.type === 'image' && element.tag === 'svg'
+                                        ? '✦'
+                                        : '▢' }), renaming ? (_jsx("input", { ref: inputRef, type: "text", className: styles.renameInput, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: () => {
                                 const slug = slugifyName(draft);
                                 patchElement(element.id, {
                                     name: slug.length > 0 ? slug : undefined,

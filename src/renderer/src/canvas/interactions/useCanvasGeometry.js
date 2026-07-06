@@ -1,5 +1,6 @@
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
+import { elementIdOf } from './canvasHitTest';
 /**
  * Builds the frame-local geometry helpers the interaction hooks share:
  * coordinate conversion, DOM measurement, and the parent-bounds lookups
@@ -129,9 +130,7 @@ export const useCanvasGeometry = (frameRef, scale) => {
         // skipped naturally.
         const candidates = document.elementsFromPoint(clientX, clientY);
         for (const node of candidates) {
-            if (!(node instanceof HTMLElement))
-                continue;
-            const id = node.dataset['elementId'];
+            const id = elementIdOf(node);
             if (!id)
                 continue;
             // Never drop into the dragged element or its own subtree.

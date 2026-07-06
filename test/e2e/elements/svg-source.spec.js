@@ -6,9 +6,9 @@ import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
 /**
  * Creates an image element via the file-dialog-stubbed image tool, then
- * swaps its tag to `<svg>` and writes inner source. The canvas renders
- * svg as a placeholder rect (see ElementRenderer.canvasRenderTag) but
- * the TSX on disk must carry the source byte-for-byte.
+ * swaps its tag to `<svg>` and writes inner source. The canvas renders svg
+ * as real artwork (a live <svg>, see ElementRenderer) and the TSX on disk
+ * must carry the source byte-for-byte.
  */
 test.describe('elements: svg source', () => {
     test('switching an image to <svg> and typing source writes source verbatim', async ({ window, app, project, }) => {
