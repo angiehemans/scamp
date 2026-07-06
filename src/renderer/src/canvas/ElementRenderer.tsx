@@ -21,6 +21,7 @@ import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
 import { formatAnimationShorthand } from '@lib/parsers';
 import type { ThemeToken } from '@shared/types';
+import { sanitizeSvgInner } from '../lib/svg';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
 
@@ -175,6 +176,21 @@ const renderComponentSubtree = (
 
   if (VOID_TAGS.has(tag as string)) {
     return createElement(tag, { ...props, key: element.id });
+  }
+
+  // SVG inside a component instance renders its real (sanitized) source
+  // too, so instances on the page match the component definition. Use a
+  // real <svg> element (NOT canvasRenderTag, which maps svg→div for the
+  // legacy placeholder) so the shapes render in the SVG namespace and
+  // the element-level fill/stroke recolour them.
+  if (storedTag === 'svg') {
+    return createElement('svg', {
+      ...props,
+      key: element.id,
+      dangerouslySetInnerHTML: {
+        __html: sanitizeSvgInner(element.svgSource ?? ''),
+      },
+    });
   }
 
   const isText = element.type === 'text';
@@ -754,6 +770,21 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   // renders without crashing.
   if (VOID_TAGS.has(tag as string)) {
     return createElement(tag, props);
+  }
+
+  // SVG: inject the stored inner source so the real artwork renders on
+  // the canvas (not a placeholder box). Sanitized at this render sink so
+  // even agent-written source can't execute. Must be a real <svg> element
+  // (NOT canvasRenderTag, which maps svg→div for the legacy placeholder) —
+  // otherwise the shapes land in the HTML namespace and don't paint. The
+  // element-level fill/stroke then recolours the shapes inside.
+  if (storedTag === 'svg') {
+    return createElement('svg', {
+      ...props,
+      dangerouslySetInnerHTML: {
+        __html: sanitizeSvgInner(element.svgSource ?? ''),
+      },
+    });
   }
 
   const children = isText

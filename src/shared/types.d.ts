@@ -254,6 +254,26 @@ export type ChooseImageResult = {
     canceled: boolean;
     path: string | null;
 };
+/**
+ * OS clipboard contents relevant to a canvas paste. `svg` carries the
+ * raw markup (inlined as an editable element); `image` carries a PNG
+ * data URL (saved to assets and referenced as `<img>`); `empty` means
+ * nothing pasteable. see docs/plans/svg-improvements-plan.md
+ */
+export type ClipboardReadResult = {
+    kind: 'svg';
+    svg: string;
+} | {
+    kind: 'image';
+    dataUrl: string;
+} | {
+    kind: 'empty';
+};
+export type ClipboardSaveImageArgs = {
+    projectPath: string;
+    /** A `data:image/png;base64,…` URL (from clipboard.readImage). */
+    dataUrl: string;
+};
 export type CreateProjectArgs = {
     /** The directory in which to create the new project subfolder. */
     parentPath: string;

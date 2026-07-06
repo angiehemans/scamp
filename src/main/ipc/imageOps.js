@@ -52,3 +52,31 @@ export const copyImage = async (args, format) => {
         fileName,
     };
 };
+/**
+ * Write an in-memory image buffer into the project's assets folder
+ * (deduplicating the filename), returning the runtime reference. Used by
+ * the clipboard-paste path, where there's no source file to copy.
+ */
+export const saveImageBuffer = async (projectPath, data, baseName, ext, format) => {
+    const assetsDir = assetsDirFor(projectPath, format);
+    await fs.mkdir(assetsDir, { recursive: true });
+    let fileName = `${baseName}${ext}`;
+    let destPath = join(assetsDir, fileName);
+    let counter = 1;
+    while (true) {
+        try {
+            await fs.access(destPath);
+            fileName = `${baseName}-${counter}${ext}`;
+            destPath = join(assetsDir, fileName);
+            counter += 1;
+        }
+        catch {
+            break;
+        }
+    }
+    await fs.writeFile(destPath, data);
+    return {
+        relativePath: referencePathFor(fileName, format),
+        fileName,
+    };
+};

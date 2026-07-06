@@ -67,15 +67,23 @@ Any attribute you add manually in the CSS editor or externally round-trips clean
 
 Options live as a typed list on the select element — they're not drawable canvas elements. Editing them through the panel is the only way to change them.
 
-## SVG Source
+## SVG
 
-`<svg>` elements have a **Source** textarea in the Element section for the raw inner markup:
+SVGs render as real artwork on the canvas — not a placeholder — and the exported TSX contains your source. There are three ways to get one onto the canvas:
 
-```html
-<circle cx="50" cy="50" r="40" fill="currentColor" />
-```
+- **Drag and drop** an `.svg` file from your file manager. Small icons are inlined as an editable `<svg>` (so you can recolor them); large illustrations are copied into your assets and referenced as an `<img>`.
+- **Paste** (**Cmd/Ctrl+V**) SVG markup you've copied from a code editor or design tool. A copied raster image pastes too (saved to your assets).
+- Switch any element's tag to `svg` in the Element section and paste markup into its **Source** textarea.
 
-The SVG renders as a placeholder rectangle on the canvas (so positioning and sizing work cleanly), but the exported TSX contains your source byte-for-byte.
+For safety, pasted/dropped SVG is sanitized — `<script>`, event handlers, and external references are stripped before it's added to your canvas.
+
+### Editing fill and stroke
+
+Select an inline SVG and the **SVG** section appears in the Visual panel with **Fill**, **Stroke**, and **Stroke width** controls (theme tokens and `currentColor` supported). These recolor the icon — fill and stroke independently.
+
+This works even for icons that hardcode their own colors — the Fill/Stroke you set on the element recolors the shapes inside. On import, Scamp also drops any fully-transparent bounding-box shape that icon sets include, so recoloring never paints a solid square over your icon, and it keeps the source clean and valid.
+
+Tip: **outline icons** (e.g. Lucide, Tabler) are drawn with strokes, not fills — recolor them with the **Stroke** control. Solid/filled icons use **Fill**. The panel starts from the icon's own colors, so it's usually clear which applies. (An icon built from several distinct hardcoded colors collapses to one color when recolored — element-level paint is a single fill/stroke, not per-shape.)
 
 ## List Context Defaults
 

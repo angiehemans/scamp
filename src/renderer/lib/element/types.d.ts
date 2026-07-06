@@ -270,10 +270,20 @@ export type ScampElement = {
     /**
      * Only meaningful when `tag === 'svg'`. The raw inner source between
      * the `<svg>` open and close tags, preserved verbatim so the
-     * generator can re-emit it byte-for-byte. The canvas does NOT render
-     * this — svg elements show as placeholder rectangles on the canvas.
+     * generator can re-emit it byte-for-byte. Rendered (sanitized) on the
+     * canvas via ElementRenderer. see docs/plans/svg-improvements-plan.md
      */
     svgSource?: string;
+    /**
+     * Element-level SVG paint, edited from the SvgSection. `fill` / `stroke`
+     * are colour strings; `strokeWidth` is px. They cascade to the svg's
+     * shapes (whose own fill/stroke are stripped on import) so the icon can
+     * be recoloured without touching `svgSource`. Optional — emitted only
+     * when set, parsed back from the matching CSS declarations.
+     */
+    fill?: string;
+    stroke?: string;
+    strokeWidth?: number;
     /**
      * Optional human-readable name. When set, the slugified version
      * replaces the default `rect` / `text` prefix in the generated CSS

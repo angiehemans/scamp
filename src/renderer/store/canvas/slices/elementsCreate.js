@@ -1,6 +1,6 @@
 import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, reparentWithPositionPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
 import { classNameFor } from '@lib/generateCode';
-import { defaultTextFontFamily, makeComponentInstance, makeImage, makeInput, makeRectangle, makeRootElement, makeText, tagForListChildContext, } from '../factories';
+import { defaultTextFontFamily, makeComponentInstance, makeImage, makeSvg, makeInput, makeRectangle, makeRootElement, makeText, tagForListChildContext, } from '../factories';
 import { commitElementsToHistory, freshId } from '../history';
 import { useCanvasStore, } from '../../canvasSlice';
 export const createElementsCreateSlice = (set) => ({
@@ -62,6 +62,25 @@ export const createElementsCreateSlice = (set) => ({
                 elements: {
                     ...state.elements,
                     [id]: newImage,
+                    [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
+                },
+                selectedElementIds: [id],
+            };
+        });
+        commitElementsToHistory({ kind: 'add-image', elementIds: [id] });
+        return id;
+    },
+    createSvgElement: (input) => {
+        const id = generateElementId();
+        set((state) => {
+            const parent = state.elements[input.parentId];
+            if (!parent)
+                return state;
+            const newSvg = makeSvg(input, id);
+            return {
+                elements: {
+                    ...state.elements,
+                    [id]: newSvg,
                     [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
                 },
                 selectedElementIds: [id],
