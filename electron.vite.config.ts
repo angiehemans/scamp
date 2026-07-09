@@ -22,6 +22,19 @@ import type { Plugin } from 'vite';
  * and canvas-exported images. `style-src 'unsafe-inline'` is required by
  * CodeMirror and the app's inline element styles. If a third font
  * provider is added to fontEmbed.ts, widen style-src/font-src to match.
+ *
+ * `connect-src` allows the `sentry-ipc:` scheme: @sentry/electron's
+ * renderer transport reaches the main process over `sentry-ipc://…`, and
+ * without it the CSP blocks the connection ("Sentry SDK failed to
+ * establish connection with the Electron main process") so renderer crash
+ * reporting silently dies. It's a local custom protocol — allowing it
+ * doesn't widen external network exposure.
+ *
+ * `frame-ancestors` is intentionally omitted: it's ignored when delivered
+ * via <meta> (spec-mandated — it only works as an HTTP response header)
+ * and just logs a console warning. The main window is loaded from a local
+ * file and is never embedded, so there's nothing to protect against; if we
+ * ever need it, deliver it via session.webRequest.onHeadersReceived, not here.
  */
 const MAIN_WINDOW_CSP = [
   "default-src 'self'",
@@ -29,10 +42,9 @@ const MAIN_WINDOW_CSP = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.typekit.net",
   "font-src 'self' https://fonts.gstatic.com https://use.typekit.net https://p.typekit.net data:",
   "img-src 'self' scamp-asset: data: blob:",
-  "connect-src 'self' https://use.typekit.net",
+  "connect-src 'self' https://use.typekit.net sentry-ipc:",
   "object-src 'none'",
   "base-uri 'self'",
-  "frame-ancestors 'none'",
 ].join('; ');
 
 /**
