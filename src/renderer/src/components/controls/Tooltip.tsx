@@ -6,6 +6,11 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  resolveTooltipPlacement,
+  TOOLTIP_GAP,
+  type TooltipPlacement,
+} from '@lib/tooltipPlacement';
 import styles from './Tooltip.module.css';
 
 /**
@@ -31,11 +36,18 @@ type Props = {
   children: ReactElement;
   /** Hover delay in ms before showing. Default 400. */
   delay?: number;
+  /**
+   * Which side of the trigger to render on. `'auto'` (the default) flips
+   * to `'bottom'` when the trigger is too close to the top edge for the
+   * bubble to fit — this keeps the top toolbar's tooltips from clipping.
+   */
+  placement?: TooltipPlacement | 'auto';
 };
 
 type Position = {
   left: number;
   top: number;
+  placement: TooltipPlacement;
 };
 
 /**
@@ -51,22 +63,29 @@ export const Tooltip = ({
   header,
   children,
   delay = 400,
+  placement = 'auto',
 }: Props): JSX.Element => {
   const [position, setPosition] = useState<Position | null>(null);
   const timerRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
+  // The trigger's rect at show-time, stashed so the post-mount layout
+  // effect can decide placement (needs the tip's measured height) and
+  // anchor to the correct edge.
+  const triggerRectRef = useRef<DOMRect | null>(null);
 
   const show = (): void => {
     const el = triggerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    // Default: position above the trigger, horizontally centered.
-    // The layout effect below will clamp this to the viewport once
-    // the tooltip's actual width is known.
+    triggerRectRef.current = rect;
+    // Provisional: above the trigger, horizontally centered. The layout
+    // effect below clamps left to the viewport and flips to `bottom`
+    // when there isn't room above, once the tip's height is known.
     setPosition({
       left: rect.left + rect.width / 2,
       top: rect.top,
+      placement: 'top',
     });
   };
 
@@ -78,7 +97,8 @@ export const Tooltip = ({
   useLayoutEffect(() => {
     if (position === null) return;
     const tip = tooltipRef.current;
-    if (!tip) return;
+    const rect = triggerRectRef.current;
+    if (!tip || !rect) return;
     const tipWidth = tip.offsetWidth;
     // The tooltip's CSS uses `translate(-50%, ...)`, so `position.left`
     // is the centerpoint and the tooltip extends ±tipWidth/2 from it.
@@ -88,10 +108,22 @@ export const Tooltip = ({
     let nextLeft = position.left;
     if (nextLeft > maxLeft) nextLeft = maxLeft;
     if (nextLeft < minLeft) nextLeft = minLeft;
-    if (nextLeft !== position.left) {
-      setPosition({ left: nextLeft, top: position.top });
+    // Flip below when the trigger is too near the top edge to fit the
+    // bubble above it. Anchor at the trigger's bottom edge when flipped.
+    const nextPlacement = resolveTooltipPlacement(
+      rect.top,
+      tip.offsetHeight + TOOLTIP_GAP,
+      placement
+    );
+    const nextTop = nextPlacement === 'bottom' ? rect.bottom : rect.top;
+    if (
+      nextLeft !== position.left ||
+      nextTop !== position.top ||
+      nextPlacement !== position.placement
+    ) {
+      setPosition({ left: nextLeft, top: nextTop, placement: nextPlacement });
     }
-  }, [position]);
+  }, [position, placement]);
 
   const handleEnter = (): void => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -148,7 +180,9 @@ export const Tooltip = ({
         createPortal(
           <div
             ref={tooltipRef}
-            className={styles.tooltip}
+            className={`${styles.tooltip} ${
+              position.placement === 'bottom' ? styles.bottom : ''
+            }`}
             style={{
               left: position.left,
               top: position.top,

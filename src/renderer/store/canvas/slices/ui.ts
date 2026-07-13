@@ -43,9 +43,9 @@ import {
   applyPatchWithAxisRouting,
 } from '../patchRouting';
 import { commitElementsToHistory, freshId } from '../history';
+import { stepZoom } from '@lib/zoom';
 import {
   useCanvasStore,
-  ZOOM_STEPS,
   type CanvasState,
   type ActivePage,
   type ActiveComponent,
@@ -69,6 +69,7 @@ export const createUiSlice: StateCreator<
   | 'panelMode'
   | 'leftSidebarTab'
   | 'userZoom'
+  | 'fitScale'
   | 'exportSettings'
   | 'canvasMinHeight'
   | 'setBottomPanel'
@@ -81,6 +82,7 @@ export const createUiSlice: StateCreator<
   | 'zoomOut'
   | 'resetZoom'
   | 'setZoom'
+  | 'setFitScale'
   | 'openThemePanel'
   | 'setOpenThemePanel'
 >
@@ -89,6 +91,7 @@ export const createUiSlice: StateCreator<
   panelMode: 'ui',
   leftSidebarTab: 'layers',
   userZoom: null,
+  fitScale: 1,
   exportSettings: { lastFormat: 'png', lastPngScale: 2 },
   // Default matches the page-editor canvas. ProjectShell
   // overrides this when entering the component editor so the
@@ -111,36 +114,24 @@ export const createUiSlice: StateCreator<
     })),
 
   setCanvasMinHeight: (value) => set({ canvasMinHeight: value }),
+  // Buttons/keys step a fixed 15% from the CURRENT effective scale
+  // (explicit zoom, or the auto-fit value when in fit mode) so the first
+  // tap from a 60% fit lands on 75% rather than jumping to a ladder rung.
   zoomIn: () =>
-    set((state) => {
-      // Coming from fit-mode, treat the current effective zoom as 1.0
-      // (100%). The user pressed "in" — they want to grow, so anchor at
-      // 100% rather than the auto-fit value (which might be < 1) so the
-      // first tap reliably gets bigger.
-      const current = state.userZoom ?? 1;
-      const next =
-        ZOOM_STEPS.find((s) => s > current + 1e-3) ?? ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
-      return { userZoom: next };
-    }),
+    set((state) => ({
+      userZoom: stepZoom(state.userZoom ?? state.fitScale, 1),
+    })),
 
   zoomOut: () =>
-    set((state) => {
-      const current = state.userZoom ?? 1;
-      // Largest step strictly less than current; walk the list backwards.
-      let next: number = ZOOM_STEPS[0]!;
-      for (let i = ZOOM_STEPS.length - 1; i >= 0; i -= 1) {
-        const step = ZOOM_STEPS[i]!;
-        if (step < current - 1e-3) {
-          next = step;
-          break;
-        }
-      }
-      return { userZoom: next };
-    }),
+    set((state) => ({
+      userZoom: stepZoom(state.userZoom ?? state.fitScale, -1),
+    })),
 
   resetZoom: () => set({ userZoom: null }),
 
   setZoom: (zoom) => set({ userZoom: zoom }),
+
+  setFitScale: (scale) => set({ fitScale: scale }),
 
   openThemePanel: null,
   setOpenThemePanel: (fn) => set({ openThemePanel: fn }),

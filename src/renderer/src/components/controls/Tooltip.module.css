@@ -27,6 +27,15 @@
   animation: tooltipFadeIn 120ms ease-out;
 }
 
+/* Flipped variant: the anchor `top` is the trigger's BOTTOM edge, so
+   translate down by the 10px gap instead of up past the bubble's height.
+   Used for triggers (e.g. the top toolbar) that can't fit a tooltip
+   above without clipping off the window. */
+.bottom {
+  transform: translate(-50%, 10px);
+  animation: tooltipFadeInBottom 120ms ease-out;
+}
+
 .tooltipHeader {
   /* Negative margin + matching padding so the header's bottom border
      spans the full inner width of the bubble (matches the outer
@@ -66,5 +75,16 @@
   to {
     opacity: 1;
     transform: translate(-50%, calc(-100% - 10px));
+  }
+}
+
+@keyframes tooltipFadeInBottom {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 10px);
   }
 }

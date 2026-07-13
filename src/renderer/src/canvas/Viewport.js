@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useAppLogStore } from '@store/appLogSlice';
 import { wouldCreateComponentCycle } from '@lib/componentUsage';
+import { nextZoomFromWheel } from '@lib/zoom';
 import { DEFAULT_BODY_FONT_FAMILY, } from '@shared/agentMd';
 import { MAX_COMPONENT_CANVAS_DIM, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
 import { ElementRenderer } from './ElementRenderer';
@@ -38,6 +39,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
     const isRootSelected = useCanvasStore((s) => s.selectedElementIds.includes(rootElementId));
     const activeTool = useCanvasStore((s) => s.activeTool);
     const userZoom = useCanvasStore((s) => s.userZoom);
+    const setFitScale = useCanvasStore((s) => s.setFitScale);
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     // Resolve the body-level default font from the project's theme.css
     // tokens. Mirrors what the preview / `next dev` would inherit from
@@ -71,7 +73,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
     }, [themeTokens]);
     const frameW = canvasWidth;
     // Auto-fit scale derived from the scroll container's client width.
-    const [fitScale, setFitScale] = useState(1);
+    const [fitScale, setLocalFitScale] = useState(1);
     useLayoutEffect(() => {
         const container = scrollContainerRef.current;
         if (!container)
@@ -83,17 +85,66 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
             // Width-only fit — tall pages scroll vertically inside the
             // artboard instead of squashing. Never scale up past 1.0.
             const next = Math.min(w / frameW, 1);
+            setLocalFitScale(next);
+            // Mirror into the store so the zoom indicator can show the real
+            // percentage in fit mode and the wheel handler can anchor on it.
             setFitScale(next);
         };
         measure();
         const ro = new ResizeObserver(measure);
         ro.observe(container);
         return () => ro.disconnect();
-    }, [frameW, scrollContainerRef]);
+    }, [frameW, scrollContainerRef, setFitScale]);
     // Effective scale: explicit user zoom wins, otherwise auto-fit.
     useLayoutEffect(() => {
         setScale(userZoom ?? fitScale);
     }, [userZoom, fitScale]);
+    // Continuous zoom via trackpad pinch / Cmd-Ctrl+wheel. The listener is
+    // non-passive so it can preventDefault the browser's native page zoom.
+    // Cursor anchoring is applied after commit in the layout effect below,
+    // using the point stashed here. see docs/notes/canvas-wheel-zoom.md
+    const zoomAnchorRef = useRef(null);
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container)
+            return;
+        const handleWheel = (e) => {
+            if (!(e.ctrlKey || e.metaKey))
+                return;
+            e.preventDefault();
+            const state = useCanvasStore.getState();
+            const old = state.userZoom ?? state.fitScale;
+            const next = nextZoomFromWheel(old, e.deltaY);
+            if (next === old)
+                return;
+            const frame = frameRef.current;
+            if (frame) {
+                const rect = frame.getBoundingClientRect();
+                zoomAnchorRef.current = {
+                    logicalX: (e.clientX - rect.left) / old,
+                    logicalY: (e.clientY - rect.top) / old,
+                    delta: next - old,
+                };
+            }
+            state.setZoom(next);
+        };
+        container.addEventListener('wheel', handleWheel, { passive: false });
+        return () => container.removeEventListener('wheel', handleWheel);
+    }, [scrollContainerRef]);
+    // Cursor anchoring: once the new scale is committed to the DOM (so the
+    // frame's transform is live), shift the scroll so the logical point the
+    // pointer was over stays under the pointer. see docs/notes/canvas-wheel-zoom.md
+    useLayoutEffect(() => {
+        const anchor = zoomAnchorRef.current;
+        if (!anchor)
+            return;
+        zoomAnchorRef.current = null;
+        const container = scrollContainerRef.current;
+        if (!container)
+            return;
+        container.scrollLeft += anchor.logicalX * anchor.delta;
+        container.scrollTop += anchor.logicalY * anchor.delta;
+    }, [scale, scrollContainerRef]);
     // Track the frame's natural (pre-scale) height. `transform: scale`
     // doesn't affect layout, so without this the wrapper would reserve
     // logical space only and scrolling would be wrong when the user

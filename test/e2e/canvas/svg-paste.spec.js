@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/app';
-import { canvasElementsByPrefix, canvasFrame, pageRoot, resizeHandle, } from '../fixtures/selectors';
+import { canvasElementsByPrefix, canvasFrame, pageRoot, } from '../fixtures/selectors';
+import { clickInFrame } from '../fixtures/canvas';
 import { layersRowByClass } from '../fixtures/layers';
 import { panelSection } from '../fixtures/panel';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
@@ -68,14 +69,18 @@ test.describe('canvas: paste SVG from clipboard', () => {
             throw new Error('no svg element created');
         // The layers row reads "SVG" (not "Image"/"Rectangle").
         await expect(layersRowByClass(window, cls).getByText('SVG', { exact: true })).toBeVisible();
-        // Deselect via the Page row, then click the svg ON THE CANVAS → it
-        // selects and resize handles appear. Regression: an inline <svg> is an
+        // Deselect by clicking empty canvas (clears the selection toolbar that
+        // floats over the small icon and drops the SVG panel), then click the
+        // svg's coordinates → it selects and the SVG section reappears. The
+        // click drives the interaction chrome overlay's coordinate hit-testing
+        // (the code path under test). Regression: an inline <svg> is an
         // SVGElement, so hit-testing that filtered on `instanceof HTMLElement`
-        // skipped it and its shapes, making it unselectable from the canvas.
-        await layersRowByClass(window, 'root').click();
-        await expect(resizeHandle(window, 'se')).toHaveCount(0);
-        await svg.click();
-        await expect(resizeHandle(window, 'se')).toBeVisible();
+        // skipped it and its shapes, leaving it unselectable from the canvas.
+        // The svg pastes at frame (20,20) at 100×100 → its center is (70,70).
+        await clickInFrame(window, { x: 400, y: 400 });
+        await expect(panelSection(window, 'SVG')).toHaveCount(0);
+        await clickInFrame(window, { x: 70, y: 70 });
+        await expect(panelSection(window, 'SVG')).toBeVisible();
     });
     test('setting Fill in the SVG section recolors the shape', async ({ window, app, }) => {
         await expect(pageRoot(window)).toBeVisible();

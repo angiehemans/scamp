@@ -29,14 +29,7 @@ import { createDocumentSlice } from './canvas/slices/document';
 import { createUiSlice } from './canvas/slices/ui';
 import { createDesignSystemSlice } from './canvas/slices/designSystem';
 import { createProjectSlice } from './canvas/slices/project';
-/**
- * Discrete zoom levels for the canvas. Pressing Cmd/Ctrl+= and Cmd/Ctrl+-
- * walks through this list. Cmd/Ctrl+0 clears the explicit zoom and falls
- * back to "fit-to-container".
- */
-export const ZOOM_STEPS = [
-    0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4,
-];
+export { MIN_ZOOM, MAX_ZOOM } from '@lib/zoom';
 export const useCanvasStore = create()((...a) => ({
     ...createElementsCreateSlice(...a),
     ...createElementsEditSlice(...a),
@@ -53,3 +46,9 @@ export const useCanvasStore = create()((...a) => ({
  * wraps it for useCanvasStore(selectProjectColors).
  */
 export const selectProjectColors = (state) => projectColorsFromElements(state.elements);
+/**
+ * The scale the canvas is actually rendered at: explicit user zoom when
+ * set, otherwise the last-measured auto-fit scale. Single source both the
+ * zoom indicator and the wheel handler anchor on.
+ */
+export const selectEffectiveScale = (state) => state.userZoom ?? state.fitScale;

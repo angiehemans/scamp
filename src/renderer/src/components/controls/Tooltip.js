@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { cloneElement, useLayoutEffect, useRef, useState, } from 'react';
 import { createPortal } from 'react-dom';
+import { resolveTooltipPlacement, TOOLTIP_GAP, } from '@lib/tooltipPlacement';
 import styles from './Tooltip.module.css';
 /**
  * Inset from the viewport edge the tooltip should keep — tooltips
@@ -16,22 +17,28 @@ const VIEWPORT_INSET = 12;
  * The wrapper clones the child and attaches hover/focus handlers — it
  * doesn't add an extra DOM node, so layout of the trigger is preserved.
  */
-export const Tooltip = ({ label, header, children, delay = 400, }) => {
+export const Tooltip = ({ label, header, children, delay = 400, placement = 'auto', }) => {
     const [position, setPosition] = useState(null);
     const timerRef = useRef(null);
     const triggerRef = useRef(null);
     const tooltipRef = useRef(null);
+    // The trigger's rect at show-time, stashed so the post-mount layout
+    // effect can decide placement (needs the tip's measured height) and
+    // anchor to the correct edge.
+    const triggerRectRef = useRef(null);
     const show = () => {
         const el = triggerRef.current;
         if (!el)
             return;
         const rect = el.getBoundingClientRect();
-        // Default: position above the trigger, horizontally centered.
-        // The layout effect below will clamp this to the viewport once
-        // the tooltip's actual width is known.
+        triggerRectRef.current = rect;
+        // Provisional: above the trigger, horizontally centered. The layout
+        // effect below clamps left to the viewport and flips to `bottom`
+        // when there isn't room above, once the tip's height is known.
         setPosition({
             left: rect.left + rect.width / 2,
             top: rect.top,
+            placement: 'top',
         });
     };
     // After the tooltip mounts, measure its rendered width and shift
@@ -43,7 +50,8 @@ export const Tooltip = ({ label, header, children, delay = 400, }) => {
         if (position === null)
             return;
         const tip = tooltipRef.current;
-        if (!tip)
+        const rect = triggerRectRef.current;
+        if (!tip || !rect)
             return;
         const tipWidth = tip.offsetWidth;
         // The tooltip's CSS uses `translate(-50%, ...)`, so `position.left`
@@ -56,10 +64,16 @@ export const Tooltip = ({ label, header, children, delay = 400, }) => {
             nextLeft = maxLeft;
         if (nextLeft < minLeft)
             nextLeft = minLeft;
-        if (nextLeft !== position.left) {
-            setPosition({ left: nextLeft, top: position.top });
+        // Flip below when the trigger is too near the top edge to fit the
+        // bubble above it. Anchor at the trigger's bottom edge when flipped.
+        const nextPlacement = resolveTooltipPlacement(rect.top, tip.offsetHeight + TOOLTIP_GAP, placement);
+        const nextTop = nextPlacement === 'bottom' ? rect.bottom : rect.top;
+        if (nextLeft !== position.left ||
+            nextTop !== position.top ||
+            nextPlacement !== position.placement) {
+            setPosition({ left: nextLeft, top: nextTop, placement: nextPlacement });
         }
-    }, [position]);
+    }, [position, placement]);
     const handleEnter = () => {
         if (timerRef.current !== null)
             window.clearTimeout(timerRef.current);
@@ -102,7 +116,7 @@ export const Tooltip = ({ label, header, children, delay = 400, }) => {
         },
     });
     return (_jsxs(_Fragment, { children: [trigger, position !== null &&
-                createPortal(_jsxs("div", { ref: tooltipRef, className: styles.tooltip, style: {
+                createPortal(_jsxs("div", { ref: tooltipRef, className: `${styles.tooltip} ${position.placement === 'bottom' ? styles.bottom : ''}`, style: {
                         left: position.left,
                         top: position.top,
                     }, role: "tooltip", children: [header !== undefined && (_jsx("p", { className: styles.tooltipHeader, children: header })), _jsx("p", { className: styles.tooltipText, children: label })] }), document.body)] }));

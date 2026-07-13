@@ -136,12 +136,7 @@ export type BottomPanel = 'code' | 'terminal' | 'none';
 export type LeftSidebarTab = 'layers' | 'history';
 /** Properties panel display mode. 'data' is component-scoped. */
 export type PanelMode = 'ui' | 'css' | 'data';
-/**
- * Discrete zoom levels for the canvas. Pressing Cmd/Ctrl+= and Cmd/Ctrl+-
- * walks through this list. Cmd/Ctrl+0 clears the explicit zoom and falls
- * back to "fit-to-container".
- */
-export declare const ZOOM_STEPS: ReadonlyArray<number>;
+export { MIN_ZOOM, MAX_ZOOM } from '@lib/zoom';
 export type CanvasState = {
     elements: Record<string, ScampElement>;
     rootElementId: string;
@@ -185,6 +180,15 @@ export type CanvasState = {
      * as the literal scale (1 === 100%).
      */
     userZoom: number | null;
+    /**
+     * The auto-fit scale the Viewport last measured (fit-to-container
+     * width). Written by the Viewport whenever the scroll container
+     * resizes. Read by `ZoomControls` so it can show the real percentage
+     * while in fit mode (`userZoom === null`), and by the wheel handler as
+     * the anchor scale when continuous-zooming out of fit mode. `1` until
+     * the Viewport takes its first measurement.
+     */
+    fitScale: number;
     /**
      * The breakpoint the user is currently editing. `'desktop'` means
      * edits land on the element's base (top-level) style fields. Any
@@ -559,6 +563,8 @@ export type CanvasState = {
     resetZoom: () => void;
     /** Set the manual zoom to an explicit scale (or null to fit). */
     setZoom: (zoom: number | null) => void;
+    /** Record the Viewport's latest auto-fit scale. */
+    setFitScale: (scale: number) => void;
     setThemeTokens: (tokens: ThemeToken[]) => void;
     /** Callback to open the theme panel. Set by ProjectShell on mount. */
     openThemePanel: (() => void) | null;
@@ -572,3 +578,9 @@ export declare const useCanvasStore: import("zustand").UseBoundStore<import("zus
  * wraps it for useCanvasStore(selectProjectColors).
  */
 export declare const selectProjectColors: (state: CanvasState) => string[];
+/**
+ * The scale the canvas is actually rendered at: explicit user zoom when
+ * set, otherwise the last-measured auto-fit scale. Single source both the
+ * zoom indicator and the wheel handler anchor on.
+ */
+export declare const selectEffectiveScale: (state: CanvasState) => number;

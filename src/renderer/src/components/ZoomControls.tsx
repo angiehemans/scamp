@@ -13,11 +13,28 @@ import styles from './ZoomControls.module.css';
  */
 export const ZoomControls = (): JSX.Element => {
   const userZoom = useCanvasStore((s) => s.userZoom);
+  const fitScale = useCanvasStore((s) => s.fitScale);
   const zoomIn = useCanvasStore((s) => s.zoomIn);
   const zoomOut = useCanvasStore((s) => s.zoomOut);
   const resetZoom = useCanvasStore((s) => s.resetZoom);
+  const setZoom = useCanvasStore((s) => s.setZoom);
 
   const label = userZoom === null ? 'Fit' : `${Math.round(userZoom * 100)}%`;
+  // Real rendered percentage — resolves the "Fit" label to a number on
+  // hover so the user can see what auto-fit actually scaled to.
+  const effectivePct = Math.round((userZoom ?? fitScale) * 100);
+  // The label toggles between fit and 100%: in fit mode a click jumps to
+  // 100% (what the "click …" hint promises); in explicit mode it returns
+  // to fit. Clicking used to be a no-op in fit mode, which the tooltip
+  // wording misleadingly implied would do something.
+  const inFitMode = userZoom === null;
+  const labelTooltip = inFitMode
+    ? `Fit · ${effectivePct}% — click for 100%`
+    : `${effectivePct}% — click to fit`;
+  const handleLabelClick = (): void => {
+    if (inFitMode) setZoom(1);
+    else resetZoom();
+  };
 
   return (
     <div className={styles.controls}>
@@ -31,11 +48,11 @@ export const ZoomControls = (): JSX.Element => {
           −
         </button>
       </Tooltip>
-      <Tooltip label="Reset zoom to fit (Ctrl/Cmd+0)">
+      <Tooltip label={labelTooltip}>
         <button
-          aria-label={`Reset zoom to fit (currently ${label})`}
+          aria-label={labelTooltip}
           className={styles.label}
-          onClick={() => resetZoom()}
+          onClick={handleLabelClick}
           type="button"
         >
           {label}
