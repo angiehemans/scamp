@@ -3,6 +3,7 @@ import { type PointerEvent, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { clampToParent, MIN_SIZE } from '@lib/bounds';
+import { lockedCornerResize, type CornerHandle } from '@lib/aspectRatio';
 
 import { isResizeHandle } from './canvasHitTest';
 import type { CanvasGeometry, ResizeState } from './types';
@@ -30,6 +31,7 @@ export const useResizeInteraction = (
   const elements = useCanvasStore((s) => s.elements);
   const selectedElementIds = useCanvasStore((s) => s.selectedElementIds);
   const resizeElement = useCanvasStore((s) => s.resizeElement);
+  const ratioLocks = useCanvasStore((s) => s.ratioLocks);
   const selectedElementId = selectedElementIds[0] ?? null;
   const isSingleSelection = selectedElementIds.length === 1;
 
@@ -67,6 +69,36 @@ export const useResizeInteraction = (
     const parent = geometry.parentMoveBoundsOf(el.parentId);
     const dx = (e.clientX - resize.pointerStartX) / scale;
     const dy = (e.clientY - resize.pointerStartY) / scale;
+
+    // Ratio-locked: scale proportionally from a corner (edge handles
+    // aren't rendered when locked, but ignore one defensively). Width is
+    // the driver; height follows the frozen ratio. see docs/backlog-6 #1
+    const ratio = ratioLocks[resize.id];
+    if (ratio !== undefined) {
+      const { handle } = resize;
+      if (handle !== 'nw' && handle !== 'ne' && handle !== 'se' && handle !== 'sw') {
+        return true;
+      }
+      const box = lockedCornerResize({
+        handle: handle as CornerHandle,
+        originX: resize.originX,
+        originY: resize.originY,
+        originW: resize.originW,
+        originH: resize.originH,
+        dx,
+        ratio,
+      });
+      const clampedLocked = clampToParent(box.x, box.y, box.w, box.h, parent.w, parent.h);
+      resizeElement(
+        resize.id,
+        Math.round(clampedLocked.x),
+        Math.round(clampedLocked.y),
+        Math.round(clampedLocked.w),
+        Math.round(clampedLocked.h)
+      );
+      return true;
+    }
+
     let { originX: nx, originY: ny, originW: nw, originH: nh } = resize;
     if (resize.handle.includes('e')) nw = Math.max(MIN_SIZE, resize.originW + dx);
     if (resize.handle.includes('s')) nh = Math.max(MIN_SIZE, resize.originH + dy);

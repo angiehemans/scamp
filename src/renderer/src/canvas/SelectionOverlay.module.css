@@ -17,6 +17,42 @@
   pointer-events: auto;
 }
 
+/* Ratio-lock toggle, pinned just outside the selection's top-left corner.
+   `pointer-events: auto` re-enables clicks (the outline sets none). */
+.lockBadge {
+  position: absolute;
+  top: -26px;
+  left: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.lockBadge:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.lockBadgeActive {
+  color: var(--text-inverse);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.lockBadgeActive:hover {
+  color: var(--text-inverse);
+  background: var(--accent);
+}
+
 .handleNw { left: -4px; top: -4px; cursor: nwse-resize; }
 .handleN  { left: 50%; top: -4px; transform: translateX(-50%); cursor: ns-resize; }
 .handleNe { right: -4px; top: -4px; cursor: nesw-resize; }

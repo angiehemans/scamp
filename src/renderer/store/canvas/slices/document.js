@@ -141,5 +141,8 @@ export const createDocumentSlice = (set) => ({
         // Drop the manual zoom too — we want a fresh project to start in
         // fit-to-container mode regardless of the previous session.
         userZoom: null,
+        // Ratio locks are keyed by element id; drop them so ids from the
+        // old page can't collide with the new page's elements.
+        ratioLocks: {},
     }),
 });

@@ -1,0 +1,31 @@
+/* Aspect-ratio lock toggle — right-aligned on the Size section title row. */
+.lockButton {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 6px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.lockButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Locked: use the accent so the linked state reads at a glance. */
+.lockButtonActive {
+  color: var(--accent);
+  border-color: var(--border);
+}
+
+.lockButtonActive:hover {
+  color: var(--accent);
+}

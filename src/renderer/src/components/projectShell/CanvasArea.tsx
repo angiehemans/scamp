@@ -2,6 +2,7 @@ import { type RefObject } from 'react';
 
 import type { ProjectConfig } from '@shared/types';
 import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
+import { resolveClip } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useSnapshotsStore } from '@store/snapshotsSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
@@ -40,6 +41,15 @@ export const CanvasArea = ({
   onOpenTheme,
 }: Props): JSX.Element => {
   const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
+  const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
+  const isComponent = activeComponent !== null;
+  // Clip: component editor has no breakpoints → single legacy flag; page
+  // canvas → per-breakpoint map. Fixed height applies to the page canvas
+  // only (component canvas already carries an explicit design height).
+  const clipContent = isComponent
+    ? projectConfig.canvasOverflowHidden
+    : resolveClip(projectConfig, activeBreakpointId);
+  const pageHeightIsFixed = !isComponent && projectConfig.canvasFixedHeight === true;
 
   const handleRestorePreview = (): void => {
     void useSnapshotsStore.getState().restorePreview();
@@ -177,9 +187,12 @@ export const CanvasArea = ({
               activeComponent !== null
                 ? (projectConfig.componentCanvas?.[activeComponent.name]
                     ?.height ?? DEFAULT_COMPONENT_CANVAS_SIZE.height)
-                : undefined
+                : pageHeightIsFixed
+                  ? projectConfig.canvasHeight
+                  : undefined
             }
-            canvasOverflowHidden={projectConfig.canvasOverflowHidden}
+            heightIsFixed={pageHeightIsFixed}
+            clipContent={clipContent}
             scrollContainerRef={artboardScrollRef}
             // Drag-handle resize is enabled only in component
             // mode; the page canvas uses the project-wide

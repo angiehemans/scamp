@@ -480,6 +480,13 @@ font-size: 11px !important;
   font-family: var(--font-ui);
 }
 
+/* Disabled options (e.g. Hug/Auto without a Flex/Grid layout) default to a
+ * very light browser grey that's hard to read — darken to the muted text
+ * token so they stay legible while still reading as unavailable. */
+.select option:disabled {
+  color: var(--text-secondary);
+}
+
 .segmented {
   display: flex;
   height: var(--control-h);

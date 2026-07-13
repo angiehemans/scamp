@@ -190,6 +190,15 @@ export type CanvasState = {
      */
     fitScale: number;
     /**
+     * Per-element locked aspect ratio (width / height), keyed by element id.
+     * A present entry means the element's ratio is locked; the number is the
+     * ratio frozen at lock time. Session-only UI state — never written to the
+     * element model, CSS, or disk. Same per-element-map shape as
+     * `cssDuplicates`. Enabling a lock converts non-fixed axes to fixed (see
+     * `toggleRatioLock`), so a present entry implies both axes are `fixed`.
+     */
+    ratioLocks: Record<string, number>;
+    /**
      * The breakpoint the user is currently editing. `'desktop'` means
      * edits land on the element's base (top-level) style fields. Any
      * other id means edits land in `element.breakpointOverrides[id]`
@@ -565,6 +574,20 @@ export type CanvasState = {
     setZoom: (zoom: number | null) => void;
     /** Record the Viewport's latest auto-fit scale. */
     setFitScale: (scale: number) => void;
+    /**
+     * Toggle the aspect-ratio lock for an element. Enabling captures the
+     * current width/height ratio; if either axis isn't `fixed`, it is first
+     * converted to fixed px using `measured` (the element's rendered size),
+     * falling back to the stored fallback value when a measurement is absent.
+     * Disabling drops the lock. No-op when the element is missing or has a
+     * zero dimension.
+     */
+    toggleRatioLock: (id: string, measured?: {
+        width?: number;
+        height?: number;
+    }) => void;
+    /** Drop an element's ratio lock (used when an axis leaves `fixed`). */
+    clearRatioLock: (id: string) => void;
     setThemeTokens: (tokens: ThemeToken[]) => void;
     /** Callback to open the theme panel. Set by ProjectShell on mount. */
     openThemePanel: (() => void) | null;
@@ -584,3 +607,10 @@ export declare const selectProjectColors: (state: CanvasState) => string[];
  * zoom indicator and the wheel handler anchor on.
  */
 export declare const selectEffectiveScale: (state: CanvasState) => number;
+/**
+ * Whether an element's aspect-ratio lock is currently in effect. True only
+ * when a lock entry exists AND both axes are `fixed` — so the lock stops
+ * having an effect the moment an axis leaves fixed, even if a stale entry
+ * lingers (belt-and-suspenders with `clearRatioLock`). `null` id → false.
+ */
+export declare const selectIsRatioLocked: (state: CanvasState, id: string | null) => boolean;

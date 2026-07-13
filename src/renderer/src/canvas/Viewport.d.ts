@@ -26,15 +26,19 @@ type Props = {
     /** Viewport width in logical pixels, from scamp.config.json. */
     canvasWidth: number;
     /**
-     * Optional explicit canvas height in logical pixels. When set,
-     * the frame uses this as a fixed height instead of growing with
-     * content (the page-canvas default). Used by the component
-     * editor where the canvas is bounded by design intent rather
-     * than content reach.
+     * Optional explicit canvas height in logical pixels. In the component
+     * editor it's a MIN (the frame grows past it with content). For the
+     * page canvas with `heightIsFixed`, it's an EXACT height.
      */
     canvasHeight?: number;
-    /** When true, the frame clips content that extends outside its width. */
-    canvasOverflowHidden: boolean;
+    /**
+     * When true, `canvasHeight` is an exact frame height (page fixed-height
+     * mode) rather than a minimum. The component editor leaves this false so
+     * its canvas still grows with content past the configured height.
+     */
+    heightIsFixed?: boolean;
+    /** When true, the frame clips content that extends outside its bounds. */
+    clipContent: boolean;
     /** The artboard scroll container, used for fit-to-width measurement. */
     scrollContainerRef: RefObject<HTMLElement | null>;
     /**
@@ -47,5 +51,5 @@ type Props = {
      */
     onResize?: (width: number, height: number) => void;
 };
-export declare const Viewport: ({ canvasWidth, canvasHeight, canvasOverflowHidden, scrollContainerRef, onResize, }: Props) => JSX.Element;
+export declare const Viewport: ({ canvasWidth, canvasHeight, heightIsFixed, clipContent, scrollContainerRef, onResize, }: Props) => JSX.Element;
 export {};

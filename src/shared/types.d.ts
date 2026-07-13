@@ -151,8 +151,35 @@ export type ProjectConfig = {
      * its width. Useful for previewing how a layout behaves at a
      * specific width without content spilling. Does NOT affect the
      * root element's CSS.
+     *
+     * Retained for the COMPONENT editor (which has no breakpoints) and as
+     * the legacy migration source for `canvasClipByBreakpoint`. Page-canvas
+     * clip now lives in the per-breakpoint map below.
      */
     canvasOverflowHidden: boolean;
+    /**
+     * Page-canvas "Clip content" state, per breakpoint id (see
+     * `config.breakpoints`). Present+`true` means the page canvas clips at
+     * that breakpoint's width; absent/`false` means content spills with an
+     * overflow indicator. Keyed by breakpoint so turning clip on at Mobile
+     * doesn't affect Desktop. Custom (non-preset) widths read/write the
+     * `desktop` key (the active breakpoint drops to desktop for a custom
+     * width). Canvas-view-only — never affects CSS output.
+     */
+    canvasClipByBreakpoint?: Record<string, boolean>;
+    /**
+     * Fixed page-canvas height in logical px. Only honored when
+     * `canvasFixedHeight` is true; otherwise the page canvas grows with
+     * content. Lets the user simulate a specific screen height. Bounded by
+     * the canvas-width range for symmetry. Canvas-view-only.
+     */
+    canvasHeight?: number;
+    /**
+     * When true, the page canvas uses `canvasHeight` as an exact height
+     * (content beyond it clips or shows a vertical overflow indicator)
+     * rather than growing with content. Canvas-view-only.
+     */
+    canvasFixedHeight?: boolean;
     /**
      * One-shot flag — set after the user has dismissed the canvas-size
      * migration banner. Once true, the banner never shows again for

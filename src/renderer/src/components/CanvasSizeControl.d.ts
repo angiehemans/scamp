@@ -25,8 +25,9 @@ type Props = {
  *   - A custom-width input. Typing a value that doesn't match any
  *     breakpoint drops the active breakpoint to `desktop` so edits
  *     apply to the base CSS.
- *   - An overflow-hidden toggle (a viewport-frame preview helper,
- *     never written to CSS).
+ *   - A "Clip content" toggle (per breakpoint for pages) and a
+ *     "Fixed height" toggle + input. All viewport-frame preview
+ *     helpers — never written to CSS.
  */
 export declare const CanvasSizeControl: ({ config, onChange, componentName, }: Props) => JSX.Element;
 export {};

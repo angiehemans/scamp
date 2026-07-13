@@ -1,13 +1,15 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useAppLogStore } from '@store/appLogSlice';
 import { wouldCreateComponentCycle } from '@lib/componentUsage';
 import { nextZoomFromWheel } from '@lib/zoom';
 import { DEFAULT_BODY_FONT_FAMILY, } from '@shared/agentMd';
 import { MAX_COMPONENT_CANVAS_DIM, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
+import { overflowExtent } from '@lib/canvasOverflow';
 import { ElementRenderer } from './ElementRenderer';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
+import { CanvasBoundaryOverlay } from './CanvasBoundaryOverlay';
 import styles from './Viewport.module.css';
 // Padding subtracted from the scroll container's inner width when
 // computing fit-to-width zoom. Mirrors the artboard's horizontal
@@ -23,14 +25,26 @@ const FRAME_FIT_INSET = 40;
  * to distribute within.
  */
 export const EMPTY_FRAME_MIN_HEIGHT = 900;
-export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scrollContainerRef, onResize, }) => {
+export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, clipContent, scrollContainerRef, onResize, }) => {
     const frameRef = useRef(null);
     const [scale, setScale] = useState(1);
     // Tracks the frame's natural (pre-scale) height so the frameShell
     // reserves the correct scrolled-space footprint after the frame's
     // own content grows.
     const [frameH, setFrameH] = useState(0);
+    // Logical content extent (rightmost / bottommost rendered edge)
+    // measured from element bounding boxes. Drives the boundary overlay
+    // AND the frameShell expansion that keeps off-canvas content visible
+    // and scrollable when clip is off. Measured from getBoundingClientRect
+    // (not scrollWidth) because `overflow: visible` reports scrollWidth ===
+    // clientWidth, so a scroll-box measure would miss overflow while clip
+    // is off — exactly when we need it.
+    const [content, setContent] = useState({ right: 0, bottom: 0 });
     const rootElementId = useCanvasStore((s) => s.rootElementId);
+    // Subscribe to the element tree so overflow is re-measured after any
+    // edit — a child overflowing horizontally doesn't change the frame's
+    // own box, so a ResizeObserver on the frame alone wouldn't fire.
+    const elements = useCanvasStore((s) => s.elements);
     // Canvas resize handles only show when the root is selected —
     // matches the per-element selection-handle pattern (handles
     // appear on the active selection, nothing else). Tracking the
@@ -74,6 +88,12 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
     const frameW = canvasWidth;
     // Auto-fit scale derived from the scroll container's client width.
     const [fitScale, setLocalFitScale] = useState(1);
+    // Fit the CONTENT width (canvas + any overflow) when clip is off, so
+    // overflowing elements AND the boundary line stay on screen — the user
+    // needs to see what's spilling past the canvas to fix it. When clip is
+    // on, fit the canvas width only (overflow is hidden anyway). `content`
+    // is measured in logical (scale-invariant) px, so this doesn't loop.
+    const fitWidth = clipContent ? frameW : Math.max(frameW, content.right);
     useLayoutEffect(() => {
         const container = scrollContainerRef.current;
         if (!container)
@@ -84,7 +104,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
                 return;
             // Width-only fit — tall pages scroll vertically inside the
             // artboard instead of squashing. Never scale up past 1.0.
-            const next = Math.min(w / frameW, 1);
+            const next = Math.min(w / fitWidth, 1);
             setLocalFitScale(next);
             // Mirror into the store so the zoom indicator can show the real
             // percentage in fit mode and the wheel handler can anchor on it.
@@ -94,7 +114,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
         const ro = new ResizeObserver(measure);
         ro.observe(container);
         return () => ro.disconnect();
-    }, [frameW, scrollContainerRef, setFitScale]);
+    }, [fitWidth, scrollContainerRef, setFitScale]);
     // Effective scale: explicit user zoom wins, otherwise auto-fit.
     useLayoutEffect(() => {
         setScale(userZoom ?? fitScale);
@@ -145,22 +165,46 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
         container.scrollLeft += anchor.logicalX * anchor.delta;
         container.scrollTop += anchor.logicalY * anchor.delta;
     }, [scale, scrollContainerRef]);
-    // Track the frame's natural (pre-scale) height. `transform: scale`
-    // doesn't affect layout, so without this the wrapper would reserve
-    // logical space only and scrolling would be wrong when the user
-    // zooms in. Re-observe on frame remount for a live subscription.
+    // Measure the frame's natural (pre-scale) height AND its overflow past
+    // the canvas bounds. `transform: scale` doesn't affect layout, so we
+    // need frameH to reserve the right scrolled-space footprint; the scroll
+    // box gives overflow (`scrollWidth`/`scrollHeight` include overflowing
+    // descendants even under `overflow: hidden`).
+    const measureFrame = useCallback(() => {
+        const frame = frameRef.current;
+        if (!frame)
+            return;
+        setFrameH(frame.offsetHeight);
+        // Content extent = the furthest right/bottom rendered element edge,
+        // in the frame's LOGICAL (pre-scale) coordinates. The applied scale
+        // is recovered from the frame's own client rect vs its layout width
+        // so we don't depend on the `scale` state (avoids a stale closure).
+        const frameRect = frame.getBoundingClientRect();
+        const appliedScale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1;
+        let right = frame.clientWidth;
+        let bottom = frame.clientHeight;
+        for (const node of frame.querySelectorAll('[data-element-id]')) {
+            const r = node.getBoundingClientRect();
+            right = Math.max(right, (r.right - frameRect.left) / appliedScale);
+            bottom = Math.max(bottom, (r.bottom - frameRect.top) / appliedScale);
+        }
+        setContent({ right: Math.round(right), bottom: Math.round(bottom) });
+    }, []);
     useEffect(() => {
         const frame = frameRef.current;
         if (!frame)
             return;
-        const measure = () => {
-            setFrameH(frame.offsetHeight);
-        };
-        measure();
-        const ro = new ResizeObserver(measure);
+        measureFrame();
+        const ro = new ResizeObserver(measureFrame);
         ro.observe(frame);
         return () => ro.disconnect();
-    }, []);
+    }, [measureFrame]);
+    // Horizontal overflow doesn't change the frame's own box, so the
+    // ResizeObserver above won't fire on it — re-measure on tree / size
+    // changes too.
+    useLayoutEffect(() => {
+        measureFrame();
+    }, [elements, frameW, canvasHeight, heightIsFixed, clipContent, measureFrame]);
     // Drop target for the sidebar's component drag-and-drop. The
     // `onDragOver` preventDefault is the HTML5-DnD opt-in that
     // makes the element a valid drop target; we gate it on our
@@ -255,43 +299,62 @@ export const Viewport = ({ canvasWidth, canvasHeight, canvasOverflowHidden, scro
         target.addEventListener('pointerup', onUp);
         target.addEventListener('pointercancel', onUp);
     };
-    // Frame-shell reserved height follows the LARGER of the
-    // user-set min and the measured content height — so a small
-    // canvas grows as the user adds elements past it. For page
-    // mode (no canvasHeight), `frameH` is the only signal.
-    const reservedHeight = canvasHeight !== undefined ? Math.max(canvasHeight, frameH) : frameH;
-    return (_jsx("div", { className: styles.frameShell, style: {
-            width: frameW * scale,
-            height: reservedHeight * scale,
-        }, children: _jsxs("div", { ref: frameRef, className: styles.frame, "data-testid": "canvas-frame", "data-canvas-width": frameW, "data-canvas-scale": scale, "data-cursor": activeTool === 'rectangle' || activeTool === 'image'
-                ? 'crosshair'
-                : activeTool === 'text'
-                    ? 'text'
-                    : 'default', onDragOver: handleDragOver, onDrop: handleDrop, style: {
-                // Project theme tokens live on the frame as real CSS custom
-                // properties, so `var(--…)` references inside any descendant
-                // (typed inline styles, customProperties, hand-written CSS
-                // in CodeMirror) resolve natively. MUST spread first so the
-                // explicit style properties below win on key collisions.
-                ...themeCssVars,
-                width: `${frameW}px`,
-                // Component mode: `canvasHeight` is a MIN — the canvas
-                // grows past it as the user adds elements that overflow.
-                // Page mode falls back to the EMPTY_FRAME_MIN_HEIGHT
-                // floor so blank pages have a visible canvas to draw on.
-                minHeight: `${canvasHeight ?? EMPTY_FRAME_MIN_HEIGHT}px`,
-                overflow: canvasOverflowHidden ? 'hidden' : undefined,
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
-                // Mirror the project's `body { font-family: var(--font-sans) }`
-                // rule from theme.css so an unstyled element on the canvas
-                // renders in the same font as in preview / `next dev` /
-                // production. Without this, the canvas inherits Scamp's
-                // chrome font (Ubuntu Mono on Linux, San Francisco on
-                // macOS, etc.) and visually disagrees with the preview.
-                fontFamily: themeFontFamily,
-                position: 'relative',
-            }, children: [_jsx(CanvasKeyframes, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale }), onResize && isRootSelected && (_jsxs(_Fragment, { children: [_jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTL}`, onPointerDown: makeResizePointerDown('tl'), "aria-label": "Resize canvas (top-left)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTR}`, onPointerDown: makeResizePointerDown('tr'), "aria-label": "Resize canvas (top-right)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBL}`, onPointerDown: makeResizePointerDown('bl'), "aria-label": "Resize canvas (bottom-left)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBR}`, onPointerDown: makeResizePointerDown('br'), "aria-label": "Resize canvas (bottom-right)", title: "Drag to resize" })] }))] }) }));
+    // Frame-shell reserved height:
+    //   - page fixed-height → EXACTLY `canvasHeight` (content clips /
+    //     overflows past it rather than growing the frame).
+    //   - component mode → LARGER of the user-set min and measured content
+    //     (grows as elements are added past the min).
+    //   - page auto-height → `frameH` (grows with content).
+    const reservedHeight = heightIsFixed && canvasHeight !== undefined
+        ? canvasHeight
+        : canvasHeight !== undefined
+            ? Math.max(canvasHeight, frameH)
+            : frameH;
+    // Overflow past the canvas boundary (logical px). The vertical figure
+    // is only surfaced in fixed-height mode; the overlay gates on that.
+    const overflowX = overflowExtent(content.right, frameW);
+    const overflowY = overflowExtent(content.bottom, reservedHeight);
+    // When clip is OFF, the frameShell must reserve the overflowing content
+    // so the artboard can scroll to it (otherwise it's visually clipped by
+    // the scroll container). When clip is ON, the shell stays at the canvas
+    // bounds and the frame's `overflow: hidden` does the clipping.
+    const shellWidth = (clipContent ? frameW : Math.max(frameW, content.right)) * scale;
+    const shellHeight = (clipContent ? reservedHeight : Math.max(reservedHeight, content.bottom)) *
+        scale;
+    return (_jsxs("div", { className: styles.frameShell, style: {
+            width: shellWidth,
+            height: shellHeight,
+        }, children: [_jsxs("div", { ref: frameRef, className: styles.frame, "data-testid": "canvas-frame", "data-canvas-width": frameW, "data-canvas-scale": scale, "data-cursor": activeTool === 'rectangle' || activeTool === 'image'
+                    ? 'crosshair'
+                    : activeTool === 'text'
+                        ? 'text'
+                        : 'default', onDragOver: handleDragOver, onDrop: handleDrop, style: {
+                    // Project theme tokens live on the frame as real CSS custom
+                    // properties, so `var(--…)` references inside any descendant
+                    // (typed inline styles, customProperties, hand-written CSS
+                    // in CodeMirror) resolve natively. MUST spread first so the
+                    // explicit style properties below win on key collisions.
+                    ...themeCssVars,
+                    width: `${frameW}px`,
+                    // Page fixed-height mode pins an EXACT height. Otherwise
+                    // `canvasHeight` is a MIN (component mode grows past it), and
+                    // page mode falls back to the EMPTY_FRAME_MIN_HEIGHT floor so
+                    // blank pages have a visible canvas to draw on.
+                    ...(heightIsFixed && canvasHeight !== undefined
+                        ? { height: `${canvasHeight}px` }
+                        : { minHeight: `${canvasHeight ?? EMPTY_FRAME_MIN_HEIGHT}px` }),
+                    overflow: clipContent ? 'hidden' : undefined,
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top left',
+                    // Mirror the project's `body { font-family: var(--font-sans) }`
+                    // rule from theme.css so an unstyled element on the canvas
+                    // renders in the same font as in preview / `next dev` /
+                    // production. Without this, the canvas inherits Scamp's
+                    // chrome font (Ubuntu Mono on Linux, San Francisco on
+                    // macOS, etc.) and visually disagrees with the preview.
+                    fontFamily: themeFontFamily,
+                    position: 'relative',
+                }, children: [_jsx(CanvasKeyframes, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale }), onResize && isRootSelected && (_jsxs(_Fragment, { children: [_jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTL}`, onPointerDown: makeResizePointerDown('tl'), "aria-label": "Resize canvas (top-left)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTR}`, onPointerDown: makeResizePointerDown('tr'), "aria-label": "Resize canvas (top-right)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBL}`, onPointerDown: makeResizePointerDown('bl'), "aria-label": "Resize canvas (bottom-left)", title: "Drag to resize" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBR}`, onPointerDown: makeResizePointerDown('br'), "aria-label": "Resize canvas (bottom-right)", title: "Drag to resize" })] }))] }), _jsx(CanvasBoundaryOverlay, { scale: scale, boundaryWidth: frameW, boundaryHeight: reservedHeight, overflowX: overflowX, overflowY: overflowY, naturalHeight: content.bottom, clip: clipContent, fixedHeight: heightIsFixed })] }));
 };
 /**
  * Mounts a `<style>` element inside the canvas frame containing the

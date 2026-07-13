@@ -52,3 +52,15 @@ export const selectProjectColors = (state) => projectColorsFromElements(state.el
  * zoom indicator and the wheel handler anchor on.
  */
 export const selectEffectiveScale = (state) => state.userZoom ?? state.fitScale;
+/**
+ * Whether an element's aspect-ratio lock is currently in effect. True only
+ * when a lock entry exists AND both axes are `fixed` — so the lock stops
+ * having an effect the moment an axis leaves fixed, even if a stale entry
+ * lingers (belt-and-suspenders with `clearRatioLock`). `null` id → false.
+ */
+export const selectIsRatioLocked = (state, id) => {
+    if (!id || state.ratioLocks[id] === undefined)
+        return false;
+    const el = state.elements[id];
+    return el?.widthMode === 'fixed' && el?.heightMode === 'fixed';
+};

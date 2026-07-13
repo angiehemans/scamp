@@ -1,5 +1,5 @@
 import { MouseEvent, PointerEvent, RefObject, useLayoutEffect, useRef, useState } from 'react';
-import { useCanvasStore } from '@store/canvasSlice';
+import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { SelectionOverlay } from './SelectionOverlay';
 import { DrawPreview } from './DrawPreview';
@@ -55,6 +55,10 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const selectElement = useCanvasStore((s) => s.selectElement);
   const toggleSelectElement = useCanvasStore((s) => s.toggleSelectElement);
   const setEditingElement = useCanvasStore((s) => s.setEditingElement);
+  const toggleRatioLock = useCanvasStore((s) => s.toggleRatioLock);
+  const ratioLocked = useCanvasStore((s) =>
+    selectIsRatioLocked(s, selectedElementId)
+  );
 
   // Frame-local geometry helpers (coord conversion, DOM measurement,
   // parent-bounds lookups) shared by every pointer handler.
@@ -257,6 +261,20 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
           width={selectedRect.w}
           height={selectedRect.h}
           showHandles={selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl)}
+          ratioLocked={ratioLocked}
+          onToggleLock={
+            selectedElementId
+              ? () => {
+                  // Measure the rendered size so a non-fixed axis can be
+                  // snapped to fixed on lock (see toggleRatioLock).
+                  const rect = measureElementInFrame(selectedElementId);
+                  toggleRatioLock(
+                    selectedElementId,
+                    rect ? { width: rect.w, height: rect.h } : undefined
+                  );
+                }
+              : undefined
+          }
         />
       )}
       <LinkIndicators frameRef={frameRef} />

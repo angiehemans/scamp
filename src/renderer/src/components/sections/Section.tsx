@@ -56,6 +56,13 @@ type Props = {
      *  section's `title`. */
     label?: string;
   };
+  /**
+   * Optional control rendered right-aligned on the title row (e.g. the
+   * Size section's ratio-lock toggle). Only honored on non-collapsible
+   * sections — the collapsible title row is itself a `<button>`, so
+   * nesting an interactive control there would be invalid.
+   */
+  titleAccessory?: ReactNode;
 };
 
 /**
@@ -76,6 +83,7 @@ export const Section = ({
   fields,
   cssProperties,
   groupToggle,
+  titleAccessory,
 }: Props): JSX.Element => {
   const [open, setOpen] = useState(defaultOpen);
   const overrideInfo = useOverrideIndicator(elementId, fields);
@@ -175,6 +183,9 @@ export const Section = ({
             {duplicateDot}
             {overrideDot}
             {groupToggleButton}
+            {titleAccessory && (
+              <span className={styles.titleAccessory}>{titleAccessory}</span>
+            )}
           </div>
         )}
         {wrappedContent}

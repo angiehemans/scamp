@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useCanvasStore } from '@store/canvasSlice';
+import { IconLink, IconLinkOff } from '@tabler/icons-react';
+import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import type {
   GridSelfAlign,
   HeightMode,
-  ScampElement,
   WidthMode,
 } from '@lib/element';
 import { formatSizeValue, parseSizeValue } from '@lib/parsers';
+import { lockedSizePatch } from '@lib/aspectRatio';
 import { Section, Row } from './Section';
+import styles from './SizeSection.module.css';
 
 type Props = {
   elementId: string;
@@ -126,63 +128,13 @@ const useMeasuredSize = (
   return size;
 };
 
-/**
- * Compute the `patchElement` patch for the W input. Runs the typed
- * input through `parseSizeValue` so the user can write any CSS
- * length:
- *   - `100`, `100px` → fixed-px
- *   - `100%` → stretch
- *   - `auto`, `fit-content` → matching keyword mode
- *   - `100vh`, `2em`, `calc(...)`, `var(--w)` → fixed with the
- *     verbatim string preserved in `widthCustom`
- *
- * For non-fixed modes, leave `widthValue` alone (preserves the
- * user's last fixed-px value so toggling back via the dropdown
- * brings it back). Always clear `widthCustom` for non-fixed modes
- * and for plain px input so stale verbatim strings don't linger.
- */
-const sizePatchForWidth = (
-  element: ScampElement,
-  raw: string
-): Partial<ScampElement> => {
-  const parsed = parseSizeValue(raw);
-  if (parsed.mode === 'fixed') {
-    return {
-      widthMode: 'fixed',
-      widthValue: parsed.value,
-      widthCustom: parsed.custom,
-    };
-  }
-  return {
-    widthMode: parsed.mode,
-    widthValue: element.widthValue,
-    widthCustom: undefined,
-  };
-};
-
-/** Same shape as `sizePatchForWidth`, but for the H input. */
-const sizePatchForHeight = (
-  element: ScampElement,
-  raw: string
-): Partial<ScampElement> => {
-  const parsed = parseSizeValue(raw);
-  if (parsed.mode === 'fixed') {
-    return {
-      heightMode: 'fixed',
-      heightValue: parsed.value,
-      heightCustom: parsed.custom,
-    };
-  }
-  return {
-    heightMode: parsed.mode,
-    heightValue: element.heightValue,
-    heightCustom: undefined,
-  };
-};
-
 export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
   const patchElement = useCanvasStore((s) => s.patchElement);
+  const toggleRatioLock = useCanvasStore((s) => s.toggleRatioLock);
+  const clearRatioLock = useCanvasStore((s) => s.clearRatioLock);
+  const ratioLocked = useCanvasStore((s) => selectIsRatioLocked(s, elementId));
+  const lockedRatio = useCanvasStore((s) => s.ratioLocks[elementId]);
   // Whether THIS element's parent is a grid container — drives the
   // grid-item controls below.
   const parentIsGrid = useCanvasStore((s) => {
@@ -196,10 +148,78 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   const measured = useMeasuredSize(elementId, element.widthMode, element.heightMode);
   const isWidthFixed = element.widthMode === 'fixed';
   const isHeightFixed = element.heightMode === 'fixed';
+  // "Hug" (fit-content) and "Auto" size an element to its content. A plain
+  // rectangle that isn't a flex/grid container has no content mechanism —
+  // its absolutely-positioned children don't contribute to an auto size —
+  // so those modes collapse it to ~0. Disable them there. Text / input /
+  // image / component-instance size to intrinsic or rendered content, and
+  // flex/grid rectangles hug their children, so all keep every mode.
+  const contentSizingDisabled =
+    element.type === 'rectangle' &&
+    element.display !== 'flex' &&
+    element.display !== 'grid';
+  const gateContentModes = <M extends WidthMode | HeightMode>(
+    options: ReadonlyArray<{ value: M; label: string }>
+  ): ReadonlyArray<{ value: M; label: string; disabled?: boolean }> =>
+    contentSizingDisabled
+      ? options.map((o) =>
+          o.value === 'fit-content' || o.value === 'auto'
+            ? { ...o, disabled: true }
+            : o
+        )
+      : options;
+  const modeSelectTitle = (axis: 'Width' | 'Height'): string =>
+    contentSizingDisabled
+      ? `${axis} mode — Hug and Auto need a Flex or Grid layout`
+      : `${axis} mode`;
+  // Ratio to feed the commit helpers — only when the lock is actually in
+  // effect (both axes fixed). `lockedRatio` may be undefined when unlocked.
+  const activeRatio = ratioLocked ? lockedRatio ?? null : null;
+
+  // A committed W/H edit that lands a non-fixed mode drops the lock (a
+  // stretch/auto axis can't be ratio-locked). When locked+fixed, the
+  // paired dimension is recomputed inside `lockedSizePatch`.
+  const handleCommitWidth = (raw: string): void => {
+    if (parseSizeValue(raw).mode !== 'fixed') clearRatioLock(elementId);
+    patchElement(elementId, lockedSizePatch(element, 'width', raw, activeRatio));
+  };
+  const handleCommitHeight = (raw: string): void => {
+    if (parseSizeValue(raw).mode !== 'fixed') clearRatioLock(elementId);
+    patchElement(elementId, lockedSizePatch(element, 'height', raw, activeRatio));
+  };
+  const handleToggleLock = (): void => {
+    // Pass the measured render size so a non-fixed axis can be snapped to
+    // fixed on lock (undefined axes fall back to the stored value).
+    toggleRatioLock(elementId, {
+      width: measured.width,
+      height: measured.height,
+    });
+  };
+
+  // Ratio-lock toggle, hoisted onto the section's title row (right-aligned).
+  const lockButton = (
+    <button
+      type="button"
+      className={`${styles.lockButton} ${
+        ratioLocked ? styles.lockButtonActive : ''
+      }`}
+      onClick={handleToggleLock}
+      aria-pressed={ratioLocked}
+      title={
+        ratioLocked
+          ? 'Unlock aspect ratio'
+          : 'Lock aspect ratio — width and height scale together'
+      }
+    >
+      {ratioLocked ? <IconLink size={13} /> : <IconLinkOff size={13} />}
+      {ratioLocked ? 'Ratio locked' : 'Lock ratio'}
+    </button>
+  );
 
   return (
     <Section
       title="Size"
+      titleAccessory={lockButton}
       elementId={elementId}
       fields={[
         'widthMode',
@@ -243,23 +263,22 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
                 : ''
           }
           placeholder={isWidthFixed ? undefined : element.widthMode}
-          onCommit={(raw) =>
-            patchElement(elementId, sizePatchForWidth(element, raw))
-          }
+          onCommit={handleCommitWidth}
           computed={!isWidthFixed}
         />
         <EnumSelect<WidthMode>
           value={element.widthMode}
-          options={WIDTH_MODE_OPTIONS}
-          onChange={(mode) =>
+          options={gateContentModes(WIDTH_MODE_OPTIONS)}
+          onChange={(mode) => {
+            if (mode !== 'fixed') clearRatioLock(elementId);
             patchElement(
               elementId,
               mode === 'fixed'
                 ? { widthMode: 'fixed', widthCustom: undefined }
                 : { widthMode: mode, widthCustom: undefined }
-            )
-          }
-          title="Width mode"
+            );
+          }}
+          title={modeSelectTitle('Width')}
         />
       </Row>
       <Row label="">
@@ -282,23 +301,22 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
                 : ''
           }
           placeholder={isHeightFixed ? undefined : element.heightMode}
-          onCommit={(raw) =>
-            patchElement(elementId, sizePatchForHeight(element, raw))
-          }
+          onCommit={handleCommitHeight}
           computed={!isHeightFixed}
         />
         <EnumSelect<HeightMode>
           value={element.heightMode}
-          options={HEIGHT_MODE_OPTIONS}
-          onChange={(mode) =>
+          options={gateContentModes(HEIGHT_MODE_OPTIONS)}
+          onChange={(mode) => {
+            if (mode !== 'fixed') clearRatioLock(elementId);
             patchElement(
               elementId,
               mode === 'fixed'
                 ? { heightMode: 'fixed', heightCustom: undefined }
                 : { heightMode: mode, heightCustom: undefined }
-            )
-          }
-          title="Height mode"
+            );
+          }}
+          title={modeSelectTitle('Height')}
         />
       </Row>
       {parentIsGrid && (

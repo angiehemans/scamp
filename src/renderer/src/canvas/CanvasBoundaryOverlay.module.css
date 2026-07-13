@@ -1,0 +1,63 @@
+/* Boundary indicators overlaying the scaled canvas frame. The overlay
+   fills the frameShell; children mark the canvas edges via inline offsets.
+   Informational only — never intercept pointer events (the shell re-enables
+   events on its direct children, so this must opt back out). */
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Amber dashed line at the canvas right edge (horizontal overflow).
+   `left` is set inline to the boundary; the line spans the full height. */
+.edgeRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed var(--status-warn);
+}
+
+/* Amber dashed line at the canvas bottom edge (vertical overflow).
+   `top` is set inline to the boundary; the line spans the full width. */
+.edgeBottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--status-warn);
+}
+
+/* Subtle line where content naturally ends, shown when clip is on. */
+.naturalRule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--status-warn);
+  opacity: 0.4;
+}
+
+/* Overflow amount pill, annotating the edge it sits on. */
+.label {
+  position: absolute;
+  padding: 1px 5px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--status-warn);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Right-edge label: hang it just right of the line, near the top. */
+.edgeRight .label {
+  top: 6px;
+  left: 4px;
+}
+
+/* Bottom-edge label: sit just below the line, near the right. */
+.edgeBottom .label {
+  top: 4px;
+  right: 4px;
+}

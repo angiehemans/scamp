@@ -33,6 +33,31 @@ export const switchBreakpoint = async (
 };
 
 /**
+ * Toggle the "Clip content" checkbox in the canvas-size popover to the
+ * given state. Leaves the popover closed. Clip is per-breakpoint, so
+ * this writes the currently-active breakpoint's entry.
+ */
+export const setClipContent = async (
+  page: Page,
+  on: boolean
+): Promise<void> => {
+  await canvasSizeButton(page).click();
+  const checkbox = canvasSizePopover(page).getByRole('checkbox', {
+    name: 'Clip content',
+  });
+  if ((await checkbox.isChecked()) !== on) await checkbox.click();
+  await expect(checkbox).toBeChecked({ checked: on });
+  await page.keyboard.press('Escape');
+  await expect(canvasSizePopover(page)).toHaveCount(0);
+};
+
+/** Read the canvas frame's effective `overflow` (hidden when clip is on). */
+export const frameOverflow = async (page: Page): Promise<string> =>
+  page
+    .locator('[data-testid="canvas-frame"]')
+    .evaluate((el) => getComputedStyle(el).overflowX);
+
+/**
  * Open the project-settings full-page overlay via the element toolbar.
  * The floating toolbar's "Settings" button is the trigger — there's no
  * other visible "Settings" button inside an open project.

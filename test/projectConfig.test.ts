@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
+  parseClipByBreakpoint,
   parseProjectConfig,
+  resolveClip,
+  seedClipFromLegacy,
   serializeProjectConfig,
 } from '@shared/projectConfig';
 import { DEFAULT_PROJECT_CONFIG } from '@shared/types';
@@ -220,5 +223,85 @@ describe('serializeProjectConfig', () => {
     expect(serialized).toContain('\n  "artboardBackground":');
     expect(serialized).toContain('\n  "canvasWidth":');
     expect(serialized).toContain('\n  "canvasOverflowHidden":');
+  });
+});
+
+describe('resolveClip', () => {
+  it('returns false when no map is present', () => {
+    expect(resolveClip({}, 'desktop')).toBe(false);
+  });
+
+  it('returns false for a breakpoint missing from the map', () => {
+    expect(
+      resolveClip({ canvasClipByBreakpoint: { mobile: true } }, 'desktop')
+    ).toBe(false);
+  });
+
+  it('returns true for a breakpoint set in the map', () => {
+    expect(
+      resolveClip({ canvasClipByBreakpoint: { mobile: true } }, 'mobile')
+    ).toBe(true);
+  });
+});
+
+describe('seedClipFromLegacy', () => {
+  it('seeds the desktop key from a legacy true', () => {
+    expect(seedClipFromLegacy(true)).toEqual({ desktop: true });
+  });
+
+  it('returns undefined for a legacy false', () => {
+    expect(seedClipFromLegacy(false)).toBeUndefined();
+  });
+});
+
+describe('parseClipByBreakpoint', () => {
+  it('keeps only truthy entries', () => {
+    expect(
+      parseClipByBreakpoint({ mobile: true, tablet: false, desktop: true })
+    ).toEqual({ mobile: true, desktop: true });
+  });
+
+  it('returns undefined for an empty or non-object input', () => {
+    expect(parseClipByBreakpoint({})).toBeUndefined();
+    expect(parseClipByBreakpoint({ mobile: false })).toBeUndefined();
+    expect(parseClipByBreakpoint(null)).toBeUndefined();
+    expect(parseClipByBreakpoint([1, 2])).toBeUndefined();
+  });
+});
+
+describe('parseProjectConfig — overflow & height fields', () => {
+  it('migrates a legacy canvasOverflowHidden:true into the desktop clip key', () => {
+    const cfg = parseProjectConfig(
+      JSON.stringify({ canvasOverflowHidden: true })
+    );
+    expect(cfg.canvasClipByBreakpoint).toEqual({ desktop: true });
+  });
+
+  it('prefers an explicit per-breakpoint map over the legacy flag', () => {
+    const cfg = parseProjectConfig(
+      JSON.stringify({
+        canvasOverflowHidden: true,
+        canvasClipByBreakpoint: { mobile: true },
+      })
+    );
+    expect(cfg.canvasClipByBreakpoint).toEqual({ mobile: true });
+  });
+
+  it('omits the clip map entirely when nothing is set', () => {
+    const cfg = parseProjectConfig(JSON.stringify({ canvasWidth: 1440 }));
+    expect(cfg.canvasClipByBreakpoint).toBeUndefined();
+  });
+
+  it('parses and clamps a fixed canvas height', () => {
+    const cfg = parseProjectConfig(
+      JSON.stringify({ canvasFixedHeight: true, canvasHeight: 900 })
+    );
+    expect(cfg.canvasFixedHeight).toBe(true);
+    expect(cfg.canvasHeight).toBe(900);
+  });
+
+  it('drops canvasFixedHeight when not explicitly true', () => {
+    const cfg = parseProjectConfig(JSON.stringify({ canvasFixedHeight: false }));
+    expect(cfg.canvasFixedHeight).toBeUndefined();
   });
 });

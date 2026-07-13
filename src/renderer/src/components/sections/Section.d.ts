@@ -46,6 +46,13 @@ type Props = {
          *  section's `title`. */
         label?: string;
     };
+    /**
+     * Optional control rendered right-aligned on the title row (e.g. the
+     * Size section's ratio-lock toggle). Only honored on non-collapsible
+     * sections — the collapsible title row is itself a `<button>`, so
+     * nesting an interactive control there would be invalid.
+     */
+    titleAccessory?: ReactNode;
 };
 /**
  * Card-like wrapper for one panel section. Renders a small heading
@@ -56,7 +63,7 @@ type Props = {
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, groupToggle, }: Props) => JSX.Element;
+export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, groupToggle, titleAccessory, }: Props) => JSX.Element;
 type RowProps = {
     label: string;
     children: ReactNode;

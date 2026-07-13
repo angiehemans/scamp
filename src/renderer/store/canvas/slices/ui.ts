@@ -70,6 +70,7 @@ export const createUiSlice: StateCreator<
   | 'leftSidebarTab'
   | 'userZoom'
   | 'fitScale'
+  | 'ratioLocks'
   | 'exportSettings'
   | 'canvasMinHeight'
   | 'setBottomPanel'
@@ -83,6 +84,8 @@ export const createUiSlice: StateCreator<
   | 'resetZoom'
   | 'setZoom'
   | 'setFitScale'
+  | 'toggleRatioLock'
+  | 'clearRatioLock'
   | 'openThemePanel'
   | 'setOpenThemePanel'
 >
@@ -92,6 +95,7 @@ export const createUiSlice: StateCreator<
   leftSidebarTab: 'layers',
   userZoom: null,
   fitScale: 1,
+  ratioLocks: {},
   exportSettings: { lastFormat: 'png', lastPngScale: 2 },
   // Default matches the page-editor canvas. ProjectShell
   // overrides this when entering the component editor so the
@@ -132,6 +136,62 @@ export const createUiSlice: StateCreator<
   setZoom: (zoom) => set({ userZoom: zoom }),
 
   setFitScale: (scale) => set({ fitScale: scale }),
+
+  toggleRatioLock: (id, measured) => {
+    const state = useCanvasStore.getState();
+    const el = state.elements[id];
+    if (!el) return;
+    // Unlock.
+    if (state.ratioLocks[id] !== undefined) {
+      set((s) => {
+        const next = { ...s.ratioLocks };
+        delete next[id];
+        return { ratioLocks: next };
+      });
+      return;
+    }
+    // Lock. Resolve px dims: a fixed axis uses its stored value; a
+    // non-fixed axis snaps to fixed using its measured render size,
+    // falling back to the stored fallback value when unmeasured.
+    const w = el.widthMode === 'fixed' ? el.widthValue : measured?.width ?? el.widthValue;
+    const h = el.heightMode === 'fixed' ? el.heightValue : measured?.height ?? el.heightValue;
+    if (w <= 0 || h <= 0) return;
+    const needsConvert = el.widthMode !== 'fixed' || el.heightMode !== 'fixed';
+    set((s) => {
+      const elements = needsConvert
+        ? {
+            ...s.elements,
+            [id]: applyPatchWithAxisRouting(
+              el,
+              {
+                widthMode: 'fixed',
+                widthValue: w,
+                widthCustom: undefined,
+                heightMode: 'fixed',
+                heightValue: h,
+                heightCustom: undefined,
+              },
+              s.activeBreakpointId,
+              null
+            ),
+          }
+        : s.elements;
+      return { elements, ratioLocks: { ...s.ratioLocks, [id]: w / h } };
+    });
+    // Snapping non-fixed axes to fixed is a real model edit (it changes
+    // the emitted CSS), so record it as an undoable size change.
+    if (needsConvert) {
+      commitElementsToHistory({ kind: 'resize', elementIds: [id] });
+    }
+  },
+
+  clearRatioLock: (id) =>
+    set((s) => {
+      if (s.ratioLocks[id] === undefined) return s;
+      const next = { ...s.ratioLocks };
+      delete next[id];
+      return { ratioLocks: next };
+    }),
 
   openThemePanel: null,
   setOpenThemePanel: (fn) => set({ openThemePanel: fn }),

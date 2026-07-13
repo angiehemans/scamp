@@ -19,6 +19,22 @@ export declare const parseBreakpoints: (value: unknown) => Breakpoint[];
  */
 export declare const parseComponentCanvas: (value: unknown) => Record<string, ComponentCanvasSize> | undefined;
 /**
+ * Validate the per-breakpoint clip map. Keeps only entries whose value is
+ * `true` (an absent/false key already means "don't clip"), so the stored
+ * object stays minimal and round-trips text-stable. Returns undefined when
+ * empty so projects that never touched clip don't grow a `{}`.
+ */
+export declare const parseClipByBreakpoint: (value: unknown) => Record<string, boolean> | undefined;
+/** Legacy → per-breakpoint clip: a legacy `true` seeds the desktop key. */
+export declare const seedClipFromLegacy: (legacy: boolean) => Record<string, boolean> | undefined;
+/**
+ * Resolve the effective page-canvas clip state for a breakpoint. Reads the
+ * per-breakpoint map; a missing entry means "don't clip".
+ */
+export declare const resolveClip: (config: Pick<ProjectConfig, "canvasClipByBreakpoint">, breakpointId: string) => boolean;
+/** Clamp a raw canvasHeight candidate to the supported range. */
+export declare const clampCanvasHeight: (value: unknown) => number;
+/**
  * Parse a raw `scamp.config.json` string into a validated `ProjectConfig`.
  * Every missing or malformed field falls back to the default so a file
  * someone hand-edited to nonsense still opens, just without the bad

@@ -80,6 +80,37 @@ export const parseComponentCanvas = (value) => {
     return Object.keys(out).length > 0 ? out : undefined;
 };
 /**
+ * Validate the per-breakpoint clip map. Keeps only entries whose value is
+ * `true` (an absent/false key already means "don't clip"), so the stored
+ * object stays minimal and round-trips text-stable. Returns undefined when
+ * empty so projects that never touched clip don't grow a `{}`.
+ */
+export const parseClipByBreakpoint = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined;
+    }
+    const out = {};
+    for (const [id, v] of Object.entries(value)) {
+        if (v === true)
+            out[id] = true;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+};
+/** Legacy → per-breakpoint clip: a legacy `true` seeds the desktop key. */
+export const seedClipFromLegacy = (legacy) => legacy ? { [DESKTOP_BREAKPOINT_ID]: true } : undefined;
+/**
+ * Resolve the effective page-canvas clip state for a breakpoint. Reads the
+ * per-breakpoint map; a missing entry means "don't clip".
+ */
+export const resolveClip = (config, breakpointId) => config.canvasClipByBreakpoint?.[breakpointId] ?? false;
+/** Clamp a raw canvasHeight candidate to the supported range. */
+export const clampCanvasHeight = (value) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return DEFAULT_PROJECT_CONFIG.canvasWidth;
+    }
+    return Math.round(Math.max(MIN_CANVAS_WIDTH, Math.min(MAX_CANVAS_WIDTH, value)));
+};
+/**
  * Parse a raw `scamp.config.json` string into a validated `ProjectConfig`.
  * Every missing or malformed field falls back to the default so a file
  * someone hand-edited to nonsense still opens, just without the bad
@@ -112,6 +143,15 @@ export const parseProjectConfig = (raw) => {
         ? [...DEFAULT_BREAKPOINTS]
         : parseBreakpoints(obj['breakpoints']);
     const componentCanvas = parseComponentCanvas(obj['componentCanvas']);
+    // Prefer the explicit per-breakpoint map; otherwise migrate a legacy
+    // `canvasOverflowHidden: true` into a desktop-keyed entry so existing
+    // projects don't lose the setting.
+    const canvasClipByBreakpoint = parseClipByBreakpoint(obj['canvasClipByBreakpoint']) ??
+        seedClipFromLegacy(canvasOverflowHidden);
+    const canvasFixedHeight = obj['canvasFixedHeight'] === true ? true : undefined;
+    const canvasHeight = obj['canvasHeight'] !== undefined
+        ? clampCanvasHeight(obj['canvasHeight'])
+        : undefined;
     return {
         artboardBackground: isValidColor(artboard)
             ? artboard
@@ -119,6 +159,9 @@ export const parseProjectConfig = (raw) => {
         canvasWidth,
         canvasOverflowHidden,
         breakpoints,
+        ...(canvasClipByBreakpoint ? { canvasClipByBreakpoint } : {}),
+        ...(canvasFixedHeight ? { canvasFixedHeight: true } : {}),
+        ...(canvasHeight !== undefined ? { canvasHeight } : {}),
         ...(canvasMigrationAcknowledged ? { canvasMigrationAcknowledged: true } : {}),
         ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
         ...(snapshotAutoSave === false ? { snapshotAutoSave: false } : {}),

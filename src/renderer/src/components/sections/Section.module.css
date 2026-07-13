@@ -12,6 +12,13 @@
   gap: 6px;
 }
 
+/* Right-aligned title-row control (e.g. Size's ratio-lock toggle). */
+.titleAccessory {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
 .heading {
   font-size: 12px;
   font-weight: 600;

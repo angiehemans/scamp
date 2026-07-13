@@ -15,7 +15,7 @@ import styles from './Section.module.css';
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, cssProperties, groupToggle, }) => {
+export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, cssProperties, groupToggle, titleAccessory, }) => {
     const [open, setOpen] = useState(defaultOpen);
     const overrideInfo = useOverrideIndicator(elementId, fields);
     const duplicateInfo = useDuplicateIndicator(elementId, cssProperties);
@@ -60,7 +60,7 @@ export const Section = ({ title, children, collapsible = false, defaultOpen = tr
     // un-collapsing.
     const wrappedContent = groupToggle ? (_jsx("div", { className: `${styles.groupContent} ${groupOff ? styles.groupOff : ''}`.trim(), children: children })) : (children);
     if (!collapsible) {
-        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), duplicateDot, overrideDot, groupToggleButton] })), wrappedContent] }));
+        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), duplicateDot, overrideDot, groupToggleButton, titleAccessory && (_jsx("span", { className: styles.titleAccessory, children: titleAccessory }))] })), wrappedContent] }));
     }
     const handleToggle = () => setOpen((v) => !v);
     return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, children: [_jsx("span", { className: styles.heading, children: title }), duplicateDot, overrideDot, groupToggleButton, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] })), open && wrappedContent] }));

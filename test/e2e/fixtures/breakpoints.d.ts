@@ -11,6 +11,14 @@ export declare const canvasSizePopover: (page: Page) => Locator;
  */
 export declare const switchBreakpoint: (page: Page, bpId: "desktop" | "tablet" | "mobile" | string, visibleLabel: string) => Promise<void>;
 /**
+ * Toggle the "Clip content" checkbox in the canvas-size popover to the
+ * given state. Leaves the popover closed. Clip is per-breakpoint, so
+ * this writes the currently-active breakpoint's entry.
+ */
+export declare const setClipContent: (page: Page, on: boolean) => Promise<void>;
+/** Read the canvas frame's effective `overflow` (hidden when clip is on). */
+export declare const frameOverflow: (page: Page) => Promise<string>;
+/**
  * Open the project-settings full-page overlay via the element toolbar.
  * The floating toolbar's "Settings" button is the trigger — there's no
  * other visible "Settings" button inside an open project.

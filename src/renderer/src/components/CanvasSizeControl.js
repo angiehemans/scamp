@@ -1,11 +1,13 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_COMPONENT_CANVAS_SIZE, DESKTOP_BREAKPOINT_ID, MAX_CANVAS_WIDTH, MAX_COMPONENT_CANVAS_DIM, MIN_CANVAS_WIDTH, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
-import { clampCanvasWidth } from '@shared/projectConfig';
+import { clampCanvasHeight, clampCanvasWidth, resolveClip, } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
 import { NumberInput } from './controls/NumberInput';
 import { Tooltip } from './controls/Tooltip';
 import styles from './CanvasSizeControl.module.css';
+/** Seed height when the user first enables page fixed-height mode. */
+const DEFAULT_PAGE_FIXED_HEIGHT = 900;
 /**
  * Toolbar control for the canvas viewport size + active breakpoint.
  *
@@ -19,8 +21,9 @@ import styles from './CanvasSizeControl.module.css';
  *   - A custom-width input. Typing a value that doesn't match any
  *     breakpoint drops the active breakpoint to `desktop` so edits
  *     apply to the base CSS.
- *   - An overflow-hidden toggle (a viewport-frame preview helper,
- *     never written to CSS).
+ *   - A "Clip content" toggle (per breakpoint for pages) and a
+ *     "Fixed height" toggle + input. All viewport-frame preview
+ *     helpers — never written to CSS.
  */
 export const CanvasSizeControl = ({ config, onChange, componentName, }) => {
     const [open, setOpen] = useState(false);
@@ -55,6 +58,35 @@ export const CanvasSizeControl = ({ config, onChange, componentName, }) => {
     };
     const setOverflow = (overflow) => {
         onChange({ ...config, canvasOverflowHidden: overflow });
+    };
+    // Page-canvas clip is stored per breakpoint (the active one). Deleting
+    // the key when turning it off keeps the map minimal / text-stable.
+    const pageClip = resolveClip(config, activeBreakpointId);
+    const setPageClip = (clip) => {
+        const map = { ...(config.canvasClipByBreakpoint ?? {}) };
+        if (clip)
+            map[activeBreakpointId] = true;
+        else
+            delete map[activeBreakpointId];
+        onChange({
+            ...config,
+            canvasClipByBreakpoint: Object.keys(map).length > 0 ? map : undefined,
+        });
+    };
+    // Fixed page-canvas height. Enabling seeds a default when none is set.
+    const setFixedHeightOn = (on) => {
+        onChange({
+            ...config,
+            canvasFixedHeight: on ? true : undefined,
+            canvasHeight: on
+                ? config.canvasHeight ?? DEFAULT_PAGE_FIXED_HEIGHT
+                : config.canvasHeight,
+        });
+    };
+    const setCanvasHeight = (next) => {
+        if (next === undefined)
+            return;
+        onChange({ ...config, canvasHeight: clampCanvasHeight(next) });
     };
     const handleCustomChange = (next) => {
         if (next === undefined)
@@ -116,5 +148,5 @@ export const CanvasSizeControl = ({ config, onChange, componentName, }) => {
                                             width: componentSize.width,
                                             height: next,
                                         });
-                                    }, min: MIN_COMPONENT_CANVAS_DIM, max: MAX_COMPONENT_CANVAS_DIM, suffix: "H" })] }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasOverflowHidden, onChange: (e) => setOverflow(e.target.checked) }), _jsx("span", { children: "Overflow hidden" })] })] })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.sectionLabel, children: "Breakpoint" }), _jsx("div", { className: styles.presetGrid, children: config.breakpoints.map((bp) => (_jsxs("button", { className: `${styles.presetButton} ${bp.id === activeBreakpointId ? styles.presetActive : ''}`, type: "button", onClick: () => selectBreakpoint(bp), children: [_jsx("span", { className: styles.presetName, children: bp.label }), _jsx("span", { className: styles.presetWidth, children: bp.width })] }, bp.id))) }), _jsx("div", { className: styles.sectionLabel, children: "Custom width" }), _jsx("div", { className: styles.customRow, children: _jsx(NumberInput, { value: config.canvasWidth, onChange: handleCustomChange, min: MIN_CANVAS_WIDTH, max: MAX_CANVAS_WIDTH, suffix: "px" }) }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasOverflowHidden, onChange: (e) => setOverflow(e.target.checked) }), _jsx("span", { children: "Overflow hidden" })] })] })) }))] }));
+                                    }, min: MIN_COMPONENT_CANVAS_DIM, max: MAX_COMPONENT_CANVAS_DIM, suffix: "H" })] }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasOverflowHidden, onChange: (e) => setOverflow(e.target.checked) }), _jsx("span", { children: "Clip content" })] })] })) : (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.sectionLabel, children: "Breakpoint" }), _jsx("div", { className: styles.presetGrid, children: config.breakpoints.map((bp) => (_jsxs("button", { className: `${styles.presetButton} ${bp.id === activeBreakpointId ? styles.presetActive : ''}`, type: "button", onClick: () => selectBreakpoint(bp), children: [_jsx("span", { className: styles.presetName, children: bp.label }), _jsx("span", { className: styles.presetWidth, children: bp.width })] }, bp.id))) }), _jsx("div", { className: styles.sectionLabel, children: "Custom width" }), _jsx("div", { className: styles.customRow, children: _jsx(NumberInput, { value: config.canvasWidth, onChange: handleCustomChange, min: MIN_CANVAS_WIDTH, max: MAX_CANVAS_WIDTH, suffix: "px" }) }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: pageClip, onChange: (e) => setPageClip(e.target.checked) }), _jsx("span", { children: "Clip content" })] }), _jsxs("label", { className: styles.toggleRow, children: [_jsx("input", { type: "checkbox", checked: config.canvasFixedHeight === true, onChange: (e) => setFixedHeightOn(e.target.checked) }), _jsx("span", { children: "Fixed height" })] }), config.canvasFixedHeight === true && (_jsx("div", { className: styles.customRow, children: _jsx(NumberInput, { value: config.canvasHeight ?? DEFAULT_PAGE_FIXED_HEIGHT, onChange: setCanvasHeight, min: MIN_CANVAS_WIDTH, max: MAX_CANVAS_WIDTH, suffix: "H" }) }))] })) }))] }));
 };
