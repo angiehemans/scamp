@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { clampToParent, MIN_SIZE } from '@lib/bounds';
+import { resolveInsertParent } from '@lib/insertParent';
 import { assetsDirSegment } from '@renderer/src/lib/path';
+import { prepareSvgForInsert } from '@renderer/src/lib/svg';
 import { hitTest } from './canvasHitTest';
-import { CLICK_DRAG_THRESHOLD, DEFAULT_IMAGE_SIZE, DEFAULT_NEW_INPUT_HEIGHT, DEFAULT_NEW_INPUT_WIDTH, DEFAULT_NEW_RECT_SIZE, } from './constants';
+import { CLICK_DRAG_THRESHOLD, DEFAULT_IMAGE_SIZE, DEFAULT_NEW_INPUT_HEIGHT, DEFAULT_NEW_INPUT_WIDTH, DEFAULT_NEW_RECT_SIZE, INLINE_SVG_MAX_BYTES, } from './constants';
 /**
  * Draw state machine for the rectangle / input / image tools, plus the
  * single-click text tool. Owns the `pendingImage` selection: activating
@@ -27,6 +29,7 @@ export const useDrawInteraction = (geometry) => {
     const createRectangle = useCanvasStore((s) => s.createRectangle);
     const createText = useCanvasStore((s) => s.createText);
     const createImage = useCanvasStore((s) => s.createImage);
+    const createSvgElement = useCanvasStore((s) => s.createSvgElement);
     const createInput = useCanvasStore((s) => s.createInput);
     const { toFrame, measureElementInFrame, parentSizeOf } = geometry;
     // When the image tool is activated, immediately open a file dialog so
@@ -59,12 +62,77 @@ export const useDrawInteraction = (geometry) => {
                 setTool('select');
                 return;
             }
+            // Copy to assets in every case — SVGs keep the on-disk reference for
+            // reload; rasters are referenced by `<img src>`.
             const copied = await window.scamp.copyImage({
                 sourcePath: chosen.path,
                 projectPath,
             });
             if (cancelled)
                 return;
+            // New images/SVGs land inside the currently-selected container (or
+            // its nearest container ancestor); with nothing selected they fall
+            // back to the page root / draw-to-place.
+            const store = useCanvasStore.getState();
+            const selectedId = store.selectedElementIds[0] ?? null;
+            const parentId = resolveInsertParent(store.elements, selectedId, ROOT_ELEMENT_ID);
+            // SVG import: inline the (sanitized/normalized) markup so its colours
+            // are editable, instead of an opaque <img>. Insert immediately at the
+            // viewBox-derived size (ratio-locked in createSvgElement); the user
+            // repositions/resizes after. Falls back to <img> for oversized or
+            // unparseable files. see docs/plans/svg-color-editing-plan.md
+            if (chosen.path.toLowerCase().endsWith('.svg')) {
+                let raw = '';
+                try {
+                    raw = await window.scamp.readFileText(chosen.path);
+                }
+                catch {
+                    raw = '';
+                }
+                if (cancelled)
+                    return;
+                const prepared = raw.length > 0 && raw.length <= INLINE_SVG_MAX_BYTES
+                    ? prepareSvgForInsert(raw)
+                    : null;
+                if (prepared) {
+                    const width = Math.max(MIN_SIZE, Math.round(prepared.width ?? DEFAULT_IMAGE_SIZE));
+                    const height = Math.max(MIN_SIZE, Math.round(prepared.height ?? DEFAULT_IMAGE_SIZE));
+                    createSvgElement({
+                        parentId,
+                        x: 40,
+                        y: 40,
+                        width,
+                        height,
+                        svgSource: prepared.svgSource,
+                        src: copied.relativePath,
+                        ...(prepared.viewBox !== undefined ? { viewBox: prepared.viewBox } : {}),
+                        ...(prepared.fill !== undefined ? { fill: prepared.fill } : {}),
+                        ...(prepared.stroke !== undefined ? { stroke: prepared.stroke } : {}),
+                        ...(prepared.strokeWidth !== undefined
+                            ? { strokeWidth: prepared.strokeWidth }
+                            : {}),
+                    });
+                    setTool('select');
+                    return;
+                }
+                // Large / unparseable svg → fall through to the <img> flow.
+            }
+            // With a container selected, drop the image straight into it at a
+            // default size (matching paste). With nothing selected, keep the
+            // draw-to-place gesture so the user can size/position it freely.
+            if (selectedId) {
+                createImage({
+                    parentId,
+                    x: 20,
+                    y: 20,
+                    width: DEFAULT_IMAGE_SIZE,
+                    height: DEFAULT_IMAGE_SIZE,
+                    src: copied.relativePath,
+                    alt: copied.fileName,
+                });
+                setTool('select');
+                return;
+            }
             setPendingImage({ src: copied.relativePath, alt: copied.fileName });
         })();
         return () => { cancelled = true; };

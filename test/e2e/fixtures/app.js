@@ -43,6 +43,22 @@ export const writeFixtureImage = async (dir, name = 'pixel.png') => {
     return filePath;
 };
 /**
+ * A two-colour SVG with an explicit viewBox — for the import / colour /
+ * viewBox-scaling specs. Written OUTSIDE the project (its own temp dir) so
+ * the project watcher never sees the source (which would otherwise collide
+ * with the copied asset's basename and fire a spurious reload).
+ */
+const SVG_FIXTURE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">' +
+    '<rect x="2" y="2" width="20" height="20" fill="#ff0000"/>' +
+    '<circle cx="12" cy="12" r="6" fill="#00ff00"/>' +
+    '</svg>';
+export const writeFixtureSvg = async (name = 'icon.svg', content = SVG_FIXTURE) => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-e2e-svg-'));
+    const filePath = path.join(dir, name);
+    await fs.writeFile(filePath, content);
+    return filePath;
+};
+/**
  * Path to the built Electron main entry. `npm run build` must have been
  * executed before launching — Playwright doesn't start the dev server.
  */

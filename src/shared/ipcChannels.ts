@@ -64,6 +64,10 @@ export const IPC = {
   // Images
   FileCopyImage: 'file:copyImage',
   FileChooseImage: 'file:chooseImage',
+  // Read a file's UTF-8 text (used to inline imported SVGs + reload them).
+  FileReadText: 'file:readText',
+  // Main → renderer: an imported SVG's asset file changed on disk.
+  SvgAssetChanged: 'svg:assetChanged',
 
   // Clipboard (paste from OS)
   ClipboardRead: 'clipboard:read',

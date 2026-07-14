@@ -61,6 +61,41 @@ describe('svg paint round-trip', () => {
     expect(svg!.svgSource).toContain('<path');
   });
 
+  it('the currentColor swatch value (el.color) survives the round-trip', () => {
+    // Regression: `color` was previously only emitted for text, and the
+    // swatch wrote it into customProperties (dropped on emit because
+    // `color` is a typed property) — so it never persisted for svg.
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeSvg({
+        color: '#3366ff',
+        svgSource: '<path d="M0 0h10v10H0z" stroke="currentColor" />',
+      }),
+    };
+    const { tsx, css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(css).toContain('color: #3366ff;');
+    const parsed = parseCode(tsx, css);
+    expect(parsed.elements['v001']!.color).toBe('#3366ff');
+  });
+
+  it('a per-shape colour edit in svgSource survives the round-trip', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['v001']),
+      v001: makeSvg({ svgSource: '<path d="M0 0" fill="#0000ff" />' }),
+    };
+    const { tsx, css } = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    const parsed = parseCode(tsx, css);
+    expect(parsed.elements['v001']!.svgSource).toContain('fill="#0000ff"');
+  });
+
   it('an unpainted svg parses with no paint fields', () => {
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: makeRoot(['v001']),

@@ -274,6 +274,13 @@ export const elementToStyle = (
   if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
     base.strokeWidth = el.strokeWidth;
   }
+  // `currentColor` inside an svg resolves to the CSS `color` property, so
+  // the SvgSection's "Current color" swatch writes `el.color`; apply it on
+  // the wrapper (the text path above is text-only). see
+  // docs/plans/svg-color-editing-plan.md
+  if (el.tag === 'svg' && el.color !== undefined && el.color.length > 0) {
+    base.color = resolveTokenColor(el.color, tokens);
+  }
   if (el.display === 'flex') {
     base.display = 'flex';
     base.flexDirection = el.flexDirection;

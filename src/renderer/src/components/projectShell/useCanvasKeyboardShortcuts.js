@@ -3,6 +3,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { clampToParent } from '@lib/bounds';
+import { resolveInsertParent } from '@lib/insertParent';
 import { findInstanceUsagesAcrossPages, groupUsagesByPage, } from '@lib/componentUsage';
 import { prepareSvgForInsert } from '../../lib/svg';
 import { DEFAULT_IMAGE_SIZE } from '../../canvas/interactions/constants';
@@ -127,17 +128,21 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                     const s = useCanvasStore.getState();
                     if (!s.activePage || !s.elements[ROOT_ELEMENT_ID])
                         return;
+                    // Insert into the currently-selected container (or its nearest
+                    // container ancestor), falling back to the page root.
+                    const parentId = resolveInsertParent(s.elements, s.selectedElementIds[0] ?? null, ROOT_ELEMENT_ID);
                     if (result.kind === 'svg') {
                         const prepared = prepareSvgForInsert(result.svg);
                         if (!prepared)
                             return;
                         s.createSvgElement({
-                            parentId: ROOT_ELEMENT_ID,
+                            parentId,
                             x: 20,
                             y: 20,
                             width: Math.round(prepared.width ?? DEFAULT_IMAGE_SIZE),
                             height: Math.round(prepared.height ?? DEFAULT_IMAGE_SIZE),
                             svgSource: prepared.svgSource,
+                            ...(prepared.viewBox !== undefined ? { viewBox: prepared.viewBox } : {}),
                             ...(prepared.fill !== undefined ? { fill: prepared.fill } : {}),
                             ...(prepared.stroke !== undefined ? { stroke: prepared.stroke } : {}),
                             ...(prepared.strokeWidth !== undefined
@@ -151,7 +156,7 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                             dataUrl: result.dataUrl,
                         });
                         s.createImage({
-                            parentId: ROOT_ELEMENT_ID,
+                            parentId,
                             x: 20,
                             y: 20,
                             width: DEFAULT_IMAGE_SIZE,

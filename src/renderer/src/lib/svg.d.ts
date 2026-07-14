@@ -18,6 +18,27 @@ export declare const sanitizeSvg: (raw: string) => string;
  * svg profile applies, then returns the sanitized inner content.
  */
 export declare const sanitizeSvgInner: (inner: string) => string;
+export type SvgColors = {
+    /** Unique concrete colours (first-seen order); `none`/`url(#…)` skipped. */
+    colors: string[];
+    /** True when any paint uses `currentColor` (edited via CSS `color`). */
+    hasCurrentColor: boolean;
+};
+/**
+ * Extract every unique colour used inside an SVG's inner source — from
+ * `fill` / `stroke` / `color` / `stop-color` presentation attributes AND
+ * inline `style` properties. `currentColor` is flagged separately (it maps
+ * to the element's CSS `color`, not a source edit). Pure w.r.t. its input.
+ * Returns empty on malformed markup rather than throwing.
+ */
+export declare const extractSvgColors: (svgSource: string) => SvgColors;
+/**
+ * Rewrite every occurrence of the colour `from` to `to` inside an SVG's
+ * inner source — across paint attributes and inline `style` properties.
+ * Case-insensitive on `from`. Leaves `none`, `url(#…)`, and unrelated
+ * colours untouched. Returns the input unchanged on malformed markup.
+ */
+export declare const replaceSvgColor: (svgSource: string, from: string, to: string) => string;
 export type PreparedSvg = {
     /** Sanitized, normalized inner markup (what `svgSource` stores). */
     svgSource: string;

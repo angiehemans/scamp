@@ -87,6 +87,8 @@ const api = {
     // Images
     copyImage: (args) => ipcRenderer.invoke(IPC.FileCopyImage, args),
     chooseImage: (args) => ipcRenderer.invoke(IPC.FileChooseImage, args),
+    /** Read a `.svg` file's UTF-8 text (inline import + reload). */
+    readFileText: (path) => ipcRenderer.invoke(IPC.FileReadText, path),
     // Export (page or element)
     exportChooseSavePath: (args) => ipcRenderer.invoke(IPC.ExportChooseSavePath, args),
     exportPng: (args) => ipcRenderer.invoke(IPC.ExportPng, args),
@@ -98,6 +100,11 @@ const api = {
         const listener = (_e, content) => handler(content);
         ipcRenderer.on(IPC.ThemeChanged, listener);
         return () => ipcRenderer.removeListener(IPC.ThemeChanged, listener);
+    },
+    onSvgAssetChanged: (handler) => {
+        const listener = (_e, payload) => handler(payload);
+        ipcRenderer.on(IPC.SvgAssetChanged, listener);
+        return () => ipcRenderer.removeListener(IPC.SvgAssetChanged, listener);
     },
     // Terminal
     createTerminal: (args) => ipcRenderer.invoke(IPC.TerminalCreate, args),

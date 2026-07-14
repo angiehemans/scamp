@@ -2,11 +2,12 @@ type Props = {
     elementId: string;
 };
 /**
- * Fill / stroke / stroke-width controls for an inline `<svg>` element.
- * Element-level paint cascades to the svg's shapes (whose own fill/stroke
- * were stripped on import), so editing here recolours the icon without
- * touching `svgSource`. Rendered by UiPanel only when `tag === 'svg'`.
- * see docs/plans/svg-improvements-plan.md
+ * SVG Colours + stroke width for an inline `<svg>` element. Surfaces every
+ * unique colour in the artwork as an editable swatch: concrete colours in
+ * the source are rewritten in `svgSource`; the root-hoisted `fill`/`stroke`
+ * are edited as typed fields; and `currentColor` maps to the element's CSS
+ * `color`. Rendered by UiPanel only when `tag === 'svg'`.
+ * see docs/plans/svg-color-editing-plan.md
  */
 export declare const SvgSection: ({ elementId }: Props) => JSX.Element | null;
 export {};

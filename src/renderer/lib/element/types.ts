@@ -6,6 +6,15 @@
 
 import type { SpaceValue, SpaceTuple } from '../spaceValue';
 
+/**
+ * Attribute that carries an imported inline SVG's source-file reference
+ * (relative path under `public/assets`). Stored in the element's generic
+ * `attributes` bag so it round-trips through the TSX verbatim, and read by
+ * the file-watch reload to locate the on-disk source. see
+ * docs/plans/svg-color-editing-plan.md
+ */
+export const SVG_SRC_ATTR = 'data-scamp-svg-src';
+
 export type WidthMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
 

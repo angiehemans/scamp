@@ -1,9 +1,11 @@
 import { dialog, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import { IPC } from '@shared/ipcChannels';
-import { copyImage } from './imageOps';
+import { join } from 'path';
+import { copyImage, assetsDirFor } from './imageOps';
 import { getProjectFormat } from './projectFormatCache';
 import { assertInsideActiveProject } from './pathContainment';
+import { suppressNextChange } from '../watcher';
 const IMAGE_FILTERS = [
     { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif'] },
 ];
@@ -41,7 +43,21 @@ export const registerImageIpc = () => {
         // dialog) and may legitimately live anywhere, so it isn't contained.
         assertInsideActiveProject(args.projectPath);
         const format = await getProjectFormat(args.projectPath);
-        return copyImage(args, format);
+        const result = await copyImage(args, format);
+        // Suppress the watcher event for our own asset write so importing an
+        // SVG doesn't immediately fire a "changed externally" reload prompt.
+        suppressNextChange(join(assetsDirFor(args.projectPath, format), result.fileName));
+        return result;
     });
     ipcMain.handle(IPC.FileChooseImage, async (_e, args) => chooseImage(args));
+    // Read a file's UTF-8 text. Used to inline an imported `.svg` (the path
+    // comes from the native picker) and to reload an SVG whose asset file
+    // changed on disk. Only `.svg` files are readable through this channel —
+    // it isn't a general filesystem escape hatch.
+    ipcMain.handle(IPC.FileReadText, async (_e, filePath) => {
+        if (typeof filePath !== 'string' || !filePath.toLowerCase().endsWith('.svg')) {
+            throw new Error('FileReadText: only .svg files may be read');
+        }
+        return fs.readFile(filePath, 'utf-8');
+    });
 };

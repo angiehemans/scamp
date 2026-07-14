@@ -163,6 +163,13 @@ export const createElementsCreateSlice: StateCreator<
       const parent = state.elements[input.parentId];
       if (!parent) return state;
       const newSvg = makeSvg(input, id);
+      // SVGs scale proportionally by default (backlog-6 story 3): seed the
+      // session ratio lock from the viewBox-derived width/height. The user
+      // can unlock via the Size panel / on-canvas badge.
+      const ratioLocks =
+        input.width > 0 && input.height > 0
+          ? { ...state.ratioLocks, [id]: input.width / input.height }
+          : state.ratioLocks;
       return {
         elements: {
           ...state.elements,
@@ -170,6 +177,7 @@ export const createElementsCreateSlice: StateCreator<
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
+        ratioLocks,
       };
     });
     commitElementsToHistory({ kind: 'add-image', elementIds: [id] });

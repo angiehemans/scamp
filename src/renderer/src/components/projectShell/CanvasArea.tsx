@@ -10,6 +10,7 @@ import { Viewport } from '@renderer/src/canvas/Viewport';
 
 import { CanvasSizeControl } from '../CanvasSizeControl';
 import { Toolbar } from '../Toolbar';
+import { SvgReloadBanner } from './SvgReloadBanner';
 import type { ActiveComponent } from './types';
 import styles from '../ProjectShell.module.css';
 
@@ -66,6 +67,7 @@ export const CanvasArea = ({
         style={{ backgroundColor: projectConfig.artboardBackground }}
       >
         <div className={styles.canvasContent}>
+          <SvgReloadBanner />
           {snapshotPreview !== null && (
             <div
               className={styles.snapshotPreviewBanner}

@@ -6,6 +6,8 @@ import {
   sanitizeSvg,
   sanitizeSvgInner,
   prepareSvgForInsert,
+  extractSvgColors,
+  replaceSvgColor,
 } from '../src/renderer/src/lib/svg';
 
 describe('isSvgMarkup', () => {
@@ -99,31 +101,41 @@ describe('prepareSvgForInsert', () => {
     expect(result!.height).toBe(40);
   });
 
-  it("strips shapes' own fill/stroke so they inherit the wrapper paint", () => {
+  it('keeps an explicit viewBox verbatim', () => {
+    const result = prepareSvgForInsert(
+      '<svg viewBox="0 0 24 24" width="48" height="48"><rect/></svg>'
+    );
+    expect(result!.viewBox).toBe('0 0 24 24');
+  });
+
+  it('synthesizes a viewBox from intrinsic size when the source omits one', () => {
+    // Without a viewBox the rendered <svg> can't scale its shapes to the
+    // element box — derive one from width/height so resizing scales the art.
+    const result = prepareSvgForInsert(
+      '<svg width="32" height="20"><rect/></svg>'
+    );
+    expect(result!.viewBox).toBe('0 0 32 20');
+  });
+
+  it("preserves shapes' own fill/stroke so each colour stays editable", () => {
     const result = prepareSvgForInsert(
       '<svg viewBox="0 0 10 10"><path d="M0 0" fill="#ff0000" stroke="blue"/></svg>'
     );
     const src = result!.svgSource.toLowerCase();
-    // A shape's own presentation attribute beats the inherited wrapper
-    // colour, so the hardcoded fill/stroke are removed — the shape then
-    // inherits the element-level paint and recolours. The path stays, and
-    // the source remains valid JSX (no inline style strings, no var()).
+    // Per-shape colours are kept (backlog-6 story 3) so the SVG Colours
+    // editor can surface and rewrite each one individually.
     expect(src).toContain('<path');
-    expect(src).not.toContain('fill="#ff0000"');
-    expect(src).not.toContain('stroke="blue"');
-    expect(src).not.toContain('var(');
-    expect(src).not.toContain('style=');
+    expect(src).toContain('fill="#ff0000"');
+    expect(src).toContain('stroke="blue"');
   });
 
-  it('preserves fill="none" while stripping a solid stroke on the same shape', () => {
+  it('preserves both fill="none" and a solid stroke on the same shape', () => {
     const result = prepareSvgForInsert(
       '<svg viewBox="0 0 10 10"><circle r="4" fill="none" stroke="red"/></svg>'
     );
     const src = result!.svgSource.toLowerCase();
-    // `none` is a deliberate "unpainted" intent — kept so the wrapper fill
-    // can't paint it solid. The solid stroke is stripped so Stroke recolours.
     expect(src).toContain('fill="none"');
-    expect(src).not.toContain('stroke="red"');
+    expect(src).toContain('stroke="red"');
   });
 
   it('drops a fully-invisible bounding-box shape (fill=none AND stroke=none)', () => {
@@ -164,5 +176,90 @@ describe('prepareSvgForInsert', () => {
     expect(prepareSvgForInsert('<div>not svg</div>')).toBeNull();
     expect(prepareSvgForInsert('')).toBeNull();
     expect(prepareSvgForInsert('just text')).toBeNull();
+  });
+});
+
+describe('extractSvgColors', () => {
+  it('collects unique concrete colours from fill and stroke attributes', () => {
+    const { colors, hasCurrentColor } = extractSvgColors(
+      '<path fill="#ff0000" stroke="#00ff00"/><circle fill="#ff0000"/>'
+    );
+    expect(colors).toEqual(['#ff0000', '#00ff00']);
+    expect(hasCurrentColor).toBe(false);
+  });
+
+  it('reads colours from inline style properties', () => {
+    const { colors } = extractSvgColors(
+      '<path style="fill:#123456;stroke:#abcdef"/>'
+    );
+    expect(colors).toEqual(['#123456', '#abcdef']);
+  });
+
+  it('includes gradient stop-color values', () => {
+    const { colors } = extractSvgColors(
+      '<defs><linearGradient><stop stop-color="#111111"/><stop stop-color="#222222"/></linearGradient></defs>'
+    );
+    expect(colors).toEqual(['#111111', '#222222']);
+  });
+
+  it('flags currentColor separately and skips none / url() paints', () => {
+    const { colors, hasCurrentColor } = extractSvgColors(
+      '<path fill="currentColor" stroke="none"/><rect fill="url(#grad)"/>'
+    );
+    expect(colors).toEqual([]);
+    expect(hasCurrentColor).toBe(true);
+  });
+
+  it('dedupes case-insensitively but keeps the first-seen spelling', () => {
+    const { colors } = extractSvgColors(
+      '<path fill="#ABCDEF"/><path fill="#abcdef"/>'
+    );
+    expect(colors).toEqual(['#ABCDEF']);
+  });
+
+  it('returns empty for malformed / empty input', () => {
+    expect(extractSvgColors('')).toEqual({ colors: [], hasCurrentColor: false });
+  });
+});
+
+describe('replaceSvgColor', () => {
+  it('rewrites every occurrence across attributes', () => {
+    const out = replaceSvgColor(
+      '<path fill="#ff0000"/><circle stroke="#ff0000"/>',
+      '#ff0000',
+      '#0000ff'
+    );
+    expect(out).toContain('fill="#0000ff"');
+    expect(out).toContain('stroke="#0000ff"');
+    expect(out).not.toContain('#ff0000');
+  });
+
+  it('rewrites a colour inside an inline style', () => {
+    const out = replaceSvgColor(
+      '<path style="fill:#111111;stroke:#222222"/>',
+      '#111111',
+      '#999999'
+    );
+    expect(out.toLowerCase()).toContain('fill:#999999');
+    expect(out).toContain('#222222');
+  });
+
+  it('is case-insensitive on the source colour', () => {
+    const out = replaceSvgColor('<path fill="#ABCDEF"/>', '#abcdef', '#000000');
+    expect(out).toContain('fill="#000000"');
+  });
+
+  it('leaves unrelated colours and none untouched', () => {
+    const out = replaceSvgColor(
+      '<path fill="#ff0000" stroke="none"/><circle fill="#00ff00"/>',
+      '#ff0000',
+      '#0000ff'
+    );
+    expect(out).toContain('stroke="none"');
+    expect(out).toContain('fill="#00ff00"');
+  });
+
+  it('returns the input unchanged on malformed markup', () => {
+    expect(replaceSvgColor('', '#000', '#fff')).toBe('');
   });
 });

@@ -1,5 +1,5 @@
 // store/canvas/factories.ts — pure element factories, split from canvasSlice.ts (5.1).
-import { ROOT_ELEMENT_ID } from '@lib/element';
+import { ROOT_ELEMENT_ID, SVG_SRC_ATTR } from '@lib/element';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 export const makeRootElement = () => ({
@@ -98,23 +98,34 @@ export const makeImage = (input, id) => ({
  * type with the `svg` tag override; `svgSource` is the (already-prepared)
  * inner markup. see docs/plans/svg-improvements-plan.md
  */
-export const makeSvg = (input, id) => ({
-    ...DEFAULT_RECT_STYLES,
-    id,
-    type: 'image',
-    tag: 'svg',
-    parentId: input.parentId,
-    childIds: [],
-    x: input.x,
-    y: input.y,
-    widthValue: input.width,
-    heightValue: input.height,
-    customProperties: {},
-    svgSource: input.svgSource,
-    ...(input.fill !== undefined ? { fill: input.fill } : {}),
-    ...(input.stroke !== undefined ? { stroke: input.stroke } : {}),
-    ...(input.strokeWidth !== undefined ? { strokeWidth: input.strokeWidth } : {}),
-});
+export const makeSvg = (input, id) => {
+    // SVG attributes emitted on the regenerated `<svg>` wrapper. `viewBox`
+    // makes the shapes scale to the element box; the asset path (imported,
+    // file-backed SVGs) round-trips for the reload watcher.
+    const attributes = {};
+    if (input.viewBox !== undefined)
+        attributes['viewBox'] = input.viewBox;
+    if (input.src !== undefined)
+        attributes[SVG_SRC_ATTR] = input.src;
+    return {
+        ...DEFAULT_RECT_STYLES,
+        id,
+        type: 'image',
+        tag: 'svg',
+        parentId: input.parentId,
+        childIds: [],
+        x: input.x,
+        y: input.y,
+        widthValue: input.width,
+        heightValue: input.height,
+        customProperties: {},
+        svgSource: input.svgSource,
+        ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
+        ...(input.fill !== undefined ? { fill: input.fill } : {}),
+        ...(input.stroke !== undefined ? { stroke: input.stroke } : {}),
+        ...(input.strokeWidth !== undefined ? { strokeWidth: input.strokeWidth } : {}),
+    };
+};
 /**
  * Default visual treatment for an input drawn on the canvas — a
  * subtle outlined box so the user can see what they drew. Users are

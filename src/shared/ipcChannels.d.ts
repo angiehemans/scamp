@@ -33,6 +33,8 @@ export declare const IPC: {
     readonly ProjectConfigWrite: "projectConfig:write";
     readonly FileCopyImage: "file:copyImage";
     readonly FileChooseImage: "file:chooseImage";
+    readonly FileReadText: "file:readText";
+    readonly SvgAssetChanged: "svg:assetChanged";
     readonly ClipboardRead: "clipboard:read";
     readonly ClipboardSaveImage: "clipboard:saveImage";
     readonly ThemeRead: "theme:read";

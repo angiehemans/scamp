@@ -1,5 +1,5 @@
 import { type BreakpointOverride, type ElementAnimation, type ElementStateName, type KeyframesBlock, type PropertyGroup, type ScampElement } from '@lib/element';
-import { type Breakpoint, type ProjectFormat, type ThemeToken } from '@shared/types';
+import { type Breakpoint, type ProjectFormat, type SvgAssetChangedPayload, type ThemeToken } from '@shared/types';
 export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 export type NewRectInput = {
     parentId: string;
@@ -44,10 +44,24 @@ export type NewSvgInput = {
     height: number;
     /** Sanitized + normalized inner svg markup (see lib/svg.prepareSvgForInsert). */
     svgSource: string;
+    /**
+     * The source's `viewBox` (e.g. "0 0 24 24"). Emitted on the rendered /
+     * generated `<svg>` so its shapes scale to fill the element box when the
+     * SVG is resized. Absent only when the source had neither a viewBox nor
+     * an intrinsic size.
+     */
+    viewBox?: string;
     /** Element-level paint hoisted from the source's root <svg>. */
     fill?: string;
     stroke?: string;
     strokeWidth?: number;
+    /**
+     * Relative path of the source `.svg` file copied into `public/assets`,
+     * when the SVG was imported from a file (vs. pasted markup). Stored on
+     * the element as `data-scamp-svg-src` so it round-trips through the TSX
+     * and the file-watch reload can find the source. Absent for pasted SVGs.
+     */
+    src?: string;
 };
 export type NewInputInput = {
     parentId: string;
@@ -574,6 +588,14 @@ export type CanvasState = {
     setZoom: (zoom: number | null) => void;
     /** Record the Viewport's latest auto-fit scale. */
     setFitScale: (scale: number) => void;
+    /**
+     * A pending "an imported SVG's file changed on disk" reload offer, or
+     * null. Set by the asset-change listener when a watched `.svg` referenced
+     * by an inline SVG element changes externally; consumed by the reload
+     * banner. see docs/plans/svg-color-editing-plan.md
+     */
+    pendingSvgReload: SvgAssetChangedPayload | null;
+    setPendingSvgReload: (value: SvgAssetChangedPayload | null) => void;
     /**
      * Toggle the aspect-ratio lock for an element. Enabling captures the
      * current width/height ratio; if either axis isn't `fixed`, it is first

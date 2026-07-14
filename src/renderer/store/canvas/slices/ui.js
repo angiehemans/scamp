@@ -9,6 +9,7 @@ export const createUiSlice = (set) => ({
     userZoom: null,
     fitScale: 1,
     ratioLocks: {},
+    pendingSvgReload: null,
     exportSettings: { lastFormat: 'png', lastPngScale: 2 },
     // Default matches the page-editor canvas. ProjectShell
     // overrides this when entering the component editor so the
@@ -36,6 +37,7 @@ export const createUiSlice = (set) => ({
     resetZoom: () => set({ userZoom: null }),
     setZoom: (zoom) => set({ userZoom: zoom }),
     setFitScale: (scale) => set({ fitScale: scale }),
+    setPendingSvgReload: (value) => set({ pendingSvgReload: value }),
     toggleRatioLock: (id, measured) => {
         const state = useCanvasStore.getState();
         const el = state.elements[id];

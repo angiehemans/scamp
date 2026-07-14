@@ -35,6 +35,125 @@ export const sanitizeSvgInner = (inner) => {
         return '';
     return clean.slice(open + 1, close);
 };
+/** Paint-carrying properties we surface as editable colours. `color`
+ *  backs `currentColor`; `stop-color` covers gradient stops. */
+const PAINT_PROPS = ['fill', 'stroke', 'color', 'stop-color'];
+/** Parse a `style="a:b;c:d"` attribute into [prop, value] pairs (trimmed,
+ *  lowercased prop). Tolerant of trailing semicolons / empty segments. */
+const parseStyleDecls = (style) => style
+    .split(';')
+    .map((seg) => {
+    const idx = seg.indexOf(':');
+    if (idx < 0)
+        return null;
+    const prop = seg.slice(0, idx).trim().toLowerCase();
+    const value = seg.slice(idx + 1).trim();
+    if (prop.length === 0 || value.length === 0)
+        return null;
+    return [prop, value];
+})
+    .filter((d) => d !== null);
+const isSkippablePaint = (value) => {
+    const v = value.trim().toLowerCase();
+    return v.length === 0 || v === 'none' || v.startsWith('url(');
+};
+/**
+ * Extract every unique colour used inside an SVG's inner source — from
+ * `fill` / `stroke` / `color` / `stop-color` presentation attributes AND
+ * inline `style` properties. `currentColor` is flagged separately (it maps
+ * to the element's CSS `color`, not a source edit). Pure w.r.t. its input.
+ * Returns empty on malformed markup rather than throwing.
+ */
+export const extractSvgColors = (svgSource) => {
+    const inner = sanitizeSvgInner(svgSource);
+    if (inner.trim().length === 0)
+        return { colors: [], hasCurrentColor: false };
+    const doc = new DOMParser().parseFromString(`<svg>${inner}</svg>`, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) {
+        return { colors: [], hasCurrentColor: false };
+    }
+    const colors = [];
+    const seen = new Set();
+    let hasCurrentColor = false;
+    const add = (raw) => {
+        const value = raw.trim();
+        if (isSkippablePaint(value))
+            return;
+        const lower = value.toLowerCase();
+        if (lower === 'currentcolor') {
+            hasCurrentColor = true;
+            return;
+        }
+        if (seen.has(lower))
+            return;
+        seen.add(lower);
+        colors.push(value);
+    };
+    for (const node of Array.from(doc.querySelectorAll('*'))) {
+        for (const prop of PAINT_PROPS) {
+            const attr = node.getAttribute(prop);
+            if (attr !== null)
+                add(attr);
+        }
+        const style = node.getAttribute('style');
+        if (style) {
+            for (const [prop, value] of parseStyleDecls(style)) {
+                if (PAINT_PROPS.includes(prop))
+                    add(value);
+            }
+        }
+    }
+    return { colors, hasCurrentColor };
+};
+/**
+ * Rewrite every occurrence of the colour `from` to `to` inside an SVG's
+ * inner source — across paint attributes and inline `style` properties.
+ * Case-insensitive on `from`. Leaves `none`, `url(#…)`, and unrelated
+ * colours untouched. Returns the input unchanged on malformed markup.
+ */
+export const replaceSvgColor = (svgSource, from, to) => {
+    const inner = sanitizeSvgInner(svgSource);
+    if (inner.trim().length === 0)
+        return svgSource;
+    const doc = new DOMParser().parseFromString(`<svg>${inner}</svg>`, 'image/svg+xml');
+    if (doc.querySelector('parsererror'))
+        return svgSource;
+    const wrapper = doc.querySelector('svg');
+    if (!wrapper)
+        return svgSource;
+    const fromLower = from.trim().toLowerCase();
+    for (const node of Array.from(wrapper.querySelectorAll('*'))) {
+        for (const prop of PAINT_PROPS) {
+            const attr = node.getAttribute(prop);
+            if (attr !== null && attr.trim().toLowerCase() === fromLower) {
+                node.setAttribute(prop, to);
+            }
+        }
+        const style = node.getAttribute('style');
+        if (style) {
+            let changed = false;
+            const next = style
+                .split(';')
+                .map((seg) => {
+                const idx = seg.indexOf(':');
+                if (idx < 0)
+                    return seg;
+                const prop = seg.slice(0, idx).trim().toLowerCase();
+                const value = seg.slice(idx + 1).trim();
+                if (PAINT_PROPS.includes(prop) &&
+                    value.toLowerCase() === fromLower) {
+                    changed = true;
+                    return `${seg.slice(0, idx)}:${to}`;
+                }
+                return seg;
+            })
+                .join(';');
+            if (changed)
+                node.setAttribute('style', next);
+        }
+    }
+    return wrapper.innerHTML;
+};
 /** Basic SVG shapes whose paint we care about. Containers (`g`, `svg`),
  *  `<defs>` content, gradients, etc. are excluded. */
 const SHAPE_TAGS = new Set([
@@ -70,24 +189,6 @@ const dropInvisibleShapes = (svg, rootPaint) => {
         const strokeInvisible = stroke === null || isNonePaint(stroke);
         if (fillInvisible && strokeInvisible)
             node.remove();
-    }
-};
-/**
- * Strip shapes' own `fill`/`stroke` (anything except `none`) so they
- * inherit the element-level paint and recolour. A shape's own
- * presentation attribute beats the inherited wrapper colour in the SVG
- * cascade, so without this the wrapper's fill/stroke can't reach a shape
- * that hardcodes its colour (or uses `currentColor`). `none` is left as-is
- * (deliberately unpainted). The original look is preserved via the hoisted
- * root paint on the wrapper. see docs/notes/svg-recolor.md
- */
-const stripShapePaint = (svg) => {
-    for (const node of Array.from(svg.querySelectorAll('*'))) {
-        for (const attr of ['fill', 'stroke']) {
-            const v = node.getAttribute(attr);
-            if (v !== null && !isNonePaint(v))
-                node.removeAttribute(attr);
-        }
     }
 };
 /**
@@ -140,19 +241,30 @@ export const prepareSvgForInsert = (raw) => {
     if (!svg)
         return null;
     const rootPaint = hoistRootPaint(svg);
+    // Preserve per-shape colours so the SVG Colours editor can surface and
+    // edit each one (backlog-6 story 3). We still hoist the ROOT paint to
+    // element level (it lives on the regenerated wrapper, not in svgSource)
+    // and drop fully-invisible bounding-box shapes, but we no longer strip
+    // shapes' own fill/stroke. see docs/notes/svg-recolor.md
     dropInvisibleShapes(svg, rootPaint);
-    stripShapePaint(svg);
-    const viewBox = svg.getAttribute('viewBox') ?? undefined;
+    const rawViewBox = svg.getAttribute('viewBox') ?? undefined;
     let width = parseLength(svg.getAttribute('width'));
     let height = parseLength(svg.getAttribute('height'));
-    if ((width === undefined || height === undefined) && viewBox) {
+    if ((width === undefined || height === undefined) && rawViewBox) {
         // viewBox = "min-x min-y width height"
-        const parts = viewBox.trim().split(/[\s,]+/).map(Number);
+        const parts = rawViewBox.trim().split(/[\s,]+/).map(Number);
         if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
             width = width ?? parts[2];
             height = height ?? parts[3];
         }
     }
+    // A viewBox is what lets the rendered `<svg>` scale its shapes to fill the
+    // element box. When the source omits it but has an intrinsic size, derive
+    // one from that so a resized SVG's artwork scales instead of staying put.
+    const viewBox = rawViewBox ??
+        (width !== undefined && height !== undefined
+            ? `0 0 ${width} ${height}`
+            : undefined);
     return {
         svgSource: svg.innerHTML,
         ...(viewBox !== undefined ? { viewBox } : {}),

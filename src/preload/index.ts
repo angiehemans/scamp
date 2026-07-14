@@ -15,6 +15,7 @@ import type {
   ExportResult,
   ExportSvgArgs,
   FileChangedPayload,
+  SvgAssetChangedPayload,
   FilePatchArgs,
   FilePatchResult,
   FileWriteAckPayload,
@@ -242,6 +243,10 @@ const api = {
   chooseImage: (args?: ChooseImageArgs): Promise<ChooseImageResult> =>
     ipcRenderer.invoke(IPC.FileChooseImage, args),
 
+  /** Read a `.svg` file's UTF-8 text (inline import + reload). */
+  readFileText: (path: string): Promise<string> =>
+    ipcRenderer.invoke(IPC.FileReadText, path),
+
   // Export (page or element)
   exportChooseSavePath: (
     args: ExportChooseSavePathArgs
@@ -265,6 +270,15 @@ const api = {
     const listener = (_e: IpcRendererEvent, content: string): void => handler(content);
     ipcRenderer.on(IPC.ThemeChanged, listener);
     return () => ipcRenderer.removeListener(IPC.ThemeChanged, listener);
+  },
+
+  onSvgAssetChanged: (
+    handler: (payload: SvgAssetChangedPayload) => void
+  ): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: SvgAssetChangedPayload): void =>
+      handler(payload);
+    ipcRenderer.on(IPC.SvgAssetChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.SvgAssetChanged, listener);
   },
 
   // Terminal

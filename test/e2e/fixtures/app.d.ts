@@ -15,6 +15,7 @@ export declare const stubOpenDialog: (app: ElectronApplication, filePath: string
  */
 export declare const stubSaveDialog: (app: ElectronApplication, filePath: string) => Promise<void>;
 export declare const writeFixtureImage: (dir: string, name?: string) => Promise<string>;
+export declare const writeFixtureSvg: (name?: string, content?: string) => Promise<string>;
 /**
  * Dismiss the first-launch Sentry crash-reporting prompt if it's
  * showing. The prompt mounts before any project / start-screen view

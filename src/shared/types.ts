@@ -388,6 +388,18 @@ export type FileChangedPayload = {
 };
 
 /**
+ * Emitted by main when an imported SVG's asset file changes on disk
+ * (external edit). `fileName` is the asset's basename; the renderer
+ * matches it against inline SVG elements' `data-scamp-svg-src` to offer a
+ * reload. `content` is the new file text. see
+ * docs/plans/svg-color-editing-plan.md
+ */
+export type SvgAssetChangedPayload = {
+  fileName: string;
+  content: string;
+};
+
+/**
  * Emitted by main once a chokidar stability event confirms a write
  * initiated by the renderer has settled on disk. Correlated by
  * `writeId` — the opaque id returned from `file:write` / `file:patch`.

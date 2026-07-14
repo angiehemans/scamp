@@ -39,6 +39,7 @@ import { ComponentSidebar } from './projectShell/ComponentSidebar';
 import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
+import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import {
@@ -291,6 +292,7 @@ export const ProjectShell = ({
   // Global canvas keyboard shortcuts + component-editor Esc. Bound here
   // (after keyDeps/latestExit exist) rather than earlier in the body.
   useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
+  useSvgAssetReload();
 
   return (
     <div className={styles.shell}>

@@ -280,6 +280,12 @@ export const elementDeclarationLines = (
   if (el.strokeWidth !== undefined && el.strokeWidth > 0) {
     lines.push(`stroke-width: ${el.strokeWidth}px;`);
   }
+  // `color` on an svg backs its `currentColor` shapes (the "Current color"
+  // swatch). Emitted here for svg because the typography block above is
+  // text-only. see docs/plans/svg-color-editing-plan.md
+  if (el.tag === 'svg' && el.color !== undefined && el.color.length > 0) {
+    lines.push(`color: ${el.color};`);
+  }
 
   // Transitions — single shorthand per element. Empty list omits.
   if (el.transitions.length > 0) {
