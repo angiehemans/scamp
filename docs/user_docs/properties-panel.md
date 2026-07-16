@@ -24,6 +24,28 @@ The collapsible **Element** section at the top lets you change the HTML tag used
   `auto` flips to Auto, etc. You can also pick the mode manually
   from the dropdown.
 
+#### Aspect-ratio lock
+
+A chain-link toggle sits between the **W** and **H** inputs:
+
+- **Unlocked** (default) — width and height change independently.
+- **Locked** — changing one dimension rescales the other to keep the
+  ratio. The ratio is captured at the moment you lock and holds until
+  you toggle off and on again. Type a new **W** and press **Tab** and
+  the **H** updates before focus moves on.
+- The same lock appears as a small badge on the canvas selection
+  handles — click it to toggle without opening the panel. **With the
+  lock on, only the corner handles resize** (they scale from the
+  corner); the edge handles are disabled so a drag can't distort the
+  element.
+- Ratio lock is a **session-only editor preference** — it isn't
+  written to your CSS or saved with the project. Switching an axis to
+  **Stretch** (a percentage size) auto-releases the lock, since a
+  percentage can't be held against a fixed value.
+
+Imported and pasted **SVGs start with the lock on** (their ratio comes
+from the `viewBox`) — see [Elements → SVG](elements.md#svg).
+
 ### Layout
 
 - Toggle between **Block** and **Flex** display.

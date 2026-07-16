@@ -60,7 +60,12 @@ export const elementDeclarationLines = (
   // placement.
   const inFlexParent = parent?.display === 'flex';
   const inGridParent = parent?.display === 'grid';
-  const inLayoutParent = inFlexParent || inGridParent;
+  // Slot content — a page-owned child of a component-instance — flows
+  // inside the component's slot rect (React `{children}`). It must NOT be
+  // absolutely positioned or it escapes the slot to the component root.
+  // see docs/plans/component-slots-plan.md
+  const inInstanceParent = parent?.type === 'component-instance';
+  const inLayoutParent = inFlexParent || inGridParent || inInstanceParent;
   // Different default set for root vs any other rect — a root defaults
   // to a white page background and web-idiomatic sizing (100% / auto)
   // so the exported CSS works outside Scamp. Everything else flows

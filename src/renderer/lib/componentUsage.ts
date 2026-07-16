@@ -72,6 +72,52 @@ export const findInstanceUsagesAcrossPages = (
   return out;
 };
 
+/**
+ * Instances of `componentName` (across pages) that have page content filling
+ * the given slot. Used to warn before a slot is removed or renamed in the
+ * component editor: that content stops rendering (it stays in the page file
+ * until re-placed). `slotName` is the component-side slot name; the default
+ * slot is `children` and matches content carrying no explicit `slotName` tag.
+ * see docs/notes/components-multi-file-ops.md
+ */
+export const findInstancesWithSlotContent = (
+  pages: ReadonlyArray<PageFile>,
+  componentName: string,
+  slotName: string
+): InstanceUsage[] => {
+  const out: InstanceUsage[] = [];
+  for (const page of pages) {
+    let parsed;
+    try {
+      parsed = parseCode(page.tsxContent, page.cssContent);
+    } catch {
+      // Skip malformed pages; warning under-reports rather than throws.
+      continue;
+    }
+    for (const el of Object.values(parsed.elements)) {
+      if (el.type !== 'component-instance') continue;
+      if (el.componentName !== componentName) continue;
+      const hasContent = el.childIds.some((cid) => {
+        const child = parsed.elements[cid];
+        if (!child) return false;
+        const effective =
+          typeof child.slotName === 'string' && child.slotName.length > 0
+            ? child.slotName
+            : 'children';
+        return effective === slotName;
+      });
+      if (hasContent) {
+        out.push({
+          pageName: page.name,
+          instanceCanvasId: el.id,
+          propOverrides: el.propOverrides ?? {},
+        });
+      }
+    }
+  }
+  return out;
+};
+
 /** Keep only usages whose `propOverrides` map has the named key. */
 export const filterUsagesWithPropOverride = (
   usages: ReadonlyArray<InstanceUsage>,

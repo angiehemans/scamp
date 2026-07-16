@@ -39,6 +39,25 @@ export type DetachInstanceEventDetail = {
   instanceId: string;
 };
 
+/**
+ * Custom event for removing a slot from a component (Phase 4, component
+ * slots). Both the right-click menu and the DataPanel Slots list dispatch
+ * it rather than calling `toggleSlotOnRect` directly, so `ProjectShell` can
+ * first check whether instances on other pages have content in this slot
+ * and — if so — surface a confirm dialog before the slot is removed.
+ * see docs/plans/component-slots-plan.md
+ */
+export const REQUEST_REMOVE_SLOT_EVENT = 'scamp:request-remove-slot';
+
+export type RequestRemoveSlotEventDetail = {
+  /** Canvas id of the slot rectangle (passed to `toggleSlotOnRect`). */
+  elementId: string;
+  /** Component currently being edited (to scan its instances). */
+  componentName: string;
+  /** The slot's name (`children` for the default slot). */
+  slotName: string;
+};
+
 type EventDetail = {
   x: number;
   y: number;
@@ -68,6 +87,18 @@ export const ElementContextMenu = (): JSX.Element | null => {
   const targetType = useCanvasStore((s) =>
     menu ? s.elements[menu.elementId]?.type : undefined
   );
+  // Slot actions are component-editor-only, on a childless rectangle.
+  const activeComponentName = useCanvasStore(
+    (s) => s.activeComponent?.name ?? null
+  );
+  const inComponent = activeComponentName !== null;
+  const targetSlot = useCanvasStore((s) =>
+    menu ? s.elements[menu.elementId]?.slot : undefined
+  );
+  const targetHasChildren = useCanvasStore((s) =>
+    menu ? (s.elements[menu.elementId]?.childIds.length ?? 0) > 0 : false
+  );
+  const toggleSlotOnRect = useCanvasStore((s) => s.toggleSlotOnRect);
 
   useEffect(() => {
     const handler = (e: Event): void => {
@@ -86,7 +117,56 @@ export const ElementContextMenu = (): JSX.Element | null => {
     targetType !== 'component-instance';
   const isInstance = targetType === 'component-instance';
 
+  const isRect =
+    targetType === 'rectangle' && menu.elementId !== ROOT_ELEMENT_ID;
+  const isSlot = typeof targetSlot === 'string' && targetSlot.length > 0;
+  // "Make slot" needs a childless rectangle inside a component (a slot's
+  // JSX becomes `{slotName}`, so it can't have its own children — this also
+  // prevents nested slots). "Remove slot" shows on an existing slot.
+  const canMakeSlot = inComponent && isRect && !isSlot && !targetHasChildren;
+  const canRemoveSlot = inComponent && isRect && isSlot;
+
   const items = [
+    ...(canMakeSlot
+      ? [
+          {
+            label: 'Make slot',
+            onSelect: () => toggleSlotOnRect(menu.elementId),
+          },
+        ]
+      : []),
+    ...(canRemoveSlot
+      ? [
+          {
+            label: 'Remove slot',
+            onSelect: () => {
+              // Route through ProjectShell so it can warn when instances on
+              // other pages have content in this slot. With no active
+              // component name (shouldn't happen when canRemoveSlot) fall
+              // back to a direct removal.
+              if (
+                activeComponentName === null ||
+                typeof targetSlot !== 'string'
+              ) {
+                toggleSlotOnRect(menu.elementId);
+                return;
+              }
+              window.dispatchEvent(
+                new CustomEvent<RequestRemoveSlotEventDetail>(
+                  REQUEST_REMOVE_SLOT_EVENT,
+                  {
+                    detail: {
+                      elementId: menu.elementId,
+                      componentName: activeComponentName,
+                      slotName: targetSlot,
+                    },
+                  }
+                )
+              );
+            },
+          },
+        ]
+      : []),
     ...(canConvert
       ? [
           {

@@ -18,6 +18,10 @@ export type DrawState = {
   // the preview at the right place.
   parentOffsetX: number;
   parentOffsetY: number;
+  // Set when the draw started inside a component slot zone: the new element
+  // becomes that instance's slot content (parentId is the instance). The
+  // default `children` slot carries no name; only named slots get one.
+  slotName?: string;
 };
 
 export type MoveState = {
@@ -89,6 +93,10 @@ export type ReparentDrop =
       rect: SelectedRect;
       x: number;
       y: number;
+      /** Set when the target is a component-instance slot — the reparented
+       *  element becomes that slot's content. see
+       *  docs/plans/component-slots-plan.md */
+      slotName?: string;
     };
 
 /**
@@ -118,5 +126,11 @@ export type CanvasGeometry = {
     clientX: number,
     clientY: number,
     draggedId: string
-  ) => { parentId: string; isFlow: boolean } | null;
+  ) => {
+    parentId: string;
+    isFlow: boolean;
+    /** Set when the target is a component-instance slot (drop into the
+     *  instance's slot content). Slot drops bypass sibling-exclusion. */
+    slotName?: string;
+  } | null;
 };

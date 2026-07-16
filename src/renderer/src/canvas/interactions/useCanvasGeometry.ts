@@ -142,21 +142,39 @@ export const useCanvasGeometry = (
     clientX: number,
     clientY: number,
     draggedId: string
-  ): { parentId: string; isFlow: boolean } | null => {
+  ): { parentId: string; isFlow: boolean; slotName?: string } | null => {
     // elementsFromPoint is top→bottom in paint order, so the first
     // container we hit walking outward is the deepest one under the
     // cursor. The chrome layer has no `data-element-id`, so it's
     // skipped naturally.
     const candidates = document.elementsFromPoint(clientX, clientY);
     for (const node of candidates) {
+      // Component slot drop zone: route the drop into the owning instance
+      // (the dropped element becomes page-owned slot content). The zone
+      // carries `data-scamp-slot` + `data-slot-owner-id` (the instance's
+      // canvas id). see docs/plans/component-slots-plan.md
+      if (node instanceof HTMLElement && node.dataset['scampSlot']) {
+        const ownerId = node.dataset['slotOwnerId'];
+        if (
+          ownerId &&
+          elements[ownerId] &&
+          !isSelfOrDescendant(ownerId, draggedId)
+        ) {
+          return {
+            parentId: ownerId,
+            isFlow: false,
+            slotName: node.dataset['scampSlot'],
+          };
+        }
+      }
       const id = elementIdOf(node);
       if (!id) continue;
       // Never drop into the dragged element or its own subtree.
       if (isSelfOrDescendant(id, draggedId)) continue;
       const el = elements[id];
       if (!el) continue;
-      // Only rectangles hold children; text / image / input are leaves
-      // and a component-instance is opaque on the page.
+      // Only rectangles hold children; text / image / input are leaves.
+      // A component-instance is only droppable via its slot zones (above).
       if (el.type !== 'rectangle') continue;
       const isFlow = el.display === 'flex' || el.display === 'grid';
       return { parentId: id, isFlow };

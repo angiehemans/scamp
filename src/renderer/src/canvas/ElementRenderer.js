@@ -66,7 +66,15 @@ onChangeEditingProp,
  * selected — otherwise the page is noisy with outlines around every
  * editable string on every instance.
  */
-instanceSelected) => {
+instanceSelected, 
+/**
+ * Render the page-instance's content for a slot marker. Called when the
+ * recursion reaches a slot-marked rectangle in the definition; the
+ * callback (closing over the page instance) returns the instance's
+ * page-owned slot children (or an empty drop zone). see
+ * docs/plans/component-slots-plan.md
+ */
+renderSlot) => {
     // Slot composition deferred: nested instances render as placeholders.
     if (element.type === 'component-instance') {
         return (_jsxs("div", { style: {
@@ -179,6 +187,22 @@ instanceSelected) => {
     if (isText && propName === null) {
         props['title'] = 'Locked text — edit in the component definition.';
     }
+    // Slot marker: render THIS rect's own styled div (the slot's box) with
+    // the page instance's slot content as its children. Checked BEFORE the
+    // no-children short-circuit because a slot rect has no definition
+    // children of its own. Marks the box as a drop target + re-enables
+    // pointer events so content is selectable. Matches the generated
+    // `<slotRect>{children}</slotRect>`. see docs/plans/component-slots-plan.md
+    if (typeof element.slot === 'string' && element.slot.length > 0) {
+        const { content } = renderSlot(element.slot);
+        return createElement(tag, {
+            ...props,
+            key: element.id,
+            'data-scamp-slot': element.slot,
+            'data-slot-owner-id': instanceId,
+            style: { ...style, pointerEvents: 'auto' },
+        }, content);
+    }
     if (!hasChildren && !hasText && !isEditingThisProp) {
         return createElement(tag, { ...props, key: element.id });
     }
@@ -234,7 +258,7 @@ instanceSelected) => {
         const child = elementsMap[childId];
         if (!child)
             return null;
-        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, editingProp, onCommitProp, onChangeEditingProp, instanceSelected);
+        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, editingProp, onCommitProp, onChangeEditingProp, instanceSelected, renderSlot);
     })
         .filter((c) => c !== null);
     return createElement(tag, { ...props, key: element.id }, children);
@@ -267,8 +291,16 @@ export const ElementRenderer = ({ elementId }) => {
             return undefined;
         return resolveElementAtBreakpoint(parent, s.activeBreakpointId, s.breakpoints);
     });
-    const parentDisplay = parentResolved?.display;
-    const parentDirection = parentResolved?.flexDirection;
+    // Slot content (an element whose parent is a component-instance) flows
+    // inside the slot rather than being absolutely positioned by its page
+    // x/y — otherwise it renders at its old page coordinates, escaping the
+    // slot. Treat the instance parent as a flex column so children stack.
+    // see docs/plans/component-slots-plan.md
+    const parentIsInstance = parentResolved?.type === 'component-instance';
+    const parentDisplay = parentIsInstance ? 'flex' : parentResolved?.display;
+    const parentDirection = parentIsInstance
+        ? 'column'
+        : parentResolved?.flexDirection;
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
     // Canvas-frame min height — page editor uses
@@ -454,10 +486,45 @@ export const ElementRenderer = ({ elementId }) => {
                 setEditingInstanceProp({ instanceId: element.id, propName });
             }
         };
+        // Render this instance's content for a slot marker in the definition.
+        // Phase 2: the instance's page-owned children fill the default slot,
+        // rendered as real page elements (so they're selectable / editable).
+        // "Default" = the `children` slot, or the sole slot when a component
+        // has exactly one (even if renamed). Additional named slots show an
+        // empty drop zone until Phase 3. see docs/plans/component-slots-plan.md
+        const componentSlotCount = Object.values(componentTreeForInstance.elements).filter((e) => typeof e.slot === 'string' && e.slot.length > 0).length;
+        // Return the CONTENT that fills a slot (the instance's page-owned
+        // children, or an empty-state label). `renderComponentSubtree` nests it
+        // inside the slot RECT's own styled div, so the canvas matches the
+        // generated `<slotRect>{children}</slotRect>`.
+        const renderSlot = (slotName) => {
+            // Content is filtered to the slot it fills (via each child's
+            // `slotName`; absent → the default `children` slot). A component with
+            // exactly one slot takes all content regardless of name (so a single
+            // renamed slot still fills).
+            const pageElements = useCanvasStore.getState().elements;
+            const contentIds = element.childIds.filter((id) => {
+                if (componentSlotCount === 1)
+                    return true;
+                const childSlot = pageElements[id]?.slotName;
+                const effective = childSlot && childSlot.length > 0 ? childSlot : 'children';
+                return effective === slotName;
+            });
+            if (contentIds.length === 0) {
+                return {
+                    content: (_jsx("span", { className: styles.slotDropLabel, children: "Drop elements here" }, "slot-empty")),
+                    empty: true,
+                };
+            }
+            return {
+                content: contentIds.map((id) => (_jsx(ElementRenderer, { elementId: id }, id))),
+                empty: false,
+            };
+        };
         const inner = root
             ? renderComponentSubtree(root, componentTreeForInstance.elements, 
             // Pass page-side layout context so flex/grid still applies.
-            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected)
+            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected, renderSlot)
             : null;
         if (isEmptyComponent) {
             return (_jsxs("div", { ...wrapperProps, style: {
@@ -621,6 +688,19 @@ export const ElementRenderer = ({ elementId }) => {
                 __html: sanitizeSvgInner(element.svgSource ?? ''),
             },
         });
+    }
+    // Component slot marker (component editor): render the rectangle with a
+    // dashed outline + a "✦ slot: <name>" label so the user can see it. A
+    // slot has no children of its own — the label IS the content. The
+    // `data-scamp-slot` attr is the drop-routing token Phase 2 hit-tests.
+    // see docs/plans/component-slots-plan.md
+    if (typeof element.slot === 'string' && element.slot.length > 0) {
+        const baseClass = typeof props['className'] === 'string' ? props['className'] : '';
+        return createElement(tag, {
+            ...props,
+            className: `${baseClass} ${styles.slot}`.trim(),
+            'data-scamp-slot': element.slot,
+        }, createElement('span', { className: styles.slotLabel, key: 'slot-label' }, `✦ slot: ${element.slot}`));
     }
     const children = isText
         ? (element.text ?? '')

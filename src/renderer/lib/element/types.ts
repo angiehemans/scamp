@@ -525,6 +525,22 @@ export type ScampElement = {
   text?: string;
   /** Component-side prop name (component editor only). see docs/notes/components-data-model.md */
   prop?: string;
+  /**
+   * Component-side SLOT name on a container rectangle (component editor
+   * only). When set, the element emits `{slotName}` and declares a
+   * `slotName?: React.ReactNode` prop — page instances fill it with their
+   * own children. Default name is `'children'`. Only meaningful in a
+   * component definition. see docs/plans/component-slots-plan.md
+   */
+  slot?: string;
+  /**
+   * Page-side: which slot of the owning component-instance this element
+   * fills. Absent means the default (`children`) slot. Set on the direct
+   * children of a `component-instance`. A `children`/default slot emits as
+   * JSX children of the instance; a named slot emits as a
+   * `slotName={<…>}` prop. see docs/plans/component-slots-plan.md
+   */
+  slotName?: string;
   fontFamily?: string;
   /**
    * Full CSS `font-size` value, e.g. `"16px"`, `"1rem"`, or a token

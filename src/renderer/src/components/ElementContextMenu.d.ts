@@ -20,6 +20,23 @@ export type DetachInstanceEventDetail = {
     instanceId: string;
 };
 /**
+ * Custom event for removing a slot from a component (Phase 4, component
+ * slots). Both the right-click menu and the DataPanel Slots list dispatch
+ * it rather than calling `toggleSlotOnRect` directly, so `ProjectShell` can
+ * first check whether instances on other pages have content in this slot
+ * and — if so — surface a confirm dialog before the slot is removed.
+ * see docs/plans/component-slots-plan.md
+ */
+export declare const REQUEST_REMOVE_SLOT_EVENT = "scamp:request-remove-slot";
+export type RequestRemoveSlotEventDetail = {
+    /** Canvas id of the slot rectangle (passed to `toggleSlotOnRect`). */
+    elementId: string;
+    /** Component currently being edited (to scan its instances). */
+    componentName: string;
+    /** The slot's name (`children` for the default slot). */
+    slotName: string;
+};
+/**
  * Single-instance context menu for canvas elements. Listens for the
  * `scamp:open-element-context-menu` custom event dispatched by
  * `ElementRenderer.onContextMenu`, opens at the supplied coordinates,

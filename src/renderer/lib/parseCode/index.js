@@ -3,7 +3,8 @@ import { ELEMENT_STATES, ROOT_ELEMENT_ID } from "../element";
 import { requireAt, requireGroup } from "../safeAccess";
 import { applyDeclarations, applyDeclarationsAsOverride, applyDeclarationsAsStateOverride, makeBaseline, makeRoot } from "./apply";
 import { parseCssDeclarations } from "./css";
-import { parseTsxStructure, parsePropsDestructure, PROP_REF_TEXT_RE } from "./tsx";
+import { parseTsxStructure, parsePropsDestructure, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
+import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID } from "@shared/types";
 /**
  * Return the set of CSS property names that appear more than once in
@@ -113,7 +114,10 @@ const indexCssClassesByIdSuffix = (names) => {
 export const parseCode = (tsx, css, options) => {
     const breakpoints = options?.breakpoints ?? DEFAULT_BREAKPOINTS;
     const isComponent = options?.isComponent ?? false;
-    const rawElements = parseTsxStructure(tsx);
+    // Hoist named-slot props (`<Card left={<…>} />`) into marker-carrying JSX
+    // children first — htmlparser2 can't tokenize JSX inside an attribute.
+    // A post-pass below lifts the marker into `slotName`.
+    const rawElements = parseTsxStructure(hoistNamedSlots(tsx));
     const parsedCss = parseCssDeclarations(css, breakpoints);
     // Rename resilience: if a TSX className has no matching CSS class (the
     // class was renamed on only one side), fall back to the CSS class sharing
@@ -280,6 +284,42 @@ export const parseCode = (tsx, css, options) => {
                 text: propDefaults.get(propName) ?? '',
             };
         }
+    }
+    // Post-pass: hydrate component slots. A rectangle whose sole content is a
+    // single `{slotName}` expression AND whose name is declared as a
+    // `React.ReactNode` prop becomes a slot — set the typed `slot` field and
+    // drop the `{slotName}` fragment (it re-emits from `slot` on generate).
+    // see docs/plans/component-slots-plan.md
+    const slotNames = parseSlotNames(tsx);
+    if (slotNames.size > 0) {
+        for (const id of Object.keys(elements)) {
+            const el = elements[id];
+            if (!el || el.type !== 'rectangle' || el.childIds.length > 0)
+                continue;
+            const frags = el.inlineFragments;
+            if (frags.length !== 1 || frags[0]?.kind !== 'text')
+                continue;
+            const m = frags[0].value.match(PROP_REF_TEXT_RE);
+            if (!m)
+                continue;
+            const name = requireGroup(m, 1);
+            if (!slotNames.has(name))
+                continue;
+            elements[id] = { ...el, slot: name, inlineFragments: [] };
+        }
+    }
+    // Post-pass: lift the named-slot marker (injected by hoistNamedSlots) into
+    // the typed `slotName` field, and drop it from the generic attribute bag
+    // so it round-trips via `slotName` (re-emitted as a `slotName={<…>}` prop).
+    for (const id of Object.keys(elements)) {
+        const el = elements[id];
+        if (!el || !el.attributes)
+            continue;
+        const marker = el.attributes[SLOT_MARKER_ATTR];
+        if (typeof marker !== 'string' || marker.length === 0)
+            continue;
+        const { [SLOT_MARKER_ATTR]: _drop, ...restAttrs } = el.attributes;
+        elements[id] = { ...el, slotName: marker, attributes: restAttrs };
     }
     return {
         elements,

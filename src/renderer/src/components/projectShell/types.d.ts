@@ -31,6 +31,12 @@ export type DetachRequest = {
     componentName: string;
     overrideCount: number;
 };
+export type SlotRemovalRequest = {
+    elementId: string;
+    slotName: string;
+    componentName: string;
+    impactByPage: ReadonlyArray<PageImpact>;
+};
 /** Queued delete-component confirmation. */
 export type DeletingComponent = {
     componentName: string;

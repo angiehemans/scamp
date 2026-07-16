@@ -5,9 +5,47 @@
 // index for flow targets, drop point for absolute targets — lives here so
 // neither hook duplicates it. see docs/plans/canvas-drag-reparent-plan.md
 import type { ScampElement } from '@lib/element';
+import { wouldCreateComponentCycle } from '@lib/componentUsage';
 
 import { elementIdOf } from './canvasHitTest';
 import type { CanvasGeometry, DropIndicator, ReparentDrop } from './types';
+
+type ComponentTree = { elements: Record<string, ScampElement>; rootId: string };
+
+/**
+ * True when committing this slot drop would create a component cycle. Only
+ * an absolute drop whose target is a component-instance is a slot drop, and
+ * only a dragged component-instance can introduce a reference. The cycle is
+ * checked against the component currently being edited (`activeComponentName`)
+ * — dropping into a slot while editing component A folds the dragged
+ * component into A's definition; if it transitively uses A, that's a cycle.
+ * On a page (`activeComponentName` null) this is always false.
+ * see docs/notes/components-multi-file-ops.md
+ */
+export const slotDropCreatesCycle = (
+  drop: ReparentDrop,
+  draggedId: string,
+  elements: Record<string, ScampElement>,
+  componentTrees: Record<string, ComponentTree>,
+  activeComponentName: string | null
+): boolean => {
+  if (drop.kind !== 'absolute') return false;
+  const target = elements[drop.targetId];
+  if (!target || target.type !== 'component-instance') return false;
+  const dragged = elements[draggedId];
+  if (
+    !dragged ||
+    dragged.type !== 'component-instance' ||
+    !dragged.componentName
+  ) {
+    return false;
+  }
+  return wouldCreateComponentCycle(
+    componentTrees,
+    activeComponentName,
+    dragged.componentName
+  );
+};
 
 const LINE = 2;
 
@@ -89,22 +127,15 @@ export const resolveReparentDrop = (
   clientX: number,
   clientY: number,
   geometry: CanvasGeometry,
-  elements: Record<string, ScampElement>,
-  // The reorder (flex-child) path drags OVER siblings to reorder, so a
-  // sibling container must not be treated as a reparent target or normal
-  // reordering would break. The move (absolute) path has no reorder
-  // concept, so it reparents into any different container, siblings
-  // included — matching decision (b). see the plan's Open questions.
-  excludeSiblings: boolean
+  elements: Record<string, ScampElement>
 ): ReparentDrop | null => {
+  // Any different container under the cursor is a valid nest target —
+  // siblings included. Reordering a flex child still works: dropping in the
+  // GAP between siblings targets the shared PARENT (rejected below as
+  // "same parent"), so it falls through to the reorder path; only dropping
+  // onto a sibling's body nests into it. see docs/plans/component-slots-plan.md
   const drop = geometry.resolveDropContainer(clientX, clientY, draggedEl.id);
   if (!drop || drop.parentId === draggedEl.parentId) return null;
-  if (
-    excludeSiblings &&
-    (elements[drop.parentId]?.parentId ?? null) === draggedEl.parentId
-  ) {
-    return null;
-  }
 
   if (drop.isFlow) {
     const parent = elements[drop.parentId];
@@ -127,7 +158,18 @@ export const resolveReparentDrop = (
   const localY = cursor.y - rect.y - grab.dy;
   const x = Math.round(Math.max(0, Math.min(localX, rect.w - draggedEl.widthValue)));
   const y = Math.round(Math.max(0, Math.min(localY, rect.h - draggedEl.heightValue)));
-  return { kind: 'absolute', targetId: drop.parentId, rect, x, y };
+  return {
+    kind: 'absolute',
+    targetId: drop.parentId,
+    rect,
+    x,
+    y,
+    // The default `children` slot carries no explicit slotName (it emits as
+    // JSX children); only named slots get one.
+    ...(drop.slotName !== undefined && drop.slotName !== 'children'
+      ? { slotName: drop.slotName }
+      : {}),
+  };
 };
 
 /**

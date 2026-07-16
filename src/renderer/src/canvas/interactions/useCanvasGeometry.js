@@ -130,6 +130,22 @@ export const useCanvasGeometry = (frameRef, scale) => {
         // skipped naturally.
         const candidates = document.elementsFromPoint(clientX, clientY);
         for (const node of candidates) {
+            // Component slot drop zone: route the drop into the owning instance
+            // (the dropped element becomes page-owned slot content). The zone
+            // carries `data-scamp-slot` + `data-slot-owner-id` (the instance's
+            // canvas id). see docs/plans/component-slots-plan.md
+            if (node instanceof HTMLElement && node.dataset['scampSlot']) {
+                const ownerId = node.dataset['slotOwnerId'];
+                if (ownerId &&
+                    elements[ownerId] &&
+                    !isSelfOrDescendant(ownerId, draggedId)) {
+                    return {
+                        parentId: ownerId,
+                        isFlow: false,
+                        slotName: node.dataset['scampSlot'],
+                    };
+                }
+            }
             const id = elementIdOf(node);
             if (!id)
                 continue;
@@ -139,8 +155,8 @@ export const useCanvasGeometry = (frameRef, scale) => {
             const el = elements[id];
             if (!el)
                 continue;
-            // Only rectangles hold children; text / image / input are leaves
-            // and a component-instance is opaque on the page.
+            // Only rectangles hold children; text / image / input are leaves.
+            // A component-instance is only droppable via its slot zones (above).
             if (el.type !== 'rectangle')
                 continue;
             const isFlow = el.display === 'flex' || el.display === 'grid';

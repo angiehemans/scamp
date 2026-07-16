@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { commitReparentDrop, resolveReparentDrop } from './reparentDrop';
+import { useAppLogStore } from '@store/appLogSlice';
+import { commitReparentDrop, resolveReparentDrop, slotDropCreatesCycle, } from './reparentDrop';
 /**
  * Reorder state machine for flex children. Flex layout owns the child's
  * position, so within its own parent the only meaningful drag is moving it
@@ -20,6 +21,7 @@ export const useReorderInteraction = (geometry) => {
     const elements = useCanvasStore((s) => s.elements);
     const reorderElement = useCanvasStore((s) => s.reorderElement);
     const reparentElement = useCanvasStore((s) => s.reparentElement);
+    const setElementSlotName = useCanvasStore((s) => s.setElementSlotName);
     const start = (e, id, parentId) => {
         e.preventDefault();
         e.target.setPointerCapture(e.pointerId);
@@ -43,7 +45,7 @@ export const useReorderInteraction = (geometry) => {
         // Take priority over same-parent reordering and clear the gap line.
         // excludeSiblings: dragging over a sibling here means "reorder next to
         // it", not "nest into it".
-        const drop = resolveReparentDrop(el, { dx: reorder.grabDX, dy: reorder.grabDY }, e.clientX, e.clientY, geometry, elements, true);
+        const drop = resolveReparentDrop(el, { dx: reorder.grabDX, dy: reorder.grabDY }, e.clientX, e.clientY, geometry, elements);
         if (drop) {
             setCrossDrop(drop);
             setDropIndicator(null);
@@ -107,7 +109,24 @@ export const useReorderInteraction = (geometry) => {
     const onEnd = () => {
         if (reorder) {
             if (crossDrop) {
+                // Refuse a slot drop that would create a component cycle (only
+                // reachable while editing a component). Clear state, no commit.
+                const store = useCanvasStore.getState();
+                if (slotDropCreatesCycle(crossDrop, reorder.id, elements, store.componentTrees, store.activeComponent?.name ?? null)) {
+                    const dragged = elements[reorder.id];
+                    useAppLogStore
+                        .getState()
+                        .log('warn', `Refused: placing ${dragged?.componentName ?? 'component'} in a slot of ${store.activeComponent?.name ?? 'this component'} would create a cycle.`);
+                    setReorder(null);
+                    setDropIndicator(null);
+                    setCrossDrop(null);
+                    return;
+                }
                 commitReparentDrop(crossDrop, reorder.id, elements, reorderElement, reparentElement);
+                // Tag / clear the slot the reparented element landed in.
+                if (crossDrop.kind === 'absolute') {
+                    setElementSlotName(reorder.id, crossDrop.slotName);
+                }
             }
             else if (dropIndicator) {
                 // Same-parent reorder — parentId unchanged.

@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction } from 'react';
 import type { ProjectData } from '@shared/types';
-import type { DeletePropTextRequest, DetachRequest, LockPropRequest } from './types';
+import type { DeletePropTextRequest, DetachRequest, LockPropRequest, SlotRemovalRequest } from './types';
 type ProjectChange = (next: ProjectData | ((prev: ProjectData) => ProjectData)) => void;
 type Args = {
     project: ProjectData;
@@ -24,6 +24,9 @@ export type UseInstanceFlows = {
     detachRequest: DetachRequest | null;
     handleConfirmDetach: () => void;
     cancelDetach: () => void;
+    slotRemovalRequest: SlotRemovalRequest | null;
+    handleConfirmRemoveSlot: () => void;
+    cancelRemoveSlot: () => void;
 };
 /**
  * Owns the multi-file component-instance flows that ProjectShell drives

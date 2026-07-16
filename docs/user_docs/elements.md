@@ -85,6 +85,18 @@ This works even for icons that hardcode their own colors — the Fill/Stroke you
 
 Tip: **outline icons** (e.g. Lucide, Tabler) are drawn with strokes, not fills — recolor them with the **Stroke** control. Solid/filled icons use **Fill**. The panel starts from the icon's own colors, so it's usually clear which applies. (An icon built from several distinct hardcoded colors collapses to one color when recolored — element-level paint is a single fill/stroke, not per-shape.)
 
+### Resizing
+
+Inlined SVGs start with their [aspect-ratio lock](properties-panel.md#aspect-ratio-lock) **on** — the ratio comes from the SVG's `viewBox`, so dragging a corner scales the artwork proportionally instead of squashing it. Unlock it from the Size section if you deliberately want to stretch.
+
+### Reloading an externally-edited SVG
+
+An inlined SVG keeps a reference to the file it was imported from. If that file changes on disk — an agent or a text editor rewrites it — Scamp notices and offers to pull the new version in:
+
+> SVG file updated externally. **[ Reload SVG ]  [ Keep current ]**
+
+**Reload** replaces the inline source with the file's contents. Any recoloring you did in Scamp is part of the inline source, so **reloading discards those color edits** — the prompt says so before you commit. **Keep current** leaves your in-canvas version untouched.
+
 ## List Context Defaults
 
 When you draw a new rectangle or text element inside a `<ul>` or `<ol>`, Scamp sets its tag to `<li>` automatically. You can change it afterwards if needed.

@@ -13,6 +13,15 @@ export type InstanceUsage = {
 };
 /** Walk every page parsing for instances of `componentName`. */
 export declare const findInstanceUsagesAcrossPages: (pages: ReadonlyArray<PageFile>, componentName: string) => InstanceUsage[];
+/**
+ * Instances of `componentName` (across pages) that have page content filling
+ * the given slot. Used to warn before a slot is removed or renamed in the
+ * component editor: that content stops rendering (it stays in the page file
+ * until re-placed). `slotName` is the component-side slot name; the default
+ * slot is `children` and matches content carrying no explicit `slotName` tag.
+ * see docs/notes/components-multi-file-ops.md
+ */
+export declare const findInstancesWithSlotContent: (pages: ReadonlyArray<PageFile>, componentName: string, slotName: string) => InstanceUsage[];
 /** Keep only usages whose `propOverrides` map has the named key. */
 export declare const filterUsagesWithPropOverride: (usages: ReadonlyArray<InstanceUsage>, propName: string) => InstanceUsage[];
 /** Roll up usages into per-page counts in source-page order. */

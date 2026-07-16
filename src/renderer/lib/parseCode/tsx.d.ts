@@ -55,6 +55,12 @@ export type RawElement = {
  */
 export declare const PROP_REF_TEXT_RE: RegExp;
 /**
+ * Collect the slot names declared in a component's props type (the
+ * `React.ReactNode` props). Empty for pages (no props type). Used by the
+ * parser to hydrate a slot-marked rectangle's `slot` field.
+ */
+export declare const parseSlotNames: (tsx: string) => Set<string>;
+/**
  * Parse the function-signature destructure into a `propName →
  * defaultText` map. Components with no text-props (and pages,
  * which never emit this form) return an empty map. The returned

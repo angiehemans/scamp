@@ -14,6 +14,7 @@ export type DrawState = {
     currentY: number;
     parentOffsetX: number;
     parentOffsetY: number;
+    slotName?: string;
 };
 export type MoveState = {
     id: string;
@@ -87,6 +88,10 @@ export type ReparentDrop = {
     rect: SelectedRect;
     x: number;
     y: number;
+    /** Set when the target is a component-instance slot — the reparented
+     *  element becomes that slot's content. see
+     *  docs/plans/component-slots-plan.md */
+    slotName?: string;
 };
 /**
  * Geometry helpers shared by every interaction hook, bound to the current
@@ -123,5 +128,8 @@ export type CanvasGeometry = {
     resolveDropContainer: (clientX: number, clientY: number, draggedId: string) => {
         parentId: string;
         isFlow: boolean;
+        /** Set when the target is a component-instance slot (drop into the
+         *  instance's slot content). Slot drops bypass sibling-exclusion. */
+        slotName?: string;
     } | null;
 };

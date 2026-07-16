@@ -80,7 +80,46 @@ const renderJsx = (el, elements, level, isComponent) => {
         for (const [propName, value] of Object.entries(overrides)) {
             attrs.push(`${propName}="${escapeHtml(value)}"`);
         }
-        return `${indent(level)}<${tagName} ${attrs.join(' ')} />`;
+        // Group slot content: the default (`children`) slot emits as JSX
+        // children of the tag; named slots emit as `slotName={<…>}` props
+        // (a `<>…</>` fragment when more than one element fills the slot).
+        // see docs/plans/component-slots-plan.md
+        const defaultChildren = [];
+        const namedSlots = new Map();
+        for (const childId of el.childIds) {
+            const child = elements[childId];
+            if (!child)
+                continue;
+            const name = child.slotName && child.slotName.length > 0 && child.slotName !== 'children'
+                ? child.slotName
+                : null;
+            if (name === null) {
+                defaultChildren.push(child);
+            }
+            else {
+                const arr = namedSlots.get(name) ?? [];
+                arr.push(child);
+                namedSlots.set(name, arr);
+            }
+        }
+        for (const [name, children] of namedSlots) {
+            const inner = children
+                .map((c) => renderJsx(c, elements, level + 1, isComponent))
+                .join('\n');
+            const value = children.length === 1
+                ? inner.trim()
+                : `<>\n${inner}\n${indent(level + 1)}</>`;
+            attrs.push(`${name}={${value}}`);
+        }
+        const openTag = `<${tagName} ${attrs.join(' ')}`;
+        if (defaultChildren.length === 0) {
+            return `${indent(level)}${openTag} />`;
+        }
+        const childLines = defaultChildren
+            .map((child) => renderJsx(child, elements, level + 1, isComponent))
+            .filter((line) => line.length > 0)
+            .join('\n');
+        return `${indent(level)}${openTag}>\n${childLines}\n${indent(level)}</${tagName}>`;
     }
     const className = classNameFor(el);
     const tag = tagFor(el);
@@ -128,6 +167,16 @@ const renderJsx = (el, elements, level, isComponent) => {
         }
         const optionLines = renderSelectOptions(options, level + 1);
         return `${indent(level)}${open}>\n${optionLines}\n${indent(level)}</${tag}>`;
+    }
+    // Component slot: a slot-marked rectangle emits `{slotName}` — the page
+    // instance's children fill it. Its own def-children aren't emitted
+    // ("Make slot" is forbidden on a rectangle that has children). see
+    // docs/plans/component-slots-plan.md
+    const slotRef = isComponent && el.slot !== undefined && el.slot.length > 0
+        ? el.slot
+        : null;
+    if (slotRef !== null) {
+        return `${indent(level)}${open}>{${slotRef}}</${tag}>`;
     }
     // Components emit `{propName}` for text elements whose `prop` is
     // set — the literal value moves to the function-signature default.
@@ -235,6 +284,30 @@ const collectTextProps = (elements, rootId) => {
     return out;
 };
 /**
+ * Walk the element tree from `rootId` collecting every slot name declared
+ * on a container rectangle (`el.slot`). One entry per unique name in
+ * document order. Each becomes a `name?: React.ReactNode` prop.
+ */
+const collectSlots = (elements, rootId) => {
+    const seen = new Set();
+    const out = [];
+    const walk = (id) => {
+        const el = elements[id];
+        if (!el)
+            return;
+        if (typeof el.slot === 'string' &&
+            el.slot.length > 0 &&
+            !seen.has(el.slot)) {
+            seen.add(el.slot);
+            out.push(el.slot);
+        }
+        for (const childId of el.childIds)
+            walk(childId);
+    };
+    walk(rootId);
+    return out;
+};
+/**
  * Format one string for a TypeScript default-value position
  * (function destructure). We use double-quoted form and escape
  * the minimal characters that would break it. Multi-line text is
@@ -263,18 +336,27 @@ export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isC
     // least one text-prop, emit `type [Name]Props = { … }` before
     // the function and destructure with defaults in the signature.
     // No props or page → use the existing no-args signature.
+    // Props emission combines text props (`name?: string`, with a default in
+    // the destructure) and slots (`name?: React.ReactNode`, no default). Text
+    // props are listed first, then slots — both in document order — so the
+    // output is stable across saves. see docs/plans/component-slots-plan.md
     const textProps = isComponent ? collectTextProps(elements, rootId) : [];
-    const hasProps = textProps.length > 0;
+    const slots = isComponent ? collectSlots(elements, rootId) : [];
+    const hasProps = textProps.length > 0 || slots.length > 0;
     const propsTypeName = `${componentName}Props`;
+    const typeLines = [
+        ...textProps.map((p) => `  ${p.name}?: string;`),
+        ...slots.map((name) => `  ${name}?: React.ReactNode;`),
+    ];
     const propsTypeBlock = hasProps
-        ? `type ${propsTypeName} = {\n${textProps
-            .map((p) => `  ${p.name}?: string;`)
-            .join('\n')}\n};\n\n`
+        ? `type ${propsTypeName} = {\n${typeLines.join('\n')}\n};\n\n`
         : '';
+    const signatureParts = [
+        ...textProps.map((p) => `${p.name} = ${tsStringLiteral(p.defaultText)}`),
+        ...slots,
+    ];
     const signatureArgs = hasProps
-        ? `{ ${textProps
-            .map((p) => `${p.name} = ${tsStringLiteral(p.defaultText)}`)
-            .join(', ')} }: ${propsTypeName}`
+        ? `{ ${signatureParts.join(', ')} }: ${propsTypeName}`
         : '';
     if (!root) {
         return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return null;\n}\n`;

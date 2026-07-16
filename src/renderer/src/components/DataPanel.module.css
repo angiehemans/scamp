@@ -119,3 +119,37 @@
 .overrideInput:focus {
   border-color: var(--accent);
 }
+
+/* Slot rows in the component Data tab (children/ReactNode analog of props). */
+.slotBadge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.slotBadge:hover {
+  background: var(--bg-hover);
+}
+
+.slotRemove {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.slotRemove:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}

@@ -132,7 +132,7 @@ canvas to mobile width (390px):
 
 ---
 
-## 3. SVG colour editing and resize improvements
+## 3. SVG colour editing and resize improvements ✅ DONE
 
 **User story**
 
@@ -225,7 +225,7 @@ warning makes this clear.
 
 ---
 
-## 4. Component slots (children prop)
+## 4. Component slots (children prop) ✅ DONE
 
 **User story**
 

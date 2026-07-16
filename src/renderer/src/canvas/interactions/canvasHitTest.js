@@ -22,6 +22,35 @@ export const hitTest = (clientX, clientY) => {
     return null;
 };
 /**
+ * Look for a component slot drop zone under the cursor, for the CREATE
+ * tools (draw a rect / click the text tool inside a slot). Mirrors the
+ * drag-path check in `resolveDropContainer`: a slot box carries
+ * `data-scamp-slot` + `data-slot-owner-id` (the instance's canvas id).
+ * Returns the owning instance + slot name so a new element can be created
+ * as that instance's slot content. Returns null when a real page element
+ * is hit first (create nests into it as usual, not into a slot).
+ * see docs/plans/component-slots-plan.md
+ */
+export const slotZoneAt = (clientX, clientY) => {
+    const candidates = document.elementsFromPoint(clientX, clientY);
+    for (const node of candidates) {
+        if (!(node instanceof HTMLElement)) {
+            // An SVG page element under the cursor blocks slot routing too.
+            if (elementIdOf(node))
+                return null;
+            continue;
+        }
+        const slotName = node.dataset['scampSlot'];
+        const ownerId = node.dataset['slotOwnerId'];
+        if (slotName && ownerId)
+            return { ownerId, slotName };
+        // A real page element hit before any slot zone → no slot routing.
+        if (node.dataset['elementId'])
+            return null;
+    }
+    return null;
+};
+/**
  * Look for a prop-text span under the cursor. Prop-text on a component
  * instance carries `data-scamp-instance-id` + `data-scamp-prop`
  * (set in ElementRenderer's `renderComponentSubtree`). We only surface

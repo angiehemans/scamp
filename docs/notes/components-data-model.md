@@ -72,6 +72,63 @@ When `ElementRenderer` hits a `component-instance` element, it looks up `compone
 
 Missing-component placeholder: when `componentTrees[name]` is undefined (deleted, renamed externally), the renderer paints a labelled red box so the broken reference is visible on the canvas.
 
+## Slots (`children` / `React.ReactNode`)
+
+Slots let a component accept page-supplied content, the layout analog of text
+props. Two fields carry the model (`lib/element/types.ts`):
+
+- `slot?: string` — **component-side**, on a rectangle. Marks it as a slot; its
+  JSX body becomes `{slotName}` instead of its own children. The default slot
+  is named `children`; additional slots get `slot1`, `slot2`, … until renamed.
+- `slotName?: string` — **page-side**, on an instance's content element. Says
+  which slot of the owning instance it fills. Absent = the default `children`
+  slot.
+
+### Codegen (`generateCode/tsx.ts`)
+
+- `collectSlots` walks a component in document order; the props type unions text
+  props (`name?: string`) with slots (`name?: React.ReactNode`), and the
+  destructure lists both.
+- A slot rectangle emits `{slotName}` as its only child.
+- An instance groups its `childIds` by `slotName`: default-slot children emit as
+  JSX children between the tags; named-slot children emit as
+  `slotName={<child/>}` attributes (wrapped in a `<>…</>` fragment when a named
+  slot holds more than one element).
+- Slot content flows rather than positions absolutely — `declarations.ts`
+  treats a `component-instance` parent as a layout parent (`inInstanceParent`),
+  so a slot child's CSS matches the on-canvas flow render.
+
+### Parse (`parseCode/`)
+
+Named-slot props (`name={<…>}`) can't be read by the HTML parser, so a pre-pass
+`hoistNamedSlots` (`parseCode/namedSlots.ts`) rewrites each into a marker-tagged
+JSX child (`data-scamp-slot="name"`) moved inside the instance tag. After
+structural parse, `index.ts` hydrates a childless rectangle whose sole body is
+`{slotName}` (matched against the component's `React.ReactNode` prop names) into
+a slot, and lifts each `data-scamp-slot` marker onto the child's `slotName`.
+
+### Render + drop (`ElementRenderer.tsx`, interactions)
+
+`renderComponentSubtree` renders each slot rectangle's own box with the
+instance's matching content inside, tagged `data-scamp-slot` +
+`data-slot-owner-id` and `pointer-events: auto` so it's a drop target and its
+content is selectable. `renderSlot(slotName)` filters the instance's `childIds`
+to that slot. The create tools (`slotZoneAt` in `canvasHitTest.ts`) and the drag
+paths (`resolveDropContainer`) both route into a slot zone by reading those
+data attributes, then tag new/moved content via `setElementSlotName`.
+
+### Constraints (Phase 4)
+
+- A slot rectangle can't have its own children (its JSX is `{slotName}`), so
+  "Make slot" is gated on a childless rect — this also forbids nested slots.
+- Dropping a component-instance into a slot is refused when it would form a
+  component cycle (`slotDropCreatesCycle` → `wouldCreateComponentCycle`), only
+  reachable while editing a component.
+- Removing a slot that instances on other pages fill routes through
+  `REQUEST_REMOVE_SLOT_EVENT` → a ConfirmDialog listing affected pages
+  (`findInstancesWithSlotContent`). The content is never deleted — it stays in
+  the page file and simply stops rendering until re-placed.
+
 ## Extraction (convert-to-component)
 
 `extractSubtreeAsComponent` builds a new element map from a subtree of the page's elements:

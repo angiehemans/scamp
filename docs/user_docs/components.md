@@ -125,6 +125,98 @@ The generated JSX picks up overrides as JSX attributes:
 Locked text in the component renders the same across every instance
 and never appears in the Instance section.
 
+## Slots (Passing In Content)
+
+Props let an instance customize *text*. **Slots** let an instance pass
+in whole *elements* — Scamp's version of React's `children` prop. A
+`Card` with a slot can hold different content on every page while
+sharing one frame, border, and padding.
+
+### Defining a slot
+
+Inside the component editor, right-click any **empty rectangle** and
+choose **Make slot**. The rectangle turns into a labelled drop target:
+
+```
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+   ✦ slot: children
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+```
+
+- The first slot is named **`children`** (the default slot). Add more
+  and they come up as `slot1`, `slot2`, … — rename them in the **Data
+  tab**'s Slots list to something meaningful (`header`, `footer`,
+  `icon`). Names must be unique.
+- A component can have **one default slot plus any number of named
+  slots**.
+- Only a **childless** rectangle can become a slot — a slot's job is
+  to hold *page* content, so it can't have its own children, and a
+  slot can't be placed inside another slot (no nesting).
+
+Behind the scenes this becomes a real `children` / `React.ReactNode`
+prop:
+
+```tsx
+type CardProps = {
+  children?: React.ReactNode;   // the default slot
+  header?: React.ReactNode;     // a named slot
+};
+```
+
+### Filling a slot on a page
+
+Place the component on a page and each slot shows as a drop zone:
+
+```
+┌──────────────────────────────┐
+│  Card                        │
+│  ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐ │
+│     Drop elements here      │ │
+│  └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘ │
+└──────────────────────────────┘
+```
+
+Two ways to put content in:
+
+- **Drag** an existing element (from the canvas or the [Layers
+  panel](layers-panel.md)) and drop it onto the slot box.
+- **Draw or type directly** — with the slot box under your cursor, use
+  the rectangle/text/image tools to create an element right inside it.
+
+Drop multiple elements and they stack as siblings in the slot. With
+several named slots, each box fills its own slot; the content routes
+to whichever box you dropped on.
+
+Slot content **belongs to the page, not the component** — it's the
+instance's children, so it can differ on every page and doesn't change
+the component definition. In the generated page TSX the default slot
+becomes JSX children and named slots become props:
+
+```tsx
+<Card>
+  <p className={styles.body}>Anything you like.</p>
+</Card>
+
+<SplitLayout
+  left={<p className={styles.heading}>Hello</p>}
+  right={<img src="/assets/hero.png" />}
+/>
+```
+
+### Slots in the Data tab
+
+- **In the component editor**, the Data tab lists each slot with a
+  rename field and a Remove button; click a slot's badge to select its
+  box on the canvas.
+- **On a page instance**, the Data tab shows which slots have content
+  and which are empty (`✦ header  ● 2 elements` / `○ Empty`).
+
+> If a component defines slots but an instance's content doesn't match
+> any of them — e.g. plain children on a component that only has named
+> slots — that content simply doesn't render, exactly as it wouldn't in
+> React. It's still in your page file; give it a matching slot or move
+> it into one to bring it back.
+
 ## Editing a Component
 
 Changes you make in the component editor — adding elements, moving
@@ -152,6 +244,12 @@ affected pages and instance counts, never a generic message.
   one entry per page touched.
 - **Removing a Prop-mode text element** — Lists every page with
   instances that override that prop.
+- **Removing a slot** — If instances on other pages have content in
+  that slot, lists the affected pages. The content isn't deleted — it
+  stays in each page file and stops rendering until you re-place it.
+- **Nesting a component into its own slot** — A drop that would make a
+  component contain itself (a circular slot dependency) is refused with
+  a note in the app log.
 
 ## When NOT to Use a Component
 

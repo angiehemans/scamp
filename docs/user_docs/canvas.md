@@ -38,9 +38,22 @@ The canvas-size control sits just above the canvas, to the right of the page-nam
 
 - **Breakpoints** — preset buttons for each project breakpoint. Clicking one resizes the canvas AND switches the active breakpoint for editing. See [Breakpoints](breakpoints.md) for the full responsive workflow.
 - **Custom width** — type any width between 100 and 4000 pixels. Custom widths drop the active breakpoint back to Desktop so edits target the base CSS.
-- **Overflow hidden** — clip content that extends outside the canvas width. A preview helper; never written to your CSS.
+- **Clip content** — hide anything that extends past the canvas edge, so the artboard behaves like `overflow: hidden`. See [Overflow and Boundaries](#overflow-and-boundaries) below.
+- **Fixed height** — pin the artboard to an exact height (e.g. `900`) to simulate a specific screen. Off by default, the page grows with its content.
 
 Canvas width lives in your project's `scamp.config.json` — it's a design-tool preference, not part of your page's CSS.
+
+## Overflow and Boundaries
+
+The canvas edge is a real viewport boundary, which matters most when you design a desktop layout and then shrink to a mobile width.
+
+- **Overflow indicator** (default) — when any element spills past the canvas width, a faint **amber** dashed line marks the edge with a label of how much overflows (e.g. `+ 240px`). The same appears on the bottom edge when **Fixed height** is on and content runs past it.
+- **Clip content** — flip it on (in the canvas-size popover) and everything beyond the boundary is hidden, so you see exactly what a viewport of that size shows. The indicator disappears because nothing spills anymore.
+- The clip setting is **remembered per breakpoint** — turning it on at mobile width doesn't force it on at desktop, and vice-versa.
+
+A common mobile workflow: switch the canvas to a mobile width (e.g. 390px), watch the amber indicator show how far your desktop content overflows, turn **Clip content** on to see the visible frame, then apply [breakpoint](breakpoints.md) overrides until the content fits and the indicator shrinks away.
+
+The indicator, the clip toggle, and fixed height are **canvas viewing aids only** — none of them touch your CSS or page files. (One knock-on: a PNG/PDF [export](export.md) taken with clip on captures just the visible canvas area.)
 
 ## Scrolling and Zoom
 

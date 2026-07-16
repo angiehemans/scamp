@@ -133,6 +133,94 @@ export const createElementsEditSlice = (set) => ({
             });
         }
     },
+    toggleSlotOnRect: (id) => {
+        let didChange = false;
+        set((state) => {
+            const el = state.elements[id];
+            if (!el || el.type !== 'rectangle')
+                return state;
+            // Already a slot → remove the marker.
+            if (el.slot !== undefined) {
+                const { slot: _drop, ...rest } = el;
+                didChange = true;
+                return { elements: { ...state.elements, [id]: rest } };
+            }
+            // A slot's JSX becomes `{slotName}`, so its own children can't be
+            // emitted — forbid making a rectangle-with-children a slot.
+            if (el.childIds.length > 0)
+                return state;
+            const used = new Set();
+            for (const other of Object.values(state.elements)) {
+                if (typeof other.slot === 'string' && other.slot.length > 0) {
+                    used.add(other.slot);
+                }
+            }
+            // Default the first slot to `children`; later ones get slot1/slot2/…
+            let name = 'children';
+            if (used.has(name)) {
+                let n = 1;
+                while (used.has(`slot${n}`))
+                    n += 1;
+                name = `slot${n}`;
+            }
+            didChange = true;
+            return { elements: { ...state.elements, [id]: { ...el, slot: name } } };
+        });
+        if (didChange) {
+            commitElementsToHistory({
+                kind: 'patch',
+                elementIds: [id],
+                propertyKeys: ['slot'],
+            });
+        }
+    },
+    renameSlot: (id, nextName) => {
+        let didChange = false;
+        set((state) => {
+            const el = state.elements[id];
+            if (!el || el.type !== 'rectangle' || el.slot === undefined)
+                return state;
+            if (el.slot === nextName)
+                return state;
+            didChange = true;
+            return {
+                elements: { ...state.elements, [id]: { ...el, slot: nextName } },
+            };
+        });
+        if (didChange) {
+            commitElementsToHistory({
+                kind: 'patch',
+                elementIds: [id],
+                propertyKeys: ['slot'],
+            });
+        }
+    },
+    setElementSlotName: (id, slotName) => {
+        let didChange = false;
+        set((state) => {
+            const el = state.elements[id];
+            if (!el)
+                return state;
+            if (slotName === undefined) {
+                if (el.slotName === undefined)
+                    return state;
+                const { slotName: _drop, ...rest } = el;
+                didChange = true;
+                return { elements: { ...state.elements, [id]: rest } };
+            }
+            if (el.slotName === slotName)
+                return state;
+            didChange = true;
+            return { elements: { ...state.elements, [id]: { ...el, slotName } } };
+        });
+        if (didChange) {
+            commitElementsToHistory({
+                kind: 'patch',
+                elementIds: [id],
+                propertyKeys: ['slotName'],
+            });
+        }
+    },
     moveElement: (id, x, y) => {
         set((state) => {
             const el = state.elements[id];

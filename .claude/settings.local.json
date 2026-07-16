@@ -69,7 +69,9 @@
       "Bash(gh auth *)",
       "Bash(gh run *)",
       "Bash(gh api *)",
-      "WebSearch"
+      "WebSearch",
+      "Read(//home/angie-hemans/Documents/camp-files/component-slots/**)",
+      "Read(//home/angie-hemans/Documents/camp-files/**)"
     ]
   }
 }

@@ -2,9 +2,14 @@ import { type PointerEvent, useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
+import { useAppLogStore } from '@store/appLogSlice';
 import type { ScampElement } from '@lib/element';
 
-import { commitReparentDrop, resolveReparentDrop } from './reparentDrop';
+import {
+  commitReparentDrop,
+  resolveReparentDrop,
+  slotDropCreatesCycle,
+} from './reparentDrop';
 import type { CanvasGeometry, MoveState, ReparentDrop } from './types';
 
 export type MoveInteraction = {
@@ -43,6 +48,7 @@ export const useMoveInteraction = (
   const moveElement = useCanvasStore((s) => s.moveElement);
   const reorderElement = useCanvasStore((s) => s.reorderElement);
   const reparentElement = useCanvasStore((s) => s.reparentElement);
+  const setElementSlotName = useCanvasStore((s) => s.setElementSlotName);
 
   const start = (
     e: PointerEvent<HTMLDivElement>,
@@ -96,8 +102,7 @@ export const useMoveInteraction = (
         e.clientX,
         e.clientY,
         geometry,
-        elements,
-        false
+        elements
       )
     );
     return true;
@@ -105,7 +110,30 @@ export const useMoveInteraction = (
 
   const onEnd = (): void => {
     if (move) {
-      if (crossDrop) {
+      // Refuse a slot drop that would create a component cycle (only
+      // reachable while editing a component). The element keeps the
+      // position it was dragged to; the open transaction still closes as a
+      // plain move so the gesture is one clean undo entry.
+      const store = useCanvasStore.getState();
+      const cycleRefused =
+        crossDrop !== null &&
+        slotDropCreatesCycle(
+          crossDrop,
+          move.id,
+          elements,
+          store.componentTrees,
+          store.activeComponent?.name ?? null
+        );
+      if (cycleRefused) {
+        const dragged = elements[move.id];
+        useAppLogStore
+          .getState()
+          .log(
+            'warn',
+            `Refused: placing ${dragged?.componentName ?? 'component'} in a slot of ${store.activeComponent?.name ?? 'this component'} would create a cycle.`
+          );
+      }
+      if (crossDrop && !cycleRefused) {
         // Reparent into the target. The action's own history commit
         // no-ops inside the open transaction; closing it below commits
         // one entry for the whole gesture.
@@ -116,11 +144,20 @@ export const useMoveInteraction = (
           reorderElement,
           reparentElement
         );
+        // Tag the reparented element with the slot it landed in (or clear
+        // it when dropping into a normal container). Within the open
+        // transaction, so it's part of the same undo entry.
+        if (crossDrop.kind === 'absolute') {
+          setElementSlotName(move.id, crossDrop.slotName);
+        }
       }
       useHistoryStore
         .getState()
         .endHistoryTransaction(
-          { kind: crossDrop ? 'reorder' : 'move', elementIds: [move.id] },
+          {
+            kind: crossDrop && !cycleRefused ? 'reorder' : 'move',
+            elementIds: [move.id],
+          },
           useCanvasStore.getState().elements
         );
     }

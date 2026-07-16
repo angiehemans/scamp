@@ -5,7 +5,7 @@ import { clampToParent, MIN_SIZE } from '@lib/bounds';
 import { resolveInsertParent } from '@lib/insertParent';
 import { assetsDirSegment } from '@renderer/src/lib/path';
 import { prepareSvgForInsert } from '@renderer/src/lib/svg';
-import { hitTest } from './canvasHitTest';
+import { hitTest, slotZoneAt } from './canvasHitTest';
 import { CLICK_DRAG_THRESHOLD, DEFAULT_IMAGE_SIZE, DEFAULT_NEW_INPUT_HEIGHT, DEFAULT_NEW_INPUT_WIDTH, DEFAULT_NEW_RECT_SIZE, INLINE_SVG_MAX_BYTES, } from './constants';
 /**
  * Draw state machine for the rectangle / input / image tools, plus the
@@ -31,6 +31,7 @@ export const useDrawInteraction = (geometry) => {
     const createImage = useCanvasStore((s) => s.createImage);
     const createSvgElement = useCanvasStore((s) => s.createSvgElement);
     const createInput = useCanvasStore((s) => s.createInput);
+    const setElementSlotName = useCanvasStore((s) => s.setElementSlotName);
     const { toFrame, measureElementInFrame, parentSizeOf } = geometry;
     // When the image tool is activated, immediately open a file dialog so
     // the user picks a file before drawing. If they cancel, revert to the
@@ -139,7 +140,13 @@ export const useDrawInteraction = (geometry) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeTool]);
     const beginDrawAt = (e) => {
-        const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+        // A component slot zone under the cursor routes the new element into the
+        // owning instance as slot content; otherwise fall back to the deepest
+        // hit element (or the page root). Only named slots carry a slotName tag;
+        // the default `children` slot routes by parent alone.
+        const slot = slotZoneAt(e.clientX, e.clientY);
+        const hitId = slot?.ownerId ?? hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+        const slotName = slot && slot.slotName !== 'children' ? slot.slotName : undefined;
         const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
         const { x, y } = toFrame(e.clientX, e.clientY);
         e.preventDefault();
@@ -152,6 +159,7 @@ export const useDrawInteraction = (geometry) => {
             currentY: y - parentRect.y,
             parentOffsetX: parentRect.x,
             parentOffsetY: parentRect.y,
+            ...(slotName ? { slotName } : {}),
         });
     };
     const tryStart = (e) => {
@@ -163,7 +171,9 @@ export const useDrawInteraction = (geometry) => {
             return true;
         }
         if (activeTool === 'text') {
-            const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+            const slot = slotZoneAt(e.clientX, e.clientY);
+            const hitId = slot?.ownerId ?? hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
+            const slotName = slot && slot.slotName !== 'children' ? slot.slotName : undefined;
             const parentRect = measureElementInFrame(hitId) ?? { x: 0, y: 0, w: 0, h: 0 };
             const { x, y } = toFrame(e.clientX, e.clientY);
             const localX = x - parentRect.x;
@@ -178,11 +188,13 @@ export const useDrawInteraction = (geometry) => {
             const clampedX = Math.max(0, localX);
             const clampedY = Math.max(0, localY);
             e.preventDefault();
-            createText({
+            const textId = createText({
                 parentId: hitId,
                 x: Math.round(clampedX),
                 y: Math.round(clampedY),
             });
+            if (slotName)
+                setElementSlotName(textId, slotName);
             setTool('select');
             return true;
         }
@@ -233,8 +245,9 @@ export const useDrawInteraction = (geometry) => {
         const h = wasClick ? defaultHeight : dragH;
         const clamped = clampToParent(x, y, w, h, parent.w, parent.h);
         if (clamped.w >= MIN_SIZE && clamped.h >= MIN_SIZE) {
+            let createdId;
             if (pendingImage) {
-                createImage({
+                createdId = createImage({
                     parentId: draw.parentId,
                     x: Math.round(clamped.x),
                     y: Math.round(clamped.y),
@@ -246,7 +259,7 @@ export const useDrawInteraction = (geometry) => {
                 setPendingImage(null);
             }
             else if (wasInput) {
-                createInput({
+                createdId = createInput({
                     parentId: draw.parentId,
                     x: Math.round(clamped.x),
                     y: Math.round(clamped.y),
@@ -255,7 +268,7 @@ export const useDrawInteraction = (geometry) => {
                 });
             }
             else {
-                createRectangle({
+                createdId = createRectangle({
                     parentId: draw.parentId,
                     x: Math.round(clamped.x),
                     y: Math.round(clamped.y),
@@ -263,6 +276,10 @@ export const useDrawInteraction = (geometry) => {
                     height: Math.round(clamped.h),
                 });
             }
+            // Tag the new element as named-slot content when the draw began in a
+            // slot zone (parentId is already the owning instance).
+            if (draw.slotName)
+                setElementSlotName(createdId, draw.slotName);
             setTool('select');
         }
         setDraw(null);

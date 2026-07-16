@@ -206,6 +206,24 @@ export const ProjectModals = ({
           onCancel={instanceFlows.cancelDetach}
         />
       )}
+
+      {instanceFlows.slotRemovalRequest !== null && (
+        <ConfirmDialog
+          title={`Remove slot "${instanceFlows.slotRemovalRequest.slotName}"?`}
+          message={`Content in ${instanceFlows.slotRemovalRequest.impactByPage
+            .map(
+              (g) =>
+                `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`
+            )
+            .join(
+              ', '
+            )} will no longer render. The pages keep that content on disk until you re-place it.`}
+          confirmLabel="Remove slot"
+          variant="destructive"
+          onConfirm={instanceFlows.handleConfirmRemoveSlot}
+          onCancel={instanceFlows.cancelRemoveSlot}
+        />
+      )}
     </>
   );
 };

@@ -70,6 +70,26 @@ const PROPS_DESTRUCTURE_PAIR_RE = /([a-z][a-zA-Z0-9_]*)\s*=\s*"((?:\\.|[^"\\])*)
  */
 export const PROP_REF_TEXT_RE = /^\s*\{([a-z][a-zA-Z0-9_]*)\}\s*$/;
 /**
+ * Match a `name?: React.ReactNode` entry in a component's props type —
+ * how a SLOT is declared. Slot names are the `React.ReactNode` props (vs
+ * text props, which are `?: string`). see docs/plans/component-slots-plan.md
+ */
+const SLOT_PROP_TYPE_RE = /([a-z][a-zA-Z0-9_]*)\s*\?\s*:\s*React\.ReactNode/g;
+/**
+ * Collect the slot names declared in a component's props type (the
+ * `React.ReactNode` props). Empty for pages (no props type). Used by the
+ * parser to hydrate a slot-marked rectangle's `slot` field.
+ */
+export const parseSlotNames = (tsx) => {
+    const out = new Set();
+    const re = new RegExp(SLOT_PROP_TYPE_RE.source, 'g');
+    for (const m of tsx.matchAll(re)) {
+        if (m[1])
+            out.add(m[1]);
+    }
+    return out;
+};
+/**
  * Reverse of `tsStringLiteral` in generateCode.ts. Decodes the
  * minimal set of escapes the generator emits.
  */

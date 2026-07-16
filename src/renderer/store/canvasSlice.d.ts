@@ -458,6 +458,18 @@ export type CanvasState = {
     togglePropOnText: (id: string) => void;
     /** Rename a text element's `prop`. Caller validates identifier + uniqueness. */
     renamePropOnText: (id: string, nextName: string) => void;
+    /**
+     * Toggle a rectangle's component slot marker (component editor only).
+     * Off→on auto-names the slot `children` (then slot1/slot2/…); on→off
+     * removes it. No-op on a rectangle that has children. see
+     * docs/plans/component-slots-plan.md
+     */
+    toggleSlotOnRect: (id: string) => void;
+    /** Rename a slot rectangle's `slot`. Caller validates identifier + uniqueness. */
+    renameSlot: (id: string, nextName: string) => void;
+    /** Set (or clear, when undefined) which slot a piece of instance content
+     *  fills. Used by the drop flow when nesting into a named slot. */
+    setElementSlotName: (id: string, slotName: string | undefined) => void;
     moveElement: (id: string, x: number, y: number) => void;
     resizeElement: (id: string, x: number, y: number, width: number, height: number) => void;
     patchElement: (id: string, patch: Partial<ScampElement>) => void;

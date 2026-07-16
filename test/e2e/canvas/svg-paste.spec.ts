@@ -56,13 +56,14 @@ test.describe('canvas: paste SVG from clipboard', () => {
     await window.keyboard.press('ControlOrMeta+v');
     await waitForSaved(window);
 
-    // The shape's own hardcoded fill is stripped on import (so element-level
-    // paint can recolour it); the source stays valid JSX — no inline `style`
-    // strings (which crash Next.js) and no `var()` (which an SVG attribute
-    // won't resolve).
+    // The shape's own fill is KEPT in the source; element-level Fill/Stroke
+    // recolour it on top via the CSS cascade (CSS `fill` beats the
+    // presentation attribute — see the "setting Fill" test below). The
+    // source stays valid JSX — no inline `style` strings (which crash
+    // Next.js) and no `var()` (which an SVG attribute won't resolve).
     const { tsx } = await readPageFiles(project.dir, project.pageName);
     expect(tsx).toContain('<rect');
-    expect(tsx).not.toContain('fill="#ff0000"');
+    expect(tsx).toContain('fill="#ff0000"');
     expect(tsx).not.toContain('var(');
     expect(tsx).not.toContain('style=');
 
@@ -159,10 +160,11 @@ test.describe('canvas: paste SVG from clipboard', () => {
     await expect(pageRoot(window)).toBeVisible();
 
     // Lucide/Tabler shape: a transparent bounding box (fill="none"
-    // stroke="none") plus a stroked path, with the paint on the root.
+    // stroke="none") plus a stroked path, with a concrete stroke on the
+    // root (hoisted to the element's Stroke).
     await app.evaluate(({ clipboard }) => {
       clipboard.writeText(
-        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M0 0h24v24H0z" fill="none" stroke="none"/><path d="M4 6h16"/></svg>'
+        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#111111" stroke-width="2"><path d="M0 0h24v24H0z" fill="none" stroke="none"/><path d="M4 6h16"/></svg>'
       );
     });
 
@@ -179,10 +181,11 @@ test.describe('canvas: paste SVG from clipboard', () => {
     expect(tsx).not.toContain('var(');
     expect(tsx).not.toContain('style=');
 
-    // Set Stroke to blue → the stroked path recolours via the wrapper.
+    // Set Stroke to blue → the stroked path recolours via the CSS cascade.
+    // fill="none" isn't a concrete colour, so Stroke is the only swatch.
     const strokeInput = panelSection(window, 'SVG')
       .locator('input[type="text"]')
-      .nth(1);
+      .first();
     await strokeInput.fill('#0000ff');
     await strokeInput.press('Enter');
 
@@ -203,18 +206,18 @@ test.describe('canvas: paste SVG from clipboard', () => {
 
     await app.evaluate(({ clipboard }) => {
       clipboard.writeText(
-        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/></svg>'
+        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#111111" stroke-width="2"><path d="M4 6h16"/></svg>'
       );
     });
 
     await canvasFrame(window).click({ position: { x: 4, y: 4 } });
     await window.keyboard.press('ControlOrMeta+v');
 
-    // Open the Stroke colour picker (2nd in the SVG section), Tokens tab,
+    // Open the Stroke colour picker (the only concrete swatch), Tokens tab,
     // pick --color-primary (#3b82f6).
     await panelSection(window, 'SVG')
       .getByRole('button', { name: 'Pick color' })
-      .nth(1)
+      .first()
       .click();
     await window.getByRole('button', { name: 'Tokens', exact: true }).click();
     await window.getByRole('button', { name: /^--color-primary/ }).click();

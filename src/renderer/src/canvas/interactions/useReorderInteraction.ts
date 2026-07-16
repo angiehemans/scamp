@@ -1,8 +1,13 @@
 import { type PointerEvent, useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
+import { useAppLogStore } from '@store/appLogSlice';
 
-import { commitReparentDrop, resolveReparentDrop } from './reparentDrop';
+import {
+  commitReparentDrop,
+  resolveReparentDrop,
+  slotDropCreatesCycle,
+} from './reparentDrop';
 import type {
   CanvasGeometry,
   DropIndicator,
@@ -49,6 +54,7 @@ export const useReorderInteraction = (
   const elements = useCanvasStore((s) => s.elements);
   const reorderElement = useCanvasStore((s) => s.reorderElement);
   const reparentElement = useCanvasStore((s) => s.reparentElement);
+  const setElementSlotName = useCanvasStore((s) => s.setElementSlotName);
 
   const start = (
     e: PointerEvent<HTMLDivElement>,
@@ -83,8 +89,7 @@ export const useReorderInteraction = (
       e.clientX,
       e.clientY,
       geometry,
-      elements,
-      true
+      elements
     );
     if (drop) {
       setCrossDrop(drop);
@@ -156,6 +161,30 @@ export const useReorderInteraction = (
   const onEnd = (): void => {
     if (reorder) {
       if (crossDrop) {
+        // Refuse a slot drop that would create a component cycle (only
+        // reachable while editing a component). Clear state, no commit.
+        const store = useCanvasStore.getState();
+        if (
+          slotDropCreatesCycle(
+            crossDrop,
+            reorder.id,
+            elements,
+            store.componentTrees,
+            store.activeComponent?.name ?? null
+          )
+        ) {
+          const dragged = elements[reorder.id];
+          useAppLogStore
+            .getState()
+            .log(
+              'warn',
+              `Refused: placing ${dragged?.componentName ?? 'component'} in a slot of ${store.activeComponent?.name ?? 'this component'} would create a cycle.`
+            );
+          setReorder(null);
+          setDropIndicator(null);
+          setCrossDrop(null);
+          return;
+        }
         commitReparentDrop(
           crossDrop,
           reorder.id,
@@ -163,6 +192,10 @@ export const useReorderInteraction = (
           reorderElement,
           reparentElement
         );
+        // Tag / clear the slot the reparented element landed in.
+        if (crossDrop.kind === 'absolute') {
+          setElementSlotName(reorder.id, crossDrop.slotName);
+        }
       } else if (dropIndicator) {
         // Same-parent reorder — parentId unchanged.
         reorderElement(reorder.id, reorder.parentId, dropIndicator.newIndex);

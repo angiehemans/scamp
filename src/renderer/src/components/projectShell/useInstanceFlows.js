@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { generateComponentFromSubtree } from '@lib/extractComponent';
-import { filterUsagesWithPropOverride, findInstanceUsagesAcrossPages, groupUsagesByPage, } from '@lib/componentUsage';
-import { CONVERT_TO_COMPONENT_EVENT, DETACH_INSTANCE_EVENT, } from '../ElementContextMenu';
+import { filterUsagesWithPropOverride, findInstanceUsagesAcrossPages, findInstancesWithSlotContent, groupUsagesByPage, } from '@lib/componentUsage';
+import { CONVERT_TO_COMPONENT_EVENT, DETACH_INSTANCE_EVENT, REQUEST_REMOVE_SLOT_EVENT, } from '../ElementContextMenu';
 import { REQUEST_LOCK_PROP_EVENT, } from '../DataPanel';
 /**
  * Owns the multi-file component-instance flows that ProjectShell drives
@@ -148,6 +148,39 @@ export const useInstanceFlows = ({ project, onProjectChange, openComponent, acti
         setDetachRequest(null);
     };
     const cancelDetach = () => setDetachRequest(null);
+    // ---- Remove-slot flow ----
+    // Removing a slot in the component editor orphans any content instances on
+    // other pages placed in it (the content persists on disk but stops
+    // rendering). Warn first; proceed straight to removal when nothing's
+    // affected. see docs/notes/components-multi-file-ops.md
+    const [slotRemovalRequest, setSlotRemovalRequest] = useState(null);
+    useEffect(() => {
+        const handler = (e) => {
+            const detail = e.detail;
+            if (!detail)
+                return;
+            const affected = findInstancesWithSlotContent(project.pages, detail.componentName, detail.slotName);
+            if (affected.length === 0) {
+                useCanvasStore.getState().toggleSlotOnRect(detail.elementId);
+                return;
+            }
+            setSlotRemovalRequest({
+                elementId: detail.elementId,
+                slotName: detail.slotName,
+                componentName: detail.componentName,
+                impactByPage: groupUsagesByPage(affected),
+            });
+        };
+        window.addEventListener(REQUEST_REMOVE_SLOT_EVENT, handler);
+        return () => window.removeEventListener(REQUEST_REMOVE_SLOT_EVENT, handler);
+    }, [project.pages]);
+    const handleConfirmRemoveSlot = () => {
+        if (!slotRemovalRequest)
+            return;
+        useCanvasStore.getState().toggleSlotOnRect(slotRemovalRequest.elementId);
+        setSlotRemovalRequest(null);
+    };
+    const cancelRemoveSlot = () => setSlotRemovalRequest(null);
     return {
         convertElementId,
         convertingComponent,
@@ -164,5 +197,8 @@ export const useInstanceFlows = ({ project, onProjectChange, openComponent, acti
         detachRequest,
         handleConfirmDetach,
         cancelDetach,
+        slotRemovalRequest,
+        handleConfirmRemoveSlot,
+        cancelRemoveSlot,
     };
 };
