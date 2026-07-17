@@ -28,6 +28,7 @@ type StyleOpts = {
   tokens?: ReadonlyArray<ThemeToken>;
   isInstanceInner?: boolean;
   rootMinHeight?: number;
+  inComponentEditor?: boolean;
 };
 
 const style = (el: ScampElement, o: StyleOpts = {}): Record<string, unknown> =>
@@ -39,7 +40,8 @@ const style = (el: ScampElement, o: StyleOpts = {}): Record<string, unknown> =>
     null,
     'nextjs',
     o.isInstanceInner ?? false,
-    o.rootMinHeight ?? 900
+    o.rootMinHeight ?? 900,
+    o.inComponentEditor ?? false
   ) as Record<string, unknown>;
 
 describe('canvasRenderTag', () => {
@@ -97,6 +99,68 @@ describe('elementToStyle — width/height modes', () => {
 
   it('auto produces undefined so the element inherits the browser default', () => {
     expect(style(makeEl({ widthMode: 'auto' })).width).toBeUndefined();
+  });
+});
+
+describe('elementToStyle — component-editor root vs. the canvas (viewport resize)', () => {
+  const rootEl = (overrides: Partial<ScampElement> = {}): ScampElement =>
+    makeEl({ id: ROOT_ELEMENT_ID, parentId: null, ...overrides });
+
+  it('a non-fixed root fills the canvas via min-height and drops its own height', () => {
+    const s = style(rootEl({ heightMode: 'auto' }), {
+      rootMinHeight: 800,
+      inComponentEditor: true,
+    });
+    expect(s.height).toBeUndefined();
+    expect(s.minHeight).toBe('800px');
+  });
+
+  it('a stretch root still reflows — min-height tracks the canvas', () => {
+    expect(
+      style(rootEl({ heightMode: 'stretch' }), {
+        rootMinHeight: 400,
+        inComponentEditor: true,
+      }).minHeight
+    ).toBe('400px');
+    expect(
+      style(rootEl({ heightMode: 'stretch' }), {
+        rootMinHeight: 700,
+        inComponentEditor: true,
+      }).minHeight
+    ).toBe('700px');
+  });
+
+  it('a fixed-height root keeps its own height and gets no canvas min-height', () => {
+    const s = style(rootEl({ heightMode: 'fixed', heightValue: 200 }), {
+      rootMinHeight: 800,
+      inComponentEditor: true,
+    });
+    expect(s.height).toBe(200);
+    expect(s.minHeight).toBeUndefined();
+  });
+
+  it('a fixed-height root does NOT grow when the canvas (rootMinHeight) grows', () => {
+    const small = style(rootEl({ heightMode: 'fixed', heightValue: 200 }), {
+      rootMinHeight: 300,
+      inComponentEditor: true,
+    });
+    const large = style(rootEl({ heightMode: 'fixed', heightValue: 200 }), {
+      rootMinHeight: 900,
+      inComponentEditor: true,
+    });
+    expect(small.height).toBe(200);
+    expect(large.height).toBe(200);
+    expect(small.minHeight).toBeUndefined();
+    expect(large.minHeight).toBeUndefined();
+  });
+
+  it('but on the PAGE (not the component editor) a fixed-height root still grows via min-height', () => {
+    const s = style(rootEl({ heightMode: 'fixed', heightValue: 200 }), {
+      rootMinHeight: 800,
+      inComponentEditor: false,
+    });
+    expect(s.height).toBeUndefined();
+    expect(s.minHeight).toBe('800px');
   });
 });
 

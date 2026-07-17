@@ -87,7 +87,13 @@ isInstanceInner = false,
 // instance-inner renders (which set isInstanceInner=true and
 // never hit this branch) don't accidentally pick up a stray
 // override.
-rootMinHeight) => {
+rootMinHeight, 
+// When true, the active canvas is the COMPONENT editor. A fixed-height
+// root then keeps its own height instead of being stretched to fill the
+// artboard — resizing the component canvas is a viewport change (like a
+// browser window) and must not make a fixed-size component look taller.
+// The page root always grows via min-height (a page is a document).
+inComponentEditor = false) => {
     // `isRoot` drives canvas-frame affordances (sticky min-height,
     // dropping fixed height). Those only apply when the element is
     // genuinely the active page's own root — not when the same id
@@ -135,7 +141,18 @@ rootMinHeight) => {
     // The main axis depends on the parent's flex-direction (row → width
     // is main, column → height is main).
     let effectiveWidth = widthStyle;
-    let effectiveHeight = isRoot ? undefined : heightStyle;
+    // The root normally drops its own height and relies on the canvas
+    // min-height floor (below) so it fills the artboard. In the COMPONENT
+    // editor a FIXED-height root instead keeps that height and does NOT grow
+    // with the canvas — resizing the artboard is a viewport change, like a
+    // browser window, and must not make a fixed component look taller.
+    // Stretch/auto/hug roots (and the page root) still fill + reflow.
+    const rootKeepsFixedHeight = isRoot && inComponentEditor && el.heightMode === 'fixed';
+    let effectiveHeight = isRoot
+        ? rootKeepsFixedHeight
+            ? heightStyle
+            : undefined
+        : heightStyle;
     const flexProps = {};
     if (inFlexParent) {
         const widthIsMain = isRow;
@@ -216,7 +233,7 @@ rootMinHeight) => {
         // centering intent reads correctly on the canvas. NOT written to
         // the exported CSS — users who want centering in production still
         // need to set `min-height: 100vh` themselves.
-        minHeight: isRoot ? `${rootMinHeight}px` : undefined,
+        minHeight: isRoot && !rootKeepsFixedHeight ? `${rootMinHeight}px` : undefined,
         ...flexProps,
         // `background` lives in the background group; `border-radius`
         // is a sizing/shape concern that doesn't get a toggle.

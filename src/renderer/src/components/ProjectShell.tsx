@@ -275,6 +275,8 @@ export const ProjectShell = ({
   const instanceFlows = useInstanceFlows({
     project,
     onProjectChange,
+    projectConfig,
+    onProjectConfigChange: handleProjectConfigChange,
     openComponent,
     activePageName,
   });

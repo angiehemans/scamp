@@ -50,6 +50,38 @@ export const useCanvasGeometry = (frameRef, scale) => {
             y += current.offsetTop;
             current = current.offsetParent;
         }
+        // A component-instance wrapper is structurally 0-sized on at least one
+        // axis: the component renders with absolute positioning, so its content
+        // never sizes the wrapper. Measuring the wrapper directly gives a 0-size
+        // box, so the selection outline/overlay collapses to nothing. Fall back to
+        // the bounding box of the rendered content so the selection frames what the
+        // user actually sees. see docs/notes/components-data-model.md
+        if (node.dataset['scampInstanceId'] &&
+            (node.offsetWidth === 0 || node.offsetHeight === 0)) {
+            const frameRect = frame.getBoundingClientRect();
+            const scale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1;
+            let minL = Infinity;
+            let minT = Infinity;
+            let maxR = -Infinity;
+            let maxB = -Infinity;
+            for (const desc of node.querySelectorAll('*')) {
+                const r = desc.getBoundingClientRect();
+                if (r.width === 0 && r.height === 0)
+                    continue;
+                minL = Math.min(minL, r.left);
+                minT = Math.min(minT, r.top);
+                maxR = Math.max(maxR, r.right);
+                maxB = Math.max(maxB, r.bottom);
+            }
+            if (minL !== Infinity) {
+                return {
+                    x: Math.round((minL - frameRect.left) / scale),
+                    y: Math.round((minT - frameRect.top) / scale),
+                    w: Math.round((maxR - minL) / scale),
+                    h: Math.round((maxB - minT) / scale),
+                };
+            }
+        }
         return {
             x,
             y,

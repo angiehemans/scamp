@@ -204,7 +204,12 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
             // owned by flex layout, not by the user dragging corners). The
             // overlay is only rendered for a single selection — multi-select
             // highlights live on the elements themselves.
-            _jsx(SelectionOverlay, { x: selectedRect.x, y: selectedRect.y, width: selectedRect.w, height: selectedRect.h, showHandles: selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl), ratioLocked: ratioLocked, onToggleLock: selectedElementId
+            _jsx(SelectionOverlay, { x: selectedRect.x, y: selectedRect.y, width: selectedRect.w, height: selectedRect.h, showHandles: selectedElementId !== ROOT_ELEMENT_ID &&
+                    !isFlexChild(selectedEl) &&
+                    selectedEl.type !== 'component-instance', 
+                // A component-instance wrapper is 0-sized, so its own `.selected`
+                // outline is invisible — the overlay draws the border instead.
+                drawOutline: selectedEl.type === 'component-instance', ratioLocked: ratioLocked, onToggleLock: selectedElementId
                     ? () => {
                         // Measure the rendered size so a non-fixed axis can be
                         // snapped to fixed on lock (see toggleRatioLock).

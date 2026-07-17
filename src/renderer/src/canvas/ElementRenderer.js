@@ -310,6 +310,9 @@ export const ElementRenderer = ({ elementId }) => {
     // uses it as its own min-height so the root fills the visible
     // canvas regardless of content size.
     const canvasMinHeight = useCanvasStore((s) => s.canvasMinHeight);
+    // In the component editor a fixed-height root keeps its own size instead of
+    // filling the artboard (a page root always grows). see elementToStyle.
+    const inComponentEditor = useCanvasStore((s) => s.activeComponent !== null);
     // Canvas animation preview — set when the user clicks Play in the
     // AnimationSection. The matching element re-renders with a fresh
     // `key` so React forces a remount and the CSS animation plays
@@ -388,7 +391,7 @@ export const ElementRenderer = ({ elementId }) => {
     const isImage = element.type === 'image';
     const isComponentInstance = element.type === 'component-instance';
     const projectDir = projectPath ? projectPath.replace(/\\/g, '/') : null;
-    const baseStyle = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir, projectFormat, false, canvasMinHeight);
+    const baseStyle = elementToStyle(element, parentDisplay, parentDirection, themeTokens, projectDir, projectFormat, false, canvasMinHeight, inComponentEditor);
     // When the canvas is previewing a non-default state for this
     // element, suppress transitions so the user sees the resolved end
     // state instantly rather than an animation halfway through.
@@ -446,11 +449,26 @@ export const ElementRenderer = ({ elementId }) => {
                 detail: { x: e.clientX, y: e.clientY, elementId: element.id },
             }));
         };
+        // An instance renders its component subtree with absolute positioning, so
+        // the wrapper never gets width from content — it's structurally 0-sized and
+        // the content is positioned against it. A component whose root is `stretch`
+        // (width:100%) therefore resolves against a 0-width wrapper and collapses.
+        // Give the wrapper the root's stretch so `100%` resolves against the page,
+        // matching the component — without the user re-applying stretch per
+        // instance. Non-stretch roots keep their intrinsic size (no override).
+        // see docs/notes/components-data-model.md
+        const instanceRoot = componentTreeForInstance
+            ? componentTreeForInstance.elements[componentTreeForInstance.rootId]
+            : undefined;
         const wrapperProps = {
             'data-element-id': element.id,
             'data-scamp-instance-id': element.instanceId ?? '',
             className: `${styles.element} ${isSelected ? styles.selected : ''}`.trim(),
-            style,
+            style: {
+                ...style,
+                ...(instanceRoot?.widthMode === 'stretch' ? { width: '100%' } : {}),
+                ...(instanceRoot?.heightMode === 'stretch' ? { height: '100%' } : {}),
+            },
             onClick: handleInstanceClick,
             onDoubleClick: handleInstanceDoubleClick,
             onContextMenu: handleInstanceContextMenu,
@@ -468,7 +486,7 @@ export const ElementRenderer = ({ elementId }) => {
                     fontFamily: 'var(--font-ui)',
                 }, children: ["Missing component: ", element.componentName ?? '(unnamed)'] }));
         }
-        const root = componentTreeForInstance.elements[componentTreeForInstance.rootId];
+        const root = instanceRoot;
         const isEmptyComponent = root !== undefined && isScaffoldRoot(root);
         // Only honour the edit target when it points at THIS instance.
         const editingPropForThis = editingInstanceProp && editingInstanceProp.instanceId === element.id

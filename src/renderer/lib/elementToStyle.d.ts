@@ -20,7 +20,7 @@ export declare const canvasRenderTag: (tag: string) => string;
  *   - React/JSX-only names the DOM wouldn't understand
  */
 export declare const CANVAS_SKIP_ATTRS_BY_TAG: Record<string, ReadonlySet<string>>;
-export declare const elementToStyle: (el: ScampElement, parentDisplay: "flex" | "grid" | "none" | undefined, parentDirection: "row" | "column" | undefined, tokens: ReadonlyArray<ThemeToken>, projectDir: string | null, projectFormat: "legacy" | "nextjs", isInstanceInner: boolean | undefined, rootMinHeight: number) => CSSProperties;
+export declare const elementToStyle: (el: ScampElement, parentDisplay: "flex" | "grid" | "none" | undefined, parentDirection: "row" | "column" | undefined, tokens: ReadonlyArray<ThemeToken>, projectDir: string | null, projectFormat: "legacy" | "nextjs", isInstanceInner: boolean | undefined, rootMinHeight: number, inComponentEditor?: boolean) => CSSProperties;
 /**
  * Render an element subtree that lives in a separate elements map
  * (not the canvas store's page-elements). Used by the

@@ -21,6 +21,13 @@ type Props = {
    * for selections that can't be resized (root, flex children).
    */
   onToggleLock?: () => void;
+  /**
+   * Draw the selection border on the overlay itself. Normally the border
+   * lives on the element via `.element.selected`, but a component-instance
+   * wrapper is structurally 0-sized, so its element outline is invisible —
+   * the overlay (sized to the instance's content bounds) draws it instead.
+   */
+  drawOutline?: boolean;
 };
 
 const CORNER_HANDLES: Array<{ key: string; className: string }> = [
@@ -45,6 +52,7 @@ export const SelectionOverlay = ({
   showHandles = true,
   ratioLocked = false,
   onToggleLock,
+  drawOutline = false,
 }: Props): JSX.Element => {
   // Corner handles always; edge handles only when the ratio isn't locked
   // (a locked ratio scales proportionally, which only corner drags do).
@@ -59,7 +67,11 @@ export const SelectionOverlay = ({
   };
 
   return (
-    <div className={styles.outline} style={{ left: x, top: y, width, height }}>
+    <div
+      data-testid="selection-overlay"
+      className={`${styles.outline} ${drawOutline ? styles.outlineBox : ''}`.trim()}
+      style={{ left: x, top: y, width, height }}
+    >
       {showHandles &&
         handles.map((h) => (
           <div

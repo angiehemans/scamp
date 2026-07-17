@@ -1,10 +1,12 @@
 import { type Dispatch, type SetStateAction } from 'react';
-import type { ProjectData } from '@shared/types';
+import type { ProjectConfig, ProjectData } from '@shared/types';
 import type { DeletePropTextRequest, DetachRequest, LockPropRequest, SlotRemovalRequest } from './types';
 type ProjectChange = (next: ProjectData | ((prev: ProjectData) => ProjectData)) => void;
 type Args = {
     project: ProjectData;
     onProjectChange?: ProjectChange;
+    projectConfig: ProjectConfig;
+    onProjectConfigChange: (next: ProjectConfig) => void;
     openComponent: (name: string, fromPage: string | null) => void;
     activePageName: string | null;
 };
@@ -37,5 +39,5 @@ export type UseInstanceFlows = {
  * confirm/cancel handlers the modals bind to.
  * see docs/notes/components-multi-file-ops.md
  */
-export declare const useInstanceFlows: ({ project, onProjectChange, openComponent, activePageName, }: Args) => UseInstanceFlows;
+export declare const useInstanceFlows: ({ project, onProjectChange, projectConfig, onProjectConfigChange, openComponent, activePageName, }: Args) => UseInstanceFlows;
 export {};

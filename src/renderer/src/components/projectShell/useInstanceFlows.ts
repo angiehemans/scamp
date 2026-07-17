@@ -1,6 +1,10 @@
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react';
 
-import type { ProjectData } from '@shared/types';
+import type { ProjectConfig, ProjectData } from '@shared/types';
+import {
+  MAX_COMPONENT_CANVAS_DIM,
+  MIN_COMPONENT_CANVAS_DIM,
+} from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { generateComponentFromSubtree } from '@lib/extractComponent';
@@ -37,6 +41,8 @@ type ProjectChange = (
 type Args = {
   project: ProjectData;
   onProjectChange?: ProjectChange;
+  projectConfig: ProjectConfig;
+  onProjectConfigChange: (next: ProjectConfig) => void;
   openComponent: (name: string, fromPage: string | null) => void;
   activePageName: string | null;
 };
@@ -81,6 +87,8 @@ export type UseInstanceFlows = {
 export const useInstanceFlows = ({
   project,
   onProjectChange,
+  projectConfig,
+  onProjectConfigChange,
   openComponent,
   activePageName,
 }: Args): UseInstanceFlows => {
@@ -117,6 +125,21 @@ export const useInstanceFlows = ({
   ): Promise<void> => {
     setConvertingComponent(true);
     setConvertError(null);
+    // Measure the source element's rendered size NOW, while it's still on the
+    // page canvas (replaceSubtreeWithInstance below removes it).
+    // offsetWidth/Height are logical (scale-independent) px, so this is the
+    // true size even for stretch/percentage sizing — used to seed the new
+    // component editor's canvas. see docs/plans/component-canvas-sizing-plan.md
+    // Scope to the canvas frame — the layers-panel rows also carry
+    // `data-element-id`, and a bare document query would match the (tiny)
+    // sidebar row instead of the rendered canvas element.
+    const sourceNode = document.querySelector(
+      `[data-testid="canvas-frame"] [data-element-id="${elementId}"]`
+    );
+    const measured =
+      sourceNode instanceof HTMLElement
+        ? { width: sourceNode.offsetWidth, height: sourceNode.offsetHeight }
+        : null;
     try {
       const state = useCanvasStore.getState();
       const generated = generateComponentFromSubtree(
@@ -140,6 +163,26 @@ export const useInstanceFlows = ({
         ...prev,
         components: [...prev.components, created],
       }));
+      // Seed the component editor's canvas to the source element's rendered
+      // size so it opens matching the page — even when the root is stretch
+      // (the canvas size is separate from the component's own width:100%).
+      if (measured && measured.width > 0 && measured.height > 0) {
+        const clampDim = (n: number): number =>
+          Math.max(
+            MIN_COMPONENT_CANVAS_DIM,
+            Math.min(MAX_COMPONENT_CANVAS_DIM, Math.round(n))
+          );
+        onProjectConfigChange({
+          ...projectConfig,
+          componentCanvas: {
+            ...(projectConfig.componentCanvas ?? {}),
+            [created.name]: {
+              width: clampDim(measured.width),
+              height: clampDim(measured.height),
+            },
+          },
+        });
+      }
       setConvertElementId(null);
       openComponent(created.name, activePageName);
     } catch (e) {

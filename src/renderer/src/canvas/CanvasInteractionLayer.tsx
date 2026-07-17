@@ -260,7 +260,14 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
           y={selectedRect.y}
           width={selectedRect.w}
           height={selectedRect.h}
-          showHandles={selectedElementId !== ROOT_ELEMENT_ID && !isFlexChild(selectedEl)}
+          showHandles={
+            selectedElementId !== ROOT_ELEMENT_ID &&
+            !isFlexChild(selectedEl) &&
+            selectedEl.type !== 'component-instance'
+          }
+          // A component-instance wrapper is 0-sized, so its own `.selected`
+          // outline is invisible — the overlay draws the border instead.
+          drawOutline={selectedEl.type === 'component-instance'}
           ratioLocked={ratioLocked}
           onToggleLock={
             selectedElementId

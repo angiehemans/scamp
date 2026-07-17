@@ -17,6 +17,13 @@ type Props = {
      * for selections that can't be resized (root, flex children).
      */
     onToggleLock?: () => void;
+    /**
+     * Draw the selection border on the overlay itself. Normally the border
+     * lives on the element via `.element.selected`, but a component-instance
+     * wrapper is structurally 0-sized, so its element outline is invisible —
+     * the overlay (sized to the instance's content bounds) draws it instead.
+     */
+    drawOutline?: boolean;
 };
-export declare const SelectionOverlay: ({ x, y, width, height, showHandles, ratioLocked, onToggleLock, }: Props) => JSX.Element;
+export declare const SelectionOverlay: ({ x, y, width, height, showHandles, ratioLocked, onToggleLock, drawOutline, }: Props) => JSX.Element;
 export {};

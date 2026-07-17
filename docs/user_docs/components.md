@@ -73,6 +73,29 @@ A breadcrumb above the canvas (`home → Card`) lets you click back
 to the page that brought you in. The instance you came from is
 re-selected when you return.
 
+### Component canvas size
+
+The component editor has its own artboard, sized independently of the
+component's CSS (the canvas is a *workspace* size, not a style — your
+root can still be `width: 100%`).
+
+- **Matches the source on creation** — when you create a component from
+  an element on a page, the artboard opens at that element's rendered
+  size, even if the element stretches full-width. A full-bleed hero
+  converts to a full-width component canvas; a 320×200 card opens at
+  320×200.
+- **Resize handles** — drag any of the four corner handles to resize the
+  artboard. The size is saved per component in `scamp.config.json`, so
+  it's there next time you open it.
+- **Double-click to fit** — double-click a handle to shrink (or grow)
+  the artboard to hug its content, including the root's padding. If a
+  top-level child stretches full-width, that axis can't shrink below the
+  canvas (a stretched box is, by definition, as wide as its canvas).
+
+Content taller than the artboard still shows — the canvas height is a
+minimum that grows with content; double-click-to-fit commits the grown
+height as the new size.
+
 ### The Data tab
 
 When you're inside the component editor, the properties panel grows
@@ -267,9 +290,8 @@ affected pages and instance counts, never a generic message.
 ## Tips
 
 - The component editor's canvas has no page root — the component's
-  outermost element IS the root. Sizing rules differ slightly: the
-  component canvas is sized to fit the component's content, not the
-  artboard.
+  outermost element IS the root. See [Component canvas
+  size](#component-canvas-size) for how the artboard is sized.
 - Instances render their CSS Modules from the component's own
   `[Name].module.css`. Page-level styles don't leak in.
 - Renaming an instance on a page only changes its `data-scamp-id`

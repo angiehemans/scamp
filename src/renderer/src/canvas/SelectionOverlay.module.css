@@ -8,6 +8,14 @@
   pointer-events: none;
 }
 
+/* Draw the selection border on the overlay for elements whose own
+   `.element.selected` outline can't show — a component-instance wrapper is
+   0-sized, so the overlay (sized to its content bounds) carries the border. */
+.outlineBox {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .handle {
   position: absolute;
   width: 8px;

@@ -113,14 +113,6 @@ export const Viewport = ({
   // edit — a child overflowing horizontally doesn't change the frame's
   // own box, so a ResizeObserver on the frame alone wouldn't fire.
   const elements = useCanvasStore((s) => s.elements);
-  // Canvas resize handles only show when the root is selected —
-  // matches the per-element selection-handle pattern (handles
-  // appear on the active selection, nothing else). Tracking the
-  // boolean via a derived selector keeps re-renders to actual
-  // root-selection changes rather than every selection mutation.
-  const isRootSelected = useCanvasStore((s) =>
-    s.selectedElementIds.includes(rootElementId)
-  );
   const activeTool = useCanvasStore((s) => s.activeTool);
   const userZoom = useCanvasStore((s) => s.userZoom);
   const setFitScale = useCanvasStore((s) => s.setFitScale);
@@ -263,6 +255,83 @@ export const Viewport = ({
     }
     setContent({ right: Math.round(right), bottom: Math.round(bottom) });
   }, []);
+
+  // Tight bounding box of the root's descendants, in logical px — the size the
+  // artboard should be to "hug" its content. Unlike `measureFrame` this SKIPS
+  // the root (which fills the frame) and isn't floored by the frame, so it can
+  // shrink. Includes each child's outer margin and the root's own padding so
+  // the hug keeps the component's breathing room. Returns null when there's no
+  // non-root content.
+  //
+  // Uses `offsetLeft/Top/Width/Height` (already logical, scale-free) rather
+  // than `getBoundingClientRect()/scale`: at a fractional zoom (e.g. Fit ≈ 0.5)
+  // dividing client px by the scale AMPLIFIES sub-pixel rounding, which left a
+  // ~2px gap below the hugged content. see docs/plans/component-canvas-sizing-plan.md
+  const measureContentSize = useCallback((): {
+    width: number;
+    height: number;
+  } | null => {
+    const frame = frameRef.current;
+    if (!frame) return null;
+    let right = 0;
+    let bottom = 0;
+    let found = false;
+    for (const node of frame.querySelectorAll('[data-element-id]')) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.dataset['elementId'] === rootElementId) continue;
+      found = true;
+      // Accumulate the element's offset up the offsetParent chain to the
+      // frame — logical (unscaled) coordinates, matching measureElementInFrame.
+      let offLeft = 0;
+      let offTop = 0;
+      let cur: HTMLElement | null = node;
+      while (cur && cur !== frame) {
+        offLeft += cur.offsetLeft;
+        offTop += cur.offsetTop;
+        cur = cur.offsetParent as HTMLElement | null;
+      }
+      const cs = getComputedStyle(node);
+      const marginRight = parseFloat(cs.marginRight) || 0;
+      const marginBottom = parseFloat(cs.marginBottom) || 0;
+      right = Math.max(right, offLeft + node.offsetWidth + marginRight);
+      bottom = Math.max(bottom, offTop + node.offsetHeight + marginBottom);
+    }
+    if (!found) return null;
+    // Per axis: a FIXED-size root already has a definite box (its own size IS
+    // the component's size), so hug to the root's rendered extent — content
+    // that overflows a fixed box (e.g. text line-height in a fixed-height,
+    // padded header) must NOT push the canvas past the root's edge. For
+    // non-fixed axes the root fills the canvas, so hug to the content bounds
+    // plus the root's own padding (breathing room). see docs/plans/component-canvas-sizing-plan.md
+    const rootNode = frame.querySelector(`[data-element-id="${rootElementId}"]`);
+    const rootEl = elements[rootElementId];
+    const rs =
+      rootNode instanceof HTMLElement ? getComputedStyle(rootNode) : null;
+    const widthFixed =
+      rootEl?.widthMode === 'fixed' && rootNode instanceof HTMLElement;
+    const heightFixed =
+      rootEl?.heightMode === 'fixed' && rootNode instanceof HTMLElement;
+    const width = widthFixed
+      ? (rootNode as HTMLElement).offsetWidth
+      : right + (rs ? parseFloat(rs.paddingRight) || 0 : 0);
+    const height = heightFixed
+      ? (rootNode as HTMLElement).offsetHeight
+      : bottom + (rs ? parseFloat(rs.paddingBottom) || 0 : 0);
+    const clamp = (n: number): number =>
+      Math.max(
+        MIN_COMPONENT_CANVAS_DIM,
+        Math.min(MAX_COMPONENT_CANVAS_DIM, Math.round(n))
+      );
+    return { width: clamp(width), height: clamp(height) };
+  }, [rootElementId, elements]);
+
+  // Double-clicking a resize handle fits the artboard to its content. Persists
+  // through the same `onResize` path as a drag (→ componentCanvas[name]).
+  const handleFitToContent = useCallback((): void => {
+    const fit = measureContentSize();
+    if (fit && onResize) onResize(fit.width, fit.height);
+  }, [measureContentSize, onResize]);
+
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
@@ -486,31 +555,39 @@ export const Viewport = ({
         <CanvasKeyframes />
         <ElementRenderer elementId={rootElementId} />
         <CanvasInteractionLayer frameRef={frameRef} scale={scale} />
-        {onResize && isRootSelected && (
+        {/* Component-editor artboard handles: `onResize` is only supplied in
+            component mode, so these are always present there (the artboard IS
+            the component) and never on a page. Drag to resize; double-click to
+            fit the artboard to its content. */}
+        {onResize && (
           <>
             <div
               className={`${styles.canvasResizeHandle} ${styles.canvasResizeHandleTL}`}
               onPointerDown={makeResizePointerDown('tl')}
+              onDoubleClick={handleFitToContent}
               aria-label="Resize canvas (top-left)"
-              title="Drag to resize"
+              title="Drag to resize · double-click to fit content"
             />
             <div
               className={`${styles.canvasResizeHandle} ${styles.canvasResizeHandleTR}`}
               onPointerDown={makeResizePointerDown('tr')}
+              onDoubleClick={handleFitToContent}
               aria-label="Resize canvas (top-right)"
-              title="Drag to resize"
+              title="Drag to resize · double-click to fit content"
             />
             <div
               className={`${styles.canvasResizeHandle} ${styles.canvasResizeHandleBL}`}
               onPointerDown={makeResizePointerDown('bl')}
+              onDoubleClick={handleFitToContent}
               aria-label="Resize canvas (bottom-left)"
-              title="Drag to resize"
+              title="Drag to resize · double-click to fit content"
             />
             <div
               className={`${styles.canvasResizeHandle} ${styles.canvasResizeHandleBR}`}
               onPointerDown={makeResizePointerDown('br')}
+              onDoubleClick={handleFitToContent}
               aria-label="Resize canvas (bottom-right)"
-              title="Drag to resize"
+              title="Drag to resize · double-click to fit content"
             />
           </>
         )}
