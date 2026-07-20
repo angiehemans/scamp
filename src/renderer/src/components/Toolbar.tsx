@@ -5,8 +5,6 @@ import {
   IconLetterT,
   IconPhoto,
   IconForms,
-  IconPalette,
-  IconSettings,
 } from '@tabler/icons-react';
 import { useCanvasStore, type Tool } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
@@ -29,12 +27,7 @@ const TOOLS: ToolDef[] = [
   { tool: 'input', label: 'Input', shortcut: 'F', icon: <IconForms size={ICON_SIZE} /> },
 ];
 
-type Props = {
-  onOpenSettings?: () => void;
-  onOpenTheme?: () => void;
-};
-
-export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => {
+export const Toolbar = (): JSX.Element => {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const setTool = useCanvasStore((s) => s.setTool);
   // Tools are disabled while previewing a snapshot (read-only canvas).
@@ -75,31 +68,6 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }: Props): JSX.Element => 
           </button>
         </Tooltip>
       ))}
-      <span className={styles.spacer} />
-      {onOpenTheme && (
-        <Tooltip label="Theme tokens">
-          <button
-            className={styles.button}
-            onClick={onOpenTheme}
-            type="button"
-            aria-label="Theme tokens"
-          >
-            <IconPalette size={ICON_SIZE} />
-          </button>
-        </Tooltip>
-      )}
-      {onOpenSettings && (
-        <Tooltip label="Settings">
-          <button
-            className={styles.button}
-            onClick={onOpenSettings}
-            type="button"
-            aria-label="Settings"
-          >
-            <IconSettings size={ICON_SIZE} />
-          </button>
-        </Tooltip>
-      )}
     </div>
   );
 };

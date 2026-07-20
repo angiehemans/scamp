@@ -21,8 +21,6 @@ type Props = {
   artboardScrollRef: RefObject<HTMLDivElement>;
   onProjectConfigChange: (next: ProjectConfig) => void;
   onExitComponentEditor: () => void;
-  onOpenSettings: () => void;
-  onOpenTheme: () => void;
 };
 
 /**
@@ -38,8 +36,6 @@ export const CanvasArea = ({
   artboardScrollRef,
   onProjectConfigChange,
   onExitComponentEditor,
-  onOpenSettings,
-  onOpenTheme,
 }: Props): JSX.Element => {
   const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
@@ -220,10 +216,7 @@ export const CanvasArea = ({
         </div>
       </div>
       <div className={styles.elementToolbar}>
-        <Toolbar
-          onOpenSettings={onOpenSettings}
-          onOpenTheme={onOpenTheme}
-        />
+        <Toolbar />
       </div>
     </div>
   );

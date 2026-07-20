@@ -1,6 +1,1 @@
-type Props = {
-    onOpenSettings?: () => void;
-    onOpenTheme?: () => void;
-};
-export declare const Toolbar: ({ onOpenSettings, onOpenTheme }: Props) => JSX.Element;
-export {};
+export declare const Toolbar: () => JSX.Element;

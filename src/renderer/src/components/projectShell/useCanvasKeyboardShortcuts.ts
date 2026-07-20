@@ -204,8 +204,8 @@ export const useCanvasKeyboardShortcuts = (
         return;
       }
 
-      // Cmd/Ctrl+Shift+H — toggle the left sidebar tab between
-      // Pages & Layers and History.
+      // Cmd/Ctrl+Shift+H — toggle the left sidebar between History and the
+      // Pages section (the rail's default).
       if (
         (e.metaKey || e.ctrlKey) &&
         e.shiftKey &&
@@ -214,8 +214,8 @@ export const useCanvasKeyboardShortcuts = (
         if (isEditableTarget(e.target)) return;
         e.preventDefault();
         const canvas = useCanvasStore.getState();
-        canvas.setLeftSidebarTab(
-          canvas.leftSidebarTab === 'history' ? 'layers' : 'history'
+        canvas.setSidebarSection(
+          canvas.sidebarSection === 'history' ? 'pages' : 'history'
         );
         return;
       }

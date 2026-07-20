@@ -36,6 +36,7 @@ import { ProjectHeader } from './projectShell/ProjectHeader';
 import { CanvasArea } from './projectShell/CanvasArea';
 import { PageSidebar } from './projectShell/PageSidebar';
 import { ComponentSidebar } from './projectShell/ComponentSidebar';
+import { SidebarRail } from './projectShell/SidebarRail';
 import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
@@ -173,8 +174,8 @@ export const ProjectShell = ({
 
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
   const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
-  const leftSidebarTab = useCanvasStore((s) => s.leftSidebarTab);
-  const setLeftSidebarTab = useCanvasStore((s) => s.setLeftSidebarTab);
+  const sidebarSection = useCanvasStore((s) => s.sidebarSection);
+  const setSidebarSection = useCanvasStore((s) => s.setSidebarSection);
 
   // Once the user opens the terminal we keep TerminalPanel mounted for
   // the lifetime of the project, even when the panel is hidden, so any
@@ -337,35 +338,31 @@ export const ProjectShell = ({
         />
       )}
       <div className={styles.body}>
+        <SidebarRail
+          section={sidebarSection}
+          onSelectSection={(next) => {
+            setShowProjectSettings(false);
+            setShowThemePanel(false);
+            setSidebarSection(next);
+          }}
+          onOpenDesignSystem={() => {
+            setShowProjectSettings(false);
+            setShowThemePanel(true);
+          }}
+          onOpenSettings={() => {
+            setShowThemePanel(false);
+            setShowProjectSettings(true);
+          }}
+          designSystemOpen={showThemePanel}
+          settingsOpen={showProjectSettings}
+        />
+        <div className={styles.bodyContent}>
         <aside className={styles.sidebar}>
-          <div className={styles.sidebarTabStrip} role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={leftSidebarTab === 'layers'}
-              className={`${styles.sidebarTab} ${
-                leftSidebarTab === 'layers' ? styles.sidebarTabActive : ''
-              }`}
-              onClick={() => setLeftSidebarTab('layers')}
-            >
-              Pages & Layers
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={leftSidebarTab === 'history'}
-              className={`${styles.sidebarTab} ${
-                leftSidebarTab === 'history' ? styles.sidebarTabActive : ''
-              }`}
-              onClick={() => setLeftSidebarTab('history')}
-            >
-              History
-            </button>
-          </div>
-          {leftSidebarTab === 'history' && (
+          {sidebarSection === 'history' && (
             <HistoryPanel projectPath={project.path} />
           )}
-          {leftSidebarTab === 'layers' && <>
+          {sidebarSection === 'pages' && (
+            <>
           <PageSidebar
             pages={project.pages}
             existingPageNames={existingPageNames}
@@ -386,6 +383,17 @@ export const ProjectShell = ({
             setActiveComponentState={setActiveComponentState}
             setActivePageName={setActivePageName}
           />
+              <div
+                className={`${styles.sidebarSection} ${styles.sidebarLayers}`}
+                data-testid="layers-panel"
+              >
+                <h2 className={styles.sidebarTitle}>Layers</h2>
+                <ElementTree />
+              </div>
+            </>
+          )}
+          {sidebarSection === 'components' && (
+            <>
           <ComponentSidebar
             components={project.components}
             projectPath={project.path}
@@ -408,7 +416,8 @@ export const ProjectShell = ({
             <h2 className={styles.sidebarTitle}>Layers</h2>
             <ElementTree />
           </div>
-          </>}
+            </>
+          )}
         </aside>
         <CanvasArea
           activeComponent={activeComponent}
@@ -417,10 +426,18 @@ export const ProjectShell = ({
           artboardScrollRef={artboardScrollRef}
           onProjectConfigChange={handleProjectConfigChange}
           onExitComponentEditor={exitComponentEditor}
-          onOpenSettings={() => setShowProjectSettings(true)}
-          onOpenTheme={() => setShowThemePanel(true)}
         />
         <PropertiesPanel />
+        {showProjectSettings && (
+          <ProjectSettingsPage
+            projectName={project.name}
+            projectPath={project.path}
+            config={projectConfig}
+            onChange={handleProjectConfigChange}
+            onBack={() => setShowProjectSettings(false)}
+          />
+        )}
+        </div>
       </div>
       {bottomPanel === 'code' && <CodePanel />}
       {/*
@@ -440,15 +457,6 @@ export const ProjectShell = ({
         <ThemePanel
           projectPath={project.path}
           onClose={() => setShowThemePanel(false)}
-        />
-      )}
-      {showProjectSettings && (
-        <ProjectSettingsPage
-          projectName={project.name}
-          projectPath={project.path}
-          config={projectConfig}
-          onChange={handleProjectConfigChange}
-          onBack={() => setShowProjectSettings(false)}
         />
       )}
       <ProjectModals

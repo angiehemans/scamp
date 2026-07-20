@@ -11,14 +11,14 @@ panel to jump straight to that point.
 |---|---|
 | Undo (back one step) | **Cmd+Z** |
 | Redo (forward one step) | **Cmd+Shift+Z** |
-| Toggle History tab | **Cmd+Shift+H** |
+| Jump to History | **Cmd+Shift+H** |
 
 ## The History Panel
 
-The left sidebar has two tabs: **Pages & Layers** (default) and
-**History**. Click the History tab — or press **Cmd+Shift+H** — to
-see a list of every change in the current session for the active
-page.
+The left sidebar is an icon rail with sections for **Pages**,
+**Components**, **Design System**, **History**, and **Settings**. Click
+the **History** icon — or press **Cmd+Shift+H** — to see a list of every
+change in the current session for the active page.
 
 Each entry shows:
 

@@ -313,6 +313,16 @@ font-size: 14px;
   min-height: 0;
 }
 
+/* Everything to the RIGHT of the icon rail: the sidebar panel + canvas +
+   properties, plus the Settings overlay. The overlay is scoped here (not to
+   the whole shell) so the rail stays visible when Settings is open. */
+.bodyContent {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
 .sidebar {
   width: 240px;
   background: var(--bg-surface);
@@ -320,39 +330,6 @@ font-size: 14px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-}
-
-.sidebarTabStrip {
-  display: flex;
-  gap: 0;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
-}
-
-.sidebarTab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 10px 8px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  font-family: inherit;
-}
-
-.sidebarTab:hover {
-  color: var(--text-primary);
-}
-
-.sidebarTabActive {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
 }
 
 .sidebarSection {

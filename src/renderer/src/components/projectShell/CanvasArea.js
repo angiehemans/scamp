@@ -15,7 +15,7 @@ import styles from '../ProjectShell.module.css';
  * mode uses the project-wide canvas width; component mode uses the
  * per-component canvas size and enables drag-handle resize.
  */
-export const CanvasArea = ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, onOpenSettings, onOpenTheme, }) => {
+export const CanvasArea = ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, }) => {
     const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
     const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
     const isComponent = activeComponent !== null;
@@ -71,5 +71,5 @@ export const CanvasArea = ({ activeComponent, activePageName, projectConfig, art
                                         componentCanvas: nextMap,
                                     });
                                 }
-                                : undefined })] }) }), _jsx("div", { className: styles.elementToolbar, children: _jsx(Toolbar, { onOpenSettings: onOpenSettings, onOpenTheme: onOpenTheme }) })] }));
+                                : undefined })] }) }), _jsx("div", { className: styles.elementToolbar, children: _jsx(Toolbar, {}) })] }));
 };

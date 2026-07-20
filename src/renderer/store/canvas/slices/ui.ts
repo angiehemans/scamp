@@ -67,7 +67,7 @@ export const createUiSlice: StateCreator<
   CanvasState,
   | 'bottomPanel'
   | 'panelMode'
-  | 'leftSidebarTab'
+  | 'sidebarSection'
   | 'userZoom'
   | 'fitScale'
   | 'ratioLocks'
@@ -75,7 +75,7 @@ export const createUiSlice: StateCreator<
   | 'canvasMinHeight'
   | 'setBottomPanel'
   | 'setPanelMode'
-  | 'setLeftSidebarTab'
+  | 'setSidebarSection'
   | 'setExportFormat'
   | 'setExportPngScale'
   | 'setCanvasMinHeight'
@@ -94,7 +94,7 @@ export const createUiSlice: StateCreator<
 > = (set) => ({
   bottomPanel: 'none',
   panelMode: 'ui',
-  leftSidebarTab: 'layers',
+  sidebarSection: 'pages',
   userZoom: null,
   fitScale: 1,
   ratioLocks: {},
@@ -108,7 +108,7 @@ export const createUiSlice: StateCreator<
 
   setPanelMode: (mode) => set({ panelMode: mode }),
 
-  setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
+  setSidebarSection: (section) => set({ sidebarSection: section }),
 
   setExportFormat: (format) =>
     set((state) => ({

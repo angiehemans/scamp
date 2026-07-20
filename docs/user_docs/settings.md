@@ -3,7 +3,7 @@
 Scamp has two kinds of settings:
 
 - **App settings** — apply to every project. Change them from the Settings icon on the start screen.
-- **Project settings** — per-project, stored in `scamp.config.json` at the project root. Change them from the Settings button in the toolbar while a project is open.
+- **Project settings** — per-project, stored in `scamp.config.json` at the project root. Change them from the **Settings** icon in the left sidebar rail while a project is open.
 
 ## App Settings
 

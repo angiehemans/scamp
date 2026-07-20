@@ -8,8 +8,6 @@ type Props = {
     artboardScrollRef: RefObject<HTMLDivElement>;
     onProjectConfigChange: (next: ProjectConfig) => void;
     onExitComponentEditor: () => void;
-    onOpenSettings: () => void;
-    onOpenTheme: () => void;
 };
 /**
  * The artboard column: component-editor banner + breadcrumb, the canvas
@@ -17,5 +15,5 @@ type Props = {
  * mode uses the project-wide canvas width; component mode uses the
  * per-component canvas size and enables drag-handle resize.
  */
-export declare const CanvasArea: ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, onOpenSettings, onOpenTheme, }: Props) => JSX.Element;
+export declare const CanvasArea: ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, }: Props) => JSX.Element;
 export {};

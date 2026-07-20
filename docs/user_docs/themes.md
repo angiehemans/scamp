@@ -55,8 +55,8 @@ intent — they're both lengths).
 
 ## Theme Panel
 
-Click the theme button in the toolbar to open the theme panel.
-From here you can:
+Click the **Design System** icon in the left sidebar rail to open the
+theme panel. From here you can:
 
 - **Add** new tokens with a name and value.
 - **Rename** existing tokens.

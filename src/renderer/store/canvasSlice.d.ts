@@ -142,12 +142,14 @@ export type SnapshotPreview = SnapshotPreviewMeta & {
 };
 export type BottomPanel = 'code' | 'terminal' | 'none';
 /**
- * Which tab is active in the left sidebar. `'layers'` shows the
- * existing Pages + Layers stack (the default); `'history'` shows
- * the per-page visual history panel. Per-session preference —
- * not persisted to disk.
+ * Which section the icon-rail nav has open in the left sidebar panel.
+ * `'pages'` (default) and `'components'` each show their list plus the
+ * active document's Layers tree; `'history'` shows the visual history
+ * panel. (Design System and Settings are launched as overlays from the
+ * rail, so they aren't sidebar-panel sections.) Per-session preference —
+ * not persisted to disk. see docs/plans/icon-sidebar-nav-plan.md
  */
-export type LeftSidebarTab = 'layers' | 'history';
+export type SidebarSection = 'pages' | 'components' | 'history';
 /** Properties panel display mode. 'data' is component-scoped. */
 export type PanelMode = 'ui' | 'css' | 'data';
 export { MIN_ZOOM, MAX_ZOOM } from '@lib/zoom';
@@ -187,7 +189,7 @@ export type CanvasState = {
     lastLoadKind: 'initial' | 'external' | null;
     bottomPanel: BottomPanel;
     panelMode: PanelMode;
-    leftSidebarTab: LeftSidebarTab;
+    sidebarSection: SidebarSection;
     /**
      * Manual canvas zoom. `null` means "auto fit to container width" — the
      * Viewport falls back to the auto-fit calculation. A number is treated
@@ -534,7 +536,7 @@ export type CanvasState = {
     setPageSource: (source: PageSource) => void;
     setBottomPanel: (panel: BottomPanel) => void;
     setPanelMode: (mode: PanelMode) => void;
-    setLeftSidebarTab: (tab: LeftSidebarTab) => void;
+    setSidebarSection: (section: SidebarSection) => void;
     setActiveBreakpoint: (id: string) => void;
     setActiveState: (state: ElementStateName | null) => void;
     setExportFormat: (format: 'png' | 'svg') => void;

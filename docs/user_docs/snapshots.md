@@ -8,8 +8,8 @@ edit went sideways, after an AI agent made a change you didn't want, or
 just to bookmark a version before a risky redesign.
 
 Snapshots live in the **History** panel, alongside your in-session undo
-steps. Open it with **Cmd+Shift+H**, or click the **History** tab in the
-left sidebar.
+steps. Open it with **Cmd+Shift+H**, or click the **History** icon in the
+left sidebar rail.
 
 ## Snapshots vs. Undo
 

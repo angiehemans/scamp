@@ -1,6 +1,6 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx } from "react/jsx-runtime";
 import { useEffect } from 'react';
-import { IconPointer, IconSquare, IconLetterT, IconPhoto, IconForms, IconPalette, IconSettings, } from '@tabler/icons-react';
+import { IconPointer, IconSquare, IconLetterT, IconPhoto, IconForms, } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
 import styles from './Toolbar.module.css';
@@ -12,7 +12,7 @@ const TOOLS = [
     { tool: 'image', label: 'Image', shortcut: 'I', icon: _jsx(IconPhoto, { size: ICON_SIZE }) },
     { tool: 'input', label: 'Input', shortcut: 'F', icon: _jsx(IconForms, { size: ICON_SIZE }) },
 ];
-export const Toolbar = ({ onOpenSettings, onOpenTheme }) => {
+export const Toolbar = () => {
     const activeTool = useCanvasStore((s) => s.activeTool);
     const setTool = useCanvasStore((s) => s.setTool);
     // Tools are disabled while previewing a snapshot (read-only canvas).
@@ -41,5 +41,5 @@ export const Toolbar = ({ onOpenSettings, onOpenTheme }) => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [setTool]);
-    return (_jsxs("div", { className: styles.toolbar, "data-testid": "element-toolbar", "data-active-tool": activeTool, children: [TOOLS.map((t) => (_jsx(Tooltip, { label: `${t.label} (${t.shortcut})`, children: _jsx("button", { className: `${styles.button} ${activeTool === t.tool ? styles.active : ''}`, onClick: () => setTool(t.tool), type: "button", disabled: isPreviewing, "aria-pressed": activeTool === t.tool, "aria-label": t.label, "data-tool": t.tool, children: t.icon }) }, t.tool))), _jsx("span", { className: styles.spacer }), onOpenTheme && (_jsx(Tooltip, { label: "Theme tokens", children: _jsx("button", { className: styles.button, onClick: onOpenTheme, type: "button", "aria-label": "Theme tokens", children: _jsx(IconPalette, { size: ICON_SIZE }) }) })), onOpenSettings && (_jsx(Tooltip, { label: "Settings", children: _jsx("button", { className: styles.button, onClick: onOpenSettings, type: "button", "aria-label": "Settings", children: _jsx(IconSettings, { size: ICON_SIZE }) }) }))] }));
+    return (_jsx("div", { className: styles.toolbar, "data-testid": "element-toolbar", "data-active-tool": activeTool, children: TOOLS.map((t) => (_jsx(Tooltip, { label: `${t.label} (${t.shortcut})`, children: _jsx("button", { className: `${styles.button} ${activeTool === t.tool ? styles.active : ''}`, onClick: () => setTool(t.tool), type: "button", disabled: isPreviewing, "aria-pressed": activeTool === t.tool, "aria-label": t.label, "data-tool": t.tool, children: t.icon }) }, t.tool))) }));
 };

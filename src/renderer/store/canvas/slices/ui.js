@@ -5,7 +5,7 @@ import { useCanvasStore, } from '../../canvasSlice';
 export const createUiSlice = (set) => ({
     bottomPanel: 'none',
     panelMode: 'ui',
-    leftSidebarTab: 'layers',
+    sidebarSection: 'pages',
     userZoom: null,
     fitScale: 1,
     ratioLocks: {},
@@ -17,7 +17,7 @@ export const createUiSlice = (set) => ({
     canvasMinHeight: 900,
     setBottomPanel: (panel) => set({ bottomPanel: panel }),
     setPanelMode: (mode) => set({ panelMode: mode }),
-    setLeftSidebarTab: (tab) => set({ leftSidebarTab: tab }),
+    setSidebarSection: (section) => set({ sidebarSection: section }),
     setExportFormat: (format) => set((state) => ({
         exportSettings: { ...state.exportSettings, lastFormat: format },
     })),
