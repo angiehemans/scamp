@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect, panelSection } from '../fixtures/panel';
-import { createComponentFromSidebar, dragComponentToCanvas, } from '../fixtures/components';
+import { createComponentFromSidebar, dragComponentToCanvas, openComponentsSection, } from '../fixtures/components';
 import { selectTool, measureFrame, frameToClient } from '../fixtures/canvas';
 import { canvasElementsByPrefix, componentSidebarItem, pageRoot, } from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
@@ -21,6 +21,7 @@ const convertToComponent = async (window, centerFrame, name) => {
     const input = window.getByPlaceholder('ComponentName');
     await input.fill(name);
     await input.press('Enter');
+    await openComponentsSection(window);
     await expect(componentSidebarItem(window, name)).toBeVisible();
 };
 test.describe('components: canvas sizing', () => {
@@ -204,6 +205,7 @@ export default function Header() {
     test('hug fits the fixed 60px root box, not content-plus-padding', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         // Open the seeded component in the editor.
+        await openComponentsSection(window);
         await componentSidebarItem(window, 'Header').dblclick();
         const handle = window.locator('[aria-label="Resize canvas (bottom-right)"]');
         await handle.first().waitFor();

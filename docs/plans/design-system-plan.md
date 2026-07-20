@@ -120,7 +120,7 @@ Settings already uses). Canvas stays interactive; panel has its own scroll;
 remembers last-open section (session pref). Keep the **current flat token
 editing** for now — no model change yet. Add the **legacy read-only gate**.
 
-### Phase 2 — Token model foundation + Colors: primitives & semantic (story 2)
+### Phase 2 — Token model foundation + Colors: primitives & semantic (story 2) — ✅ DONE
 The foundation (A–D above) plus the Colors section:
 - Structured model, multi-block parse/serialize, recursive resolution, migration.
 - **Primitives:** palettes with 9 shades, add/rename/delete, per-shade color
@@ -128,6 +128,27 @@ The foundation (A–D above) plus the Colors section:
 - **Semantic:** mapping dropdown (grouped by palette) + resolved swatch; add
   custom; delete-warning when a primitive is referenced.
 - Heavy `lib/` unit tests (round-trip, resolution chains, OKLCH scale).
+
+**Shipped:**
+- `lib/resolveToken.ts` — recursive `resolveTokenChain` (semantic→primitive→hex,
+  null on dangling/cycle). Wired into `elementToStyle` (canvas) and `ColorInput`
+  (picker swatches), replacing the old single-level resolvers.
+- `lib/palette.ts` — `generatePalette` (OKLCH 50–900 ramp, `culori`); 10 shades
+  (incl. 50) to match the generator, not 9.
+- `lib/colorModel.ts` — `buildColorModel`, the derived VIEW (palettes + semantic).
+- `ThemePanel` Colors section — Primitives (palette blocks, per-shade picker,
+  Generate, rename-rewrites-refs, delete-with-ref-warning) + Semantic (palette-
+  grouped mapping dropdown, resolved swatch, add-custom) + Other (non-`--color-*`
+  colours). All `--color-*` tokens route to Colors by NAME so semantic `var()`
+  values don't double-render in Unknown.
+- `parseTheme.serializeThemeFile(parsed, existingCss?)` — in-place merge that
+  preserves hand-written CSS / resets / comments (Q1). Callers (ThemePanel,
+  FontsSection) read the file first.
+- New-project scaffold (`DEFAULT_THEME_CSS`) — 5 primitive palettes + 10 semantic
+  tokens + typography scale. **Deferred:** spacing/radius/shadow tokens are NOT
+  scaffolded yet — they classify as lengths and would land in Typography until
+  Phase 5 gives them name-aware sections. Backfill/migrate leave existing
+  projects untouched (Q3).
 
 ### Phase 3 — Theme switcher: light / dark / custom (story 3)
 - Per-theme semantic values; `.dark` / `.theme-*` CSS blocks.
@@ -145,6 +166,8 @@ a whole style at once. Delete-warning for styles used on elements.
 New **real categories** (extend `TokenCategory` + all inline `.filter` sites +
 ThemePanel bucketing — the classification bottleneck). Scales with presets;
 radius visual previews; shadows reuse the multi-layer shadow editor.
+**Also scaffold** the default spacing/radius/shadow tokens here (deferred from
+Phase 2 — they'd misclassify as lengths without these name-aware categories).
 
 ### Phase 6 — Token pickers across the WYSIWYG (story 7)
 Wire category-correct pickers everywhere per the PRD table (radius, border-width,

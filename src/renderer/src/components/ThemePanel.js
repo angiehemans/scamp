@@ -5,6 +5,8 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { serializeThemeFile } from '@lib/parseTheme';
 import { classifyToken } from '@lib/tokenClassify';
+import { buildColorModel } from '@lib/colorModel';
+import { generatePalette } from '@lib/palette';
 import { errorMessage } from '@shared/errorMessage';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
@@ -44,6 +46,12 @@ const categoryBadge = (category) => {
             return 'Unknown';
     }
 };
+/** Seed colour a freshly-added palette generates its ramp from. */
+const DEFAULT_PALETTE_SEED = '#3b82f6';
+/** A `var(--color-<palette>-<shade>)` reference the semantic dropdown targets. */
+const SEMANTIC_REF_RE = /^var\(--color-(.+)-(\d+)\)$/;
+/** True when `name` is a numeric-shade token of the given palette. */
+const isPaletteShade = (name, palette) => new RegExp(`^--color-${palette}-\\d+$`).test(name);
 /** Validate a token name: must start with --, no spaces. */
 const validateTokenName = (name) => {
     if (!name.startsWith('--'))
@@ -94,6 +102,8 @@ export const ThemePanel = ({ projectPath, onClose }) => {
     const isLegacy = projectFormat === 'legacy';
     const [error, setError] = useState(null);
     const [pendingDelete, setPendingDelete] = useState(null);
+    /** Palette pending deletion — set only when a semantic token references it. */
+    const [pendingPaletteDelete, setPendingPaletteDelete] = useState(null);
     /**
      * Which token's badge-picker menu is currently open. Carries the
      * trigger button's viewport rect so we can portal the menu out of
@@ -126,25 +136,27 @@ export const ThemePanel = ({ projectPath, onClose }) => {
     }, [themeTokens]);
     // Classify once per render so the tab lists and badges agree.
     const categories = useMemo(() => localTokens.map((t) => classifyToken(t.value)), [localTokens]);
+    // Every `--color-*` token is owned by the Colors section (as a palette
+    // shade or a semantic mapping). Its VALUE may classify as anything —
+    // a semantic token's `var(--color-…)` reads as `unknown` — so we route
+    // by NAME here, otherwise those tokens double-render in both Colors and
+    // Typography/Unknown. see docs/plans/design-system-plan.md
+    const isColorToken = (name) => name.startsWith('--color-');
+    const inColors = (category, name) => isColorToken(name) || category === 'color';
     const tabCounts = useMemo(() => {
         let colors = 0;
         let typography = 0;
         let unknown = 0;
-        for (const c of categories) {
-            if (c === 'color')
+        categories.forEach((c, i) => {
+            if (inColors(c, localTokens[i]?.name ?? ''))
                 colors += 1;
             else if (TYPOGRAPHY_CATEGORIES.has(c))
                 typography += 1;
             else
                 unknown += 1;
-        }
+        });
         return { colors, typography, unknown };
-    }, [categories]);
-    /**
-     * Indices of tokens that belong to the active tab, in source order.
-     * Edits pass the original index back to the handlers so the source
-     * array position is preserved.
-     */
+    }, [categories, localTokens]);
     // Token indices grouped by section, in source order. Handlers get the
     // original index so the source array position is preserved.
     const grouped = useMemo(() => {
@@ -152,7 +164,8 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         const typography = [];
         const unknown = [];
         categories.forEach((c, i) => {
-            if (c === 'color')
+            const name = localTokens[i]?.name ?? '';
+            if (inColors(c, name))
                 colors.push(i);
             else if (TYPOGRAPHY_CATEGORIES.has(c))
                 typography.push(i);
@@ -160,18 +173,40 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                 unknown.push(i);
         });
         return { colors, typography, unknown };
-    }, [categories]);
+    }, [categories, localTokens]);
+    // Structured VIEW over the flat colour tokens: primitive palettes +
+    // semantic tokens. The flat list stays authoritative; every edit below
+    // mutates it and reserializes. see docs/plans/design-system-plan.md
+    const colorModel = useMemo(() => buildColorModel(localTokens), [localTokens]);
+    /**
+     * Colour-classified tokens the structured model doesn't capture — i.e.
+     * not prefixed `--color-` (arbitrary names in agent-seeded / legacy
+     * projects). Rendered as a flat "Other" list so they stay editable
+     * instead of silently vanishing from the panel.
+     */
+    const otherColorIndices = useMemo(() => {
+        const captured = new Set();
+        for (const p of colorModel.palettes)
+            for (const s of p.shades)
+                captured.add(s.name);
+        for (const s of colorModel.semantic)
+            captured.add(s.name);
+        return grouped.colors.filter((i) => {
+            const t = localTokens[i];
+            return t ? !captured.has(t.name) : false;
+        });
+    }, [colorModel, grouped.colors, localTokens]);
     const writeTokens = useCallback(async (tokens) => {
         try {
             // Preserve the font imports that live alongside tokens in
-            // theme.css — the fonts panel writes to the same file.
+            // theme.css — the fonts panel writes to the same file. Read the
+            // current file so hand-written CSS (resets, body rules) survives
+            // the token rewrite. see docs/plans/design-system-plan.md
             const urls = useFontsStore.getState().projectFontUrls;
+            const existing = await window.scamp.readTheme({ projectPath });
             await window.scamp.writeTheme({
                 projectPath,
-                content: serializeThemeFile({
-                    tokens,
-                    fontImportUrls: [...urls],
-                }),
+                content: serializeThemeFile({ tokens, fontImportUrls: [...urls] }, existing),
             });
             setError(null);
         }
@@ -186,12 +221,11 @@ export const ThemePanel = ({ projectPath, onClose }) => {
             idx += 1;
         return `${prefix}-${idx}`;
     };
+    // Colours have their own structured add flows (handleAddPalette /
+    // handleAddSemantic); this drives the Typography section only.
     const handleAddToken = (section) => {
         let newToken;
-        if (section === 'colors') {
-            newToken = { name: nextDefaultName('--color'), value: '#888888' };
-        }
-        else if (section === 'typography') {
+        if (section === 'typography') {
             // Cycle through size / line / family so successive clicks create
             // a balanced set instead of ten `--text-*` tokens in a row.
             const sizes = tabCounts.typography;
@@ -257,6 +291,128 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         setLocalTokens(next);
         void writeTokens(next);
     };
+    const applyTokens = (next) => {
+        setLocalTokens(next);
+        void writeTokens(next);
+    };
+    /** Next free `palette`, `palette2`, … name (no numeric-shade suffix). */
+    const nextPaletteName = () => {
+        const names = new Set(colorModel.palettes.map((p) => p.name));
+        if (!names.has('palette'))
+            return 'palette';
+        let i = 2;
+        while (names.has(`palette${i}`))
+            i += 1;
+        return `palette${i}`;
+    };
+    /**
+     * Next free semantic name. Deliberately avoids a `-<number>` suffix,
+     * which buildColorModel would misread as a primitive palette shade.
+     */
+    const nextSemanticName = () => {
+        const existing = new Set(localTokens.map((t) => t.name));
+        if (!existing.has('--color-custom'))
+            return '--color-custom';
+        let i = 2;
+        while (existing.has(`--color-custom${i}`))
+            i += 1;
+        return `--color-custom${i}`;
+    };
+    /** Add a fresh palette: a full generated ramp from the default seed. */
+    const handleAddPalette = () => {
+        const name = nextPaletteName();
+        const shades = generatePalette(DEFAULT_PALETTE_SEED);
+        const tokens = shades.map((s) => ({
+            name: `--color-${name}-${s.shade}`,
+            value: s.value,
+        }));
+        applyTokens([...localTokens, ...tokens]);
+        scrollTargetSection.current = 'colors';
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
+    /**
+     * Regenerate a palette's whole ramp from its current 500 shade (or the
+     * middle shade if 500 is absent). Existing shade tokens are replaced;
+     * every other token — including semantic refs to this palette — is left
+     * untouched, so the mappings survive.
+     */
+    const handleRegeneratePalette = (palette) => {
+        const seedShade = palette.shades.find((s) => s.shade === 500) ??
+            palette.shades[Math.floor(palette.shades.length / 2)];
+        if (!seedShade)
+            return;
+        const shades = generatePalette(seedShade.value);
+        if (shades.length === 0)
+            return;
+        const kept = localTokens.filter((t) => !isPaletteShade(t.name, palette.name));
+        const regenerated = shades.map((s) => ({
+            name: `--color-${palette.name}-${s.shade}`,
+            value: s.value,
+        }));
+        applyTokens([...kept, ...regenerated]);
+    };
+    /**
+     * Rename a palette: rewrite every `--color-<old>-<shade>` token name AND
+     * every `var(--color-<old>-…)` reference in other token values, so
+     * semantic mappings keep resolving.
+     */
+    const handleRenamePalette = (oldName, rawNew) => {
+        const newName = rawNew.trim();
+        if (newName === '' || newName === oldName)
+            return;
+        if (/\s/.test(newName)) {
+            setError('Palette name cannot contain spaces');
+            return;
+        }
+        if (colorModel.palettes.some((p) => p.name === newName)) {
+            setError(`Palette "${newName}" already exists`);
+            return;
+        }
+        const namePrefix = `--color-${oldName}-`;
+        const refPrefix = `var(--color-${oldName}-`;
+        const next = localTokens.map((t) => {
+            let { name, value } = t;
+            if (isPaletteShade(name, oldName))
+                name = `--color-${newName}-${name.slice(namePrefix.length)}`;
+            if (value.startsWith(refPrefix))
+                value = `var(--color-${newName}-${value.slice(refPrefix.length)}`;
+            return { name, value };
+        });
+        setError(null);
+        applyTokens(next);
+    };
+    /** Count semantic tokens whose resolved value flows through this palette. */
+    const paletteRefCount = (paletteName) => colorModel.semantic.filter((s) => {
+        const m = s.value.match(SEMANTIC_REF_RE);
+        return m?.[1] === paletteName;
+    }).length;
+    const handleDeletePaletteRequest = (palette) => {
+        const refCount = paletteRefCount(palette.name);
+        if (refCount > 0) {
+            setPendingPaletteDelete({ palette, refCount });
+            return;
+        }
+        confirmDeletePalette(palette);
+    };
+    const confirmDeletePalette = (palette) => {
+        const next = localTokens.filter((t) => !isPaletteShade(t.name, palette.name));
+        setPendingPaletteDelete(null);
+        applyTokens(next);
+    };
+    /** Point a semantic token at a `<palette>/<shade>` primitive. */
+    const handleSemanticMap = (tokenName, paletteName, shade) => {
+        const value = `var(--color-${paletteName}-${shade})`;
+        applyTokens(localTokens.map((t) => (t.name === tokenName ? { ...t, value } : t)));
+    };
+    const handleAddSemantic = () => {
+        const first = colorModel.palettes[0];
+        const mid = first?.shades.find((s) => s.shade === 500) ??
+            first?.shades[Math.floor((first?.shades.length ?? 0) / 2)];
+        const value = first && mid ? `var(--color-${first.name}-${mid.shade})` : '#888888';
+        applyTokens([...localTokens, { name: nextSemanticName(), value }]);
+        scrollTargetSection.current = 'colors';
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
     /**
      * Reassign a typography token to a different category. We swap the
      * value for a category-appropriate seed; the classifier re-runs on
@@ -305,6 +461,26 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                     if (e.key === 'Enter')
                         e.currentTarget.blur();
                 } }), _jsx("div", { className: styles.tokenColor, children: _jsx(ColorInput, { value: token.value, onChange: (v) => handleColorChange(index, v) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
+    const renderPaletteBlock = (palette) => (_jsxs("div", { className: styles.palette, "data-token-row": true, children: [_jsxs("div", { className: styles.paletteHeader, children: [_jsx("input", { type: "text", className: styles.paletteName, defaultValue: palette.name, "aria-label": `Palette name for ${palette.name}`, onBlur: (e) => handleRenamePalette(palette.name, e.target.value), onKeyDown: (e) => {
+                            if (e.key === 'Enter')
+                                e.currentTarget.blur();
+                        } }), _jsx(Tooltip, { label: "Regenerate ramp from the 500 shade", children: _jsx("button", { type: "button", className: styles.generateButton, onClick: () => handleRegeneratePalette(palette), children: "Generate" }) }), _jsx(Tooltip, { label: "Delete palette", children: _jsx("button", { type: "button", className: styles.tokenDelete, onClick: () => handleDeletePaletteRequest(palette), children: "x" }) })] }), _jsx("div", { className: styles.shadeRow, children: palette.shades.map((shade) => {
+                    const idx = localTokens.findIndex((t) => t.name === shade.name);
+                    return (_jsxs("div", { className: styles.shade, children: [_jsx("div", { className: styles.shadeSwatch, children: _jsx(ColorInput, { value: shade.value, onChange: (v) => idx >= 0 && handleColorChange(idx, v) }) }), _jsx("span", { className: styles.shadeLabel, children: shade.shade })] }, shade.name));
+                }) })] }, palette.name));
+    const renderSemanticRow = (sem) => {
+        const index = localTokens.findIndex((t) => t.name === sem.name);
+        const m = sem.value.match(SEMANTIC_REF_RE);
+        const selectValue = m ? `${m[1]}:${m[2]}` : '';
+        return (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, value: sem.name, onChange: (e) => handleNameChange(index, e.target.value), onBlur: () => handleNameBlur(index), onKeyDown: (e) => {
+                        if (e.key === 'Enter')
+                            e.currentTarget.blur();
+                    } }), _jsxs("select", { className: styles.semanticSelect, value: selectValue, "aria-label": `Mapping for ${sem.name}`, onChange: (e) => {
+                        const [palette, shade] = e.target.value.split(':');
+                        if (palette && shade)
+                            handleSemanticMap(sem.name, palette, Number(shade));
+                    }, children: [selectValue === '' && (_jsx("option", { value: "", disabled: true, children: sem.value || '— custom —' })), colorModel.palettes.map((p) => (_jsx("optgroup", { label: p.name, children: p.shades.map((s) => (_jsxs("option", { value: `${p.name}:${s.shade}`, children: [p.name, " / ", s.shade] }, s.shade))) }, p.name)))] }), _jsx("div", { className: styles.resolvedSwatch, style: { background: sem.resolved ?? 'transparent' }, "data-broken": sem.resolved === null, title: sem.resolved ?? 'unresolved reference' }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, sem.name));
+    };
     const renderTypographyRow = (index, token, category) => {
         const isFontFamily = category === 'fontFamily';
         const badgeOpen = badgeMenuFor?.index === index;
@@ -327,10 +503,10 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                                 e.currentTarget.blur();
                         }, placeholder: "value" })) }), _jsx("div", { className: styles.badgeWrap, children: _jsx(Tooltip, { label: "Change token type", children: _jsxs("button", { type: "button", className: `${styles.tokenBadge} ${styles.tokenBadgeButton}`, onClick: handleBadgeClick, "aria-haspopup": "menu", "aria-expanded": badgeOpen, children: [categoryBadge(category), " ", _jsx("span", { children: "\u25BE" })] }) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.editor, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", "aria-label": "Close theme panel", children: "\u00D7" })] }), isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), grouped.colors.length === 0 && (_jsx("div", { className: styles.empty, children: "No color tokens yet." })), grouped.colors.map((i) => {
-                                        const token = localTokens[i];
-                                        return token ? renderColorRow(i, token) : null;
-                                    }), _jsx("button", { className: styles.addButton, onClick: () => handleAddToken('colors'), type: "button", children: "+ Add Color" })] }), _jsxs("section", { className: styles.section, "data-theme-section": "typography", children: [_jsx("h3", { className: styles.sectionTitle, children: "Typography" }), grouped.typography.length === 0 && (_jsx("div", { className: styles.empty, children: "No typography tokens yet." })), grouped.typography.map((i) => {
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.editor, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", "aria-label": "Close theme panel", children: "\u00D7" })] }), isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), pendingPaletteDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingPaletteDelete.palette.name }), " is referenced by ", pendingPaletteDelete.refCount, " semantic token", pendingPaletteDelete.refCount > 1 ? 's' : '', ", which will break. Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingPaletteDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDeletePalette(pendingPaletteDelete.palette), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), _jsx("h4", { className: styles.subheading, children: "Primitives" }), colorModel.palettes.length === 0 && (_jsx("div", { className: styles.empty, children: "No palettes yet." })), colorModel.palettes.map(renderPaletteBlock), _jsx("button", { className: styles.addButton, onClick: handleAddPalette, type: "button", children: "+ Add palette" }), _jsx("h4", { className: styles.subheading, children: "Semantic" }), colorModel.semantic.length === 0 && (_jsx("div", { className: styles.empty, children: "No semantic colors yet." })), colorModel.semantic.map(renderSemanticRow), _jsx("button", { className: styles.addButton, onClick: handleAddSemantic, type: "button", children: "+ Add semantic color" }), otherColorIndices.length > 0 && (_jsxs(_Fragment, { children: [_jsx("h4", { className: styles.subheading, children: "Other" }), otherColorIndices.map((i) => {
+                                                const token = localTokens[i];
+                                                return token ? renderColorRow(i, token) : null;
+                                            })] }))] }), _jsxs("section", { className: styles.section, "data-theme-section": "typography", children: [_jsx("h3", { className: styles.sectionTitle, children: "Typography" }), grouped.typography.length === 0 && (_jsx("div", { className: styles.empty, children: "No typography tokens yet." })), grouped.typography.map((i) => {
                                         const token = localTokens[i];
                                         if (!token)
                                             return null;

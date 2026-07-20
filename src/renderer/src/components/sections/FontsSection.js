@@ -80,10 +80,10 @@ export const FontsSection = ({ projectPath }) => {
         return out;
     }, [projectFontUrls, kitFamilies]);
     const writeTheme = async (urls) => {
-        const content = serializeThemeFile({
-            tokens: [...themeTokens],
-            fontImportUrls: [...urls],
-        });
+        // Read the current file so token blocks and hand-written CSS survive
+        // when we rewrite only the font imports.
+        const existing = await window.scamp.readTheme({ projectPath });
+        const content = serializeThemeFile({ tokens: [...themeTokens], fontImportUrls: [...urls] }, existing);
         await window.scamp.writeTheme({ projectPath, content });
     };
     const handleAdd = async () => {

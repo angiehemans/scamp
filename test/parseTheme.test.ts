@@ -204,3 +204,159 @@ describe('serializeThemeFile', () => {
     expect(output).toContain(':root {');
   });
 });
+
+describe('serializeThemeFile — preserving existing CSS', () => {
+  const existing = `:root {
+  --color-primary: #3b82f6;
+  --color-muted: #888888;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+`;
+
+  it('keeps hand-written rules outside :root untouched', () => {
+    const output = serializeThemeFile(
+      {
+        tokens: [{ name: '--color-primary', value: '#3b82f6' }],
+        fontImportUrls: [],
+      },
+      existing
+    );
+    expect(output).toContain('box-sizing: border-box;');
+    expect(output).toContain('font-family: var(--font-sans);');
+    expect(output).toContain('*::before,');
+  });
+
+  it('updates a changed token value in place', () => {
+    const output = serializeThemeFile(
+      {
+        tokens: [
+          { name: '--color-primary', value: '#ff0000' },
+          { name: '--color-muted', value: '#888888' },
+        ],
+        fontImportUrls: [],
+      },
+      existing
+    );
+    expect(output).toContain('--color-primary: #ff0000;');
+    expect(output).not.toContain('#3b82f6');
+  });
+
+  it('adds new tokens and drops deleted ones from :root', () => {
+    const output = serializeThemeFile(
+      {
+        tokens: [
+          { name: '--color-primary', value: '#3b82f6' },
+          { name: '--color-brand-500', value: '#2563eb' },
+        ],
+        fontImportUrls: [],
+      },
+      existing
+    );
+    expect(output).toContain('--color-brand-500: #2563eb;');
+    expect(output).not.toContain('--color-muted');
+    // Non-token CSS is still intact.
+    expect(output).toContain('box-sizing: border-box;');
+  });
+
+  it('round-trips the token set through parseThemeFile after an in-place edit', () => {
+    const next = {
+      tokens: [
+        { name: '--color-primary', value: '#3b82f6' },
+        { name: '--color-accent', value: 'var(--color-primary)' },
+      ],
+      fontImportUrls: [] as string[],
+    };
+    const parsed = parseThemeFile(serializeThemeFile(next, existing));
+    expect(parsed.tokens).toEqual(next.tokens);
+  });
+
+  it('reconciles imports without disturbing other CSS', () => {
+    const output = serializeThemeFile(
+      {
+        tokens: [{ name: '--color-primary', value: '#3b82f6' }],
+        fontImportUrls: ['https://fonts.googleapis.com/css2?family=Inter'],
+      },
+      existing
+    );
+    expect(output).toContain(
+      '@import url("https://fonts.googleapis.com/css2?family=Inter");'
+    );
+    expect(output.indexOf('@import')).toBeLessThan(output.indexOf(':root'));
+    expect(output).toContain('box-sizing: border-box;');
+  });
+
+  it('removes a stale import when it is no longer in the list', () => {
+    const withImport = `@import url("https://fonts.googleapis.com/css2?family=Inter");
+
+:root {
+  --color-primary: #3b82f6;
+}
+`;
+    const output = serializeThemeFile(
+      {
+        tokens: [{ name: '--color-primary', value: '#3b82f6' }],
+        fontImportUrls: [],
+      },
+      withImport
+    );
+    expect(output).not.toContain('@import');
+  });
+
+  it('does not stack duplicate managed-import comments across writes', () => {
+    const first = serializeThemeFile(
+      {
+        tokens: [{ name: '--color-primary', value: '#3b82f6' }],
+        fontImportUrls: ['https://fonts.googleapis.com/css2?family=Inter'],
+      },
+      existing
+    );
+    const second = serializeThemeFile(
+      {
+        tokens: [{ name: '--color-primary', value: '#3b82f6' }],
+        fontImportUrls: ['https://fonts.googleapis.com/css2?family=Roboto'],
+      },
+      first
+    );
+    const commentCount = second.split('scamp: font imports').length - 1;
+    expect(commentCount).toBe(1);
+    expect(second).toContain('family=Roboto');
+    expect(second).not.toContain('family=Inter');
+  });
+
+  it('falls back to a from-scratch write when existing CSS is blank', () => {
+    const output = serializeThemeFile(
+      { tokens: [{ name: '--a', value: '1' }], fontImportUrls: [] },
+      '   '
+    );
+    expect(output).toContain(':root {');
+    expect(output).toContain('--a: 1;');
+  });
+
+  it('falls back to a from-scratch write when existing CSS will not parse', () => {
+    const output = serializeThemeFile(
+      { tokens: [{ name: '--a', value: '1' }], fontImportUrls: [] },
+      ':root { --a: '
+    );
+    // A valid file is still produced rather than throwing.
+    expect(parseThemeFile(output).tokens).toEqual([{ name: '--a', value: '1' }]);
+  });
+
+  it('creates a :root block when the existing CSS has none', () => {
+    const output = serializeThemeFile(
+      { tokens: [{ name: '--a', value: '1' }], fontImportUrls: [] },
+      'body {\n  margin: 0;\n}\n'
+    );
+    expect(output).toContain('margin: 0;');
+    expect(output).toContain(':root {');
+    expect(output).toContain('--a: 1;');
+  });
+});

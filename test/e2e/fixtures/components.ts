@@ -13,11 +13,35 @@ import {
  * dialog sequence in every file.
  */
 
+/**
+ * Activate the Components section in the icon sidebar rail. The rail
+ * shows one section at a time and defaults to Pages, so every
+ * components-sidebar interaction needs this section open first.
+ * Idempotent — safe to call when Components is already active.
+ */
+export const openComponentsSection = async (page: Page): Promise<void> => {
+  await page.locator('[data-section="components"]').click();
+  await addComponentButton(page).waitFor({ state: 'visible' });
+};
+
+/**
+ * Activate the Pages section in the icon sidebar rail — where the page
+ * list and the Layers panel live. Needed to switch back after a
+ * component interaction opened the Components section. Idempotent.
+ */
+export const openPagesSection = async (page: Page): Promise<void> => {
+  await page.locator('[data-section="pages"]').click();
+  await page
+    .getByRole('button', { name: /\+ Add Page/ })
+    .waitFor({ state: 'visible' });
+};
+
 /** Click "+ Add Component", type a name, press Enter. */
 export const createComponentFromSidebar = async (
   page: Page,
   name: string
 ): Promise<void> => {
+  await openComponentsSection(page);
   await addComponentButton(page).click();
   // The inline name input mounts focused. The button's component-edit
   // state flips to 'new' on click; the next tick renders the input.
@@ -31,6 +55,7 @@ export const openComponentContextMenu = async (
   page: Page,
   componentName: string
 ): Promise<void> => {
+  await openComponentsSection(page);
   await componentSidebarItem(page, componentName).click({ button: 'right' });
 };
 
@@ -62,6 +87,7 @@ export const dragComponentToCanvas = async (
   clientX: number,
   clientY: number
 ): Promise<void> => {
+  await openComponentsSection(page);
   await page.evaluate(
     ({ name, x, y }) => {
       // querySelector doesn't support `:has-text`; iterate buttons and

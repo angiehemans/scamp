@@ -1,5 +1,8 @@
 import { test, expect } from '../../fixtures/app';
-import { createComponentFromSidebar } from '../../fixtures/components';
+import {
+  createComponentFromSidebar,
+  openComponentsSection,
+} from '../../fixtures/components';
 import {
   addComponentButton,
   componentSidebarItem,
@@ -31,6 +34,7 @@ test.describe('components sidebar — add component', () => {
   test('rejects a lowercase name', async ({ window, project }) => {
     await expect(pageRoot(window)).toBeVisible();
 
+    await openComponentsSection(window);
     await addComponentButton(window).click();
     const input = window.getByPlaceholder('ComponentName');
     await input.fill('button');

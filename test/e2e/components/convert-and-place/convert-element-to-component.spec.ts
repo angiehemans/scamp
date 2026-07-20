@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures/app';
+import { openComponentsSection } from '../../fixtures/components';
 import { dragInFrame, selectTool } from '../../fixtures/canvas';
 import {
   canvasElementsByPrefix,
@@ -57,7 +58,9 @@ test.describe('components: convert element to component', () => {
     await input.fill('Hero');
     await input.press('Enter');
 
-    // Component editor opens; sidebar shows Hero.
+    // Component editor opens; activate the Components section to see the
+    // sidebar list (the rail defaults to Pages).
+    await openComponentsSection(window);
     await expect(componentSidebarItem(window, 'Hero')).toBeVisible();
 
     // Component file exists on disk.

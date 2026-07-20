@@ -7,6 +7,7 @@ import { drawAndSelectRect, panelSection } from '../fixtures/panel';
 import {
   createComponentFromSidebar,
   dragComponentToCanvas,
+  openComponentsSection,
 } from '../fixtures/components';
 import { selectTool, measureFrame, frameToClient } from '../fixtures/canvas';
 import {
@@ -46,6 +47,7 @@ const convertToComponent = async (
   const input = window.getByPlaceholder('ComponentName');
   await input.fill(name);
   await input.press('Enter');
+  await openComponentsSection(window);
   await expect(componentSidebarItem(window, name)).toBeVisible();
 };
 
@@ -273,6 +275,7 @@ export default function Header() {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
     // Open the seeded component in the editor.
+    await openComponentsSection(window);
     await componentSidebarItem(window, 'Header').dblclick();
     const handle = window.locator('[aria-label="Resize canvas (bottom-right)"]');
     await handle.first().waitFor();

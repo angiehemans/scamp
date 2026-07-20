@@ -16,7 +16,11 @@ const SECTIONS = [
 export const ThemeSectionNav = () => {
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const [active, setActive] = useState('colors');
-    const hasUnknown = themeTokens.some((t) => classifyToken(t.value) === 'unknown');
+    // `--color-*` tokens live in the Colors section regardless of how their
+    // value classifies (a semantic `var(--color-…)` reads as `unknown`), so
+    // exclude them here — otherwise the nav shows an Unknown link that jumps
+    // to a section the panel doesn't render. Mirrors ThemePanel's grouping.
+    const hasUnknown = themeTokens.some((t) => !t.name.startsWith('--color-') && classifyToken(t.value) === 'unknown');
     const sections = hasUnknown
         ? [...SECTIONS, { id: 'unknown', label: 'Unknown' }]
         : SECTIONS;

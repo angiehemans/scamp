@@ -1,6 +1,9 @@
 import { test, expect } from '../fixtures/app';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
-import { createComponentFromSidebar } from '../fixtures/components';
+import {
+  createComponentFromSidebar,
+  openPagesSection,
+} from '../fixtures/components';
 import { layersRowByClass } from '../fixtures/layers';
 import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
@@ -54,7 +57,10 @@ test.describe('components: Cmd+G inside the component editor', () => {
     await expect(pageRoot(window)).toBeVisible();
     await createComponentFromSidebar(window, 'Card');
 
-    // Go back to home so we can drop a Card instance onto the page.
+    // Go back to home so we can drop a Card instance onto the page. The
+    // home page button lives in the Pages sidebar section, which the
+    // create flow switched away from.
+    await openPagesSection(window);
     await window.getByRole('button', { name: /^home$/i }).first().click();
     await expect(pageRoot(window)).toBeVisible();
     await waitForSaved(window);
@@ -77,9 +83,10 @@ test.describe('components: Cmd+G inside the component editor', () => {
       .getAttribute('data-scamp-id');
     if (!rectClass) throw new Error('rect not created');
 
-    // Multi-select the instance + the rect via the layers panel. The
-    // instance row's label is the component's name; the rect's row
-    // matches by class.
+    // Multi-select the instance + the rect via the layers panel, which
+    // lives in the Pages section — the drag helper switched to Components
+    // to find the draggable row, so switch back.
+    await openPagesSection(window);
     const layersInstanceRow = window.getByRole('button', {
       name: /^Card$/,
     });

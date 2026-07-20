@@ -8,6 +8,7 @@ import {
   combineShadowColor,
   splitShadowColor,
 } from '@lib/parsers';
+import { resolveTokenChain } from '@lib/resolveToken';
 import type { ScampElement } from '@lib/element';
 import type { ThemeToken } from '@shared/types';
 import { usePopover } from '../../hooks/usePopover';
@@ -68,15 +69,16 @@ const HEX3_RE = /^#[0-9a-fA-F]{3}$/;
 const RGBA_RE = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)$/;
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
 
+// Resolve a `var(--x)` fully to a concrete value, following semantic →
+// primitive → hex chains (a single hop would leave a semantic token as
+// `var(--color-primitive)`, which won't render in the popover). Falls
+// back to the raw value on a broken/cyclic reference.
 const resolveVar = (
   value: string,
   tokens: ReadonlyArray<ThemeToken> | undefined
 ): string => {
   if (!tokens || tokens.length === 0) return value;
-  const m = value.match(VAR_RE);
-  if (!m) return value;
-  const found = tokens.find((t) => t.name === m[1]);
-  return found ? found.value : value;
+  return resolveTokenChain(value, tokens) ?? value;
 };
 
 /**
@@ -360,8 +362,11 @@ export const ColorInput = ({
   // alpha externally.
   const PickerComponent = disableAlpha ? HexColorPicker : HexAlphaColorPicker;
 
+  // Filter on the RESOLVED value so semantic tokens (`--color-primary:
+  // var(--color-brand-500)`) count as colours, not just literal-valued
+  // primitives.
   const colorTokens = tokens?.filter((t) => {
-    const v = t.value.trim();
+    const v = resolveVar(t.value, tokens).trim();
     return (
       HEX6_RE.test(v) ||
       HEX3_RE.test(v) ||
@@ -395,7 +400,7 @@ export const ColorInput = ({
     seenDisplays.add(t.value);
     projectSwatches.push({
       value: `var(${t.name})`,
-      display: t.value,
+      display: resolveVar(t.value, tokens),
       label: t.name,
     });
   }
@@ -547,7 +552,7 @@ export const ColorInput = ({
                     >
                       <span
                         className={styles.tokenListSwatch}
-                        style={{ background: t.value }}
+                        style={{ background: resolveVar(t.value, tokens) }}
                       />
                       <span className={styles.tokenListName}>{t.name}</span>
                       <span className={styles.tokenListValue}>{t.value}</span>

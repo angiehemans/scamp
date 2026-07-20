@@ -25,10 +25,12 @@ export declare const parseThemeFile: (css: string) => ParsedTheme;
  */
 export declare const parseThemeCss: (css: string) => ThemeToken[];
 /**
- * Serialize tokens + font import URLs back to CSS. Emits the imports
- * above the `:root` block, mirroring the shape the Fonts panel writes.
- * Hand-edited comments or unrelated rules the parser didn't capture
- * are NOT preserved — this is a full rewrite, so callers that want to
- * keep extra content should avoid this serializer.
+ * Serialize tokens + font import URLs back to CSS.
+ *
+ * When `existingCss` is provided, tokens and imports are updated in
+ * place and all other CSS (resets, `body {}`, comments) is preserved
+ * (see `mergeIntoExistingCss`). Without it — or if that CSS won't parse
+ * — this falls back to a full from-scratch write that emits the imports
+ * above a single `:root` block.
  */
-export declare const serializeThemeFile: (parsed: ParsedTheme) => string;
+export declare const serializeThemeFile: (parsed: ParsedTheme, existingCss?: string) => string;

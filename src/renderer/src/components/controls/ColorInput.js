@@ -5,6 +5,7 @@ import { IconColorPicker } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { combineShadowColor, splitShadowColor, } from '@lib/parsers';
+import { resolveTokenChain } from '@lib/resolveToken';
 import { usePopover } from '../../hooks/usePopover';
 import { NumberInput } from './NumberInput';
 import { Tooltip } from './Tooltip';
@@ -15,14 +16,14 @@ const HEX6_RE = /^#[0-9a-fA-F]{6}$/;
 const HEX3_RE = /^#[0-9a-fA-F]{3}$/;
 const RGBA_RE = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*([\d.]+)\s*)?\)$/;
 const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
+// Resolve a `var(--x)` fully to a concrete value, following semantic →
+// primitive → hex chains (a single hop would leave a semantic token as
+// `var(--color-primitive)`, which won't render in the popover). Falls
+// back to the raw value on a broken/cyclic reference.
 const resolveVar = (value, tokens) => {
     if (!tokens || tokens.length === 0)
         return value;
-    const m = value.match(VAR_RE);
-    if (!m)
-        return value;
-    const found = tokens.find((t) => t.name === m[1]);
-    return found ? found.value : value;
+    return resolveTokenChain(value, tokens) ?? value;
 };
 /**
  * Format an alpha 0..1 as a two-digit hex suffix (`80` for 0.5).
@@ -251,8 +252,11 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
     // ourselves, plain hex when the caller (e.g. Shadows) manages
     // alpha externally.
     const PickerComponent = disableAlpha ? HexColorPicker : HexAlphaColorPicker;
+    // Filter on the RESOLVED value so semantic tokens (`--color-primary:
+    // var(--color-brand-500)`) count as colours, not just literal-valued
+    // primitives.
     const colorTokens = tokens?.filter((t) => {
-        const v = t.value.trim();
+        const v = resolveVar(t.value, tokens).trim();
         return (HEX6_RE.test(v) ||
             HEX3_RE.test(v) ||
             RGBA_RE.test(v) ||
@@ -268,7 +272,7 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
         seenDisplays.add(t.value);
         projectSwatches.push({
             value: `var(${t.name})`,
-            display: t.value,
+            display: resolveVar(t.value, tokens),
             label: t.name,
         });
     }
@@ -298,7 +302,7 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
                                                     }, "aria-label": `Apply ${entry.label}` }) }, entry.value))) })] }))] })) : (_jsx("div", { className: styles.tokenList, children: colorTokens && colorTokens.length > 0 ? (colorTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
                                     onChange(`var(${t.name})`);
                                     popover.setOpen(false);
-                                }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: t.value } }), _jsx("span", { className: styles.tokenListName, children: t.name }), _jsx("span", { className: styles.tokenListValue, children: t.value })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {
+                                }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: resolveVar(t.value, tokens) } }), _jsx("span", { className: styles.tokenListName, children: t.name }), _jsx("span", { className: styles.tokenListValue, children: t.value })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {
                                             popover.setOpen(false);
                                             onOpenTheme();
                                         }, children: "+ Add Tokens" }))] })) }))] })) })] }));

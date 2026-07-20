@@ -5,8 +5,30 @@ import { addComponentButton, componentSidebarItem, contextMenuItem, } from './se
  * they don't repeat the same right-click → menu-item → confirm
  * dialog sequence in every file.
  */
+/**
+ * Activate the Components section in the icon sidebar rail. The rail
+ * shows one section at a time and defaults to Pages, so every
+ * components-sidebar interaction needs this section open first.
+ * Idempotent — safe to call when Components is already active.
+ */
+export const openComponentsSection = async (page) => {
+    await page.locator('[data-section="components"]').click();
+    await addComponentButton(page).waitFor({ state: 'visible' });
+};
+/**
+ * Activate the Pages section in the icon sidebar rail — where the page
+ * list and the Layers panel live. Needed to switch back after a
+ * component interaction opened the Components section. Idempotent.
+ */
+export const openPagesSection = async (page) => {
+    await page.locator('[data-section="pages"]').click();
+    await page
+        .getByRole('button', { name: /\+ Add Page/ })
+        .waitFor({ state: 'visible' });
+};
 /** Click "+ Add Component", type a name, press Enter. */
 export const createComponentFromSidebar = async (page, name) => {
+    await openComponentsSection(page);
     await addComponentButton(page).click();
     // The inline name input mounts focused. The button's component-edit
     // state flips to 'new' on click; the next tick renders the input.
@@ -16,6 +38,7 @@ export const createComponentFromSidebar = async (page, name) => {
 };
 /** Right-click a component in the sidebar; open the context menu. */
 export const openComponentContextMenu = async (page, componentName) => {
+    await openComponentsSection(page);
     await componentSidebarItem(page, componentName).click({ button: 'right' });
 };
 /** Right-click an element on the canvas (frame-local coords). */
@@ -32,6 +55,7 @@ export const clickContextMenuItem = async (page, label) => {
  * `dragstart`/`drop` — same approach as `layers-panel/reorder-dnd`.
  */
 export const dragComponentToCanvas = async (page, componentName, clientX, clientY) => {
+    await openComponentsSection(page);
     await page.evaluate(({ name, x, y }) => {
         // querySelector doesn't support `:has-text`; iterate buttons and
         // match by trimmed text content to find the draggable sidebar

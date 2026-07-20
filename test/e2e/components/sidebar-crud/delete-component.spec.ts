@@ -3,6 +3,7 @@ import {
   clickContextMenuItem,
   confirmDialog,
   openComponentContextMenu,
+  openComponentsSection,
   waitForConfirmDialog,
 } from '../../fixtures/components';
 import {
@@ -51,6 +52,12 @@ const BUTTON_CSS = `.root {
 // First describe block uses a seeded home with Button instance. The
 // second uses the default empty scaffold (Button exists but home
 // doesn't reference it).
+
+// The icon rail defaults to Pages; these tests read the Components
+// sidebar list, so activate that section first.
+test.beforeEach(async ({ window }) => {
+  await openComponentsSection(window);
+});
 
 test.describe('delete: page references the component', () => {
   test.use({

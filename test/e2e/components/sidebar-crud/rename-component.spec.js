@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/app';
-import { clickContextMenuItem, openComponentContextMenu, } from '../../fixtures/components';
+import { clickContextMenuItem, openComponentContextMenu, openComponentsSection, } from '../../fixtures/components';
 import { componentSidebarItem, pageRoot, saveStatus, } from '../../fixtures/selectors';
 import { waitForSaved } from '../../fixtures/assertions';
 const BUTTON_TSX = `import styles from './Button.module.css';
@@ -34,6 +34,11 @@ test.use({
             home: { tsx: HOME_TSX_WITH_BUTTON, css: HOME_CSS },
         },
     },
+});
+// The icon rail defaults to Pages; these tests read the Components
+// sidebar list, so activate that section first.
+test.beforeEach(async ({ window }) => {
+    await openComponentsSection(window);
 });
 test.describe('components sidebar — rename component', () => {
     test('renames the folder + flips function/type names + updates page imports', async ({ window, project, }) => {

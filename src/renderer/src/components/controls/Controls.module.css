@@ -274,6 +274,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  /* Bound the height so a large token set (full palettes + semantic)
+     can't grow the popover tall enough to push the tab header off
+     screen — overflow scrolls instead. ~4 rows of 20px swatches. */
+  max-height: 104px;
+  overflow-y: auto;
 }
 
 .swatchButton {

@@ -19,18 +19,49 @@ test.describe('themes: panel CRUD', () => {
             await expect(panel.locator(`input[value="${name}"]`)).toBeVisible();
         }
     });
-    test('adding a color token writes a new variable to theme.css', async ({ window, project, }) => {
+    test('adding a semantic color writes a new variable to theme.css', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await window.locator('[data-section="design-system"]').click();
         const panel = window.getByTestId('theme-panel');
         await expect(panel).toBeVisible();
-        await panel.getByRole('button', { name: /^\+ Add Color/ }).click();
-        // The new token seeds as `--color-N` with a grey fill (#888888).
-        // Poll disk until the new row shows up — the write happens
-        // immediately on add.
+        await panel.getByRole('button', { name: /^\+ Add semantic color/ }).click();
+        // A new semantic token maps to the first seeded palette's 500 shade
+        // under the reserved `--color-custom` name (no numeric suffix, so it
+        // can't be misread as a primitive shade). Poll disk — the write
+        // happens immediately on add.
         await expect
             .poll(async () => project.readTheme(), { timeout: 5_000 })
-            .toMatch(/--color-1:\s*#888888/);
+            .toMatch(/--color-custom:\s*var\(--color-brand-500\)/);
+    });
+    test('adding a palette writes a full 50–900 ramp to theme.css', async ({ window, project, }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await window.locator('[data-section="design-system"]').click();
+        const panel = window.getByTestId('theme-panel');
+        await expect(panel).toBeVisible();
+        await panel.getByRole('button', { name: /^\+ Add palette/ }).click();
+        await expect
+            .poll(async () => project.readTheme(), { timeout: 5_000 })
+            .toMatch(/--color-palette-500:\s*#[0-9a-f]{6}/i);
+        const css = await project.readTheme();
+        for (const shade of [50, 100, 500, 900]) {
+            expect(css).toMatch(new RegExp(`--color-palette-${shade}:\\s*#[0-9a-f]{6}`, 'i'));
+        }
+    });
+    test('mapping a semantic token to a primitive writes a var() reference', async ({ window, project, }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await window.locator('[data-section="design-system"]').click();
+        const panel = window.getByTestId('theme-panel');
+        await expect(panel).toBeVisible();
+        // A palette must exist for the mapping dropdown to have options.
+        await panel.getByRole('button', { name: /^\+ Add palette/ }).click();
+        await expect
+            .poll(async () => project.readTheme(), { timeout: 5_000 })
+            .toContain('--color-palette-500');
+        const select = panel.locator('select[aria-label="Mapping for --color-primary"]');
+        await select.selectOption('palette:500');
+        await expect
+            .poll(async () => project.readTheme(), { timeout: 5_000 })
+            .toContain('--color-primary: var(--color-palette-500)');
     });
     test('renaming a token updates theme.css', async ({ window, project }) => {
         await expect(pageRoot(window)).toBeVisible();
@@ -95,7 +126,7 @@ test.describe('themes: panel CRUD', () => {
         await window.locator('[data-section="design-system"]').click();
         const panel = window.getByTestId('theme-panel');
         await expect(panel).toBeVisible();
-        const addColor = panel.getByRole('button', { name: /^\+ Add Color/ });
+        const addColor = panel.getByRole('button', { name: /^\+ Add semantic color/ });
         for (let i = 0; i < 20; i += 1) {
             await addColor.click();
         }
@@ -116,16 +147,15 @@ test.describe('themes: panel CRUD', () => {
         const panel = window.getByTestId('theme-panel');
         await expect(panel).toBeVisible();
         // Add enough tokens to overflow the visible list.
-        const addColor = panel.getByRole('button', { name: /^\+ Add Color/ });
+        const addColor = panel.getByRole('button', { name: /^\+ Add semantic color/ });
         for (let i = 0; i < 15; i += 1) {
             await addColor.click();
         }
-        // The most-recently added token is the last row whose name is
-        // `--color-N` for the largest N. After the click, that row must
-        // be visible — not hidden below the scroll viewport.
+        // The most-recently added token is the last row of the colors
+        // section. After the click, that row must be visible — not hidden
+        // below the scroll viewport.
         const lastRow = panel
-            .locator('input[type="text"]')
-            .filter({ hasText: '' })
+            .locator('[data-theme-section="colors"] [data-token-row]')
             .last();
         await expect(lastRow).toBeInViewport();
     });
@@ -139,6 +169,6 @@ test.describe('themes: panel is read-only in legacy projects', () => {
         await expect(panel).toBeVisible();
         // Legacy format → read-only notice, no editable token controls.
         await expect(panel.getByText(/Next\.js project format/i)).toBeVisible();
-        await expect(panel.getByRole('button', { name: /\+ Add Color/ })).toHaveCount(0);
+        await expect(panel.getByRole('button', { name: /\+ Add palette/ })).toHaveCount(0);
     });
 });

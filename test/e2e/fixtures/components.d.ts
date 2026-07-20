@@ -5,6 +5,19 @@ import type { Page } from '@playwright/test';
  * they don't repeat the same right-click → menu-item → confirm
  * dialog sequence in every file.
  */
+/**
+ * Activate the Components section in the icon sidebar rail. The rail
+ * shows one section at a time and defaults to Pages, so every
+ * components-sidebar interaction needs this section open first.
+ * Idempotent — safe to call when Components is already active.
+ */
+export declare const openComponentsSection: (page: Page) => Promise<void>;
+/**
+ * Activate the Pages section in the icon sidebar rail — where the page
+ * list and the Layers panel live. Needed to switch back after a
+ * component interaction opened the Components section. Idempotent.
+ */
+export declare const openPagesSection: (page: Page) => Promise<void>;
 /** Click "+ Add Component", type a name, press Enter. */
 export declare const createComponentFromSidebar: (page: Page, name: string) => Promise<void>;
 /** Right-click a component in the sidebar; open the context menu. */

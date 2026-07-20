@@ -1,5 +1,5 @@
 import { test, expect } from '../../fixtures/app';
-import { dragComponentToCanvas, } from '../../fixtures/components';
+import { dragComponentToCanvas, openComponentsSection, } from '../../fixtures/components';
 import { measureFrame, frameToClient } from '../../fixtures/canvas';
 import { componentSidebarItem, canvasFrame, pageRoot, } from '../../fixtures/selectors';
 import { waitForSaved } from '../../fixtures/assertions';
@@ -22,6 +22,7 @@ test.describe('components: cycle prevention at drop', () => {
     test('refuses to drop Button into its own editor (direct self-cycle)', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         // Open Button in the editor.
+        await openComponentsSection(window);
         await componentSidebarItem(window, 'Button').click();
         await expect(canvasFrame(window)).toBeVisible();
         // Drop Button onto its own canvas.

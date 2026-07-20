@@ -98,8 +98,11 @@ test.describe('properties panel: spacing token picker', () => {
     window,
     project,
   }) => {
-    // No length tokens in the default scaffold theme — picker should
-    // surface the empty state with an "Add token" action.
+    // Seed a theme with NO length tokens (the default scaffold now ships
+    // a type scale) so the picker surfaces its empty state with an
+    // "Add token" action.
+    await writeThemeCss(project.dir, `:root {\n  --color-text: #111;\n}\n`);
+
     await expect(pageRoot(window)).toBeVisible();
     await drawAndSelectRect(
       window,

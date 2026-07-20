@@ -9,8 +9,8 @@ import { tagFor } from "./generateCode";
 import { formatBoxShadowShorthand, formatFilterList } from "./parsers";
 import { CUSTOM_PROP_TO_GROUP } from "./propertyGroups";
 import { formatSpaceShorthand, formatSpaceValue, isZeroSpaceTuple, isZeroSpaceValue } from "./spaceValue";
+import { resolveTokenChain } from "./resolveToken";
 import { getTagDefaultPadding, paddingEquals } from "./tagDefaults";
-const VAR_RE = /^var\(\s*(--[\w-]+)\s*\)$/;
 const URL_RELATIVE_RE = /url\(\s*["']?(\.\/[^"')]+)["']?\s*\)/g;
 /**
  * Matches `url("/assets/foo.png")` (and its bare-path form). Used to
@@ -48,30 +48,27 @@ export const CANVAS_SKIP_ATTRS_BY_TAG = {
     form: new Set(['action', 'method']),
     button: new Set(['type']),
 };
-/** Resolve a `var(--name)` reference against theme tokens. */
+/**
+ * Resolve a `var(--name)` reference against theme tokens, following the whole
+ * chain (semantic → primitive → hex). Unknown/cyclic references render as the
+ * `transparent` sentinel so a broken colour is visibly absent, not a stray
+ * `var(--x)` string. see docs/plans/design-system-plan.md
+ */
 const resolveTokenColor = (value, tokens) => {
     if (tokens.length === 0)
         return value;
-    const m = value.match(VAR_RE);
-    if (!m)
-        return value;
-    const found = tokens.find((t) => t.name === m[1]);
-    return found ? found.value : 'transparent';
+    return resolveTokenChain(value, tokens) ?? 'transparent';
 };
 /**
- * Resolve a `var(--name)` reference against theme tokens for non-colour
- * properties. Unknown tokens return the raw value so React's inline
- * style system gets something it understands (falling back to browser
- * default rather than the "transparent" sentinel we use for colours).
+ * Resolve a chained `var(--name)` reference for non-colour properties.
+ * Unknown/cyclic references return the raw value so React's inline style
+ * system gets something it understands (falling back to the browser default
+ * rather than the "transparent" sentinel we use for colours).
  */
 const resolveTokenValue = (value, tokens) => {
     if (!value)
         return value;
-    const m = value.match(VAR_RE);
-    if (!m)
-        return value;
-    const found = tokens.find((t) => t.name === m[1]);
-    return found ? found.value : value;
+    return resolveTokenChain(value, tokens) ?? value;
 };
 export const elementToStyle = (el, parentDisplay, parentDirection, tokens, projectDir, projectFormat, 
 // When true, the element is being rendered AS the inner subtree

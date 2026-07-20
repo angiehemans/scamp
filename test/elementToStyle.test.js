@@ -169,4 +169,20 @@ describe('elementToStyle — theme token resolution', () => {
         const el = makeEl({ type: 'text', text: 'hi', fontFamily: 'var(--missing)' });
         expect(style(el, { tokens: [] }).fontFamily).toBe('var(--missing)');
     });
+    it('follows a semantic → primitive → hex chain for a colour property', () => {
+        const tokens = [
+            { name: '--color-brand', value: 'var(--color-brand-500)' },
+            { name: '--color-brand-500', value: 'var(--color-blue-500)' },
+            { name: '--color-blue-500', value: '#3b82f6' },
+        ];
+        const el = makeEl({ backgroundColor: 'var(--color-brand)' });
+        expect(style(el, { tokens }).background).toBe('#3b82f6');
+    });
+    it('renders a broken colour reference as transparent, not the raw var', () => {
+        const tokens = [
+            { name: '--color-brand-500', value: '#3b82f6' },
+        ];
+        const el = makeEl({ backgroundColor: 'var(--color-gone)' });
+        expect(style(el, { tokens }).background).toBe('transparent');
+    });
 });

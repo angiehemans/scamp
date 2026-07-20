@@ -273,3 +273,118 @@
   gap: 8px;
   margin-top: 8px;
 }
+
+/* --- Colors: primitives (palettes) + semantic --- */
+
+.subheading {
+  margin: 12px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.paletteHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paletteName {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.paletteName:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.generateButton {
+  flex-shrink: 0;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.generateButton:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.shadeRow {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.shade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.shadeSwatch {
+  width: 36px;
+}
+
+.shadeLabel {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.semanticSelect {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.semanticSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.resolvedSwatch {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.resolvedSwatch[data-broken='true'] {
+  border: 1px dashed var(--error-text);
+  background: var(--error-bg) !important;
+}
