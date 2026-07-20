@@ -1,28 +1,50 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--backdrop);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.dialog {
-  width: 480px;
-  /* Fixed dialog height so switching tabs (or adding/deleting
-     tokens) doesn't reflow the dialog's outer chrome. The token
-     list inside fills the remaining space and scrolls when long. */
-  height: 80vh;
-  background: var(--bg-header);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+/* The theme editor fills the main content area (where the canvas normally
+   shows). Sections stack in a scroll container; the left-sidebar nav
+   (ThemeSectionNav) scroll-jumps to them. see docs/plans/design-system-plan.md */
+.editor {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-surface);
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  overflow: visible;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 16px 20px 64px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 560px;
+  scroll-margin-top: 12px;
+}
+
+.sectionTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.legacyNotice {
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
 
 .header {
@@ -51,61 +73,6 @@
 .closeButton:hover {
   background: var(--bg-hover);
   color: var(--text-inverse);
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: -4px;
-}
-
-.tab {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.tab:hover {
-  color: var(--text-primary);
-}
-
-.tabActive {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
-}
-
-.tabCount {
-  margin-left: 6px;
-  font-size: 11px;
-  color: var(--text-tertiary);
-}
-
-.tokenList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  /* Fill the remaining space inside the fixed-height dialog so the
-     dialog's outer chrome (header, tabs, +Add button) stays put
-     regardless of how many tokens the active tab carries.
-     `min-height: 0` is required for the flex child to shrink past
-     its intrinsic content size and scroll. */
-  flex: 1;
-  min-height: 0;
-  /* Reserve space for the scrollbar so rows don't reflow when one
-     appears, and pull a hair of inner padding so the focus ring on
-     the rightmost button isn't clipped by the overflow. */
-  padding-right: 4px;
-  margin-right: -4px;
 }
 
 .typographyIcon {

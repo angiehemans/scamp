@@ -40,12 +40,10 @@ export const frameOverflow = async (page) => page
     .locator('[data-testid="canvas-frame"]')
     .evaluate((el) => getComputedStyle(el).overflowX);
 /**
- * Open the project-settings full-page overlay via the element toolbar.
- * The floating toolbar's "Settings" button is the trigger — there's no
- * other visible "Settings" button inside an open project.
+ * Open the project-settings overlay via the left icon rail's Settings icon.
  */
 export const openProjectSettings = async (page) => {
-    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.locator('[data-section="settings"]').click();
     await expect(page.getByRole('heading', { name: 'Project Settings' })).toBeVisible();
 };
 /** Close the project-settings page via its Back button. */

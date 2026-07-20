@@ -42,10 +42,30 @@ test.describe('project view: sidebar icon rail', () => {
     ).toBeVisible();
   });
 
-  test('Design System icon opens the theme overlay', async ({ window }) => {
+  test('Design System icon toggles the theme editor in the main area', async ({
+    window,
+  }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.locator('[data-section="design-system"]').click();
+    const ds = window.locator('[data-section="design-system"]');
+    // Open — the theme editor takes the main area (canvas + properties gone),
+    // and the sidebar shows the section nav.
+    await ds.click();
     await expect(window.getByTestId('theme-panel')).toBeVisible();
+    await expect(window.getByTestId('theme-section-nav')).toBeVisible();
+    await expect(window.getByTestId('properties-panel')).toBeHidden();
+    await expect(window.getByTestId('canvas-frame')).toBeHidden();
+    // Highlight is exclusive: Design System active → Pages no longer highlighted.
+    await expect(ds).toHaveAttribute('aria-pressed', 'true');
+    await expect(window.locator('[data-section="pages"]')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    // Toggle closed — the canvas + properties panel return.
+    await ds.click();
+    await expect(window.getByTestId('theme-panel')).toBeHidden();
+    await expect(window.getByTestId('theme-section-nav')).toBeHidden();
+    await expect(window.getByTestId('properties-panel')).toBeVisible();
+    await expect(window.getByTestId('canvas-frame')).toBeVisible();
   });
 
   test('Settings opens over the workspace but keeps the rail visible', async ({

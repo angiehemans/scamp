@@ -37,6 +37,7 @@ import { CanvasArea } from './projectShell/CanvasArea';
 import { PageSidebar } from './projectShell/PageSidebar';
 import { ComponentSidebar } from './projectShell/ComponentSidebar';
 import { SidebarRail } from './projectShell/SidebarRail';
+import { ThemeSectionNav } from './projectShell/ThemeSectionNav';
 import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
@@ -347,7 +348,7 @@ export const ProjectShell = ({
           }}
           onOpenDesignSystem={() => {
             setShowProjectSettings(false);
-            setShowThemePanel(true);
+            setShowThemePanel((open) => !open);
           }}
           onOpenSettings={() => {
             setShowThemePanel(false);
@@ -358,6 +359,10 @@ export const ProjectShell = ({
         />
         <div className={styles.bodyContent}>
         <aside className={styles.sidebar}>
+          {showThemePanel ? (
+            <ThemeSectionNav />
+          ) : (
+            <>
           {sidebarSection === 'history' && (
             <HistoryPanel projectPath={project.path} />
           )}
@@ -418,16 +423,27 @@ export const ProjectShell = ({
           </div>
             </>
           )}
+            </>
+          )}
         </aside>
-        <CanvasArea
-          activeComponent={activeComponent}
-          activePageName={activePageName}
-          projectConfig={projectConfig}
-          artboardScrollRef={artboardScrollRef}
-          onProjectConfigChange={handleProjectConfigChange}
-          onExitComponentEditor={exitComponentEditor}
-        />
-        <PropertiesPanel />
+        {showThemePanel ? (
+          <ThemePanel
+            projectPath={project.path}
+            onClose={() => setShowThemePanel(false)}
+          />
+        ) : (
+          <>
+            <CanvasArea
+              activeComponent={activeComponent}
+              activePageName={activePageName}
+              projectConfig={projectConfig}
+              artboardScrollRef={artboardScrollRef}
+              onProjectConfigChange={handleProjectConfigChange}
+              onExitComponentEditor={exitComponentEditor}
+            />
+            <PropertiesPanel />
+          </>
+        )}
         {showProjectSettings && (
           <ProjectSettingsPage
             projectName={project.name}
@@ -451,12 +467,6 @@ export const ProjectShell = ({
           key={project.path}
           cwd={project.path}
           hidden={bottomPanel !== 'terminal'}
-        />
-      )}
-      {showThemePanel && (
-        <ThemePanel
-          projectPath={project.path}
-          onClose={() => setShowThemePanel(false)}
         />
       )}
       <ProjectModals

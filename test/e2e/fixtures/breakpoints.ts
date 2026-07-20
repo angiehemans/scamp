@@ -58,12 +58,10 @@ export const frameOverflow = async (page: Page): Promise<string> =>
     .evaluate((el) => getComputedStyle(el).overflowX);
 
 /**
- * Open the project-settings full-page overlay via the element toolbar.
- * The floating toolbar's "Settings" button is the trigger — there's no
- * other visible "Settings" button inside an open project.
+ * Open the project-settings overlay via the left icon rail's Settings icon.
  */
 export const openProjectSettings = async (page: Page): Promise<void> => {
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.locator('[data-section="settings"]').click();
   await expect(page.getByRole('heading', { name: 'Project Settings' })).toBeVisible();
 };
 

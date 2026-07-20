@@ -14,7 +14,6 @@ import { serializeThemeFile } from '@lib/parseTheme';
 import { classifyToken, type TokenCategory } from '@lib/tokenClassify';
 import type { ThemeToken } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
-import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { FontPicker } from './controls/FontPicker';
@@ -54,7 +53,10 @@ type PendingDelete = {
   usageCount: number;
 };
 
-type TabId = 'colors' | 'typography' | 'unknown';
+// The editor renders every section stacked in the main area; the left sidebar
+// nav (ThemeSectionNav) scroll-jumps to these via `data-theme-section`.
+// see docs/plans/design-system-plan.md
+export type ThemeSectionId = 'colors' | 'typography' | 'unknown';
 
 const TYPOGRAPHY_CATEGORIES: ReadonlySet<TokenCategory> = new Set<TokenCategory>([
   'fontSize',
@@ -126,7 +128,8 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   const elements = useCanvasStore((s) => s.elements);
   const allFonts = useFontsStore(selectAllFonts);
   const [localTokens, setLocalTokens] = useState<ThemeToken[]>([...themeTokens]);
-  const [activeTab, setActiveTab] = useState<TabId>('colors');
+  const projectFormat = useCanvasStore((s) => s.projectFormat);
+  const isLegacy = projectFormat === 'legacy';
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   /**
@@ -147,12 +150,17 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
    * the effect runs after React commits the new row so we read the
    * post-add `scrollHeight`.
    */
-  const tokenListRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const scrollTargetSection = useRef<ThemeSectionId>('colors');
   const [scrollToEndAfterAdd, setScrollToEndAfterAdd] = useState(0);
   useEffect(() => {
     if (scrollToEndAfterAdd === 0) return;
-    const list = tokenListRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
+    const section = editorRef.current?.querySelector(
+      `[data-theme-section="${scrollTargetSection.current}"]`
+    );
+    const rows = section?.querySelectorAll('[data-token-row]');
+    const last = rows?.[rows.length - 1];
+    if (last instanceof HTMLElement) last.scrollIntoView({ block: 'nearest' });
   }, [scrollToEndAfterAdd]);
 
   // Sync from store when tokens change externally (e.g. file edit).
@@ -183,16 +191,19 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
    * Edits pass the original index back to the handlers so the source
    * array position is preserved.
    */
-  const visibleIndices = useMemo(() => {
-    return categories
-      .map((c, i) => ({ c, i }))
-      .filter(({ c }) => {
-        if (activeTab === 'colors') return c === 'color';
-        if (activeTab === 'typography') return TYPOGRAPHY_CATEGORIES.has(c);
-        return c === 'unknown';
-      })
-      .map(({ i }) => i);
-  }, [categories, activeTab]);
+  // Token indices grouped by section, in source order. Handlers get the
+  // original index so the source array position is preserved.
+  const grouped = useMemo(() => {
+    const colors: number[] = [];
+    const typography: number[] = [];
+    const unknown: number[] = [];
+    categories.forEach((c, i) => {
+      if (c === 'color') colors.push(i);
+      else if (TYPOGRAPHY_CATEGORIES.has(c)) typography.push(i);
+      else unknown.push(i);
+    });
+    return { colors, typography, unknown };
+  }, [categories]);
 
   const writeTokens = useCallback(
     async (tokens: ThemeToken[]): Promise<void> => {
@@ -222,11 +233,11 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     return `${prefix}-${idx}`;
   };
 
-  const handleAddToken = (): void => {
+  const handleAddToken = (section: ThemeSectionId): void => {
     let newToken: ThemeToken;
-    if (activeTab === 'colors') {
+    if (section === 'colors') {
       newToken = { name: nextDefaultName('--color'), value: '#888888' };
-    } else if (activeTab === 'typography') {
+    } else if (section === 'typography') {
       // Cycle through size / line / family so successive clicks create
       // a balanced set instead of ten `--text-*` tokens in a row.
       const sizes = tabCounts.typography;
@@ -250,6 +261,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     // Make the new row visible — without this, adding a token to a
     // long list looks like a no-op because the new row sits below the
     // scroll viewport.
+    scrollTargetSection.current = section;
     setScrollToEndAfterAdd((n) => n + 1);
   };
 
@@ -352,10 +364,8 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     void writeTokens(next);
   };
 
-  useDialogBackdrop({ onClose });
-
   const renderColorRow = (index: number, token: ThemeToken): JSX.Element => (
-    <div key={index} className={styles.tokenRow}>
+    <div key={index} className={styles.tokenRow} data-token-row>
       <input
         type="text"
         className={styles.tokenName}
@@ -403,8 +413,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
       });
     };
     return (
-      <div key={index} className={styles.tokenRow}>
-
+      <div key={index} className={styles.tokenRow} data-token-row>
         <input
           type="text"
           className={styles.tokenName}
@@ -464,49 +473,28 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   };
 
   return (
-    <div
-      className={styles.backdrop}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className={styles.dialog} data-testid="theme-panel">
+    <>
+      <div className={styles.editor} data-testid="theme-panel">
         <div className={styles.header}>
-          <h2 className={styles.title}>Theme Tokens</h2>
+          <h2 className={styles.title}>Theme</h2>
           <button
             className={styles.closeButton}
             onClick={onClose}
             type="button"
+            aria-label="Close theme panel"
           >
-            x
+            ×
           </button>
         </div>
 
-        <div className={styles.tabs}>
-          <button
-            type="button"
-            className={`${styles.tab} ${activeTab === 'colors' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('colors')}
-          >
-            Colors<span className={styles.tabCount}>{tabCounts.colors}</span>
-          </button>
-          <button
-            type="button"
-            className={`${styles.tab} ${activeTab === 'typography' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('typography')}
-          >
-            Typography<span className={styles.tabCount}>{tabCounts.typography}</span>
-          </button>
-          {tabCounts.unknown > 0 && (
-            <button
-              type="button"
-              className={`${styles.tab} ${activeTab === 'unknown' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('unknown')}
-            >
-              Unknown<span className={styles.tabCount}>{tabCounts.unknown}</span>
-            </button>
-          )}
-        </div>
+        {isLegacy ? (
+          <div className={styles.legacyNotice}>
+            Theme editing needs the Next.js project format. Migrate this
+            project (using the banner above the canvas) to edit its design
+            system.
+          </div>
+        ) : (
+          <div ref={editorRef} className={styles.scroll}>
 
         {error && <div className={styles.error}>{error}</div>}
 
@@ -534,32 +522,55 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
           </div>
         )}
 
-        <div ref={tokenListRef} className={styles.tokenList}>
-          {visibleIndices.length === 0 && (
-            <div className={styles.empty}>
-              {activeTab === 'colors'
-                ? 'No color tokens yet. Add one to get started.'
-                : activeTab === 'typography'
-                  ? 'No typography tokens yet. Add one to get started.'
-                  : 'No unclassified tokens.'}
-            </div>
-          )}
-          {visibleIndices.map((i) => {
-            const token = localTokens[i];
-            if (!token) return null;
-            const category = categories[i] ?? 'unknown';
-            if (category === 'color') return renderColorRow(i, token);
-            return renderTypographyRow(i, token, category);
-          })}
-        </div>
+            <section className={styles.section} data-theme-section="colors">
+              <h3 className={styles.sectionTitle}>Colors</h3>
+              {grouped.colors.length === 0 && (
+                <div className={styles.empty}>No color tokens yet.</div>
+              )}
+              {grouped.colors.map((i) => {
+                const token = localTokens[i];
+                return token ? renderColorRow(i, token) : null;
+              })}
+              <button
+                className={styles.addButton}
+                onClick={() => handleAddToken('colors')}
+                type="button"
+              >
+                + Add Color
+              </button>
+            </section>
 
-        <button
-          className={styles.addButton}
-          onClick={handleAddToken}
-          type="button"
-        >
-          + Add {activeTab === 'colors' ? 'Color' : activeTab === 'typography' ? 'Typography' : 'Token'}
-        </button>
+            <section className={styles.section} data-theme-section="typography">
+              <h3 className={styles.sectionTitle}>Typography</h3>
+              {grouped.typography.length === 0 && (
+                <div className={styles.empty}>No typography tokens yet.</div>
+              )}
+              {grouped.typography.map((i) => {
+                const token = localTokens[i];
+                if (!token) return null;
+                return renderTypographyRow(i, token, categories[i] ?? 'unknown');
+              })}
+              <button
+                className={styles.addButton}
+                onClick={() => handleAddToken('typography')}
+                type="button"
+              >
+                + Add Typography
+              </button>
+            </section>
+
+            {grouped.unknown.length > 0 && (
+              <section className={styles.section} data-theme-section="unknown">
+                <h3 className={styles.sectionTitle}>Unknown</h3>
+                {grouped.unknown.map((i) => {
+                  const token = localTokens[i];
+                  if (!token) return null;
+                  return renderTypographyRow(i, token, categories[i] ?? 'unknown');
+                })}
+              </section>
+            )}
+          </div>
+        )}
       </div>
       {/* Badge category-picker menu, portaled to escape the scrollable
           token list. Position is the trigger button's viewport rect
@@ -598,6 +609,6 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
           </>,
           document.body
         )}
-    </div>
+    </>
   );
 };

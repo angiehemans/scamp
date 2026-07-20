@@ -6,7 +6,6 @@ import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
 import { serializeThemeFile } from '@lib/parseTheme';
 import { classifyToken } from '@lib/tokenClassify';
 import { errorMessage } from '@shared/errorMessage';
-import { useDialogBackdrop } from '../hooks/useDialogBackdrop';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { FontPicker } from './controls/FontPicker';
@@ -91,7 +90,8 @@ export const ThemePanel = ({ projectPath, onClose }) => {
     const elements = useCanvasStore((s) => s.elements);
     const allFonts = useFontsStore(selectAllFonts);
     const [localTokens, setLocalTokens] = useState([...themeTokens]);
-    const [activeTab, setActiveTab] = useState('colors');
+    const projectFormat = useCanvasStore((s) => s.projectFormat);
+    const isLegacy = projectFormat === 'legacy';
     const [error, setError] = useState(null);
     const [pendingDelete, setPendingDelete] = useState(null);
     /**
@@ -108,14 +108,17 @@ export const ThemePanel = ({ projectPath, onClose }) => {
      * the effect runs after React commits the new row so we read the
      * post-add `scrollHeight`.
      */
-    const tokenListRef = useRef(null);
+    const editorRef = useRef(null);
+    const scrollTargetSection = useRef('colors');
     const [scrollToEndAfterAdd, setScrollToEndAfterAdd] = useState(0);
     useEffect(() => {
         if (scrollToEndAfterAdd === 0)
             return;
-        const list = tokenListRef.current;
-        if (list)
-            list.scrollTop = list.scrollHeight;
+        const section = editorRef.current?.querySelector(`[data-theme-section="${scrollTargetSection.current}"]`);
+        const rows = section?.querySelectorAll('[data-token-row]');
+        const last = rows?.[rows.length - 1];
+        if (last instanceof HTMLElement)
+            last.scrollIntoView({ block: 'nearest' });
     }, [scrollToEndAfterAdd]);
     // Sync from store when tokens change externally (e.g. file edit).
     useEffect(() => {
@@ -142,18 +145,22 @@ export const ThemePanel = ({ projectPath, onClose }) => {
      * Edits pass the original index back to the handlers so the source
      * array position is preserved.
      */
-    const visibleIndices = useMemo(() => {
-        return categories
-            .map((c, i) => ({ c, i }))
-            .filter(({ c }) => {
-            if (activeTab === 'colors')
-                return c === 'color';
-            if (activeTab === 'typography')
-                return TYPOGRAPHY_CATEGORIES.has(c);
-            return c === 'unknown';
-        })
-            .map(({ i }) => i);
-    }, [categories, activeTab]);
+    // Token indices grouped by section, in source order. Handlers get the
+    // original index so the source array position is preserved.
+    const grouped = useMemo(() => {
+        const colors = [];
+        const typography = [];
+        const unknown = [];
+        categories.forEach((c, i) => {
+            if (c === 'color')
+                colors.push(i);
+            else if (TYPOGRAPHY_CATEGORIES.has(c))
+                typography.push(i);
+            else
+                unknown.push(i);
+        });
+        return { colors, typography, unknown };
+    }, [categories]);
     const writeTokens = useCallback(async (tokens) => {
         try {
             // Preserve the font imports that live alongside tokens in
@@ -179,12 +186,12 @@ export const ThemePanel = ({ projectPath, onClose }) => {
             idx += 1;
         return `${prefix}-${idx}`;
     };
-    const handleAddToken = () => {
+    const handleAddToken = (section) => {
         let newToken;
-        if (activeTab === 'colors') {
+        if (section === 'colors') {
             newToken = { name: nextDefaultName('--color'), value: '#888888' };
         }
-        else if (activeTab === 'typography') {
+        else if (section === 'typography') {
             // Cycle through size / line / family so successive clicks create
             // a balanced set instead of ten `--text-*` tokens in a row.
             const sizes = tabCounts.typography;
@@ -211,6 +218,7 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         // Make the new row visible — without this, adding a token to a
         // long list looks like a no-op because the new row sits below the
         // scroll viewport.
+        scrollTargetSection.current = section;
         setScrollToEndAfterAdd((n) => n + 1);
     };
     const handleNameChange = (index, newName) => {
@@ -293,8 +301,7 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         setPendingDelete(null);
         void writeTokens(next);
     };
-    useDialogBackdrop({ onClose });
-    const renderColorRow = (index, token) => (_jsxs("div", { className: styles.tokenRow, children: [_jsx("input", { type: "text", className: styles.tokenName, value: token.name, onChange: (e) => handleNameChange(index, e.target.value), onBlur: () => handleNameBlur(index), onKeyDown: (e) => {
+    const renderColorRow = (index, token) => (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, value: token.name, onChange: (e) => handleNameChange(index, e.target.value), onBlur: () => handleNameBlur(index), onKeyDown: (e) => {
                     if (e.key === 'Enter')
                         e.currentTarget.blur();
                 } }), _jsx("div", { className: styles.tokenColor, children: _jsx(ColorInput, { value: token.value, onChange: (v) => handleColorChange(index, v) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
@@ -312,7 +319,7 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                 anchor: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
             });
         };
-        return (_jsxs("div", { className: styles.tokenRow, children: [_jsx("input", { type: "text", className: styles.tokenName, value: token.name, onChange: (e) => handleNameChange(index, e.target.value), onBlur: () => handleNameBlur(index), onKeyDown: (e) => {
+        return (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, value: token.name, onChange: (e) => handleNameChange(index, e.target.value), onBlur: () => handleNameBlur(index), onKeyDown: (e) => {
                         if (e.key === 'Enter')
                             e.currentTarget.blur();
                     } }), _jsx("div", { className: styles.tokenValueCell, children: isFontFamily ? (_jsx(FontPicker, { value: token.value, fonts: allFonts, onChange: (v) => handleFontFamilyChange(index, v), title: "Font family" })) : (_jsx("input", { type: "text", className: styles.tokenValue, value: token.value, onChange: (e) => handleValueChange(index, e.target.value), onBlur: () => commitValue(index), onKeyDown: (e) => {
@@ -320,22 +327,20 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                                 e.currentTarget.blur();
                         }, placeholder: "value" })) }), _jsx("div", { className: styles.badgeWrap, children: _jsx(Tooltip, { label: "Change token type", children: _jsxs("button", { type: "button", className: `${styles.tokenBadge} ${styles.tokenBadgeButton}`, onClick: handleBadgeClick, "aria-haspopup": "menu", "aria-expanded": badgeOpen, children: [categoryBadge(category), " ", _jsx("span", { children: "\u25BE" })] }) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
     };
-    return (_jsxs("div", { className: styles.backdrop, onClick: (e) => {
-            if (e.target === e.currentTarget)
-                onClose();
-        }, children: [_jsxs("div", { className: styles.dialog, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme Tokens" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", children: "x" })] }), _jsxs("div", { className: styles.tabs, children: [_jsxs("button", { type: "button", className: `${styles.tab} ${activeTab === 'colors' ? styles.tabActive : ''}`, onClick: () => setActiveTab('colors'), children: ["Colors", _jsx("span", { className: styles.tabCount, children: tabCounts.colors })] }), _jsxs("button", { type: "button", className: `${styles.tab} ${activeTab === 'typography' ? styles.tabActive : ''}`, onClick: () => setActiveTab('typography'), children: ["Typography", _jsx("span", { className: styles.tabCount, children: tabCounts.typography })] }), tabCounts.unknown > 0 && (_jsxs("button", { type: "button", className: `${styles.tab} ${activeTab === 'unknown' ? styles.tabActive : ''}`, onClick: () => setActiveTab('unknown'), children: ["Unknown", _jsx("span", { className: styles.tabCount, children: tabCounts.unknown })] }))] }), error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), _jsxs("div", { ref: tokenListRef, className: styles.tokenList, children: [visibleIndices.length === 0 && (_jsx("div", { className: styles.empty, children: activeTab === 'colors'
-                                    ? 'No color tokens yet. Add one to get started.'
-                                    : activeTab === 'typography'
-                                        ? 'No typography tokens yet. Add one to get started.'
-                                        : 'No unclassified tokens.' })), visibleIndices.map((i) => {
-                                const token = localTokens[i];
-                                if (!token)
-                                    return null;
-                                const category = categories[i] ?? 'unknown';
-                                if (category === 'color')
-                                    return renderColorRow(i, token);
-                                return renderTypographyRow(i, token, category);
-                            })] }), _jsxs("button", { className: styles.addButton, onClick: handleAddToken, type: "button", children: ["+ Add ", activeTab === 'colors' ? 'Color' : activeTab === 'typography' ? 'Typography' : 'Token'] })] }), badgeMenuFor !== null &&
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.editor, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", "aria-label": "Close theme panel", children: "\u00D7" })] }), isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), grouped.colors.length === 0 && (_jsx("div", { className: styles.empty, children: "No color tokens yet." })), grouped.colors.map((i) => {
+                                        const token = localTokens[i];
+                                        return token ? renderColorRow(i, token) : null;
+                                    }), _jsx("button", { className: styles.addButton, onClick: () => handleAddToken('colors'), type: "button", children: "+ Add Color" })] }), _jsxs("section", { className: styles.section, "data-theme-section": "typography", children: [_jsx("h3", { className: styles.sectionTitle, children: "Typography" }), grouped.typography.length === 0 && (_jsx("div", { className: styles.empty, children: "No typography tokens yet." })), grouped.typography.map((i) => {
+                                        const token = localTokens[i];
+                                        if (!token)
+                                            return null;
+                                        return renderTypographyRow(i, token, categories[i] ?? 'unknown');
+                                    }), _jsx("button", { className: styles.addButton, onClick: () => handleAddToken('typography'), type: "button", children: "+ Add Typography" })] }), grouped.unknown.length > 0 && (_jsxs("section", { className: styles.section, "data-theme-section": "unknown", children: [_jsx("h3", { className: styles.sectionTitle, children: "Unknown" }), grouped.unknown.map((i) => {
+                                        const token = localTokens[i];
+                                        if (!token)
+                                            return null;
+                                        return renderTypographyRow(i, token, categories[i] ?? 'unknown');
+                                    })] }))] }))] }), badgeMenuFor !== null &&
                 createPortal(_jsxs(_Fragment, { children: [_jsx("div", { className: styles.badgeMenuBackdrop, onMouseDown: closeBadgeMenu }), _jsx("div", { className: styles.badgeMenu, role: "menu", style: {
                                 top: badgeMenuFor.anchor.bottom + 4,
                                 left: badgeMenuFor.anchor.right - 100,

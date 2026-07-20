@@ -19,9 +19,7 @@ export declare const setClipContent: (page: Page, on: boolean) => Promise<void>;
 /** Read the canvas frame's effective `overflow` (hidden when clip is on). */
 export declare const frameOverflow: (page: Page) => Promise<string>;
 /**
- * Open the project-settings full-page overlay via the element toolbar.
- * The floating toolbar's "Settings" button is the trigger — there's no
- * other visible "Settings" button inside an open project.
+ * Open the project-settings overlay via the left icon rail's Settings icon.
  */
 export declare const openProjectSettings: (page: Page) => Promise<void>;
 /** Close the project-settings page via its Back button. */

@@ -63,20 +63,25 @@ export const SidebarRail = ({
     </Tooltip>
   );
 
+  // Design System and Settings are overlays that take over the workspace, so
+  // while one is open the left-panel section (Pages/Components/History) icon
+  // must NOT stay highlighted — the active state is exclusive.
+  const sectionActive = !designSystemOpen && !settingsOpen;
+
   return (
     <nav className={styles.rail} aria-label="Sections" data-testid="sidebar-rail">
       {railButton(
         'pages',
         'Pages',
         <IconFiles size={ICON_SIZE} />,
-        section === 'pages',
+        sectionActive && section === 'pages',
         () => onSelectSection('pages')
       )}
       {railButton(
         'components',
         'Components',
         <IconComponents size={ICON_SIZE} />,
-        section === 'components',
+        sectionActive && section === 'components',
         () => onSelectSection('components')
       )}
       {railButton(
@@ -90,7 +95,7 @@ export const SidebarRail = ({
         'history',
         'History',
         <IconHistory size={ICON_SIZE} />,
-        section === 'history',
+        sectionActive && section === 'history',
         () => onSelectSection('history')
       )}
       {railButton(

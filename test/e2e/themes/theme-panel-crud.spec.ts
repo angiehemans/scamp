@@ -1,17 +1,13 @@
-import { promises as fs } from 'fs';
-import * as path from 'path';
-
 import { test, expect } from '../fixtures/app';
 import { pageRoot } from '../fixtures/selectors';
 
-const readTheme = (projectDir: string): Promise<string> =>
-  fs.readFile(path.join(projectDir, 'theme.css'), 'utf-8');
+test.use({ projectOptions: { format: 'nextjs' } });
 
 test.describe('themes: panel CRUD', () => {
   test('opening the panel lists the seeded tokens', async ({ window }) => {
     await expect(pageRoot(window)).toBeVisible();
-    // Toolbar "Theme" button opens the panel.
-    await window.getByRole('button', { name: /^Theme/ }).click();
+    // The Design System rail icon opens the theme panel.
+    await window.locator('[data-section="design-system"]').click();
 
     const panel = window.getByTestId('theme-panel');
     await expect(panel).toBeVisible();
@@ -32,7 +28,7 @@ test.describe('themes: panel CRUD', () => {
     project,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Theme/ }).click();
+    await window.locator('[data-section="design-system"]').click();
     const panel = window.getByTestId('theme-panel');
     await expect(panel).toBeVisible();
 
@@ -42,13 +38,13 @@ test.describe('themes: panel CRUD', () => {
     // Poll disk until the new row shows up — the write happens
     // immediately on add.
     await expect
-      .poll(async () => readTheme(project.dir), { timeout: 5_000 })
+      .poll(async () => project.readTheme(), { timeout: 5_000 })
       .toMatch(/--color-1:\s*#888888/);
   });
 
   test('renaming a token updates theme.css', async ({ window, project }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Theme/ }).click();
+    await window.locator('[data-section="design-system"]').click();
     const panel = window.getByTestId('theme-panel');
 
     // Walk the rendered inputs to find the --color-muted row —
@@ -71,9 +67,9 @@ test.describe('themes: panel CRUD', () => {
     await target.press('Enter');
 
     await expect
-      .poll(async () => readTheme(project.dir), { timeout: 5_000 })
+      .poll(async () => project.readTheme(), { timeout: 5_000 })
       .toContain('--brand-highlight');
-    expect(await readTheme(project.dir)).not.toContain('--color-muted');
+    expect(await project.readTheme()).not.toContain('--color-muted');
   });
 
   test('deleting a token removes it from theme.css', async ({
@@ -81,7 +77,7 @@ test.describe('themes: panel CRUD', () => {
     project,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Theme/ }).click();
+    await window.locator('[data-section="design-system"]').click();
     const panel = window.getByTestId('theme-panel');
 
     const mutedRow = panel.locator('input[value="--color-muted"]').first();
@@ -94,34 +90,35 @@ test.describe('themes: panel CRUD', () => {
     await row.getByRole('button', { name: /^x$/ }).click();
 
     await expect
-      .poll(async () => readTheme(project.dir), { timeout: 5_000 })
+      .poll(async () => project.readTheme(), { timeout: 5_000 })
       .not.toContain('--color-muted');
   });
 
-  test('dialog stays the same size when switching tabs', async ({ window }) => {
+  test('the section nav scroll-jumps the editor to a section', async ({
+    window,
+  }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Theme/ }).click();
-    const panel = window.getByTestId('theme-panel');
-    await expect(panel).toBeVisible();
+    await window.locator('[data-section="design-system"]').click();
+    await expect(window.getByTestId('theme-panel')).toBeVisible();
 
-    // Colors tab — seeded with 6 tokens.
-    const colorsHeight = (await panel.boundingBox())?.height;
-    if (colorsHeight === undefined) throw new Error('dialog has no box');
+    // The left sidebar shows the theme section nav; both sections render
+    // stacked in the main editor.
+    const nav = window.getByTestId('theme-section-nav');
+    await expect(nav).toBeVisible();
+    const typography = window.locator('[data-theme-section="typography"]');
+    await expect(window.locator('[data-theme-section="colors"]')).toBeVisible();
+    await expect(typography).toBeVisible();
 
-    // Typography tab — empty by default in a fresh project.
-    await panel.getByRole('button', { name: /^Typography/ }).click();
-    const typographyHeight = (await panel.boundingBox())?.height;
-    if (typographyHeight === undefined) throw new Error('dialog has no box');
-
-    // Heights must match — fixed-height dialog ignores token count.
-    expect(typographyHeight).toBe(colorsHeight);
+    // Clicking Typography in the nav scrolls its section into view.
+    await nav.locator('[data-theme-nav="typography"]').click();
+    await expect(typography).toBeInViewport();
   });
 
   test('the token list scrolls instead of spilling out when there are many tokens', async ({
     window,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Theme/ }).click();
+    await window.locator('[data-section="design-system"]').click();
     const panel = window.getByTestId('theme-panel');
     await expect(panel).toBeVisible();
 
@@ -145,7 +142,7 @@ test.describe('themes: panel CRUD', () => {
 
   test('adding a token scrolls the list to the new row', async ({ window }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Theme/ }).click();
+    await window.locator('[data-section="design-system"]').click();
     const panel = window.getByTestId('theme-panel');
     await expect(panel).toBeVisible();
 
@@ -163,5 +160,24 @@ test.describe('themes: panel CRUD', () => {
       .filter({ hasText: '' })
       .last();
     await expect(lastRow).toBeInViewport();
+  });
+});
+
+test.describe('themes: panel is read-only in legacy projects', () => {
+  test.use({ projectOptions: { format: 'legacy' } });
+
+  test('shows a migration notice instead of the token editor', async ({
+    window,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await window.locator('[data-section="design-system"]').click();
+
+    const panel = window.getByTestId('theme-panel');
+    await expect(panel).toBeVisible();
+    // Legacy format → read-only notice, no editable token controls.
+    await expect(panel.getByText(/Next\.js project format/i)).toBeVisible();
+    await expect(
+      panel.getByRole('button', { name: /\+ Add Color/ })
+    ).toHaveCount(0);
   });
 });

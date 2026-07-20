@@ -2,6 +2,7 @@ type Props = {
     projectPath: string;
     onClose: () => void;
 };
+export type ThemeSectionId = 'colors' | 'typography' | 'unknown';
 /**
  * Modal for managing project design tokens (CSS custom properties).
  * Tabs split tokens by inferred category (colors / typography / unknown).
