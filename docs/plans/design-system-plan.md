@@ -150,11 +150,37 @@ The foundation (A–D above) plus the Colors section:
   Phase 5 gives them name-aware sections. Backfill/migrate leave existing
   projects untouched (Q3).
 
-### Phase 3 — Theme switcher: light / dark / custom (story 3)
+### Phase 3 — Theme switcher: light / dark / custom (story 3) — ✅ DONE
 - Per-theme semantic values; `.dark` / `.theme-*` CSS blocks.
 - Theme tabs in the panel; **canvas preview** applies the theme's class to the
   root and resolves semantic tokens for the active theme (`activeThemeId`).
 - A theme switcher in the **canvas toolbar** too.
+
+**Shipped:**
+- `lib/parseTheme.ts` — parses `.dark`/`.theme-*` blocks into `ThemeBlock[]`;
+  `themeDefsFromParsed` / `themeDefFromClass` (Light always first), and
+  `deriveThemeTokens(base, overrides)` (overlay semantic by name). Serializer
+  emits + reconciles theme blocks in place (round-trip tested).
+- Store (`designSystem` slice) — `themeBaseTokens` (:root), `themeOverrides`
+  (blocks), `themes`, `activeThemeId`. `setThemeData(parsed)` loads all of it and
+  derives `themeTokens` for the active theme; `setActiveTheme(id)` re-derives.
+  Both parse sites (project open + chokidar) route through `setThemeData`.
+  **Canvas preview needs no `.dark` class** — the canvas resolves tokens in JS
+  and injects `themeTokens` as frame CSS vars, so re-deriving for the active
+  theme is the whole mechanism.
+- `ThemePanel` — themes are scoped to the **Semantic** area and rendered as
+  **stacked blocks** (not tabs): a Light block that owns the token set (names /
+  add / delete), then one block per theme below it. "+ Add theme" duplicates
+  Light's semantic values into a new editable block (auto-named Dark → Theme N,
+  rename inline in the block header; remove via the block's ×). Semantic edits
+  route to `:root` for Light, to that theme's override block otherwise; the
+  write path prunes orphaned overrides. Preview is the canvas toolbar
+  `ThemeSwitcher` (hidden for light-only projects) — decoupled from panel
+  editing. `FontsSection` writes base + overrides so a font edit can't clobber
+  theme blocks.
+- **Scaffold:** Light only (per Q) — no default `.dark`; users add themes.
+- e2e: `test/e2e/themes/theme-switcher.spec.ts` (add Dark → `.dark` block + tab;
+  edit-on-Dark writes to `.dark` not `:root`; canvas switcher toggles preview).
 
 ### Phase 4 — Typography tokens (story 4)
 Font families (`--font-*`, Google/upload), type scale (preset ratios + custom),

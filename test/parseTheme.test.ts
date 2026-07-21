@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  deriveThemeTokens,
   parseThemeCss,
   parseThemeFile,
   serializeThemeFile,
+  themeDefFromClass,
+  themeDefsFromParsed,
 } from '@lib/parseTheme';
 
 describe('parseThemeCss', () => {
@@ -81,7 +84,11 @@ describe('parseThemeCss', () => {
 
 describe('parseThemeFile', () => {
   it('returns empty tokens + urls for empty input', () => {
-    expect(parseThemeFile('')).toEqual({ tokens: [], fontImportUrls: [] });
+    expect(parseThemeFile('')).toEqual({
+      tokens: [],
+      themes: [],
+      fontImportUrls: [],
+    });
   });
 
   it('extracts a single @import url()', () => {
@@ -89,6 +96,7 @@ describe('parseThemeFile', () => {
     :root { --a: 1; }`;
     expect(parseThemeFile(css)).toEqual({
       tokens: [{ name: '--a', value: '1' }],
+      themes: [],
       fontImportUrls: ['https://fonts.googleapis.com/css2?family=Inter'],
     });
   });
@@ -123,6 +131,7 @@ describe('parseThemeFile', () => {
     const css = `:root { --a: 1; }`;
     expect(parseThemeFile(css)).toEqual({
       tokens: [{ name: '--a', value: '1' }],
+      themes: [],
       fontImportUrls: [],
     });
   });
@@ -155,6 +164,7 @@ body { font-family: var(--font-sans); }`;
     }`;
     expect(parseThemeFile(css)).toEqual({
       tokens: [{ name: '--color', value: 'red' }],
+      themes: [],
       fontImportUrls: ['https://fonts.googleapis.com/css2?family=Inter'],
     });
   });
@@ -178,6 +188,7 @@ describe('serializeThemeFile', () => {
         { name: '--blue', value: '#00f' },
         { name: '--red', value: '#f00' },
       ],
+      themes: [],
       fontImportUrls: [
         'https://fonts.googleapis.com/css2?family=Inter',
         'https://fonts.googleapis.com/css2?family=Playfair+Display',
@@ -358,5 +369,188 @@ body {
     expect(output).toContain('margin: 0;');
     expect(output).toContain(':root {');
     expect(output).toContain('--a: 1;');
+  });
+});
+
+describe('parseThemeFile — theme override blocks', () => {
+  const css = `:root {
+  --color-brand-900: #1e3a8a;
+  --color-neutral-50: #f8fafc;
+  --color-background: var(--color-neutral-50);
+  --color-text: #111111;
+}
+
+.dark {
+  --color-background: #1e3a8a;
+  --color-text: #f8fafc;
+}
+
+.theme-high-contrast {
+  --color-background: #000000;
+  --color-text: #ffffff;
+}
+`;
+
+  it('parses .dark and .theme-* blocks as theme overrides, in source order', () => {
+    const { themes } = parseThemeFile(css);
+    expect(themes?.map((t) => t.cssClass)).toEqual([
+      'dark',
+      'theme-high-contrast',
+    ]);
+    expect(themes?.[0]?.tokens).toEqual([
+      { name: '--color-background', value: '#1e3a8a' },
+      { name: '--color-text', value: '#f8fafc' },
+    ]);
+  });
+
+  it('keeps :root tokens separate from theme overrides', () => {
+    const { tokens } = parseThemeFile(css);
+    expect(tokens.map((t) => t.name)).toEqual([
+      '--color-brand-900',
+      '--color-neutral-50',
+      '--color-background',
+      '--color-text',
+    ]);
+  });
+
+  it('ignores non-theme class blocks', () => {
+    const { themes } = parseThemeFile(
+      `:root { --a: 1; }\n.button { color: red; }\n`
+    );
+    expect(themes).toEqual([]);
+  });
+});
+
+describe('themeDefFromClass / themeDefsFromParsed', () => {
+  it('maps the dark class to the built-in Dark theme', () => {
+    expect(themeDefFromClass('dark')).toEqual({
+      id: 'dark',
+      label: 'Dark',
+      cssClass: 'dark',
+    });
+  });
+
+  it('title-cases a custom theme slug into a label', () => {
+    expect(themeDefFromClass('theme-high-contrast')).toEqual({
+      id: 'high-contrast',
+      label: 'High Contrast',
+      cssClass: 'theme-high-contrast',
+    });
+  });
+
+  it('always lists Light first, then each override block', () => {
+    const parsed = parseThemeFile(
+      `:root { --a: 1; }\n.dark { --a: 2; }\n.theme-brand-a { --a: 3; }\n`
+    );
+    expect(themeDefsFromParsed(parsed)).toEqual([
+      { id: 'light', label: 'Light', cssClass: '' },
+      { id: 'dark', label: 'Dark', cssClass: 'dark' },
+      { id: 'brand-a', label: 'Brand A', cssClass: 'theme-brand-a' },
+    ]);
+  });
+});
+
+describe('deriveThemeTokens', () => {
+  const base = [
+    { name: '--color-neutral-50', value: '#f8fafc' },
+    { name: '--color-background', value: 'var(--color-neutral-50)' },
+    { name: '--color-text', value: '#111111' },
+  ];
+
+  it('returns the base list unchanged when there are no overrides', () => {
+    expect(deriveThemeTokens(base, [])).toEqual(base);
+  });
+
+  it('overrides matching semantic tokens by name, leaving primitives intact', () => {
+    const result = deriveThemeTokens(base, [
+      { name: '--color-background', value: '#1e3a8a' },
+      { name: '--color-text', value: '#f8fafc' },
+    ]);
+    expect(result).toEqual([
+      { name: '--color-neutral-50', value: '#f8fafc' },
+      { name: '--color-background', value: '#1e3a8a' },
+      { name: '--color-text', value: '#f8fafc' },
+    ]);
+  });
+
+  it('appends an override token that is absent from the base', () => {
+    const result = deriveThemeTokens(base, [
+      { name: '--color-accent', value: '#ff0000' },
+    ]);
+    expect(result[result.length - 1]).toEqual({
+      name: '--color-accent',
+      value: '#ff0000',
+    });
+  });
+});
+
+describe('serializeThemeFile — theme blocks', () => {
+  const model = {
+    tokens: [
+      { name: '--color-neutral-50', value: '#f8fafc' },
+      { name: '--color-background', value: 'var(--color-neutral-50)' },
+    ],
+    themes: [
+      {
+        cssClass: 'dark',
+        tokens: [{ name: '--color-background', value: '#1e3a8a' }],
+      },
+    ],
+    fontImportUrls: [] as string[],
+  };
+
+  it('emits a .dark block after :root from scratch', () => {
+    const output = serializeThemeFile(model);
+    expect(output).toContain(':root {');
+    expect(output).toContain('.dark {');
+    expect(output.indexOf(':root')).toBeLessThan(output.indexOf('.dark'));
+    expect(output).toContain('--color-background: #1e3a8a;');
+  });
+
+  it('round-trips themes: parse(serialize(model)) reproduces the blocks', () => {
+    const parsed = parseThemeFile(serializeThemeFile(model));
+    expect(parsed.tokens).toEqual(model.tokens);
+    expect(parsed.themes).toEqual(model.themes);
+  });
+
+  it('upserts a theme block in existing CSS while preserving other rules', () => {
+    const existing = `:root {
+  --color-background: var(--color-neutral-50);
+}
+
+.dark {
+  --color-background: #000000;
+}
+
+body {
+  margin: 0;
+}
+`;
+    const output = serializeThemeFile(model, existing);
+    // The dark override is rewritten to the model value...
+    expect(output).toContain('--color-background: #1e3a8a;');
+    expect(output).not.toContain('#000000');
+    // ...and hand-written CSS survives.
+    expect(output).toContain('margin: 0;');
+  });
+
+  it('removes a managed theme block that the model no longer defines', () => {
+    const existing = `:root {
+  --color-background: #fff;
+}
+
+.dark {
+  --color-background: #000;
+}
+`;
+    const output = serializeThemeFile(
+      {
+        tokens: [{ name: '--color-background', value: '#fff' }],
+        themes: [],
+        fontImportUrls: [],
+      },
+      existing
+    );
+    expect(output).not.toContain('.dark');
   });
 });

@@ -35,7 +35,12 @@ export const FontsSection = ({ projectPath }) => {
     const kitFamilies = useFontsStore((s) => s.kitFamilies);
     const setProjectFonts = useFontsStore((s) => s.setProjectFonts);
     const setKitFamilies = useFontsStore((s) => s.setKitFamilies);
-    const themeTokens = useCanvasStore((s) => s.themeTokens);
+    // Write the BASE (:root) tokens and per-theme override blocks — NOT the
+    // derived active-theme list — so a font edit while previewing a non-Light
+    // theme neither writes that theme's values into :root nor drops the
+    // `.dark`/`.theme-*` blocks. see docs/plans/design-system-plan.md
+    const themeBaseTokens = useCanvasStore((s) => s.themeBaseTokens);
+    const themeOverrides = useCanvasStore((s) => s.themeOverrides);
     const [draft, setDraft] = useState('');
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -83,7 +88,11 @@ export const FontsSection = ({ projectPath }) => {
         // Read the current file so token blocks and hand-written CSS survive
         // when we rewrite only the font imports.
         const existing = await window.scamp.readTheme({ projectPath });
-        const content = serializeThemeFile({ tokens: [...themeTokens], fontImportUrls: [...urls] }, existing);
+        const content = serializeThemeFile({
+            tokens: [...themeBaseTokens],
+            themes: [...themeOverrides],
+            fontImportUrls: [...urls],
+        }, existing);
         await window.scamp.writeTheme({ projectPath, content });
     };
     const handleAdd = async () => {

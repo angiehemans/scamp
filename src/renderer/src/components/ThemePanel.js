@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, } from 'react';
 import { createPortal } from 'react-dom';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
-import { serializeThemeFile } from '@lib/parseTheme';
+import { serializeThemeFile, themeDefFromClass, } from '@lib/parseTheme';
 import { classifyToken } from '@lib/tokenClassify';
 import { buildColorModel } from '@lib/colorModel';
 import { generatePalette } from '@lib/palette';
+import { resolveTokenChain } from '@lib/resolveToken';
 import { errorMessage } from '@shared/errorMessage';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
@@ -94,10 +95,22 @@ const countTokenUsage = (elements, tokenName) => {
  * Changes write to theme.css on disk; chokidar hot-reloads them.
  */
 export const ThemePanel = ({ projectPath, onClose }) => {
-    const themeTokens = useCanvasStore((s) => s.themeTokens);
+    // `localTokens` mirrors the base (:root) tokens — primitives + light
+    // semantic + typography, all GLOBAL across themes. `localOverrides`
+    // holds the per-theme semantic overrides (.dark / .theme-*). The
+    // Semantic area renders the Light block (base values) plus one block
+    // per theme, each editable inline; preview lives in the canvas toolbar.
+    // see docs/plans/design-system-plan.md
+    const themeBaseTokens = useCanvasStore((s) => s.themeBaseTokens);
+    const storeOverrides = useCanvasStore((s) => s.themeOverrides);
     const elements = useCanvasStore((s) => s.elements);
     const allFonts = useFontsStore(selectAllFonts);
-    const [localTokens, setLocalTokens] = useState([...themeTokens]);
+    const [localTokens, setLocalTokens] = useState([
+        ...themeBaseTokens,
+    ]);
+    const [localOverrides, setLocalOverrides] = useState([
+        ...storeOverrides,
+    ]);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
     const isLegacy = projectFormat === 'legacy';
     const [error, setError] = useState(null);
@@ -130,10 +143,15 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         if (last instanceof HTMLElement)
             last.scrollIntoView({ block: 'nearest' });
     }, [scrollToEndAfterAdd]);
-    // Sync from store when tokens change externally (e.g. file edit).
+    // Sync from store when the theme data changes externally (file edit,
+    // theme switch, optimistic write). Base tokens + overrides both mirror
+    // the store so the panel always reflects on-disk truth.
     useEffect(() => {
-        setLocalTokens([...themeTokens]);
-    }, [themeTokens]);
+        setLocalTokens([...themeBaseTokens]);
+    }, [themeBaseTokens]);
+    useEffect(() => {
+        setLocalOverrides([...storeOverrides]);
+    }, [storeOverrides]);
     // Classify once per render so the tab lists and badges agree.
     const categories = useMemo(() => localTokens.map((t) => classifyToken(t.value)), [localTokens]);
     // Every `--color-*` token is owned by the Colors section (as a palette
@@ -196,24 +214,48 @@ export const ThemePanel = ({ projectPath, onClose }) => {
             return t ? !captured.has(t.name) : false;
         });
     }, [colorModel, grouped.colors, localTokens]);
-    const writeTokens = useCallback(async (tokens) => {
+    /**
+     * Persist the full design system — base (:root) tokens + per-theme
+     * override blocks — to theme.css. Optimistically pushes the model to
+     * the store first so the canvas + pickers reflect the edit immediately
+     * for the active theme; the chokidar reparse confirms it later. Font
+     * imports and hand-written CSS are preserved (see serializeThemeFile).
+     * see docs/plans/design-system-plan.md
+     */
+    const persist = async (base, overrides) => {
         try {
-            // Preserve the font imports that live alongside tokens in
-            // theme.css — the fonts panel writes to the same file. Read the
-            // current file so hand-written CSS (resets, body rules) survives
-            // the token rewrite. see docs/plans/design-system-plan.md
             const urls = useFontsStore.getState().projectFontUrls;
+            // Prune override tokens whose base definition is gone (renamed or
+            // deleted semantic) and drop blocks left empty — keeps theme blocks
+            // consistent without per-handler override bookkeeping.
+            const baseNames = new Set(base.map((t) => t.name));
+            const prunedOverrides = overrides
+                .map((b) => ({
+                cssClass: b.cssClass,
+                tokens: b.tokens.filter((t) => baseNames.has(t.name)),
+            }))
+                .filter((b) => b.tokens.length > 0);
+            const model = {
+                tokens: base,
+                themes: prunedOverrides,
+                fontImportUrls: [...urls],
+            };
+            useCanvasStore.getState().setThemeData(model);
             const existing = await window.scamp.readTheme({ projectPath });
             await window.scamp.writeTheme({
                 projectPath,
-                content: serializeThemeFile({ tokens, fontImportUrls: [...urls] }, existing),
+                content: serializeThemeFile(model, existing),
             });
             setError(null);
         }
         catch (e) {
             setError(errorMessage(e));
         }
-    }, [projectPath]);
+    };
+    /** Persist a base-token change, keeping the current theme overrides. */
+    const writeTokens = (base) => {
+        void persist(base, localOverrides);
+    };
     const nextDefaultName = (prefix) => {
         const existing = new Set(localTokens.map((t) => t.name));
         let idx = 1;
@@ -266,13 +308,13 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         const nameError = validateTokenName(token.name);
         if (nameError) {
             setError(`${token.name}: ${nameError}`);
-            setLocalTokens([...themeTokens]);
+            setLocalTokens([...themeBaseTokens]);
             return;
         }
         const duplicate = localTokens.some((t, i) => i !== index && t.name === token.name);
         if (duplicate) {
             setError(`${token.name} already exists`);
-            setLocalTokens([...themeTokens]);
+            setLocalTokens([...themeBaseTokens]);
             return;
         }
         setError(null);
@@ -399,10 +441,39 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         setPendingPaletteDelete(null);
         applyTokens(next);
     };
-    /** Point a semantic token at a `<palette>/<shade>` primitive. */
-    const handleSemanticMap = (tokenName, paletteName, shade) => {
+    /** Semantic override tokens for a theme class, keyed by token name. */
+    const overrideMapFor = (cssClass) => {
+        const block = localOverrides.find((b) => b.cssClass === cssClass);
+        return new Map((block?.tokens ?? []).map((t) => [t.name, t.value]));
+    };
+    /** Upsert a semantic value into a specific theme's override block. */
+    const setOverrideFor = (cssClass, name, value) => {
+        const existing = localOverrides.find((b) => b.cssClass === cssClass);
+        if (!existing) {
+            return [...localOverrides, { cssClass, tokens: [{ name, value }] }];
+        }
+        const tokens = existing.tokens.some((t) => t.name === name)
+            ? existing.tokens.map((t) => (t.name === name ? { name, value } : t))
+            : [...existing.tokens, { name, value }];
+        return localOverrides.map((b) => b.cssClass === cssClass ? { ...b, tokens } : b);
+    };
+    /**
+     * Point a semantic token at a `<palette>/<shade>` primitive for a given
+     * theme. The Light theme (cssClass `''`) edits the base `:root` value;
+     * any other theme writes into its override block, leaving the base — and
+     * thus every other theme — untouched.
+     */
+    const handleSemanticMap = (tokenName, paletteName, shade, cssClass) => {
         const value = `var(--color-${paletteName}-${shade})`;
-        applyTokens(localTokens.map((t) => (t.name === tokenName ? { ...t, value } : t)));
+        if (cssClass === '') {
+            const nextBase = localTokens.map((t) => t.name === tokenName ? { ...t, value } : t);
+            setLocalTokens(nextBase);
+            void persist(nextBase, localOverrides);
+            return;
+        }
+        const nextOverrides = setOverrideFor(cssClass, tokenName, value);
+        setLocalOverrides(nextOverrides);
+        void persist(localTokens, nextOverrides);
     };
     const handleAddSemantic = () => {
         const first = colorModel.palettes[0];
@@ -412,6 +483,65 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         applyTokens([...localTokens, { name: nextSemanticName(), value }]);
         scrollTargetSection.current = 'colors';
         setScrollToEndAfterAdd((n) => n + 1);
+    };
+    const slugify = (s) => s
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    /** CSS class for a theme name: "Dark" → `dark`, else `theme-<slug>`. */
+    const cssClassForName = (name) => {
+        const slug = slugify(name);
+        return slug === 'dark' ? 'dark' : `theme-${slug}`;
+    };
+    /**
+     * Add a theme: a new override block seeded with a copy of every current
+     * semantic value, so it starts identical to Light and the user tweaks
+     * it in place. Auto-named ("Dark", then "Theme 2"…); rename inline via
+     * the block header. see docs/plans/design-system-plan.md
+     */
+    const handleAddTheme = () => {
+        const usedClasses = new Set(localOverrides.map((b) => b.cssClass));
+        let name = 'Dark';
+        if (usedClasses.has('dark')) {
+            let n = 2;
+            while (usedClasses.has(`theme-theme-${n}`))
+                n += 1;
+            name = `Theme ${n}`;
+        }
+        const cssClass = cssClassForName(name);
+        const seed = colorModel.semantic.map((s) => ({
+            name: s.name,
+            value: s.value,
+        }));
+        const nextOverrides = [...localOverrides, { cssClass, tokens: seed }];
+        setLocalOverrides(nextOverrides);
+        setError(null);
+        void persist(localTokens, nextOverrides);
+        scrollTargetSection.current = 'colors';
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
+    /** Rename a theme block — changes its CSS class (and thus its label). */
+    const handleRenameTheme = (oldCssClass, rawName) => {
+        const name = rawName.trim();
+        if (name === '')
+            return;
+        const newCssClass = cssClassForName(name);
+        if (newCssClass === oldCssClass)
+            return;
+        if (localOverrides.some((b) => b.cssClass === newCssClass)) {
+            setError(`Theme "${name}" already exists`);
+            return;
+        }
+        const nextOverrides = localOverrides.map((b) => b.cssClass === oldCssClass ? { ...b, cssClass: newCssClass } : b);
+        setLocalOverrides(nextOverrides);
+        setError(null);
+        void persist(localTokens, nextOverrides);
+    };
+    const handleRemoveTheme = (cssClass) => {
+        const nextOverrides = localOverrides.filter((b) => b.cssClass !== cssClass);
+        setLocalOverrides(nextOverrides);
+        void persist(localTokens, nextOverrides);
     };
     /**
      * Reassign a typography token to a different category. We swap the
@@ -468,18 +598,40 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                     const idx = localTokens.findIndex((t) => t.name === shade.name);
                     return (_jsxs("div", { className: styles.shade, children: [_jsx("div", { className: styles.shadeSwatch, children: _jsx(ColorInput, { value: shade.value, onChange: (v) => idx >= 0 && handleColorChange(idx, v) }) }), _jsx("span", { className: styles.shadeLabel, children: shade.shade })] }, shade.name));
                 }) })] }, palette.name));
-    const renderSemanticRow = (sem) => {
+    /**
+     * A semantic token row for a given theme. Light (`cssClass === ''`)
+     * edits the base value and owns the token DEFINITION (name / delete);
+     * other themes show a read-only name and only remap the value into
+     * their own override block.
+     */
+    const renderSemanticRow = (sem, cssClass, overrideMap) => {
+        const isLightRow = cssClass === '';
         const index = localTokens.findIndex((t) => t.name === sem.name);
-        const m = sem.value.match(SEMANTIC_REF_RE);
+        const effectiveValue = isLightRow
+            ? sem.value
+            : (overrideMap?.get(sem.name) ?? sem.value);
+        const m = effectiveValue.match(SEMANTIC_REF_RE);
         const selectValue = m ? `${m[1]}:${m[2]}` : '';
-        return (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, value: sem.name, onChange: (e) => handleNameChange(index, e.target.value), onBlur: () => handleNameBlur(index), onKeyDown: (e) => {
+        const resolved = resolveTokenChain(effectiveValue, localTokens);
+        return (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, value: sem.name, readOnly: !isLightRow, "aria-label": `Semantic token ${sem.name}`, onChange: isLightRow
+                        ? (e) => handleNameChange(index, e.target.value)
+                        : undefined, onBlur: isLightRow ? () => handleNameBlur(index) : undefined, onKeyDown: (e) => {
                         if (e.key === 'Enter')
                             e.currentTarget.blur();
                     } }), _jsxs("select", { className: styles.semanticSelect, value: selectValue, "aria-label": `Mapping for ${sem.name}`, onChange: (e) => {
                         const [palette, shade] = e.target.value.split(':');
                         if (palette && shade)
-                            handleSemanticMap(sem.name, palette, Number(shade));
-                    }, children: [selectValue === '' && (_jsx("option", { value: "", disabled: true, children: sem.value || '— custom —' })), colorModel.palettes.map((p) => (_jsx("optgroup", { label: p.name, children: p.shades.map((s) => (_jsxs("option", { value: `${p.name}:${s.shade}`, children: [p.name, " / ", s.shade] }, s.shade))) }, p.name)))] }), _jsx("div", { className: styles.resolvedSwatch, style: { background: sem.resolved ?? 'transparent' }, "data-broken": sem.resolved === null, title: sem.resolved ?? 'unresolved reference' }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, sem.name));
+                            handleSemanticMap(sem.name, palette, Number(shade), cssClass);
+                    }, children: [selectValue === '' && (_jsx("option", { value: "", disabled: true, children: effectiveValue || '— custom —' })), colorModel.palettes.map((p) => (_jsx("optgroup", { label: p.name, children: p.shades.map((s) => (_jsxs("option", { value: `${p.name}:${s.shade}`, children: [p.name, " / ", s.shade] }, s.shade))) }, p.name)))] }), _jsx("div", { className: styles.resolvedSwatch, style: { background: resolved ?? 'transparent' }, "data-broken": resolved === null, title: resolved ?? 'unresolved reference' }), isLightRow && (_jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) }))] }, `${cssClass}:${sem.name}`));
+    };
+    /** A stacked theme override block: header (rename + remove) + rows. */
+    const renderThemeBlock = (block) => {
+        const label = themeDefFromClass(block.cssClass).label;
+        const overrideMap = overrideMapFor(block.cssClass);
+        return (_jsxs("div", { className: styles.themeBlock, "data-theme-block": block.cssClass, "data-token-row": true, children: [_jsxs("div", { className: styles.themeBlockHeader, children: [_jsx("input", { type: "text", className: styles.themeBlockName, defaultValue: label, "aria-label": `Theme name for ${label}`, onBlur: (e) => handleRenameTheme(block.cssClass, e.target.value), onKeyDown: (e) => {
+                                if (e.key === 'Enter')
+                                    e.currentTarget.blur();
+                            } }), _jsx(Tooltip, { label: "Remove theme", children: _jsx("button", { type: "button", className: styles.tokenDelete, "aria-label": `Remove ${label} theme`, onClick: () => handleRemoveTheme(block.cssClass), children: "x" }) })] }), colorModel.semantic.map((sem) => renderSemanticRow(sem, block.cssClass, overrideMap))] }, block.cssClass));
     };
     const renderTypographyRow = (index, token, category) => {
         const isFontFamily = category === 'fontFamily';
@@ -503,7 +655,7 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                                 e.currentTarget.blur();
                         }, placeholder: "value" })) }), _jsx("div", { className: styles.badgeWrap, children: _jsx(Tooltip, { label: "Change token type", children: _jsxs("button", { type: "button", className: `${styles.tokenBadge} ${styles.tokenBadgeButton}`, onClick: handleBadgeClick, "aria-haspopup": "menu", "aria-expanded": badgeOpen, children: [categoryBadge(category), " ", _jsx("span", { children: "\u25BE" })] }) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.editor, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", "aria-label": "Close theme panel", children: "\u00D7" })] }), isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), pendingPaletteDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingPaletteDelete.palette.name }), " is referenced by ", pendingPaletteDelete.refCount, " semantic token", pendingPaletteDelete.refCount > 1 ? 's' : '', ", which will break. Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingPaletteDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDeletePalette(pendingPaletteDelete.palette), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), _jsx("h4", { className: styles.subheading, children: "Primitives" }), colorModel.palettes.length === 0 && (_jsx("div", { className: styles.empty, children: "No palettes yet." })), colorModel.palettes.map(renderPaletteBlock), _jsx("button", { className: styles.addButton, onClick: handleAddPalette, type: "button", children: "+ Add palette" }), _jsx("h4", { className: styles.subheading, children: "Semantic" }), colorModel.semantic.length === 0 && (_jsx("div", { className: styles.empty, children: "No semantic colors yet." })), colorModel.semantic.map(renderSemanticRow), _jsx("button", { className: styles.addButton, onClick: handleAddSemantic, type: "button", children: "+ Add semantic color" }), otherColorIndices.length > 0 && (_jsxs(_Fragment, { children: [_jsx("h4", { className: styles.subheading, children: "Other" }), otherColorIndices.map((i) => {
+    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.editor, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", "aria-label": "Close theme panel", children: "\u00D7" })] }), isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), pendingPaletteDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingPaletteDelete.palette.name }), " is referenced by ", pendingPaletteDelete.refCount, " semantic token", pendingPaletteDelete.refCount > 1 ? 's' : '', ", which will break. Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingPaletteDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDeletePalette(pendingPaletteDelete.palette), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), _jsx("h4", { className: styles.subheading, children: "Primitives" }), colorModel.palettes.length === 0 && (_jsx("div", { className: styles.empty, children: "No palettes yet." })), colorModel.palettes.map(renderPaletteBlock), _jsx("button", { className: styles.addButton, onClick: handleAddPalette, type: "button", children: "+ Add palette" }), _jsx("h4", { className: styles.subheading, children: "Semantic" }), _jsx("div", { className: styles.themeHint, children: "Semantic tokens map to primitives per theme. Define the token set once on Light; add a theme to give each token a different value. Preview a theme from the canvas toolbar." }), _jsxs("div", { className: styles.themeBlock, "data-theme-block": "light", children: [_jsx("div", { className: styles.themeBlockHeader, children: _jsx("span", { className: styles.themeBlockName, children: "Light" }) }), colorModel.semantic.length === 0 && (_jsx("div", { className: styles.empty, children: "No semantic colors yet." })), colorModel.semantic.map((sem) => renderSemanticRow(sem, '', null)), _jsx("button", { className: styles.addButton, onClick: handleAddSemantic, type: "button", children: "+ Add semantic color" })] }), localOverrides.map(renderThemeBlock), _jsx("button", { className: styles.addButton, onClick: handleAddTheme, type: "button", "data-testid": "add-theme", children: "+ Add theme" }), otherColorIndices.length > 0 && (_jsxs(_Fragment, { children: [_jsx("h4", { className: styles.subheading, children: "Other" }), otherColorIndices.map((i) => {
                                                 const token = localTokens[i];
                                                 return token ? renderColorRow(i, token) : null;
                                             })] }))] }), _jsxs("section", { className: styles.section, "data-theme-section": "typography", children: [_jsx("h3", { className: styles.sectionTitle, children: "Typography" }), grouped.typography.length === 0 && (_jsx("div", { className: styles.empty, children: "No typography tokens yet." })), grouped.typography.map((i) => {

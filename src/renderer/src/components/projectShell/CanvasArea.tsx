@@ -9,6 +9,7 @@ import { ROOT_ELEMENT_ID } from '@lib/element';
 import { Viewport } from '@renderer/src/canvas/Viewport';
 
 import { CanvasSizeControl } from '../CanvasSizeControl';
+import { ThemeSwitcher } from '../ThemeSwitcher';
 import { Toolbar } from '../Toolbar';
 import { SvgReloadBanner } from './SvgReloadBanner';
 import type { ActiveComponent } from './types';
@@ -164,6 +165,7 @@ export const CanvasArea = ({
               </button>
             )}
             <span className={styles.canvasHeaderSpacer} />
+            <ThemeSwitcher />
             <CanvasSizeControl
               config={projectConfig}
               onChange={onProjectConfigChange}

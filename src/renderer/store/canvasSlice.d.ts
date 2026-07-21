@@ -1,5 +1,6 @@
 import { type BreakpointOverride, type ElementAnimation, type ElementStateName, type KeyframesBlock, type PropertyGroup, type ScampElement } from '@lib/element';
-import { type Breakpoint, type ProjectFormat, type SvgAssetChangedPayload, type ThemeToken } from '@shared/types';
+import { type Breakpoint, type ProjectFormat, type SvgAssetChangedPayload, type ThemeDef, type ThemeToken } from '@shared/types';
+import type { ParsedTheme, ThemeBlock } from '@lib/parseTheme';
 export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 export type NewRectInput = {
     parentId: string;
@@ -360,8 +361,21 @@ export type CanvasState = {
         elementId: string;
         key: number;
     } | null;
-    /** Design tokens parsed from the project's theme.css file. */
+    /**
+     * Design tokens for the ACTIVE theme, derived from `themeBaseTokens`
+     * overlaid with the active theme's semantic overrides. This is what
+     * `elementToStyle`, the canvas var injection, and the pickers consume,
+     * so switching themes re-derives this list and the canvas re-renders.
+     */
     themeTokens: ThemeToken[];
+    /** The `:root` (light/base) tokens: primitives + light semantic + typography. */
+    themeBaseTokens: ThemeToken[];
+    /** Per-theme semantic override blocks (`.dark` / `.theme-*`). */
+    themeOverrides: ThemeBlock[];
+    /** All themes in the switcher — Light (always) plus each override block. */
+    themes: ThemeDef[];
+    /** Which theme is being previewed/edited. `light` uses the base tokens. */
+    activeThemeId: string;
     /** Internal clipboard for copy/paste. Stores a snapshot of an element
      *  subtree at copy time, not a live reference. */
     clipboard: {
@@ -625,6 +639,10 @@ export type CanvasState = {
     /** Drop an element's ratio lock (used when an axis leaves `fixed`). */
     clearRatioLock: (id: string) => void;
     setThemeTokens: (tokens: ThemeToken[]) => void;
+    /** Load a parsed theme.css (base tokens + per-theme override blocks). */
+    setThemeData: (parsed: ParsedTheme) => void;
+    /** Switch the previewed/edited theme; re-derives `themeTokens`. */
+    setActiveTheme: (id: string) => void;
     /** Callback to open the theme panel. Set by ProjectShell on mount. */
     openThemePanel: (() => void) | null;
     setOpenThemePanel: (fn: (() => void) | null) => void;

@@ -1,0 +1,34 @@
+import { useCanvasStore } from '@store/canvasSlice';
+
+import styles from './ThemeSwitcher.module.css';
+
+/**
+ * Compact theme selector for the canvas toolbar. Switches the previewed
+ * theme (`activeThemeId`), which re-derives `themeTokens` so the canvas
+ * repaints in that theme's semantic colours — a quick toggle without
+ * opening the theme panel. Hidden when a project has only the Light
+ * theme (nothing to switch). see docs/plans/design-system-plan.md
+ */
+export const ThemeSwitcher = (): JSX.Element | null => {
+  const themes = useCanvasStore((s) => s.themes);
+  const activeThemeId = useCanvasStore((s) => s.activeThemeId);
+  const setActiveTheme = useCanvasStore((s) => s.setActiveTheme);
+
+  if (themes.length <= 1) return null;
+
+  return (
+    <select
+      className={styles.switcher}
+      value={activeThemeId}
+      aria-label="Preview theme"
+      data-testid="canvas-theme-switcher"
+      onChange={(e) => setActiveTheme(e.target.value)}
+    >
+      {themes.map((t) => (
+        <option key={t.id} value={t.id}>
+          {t.label}
+        </option>
+      ))}
+    </select>
+  );
+};

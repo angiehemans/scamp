@@ -47,6 +47,60 @@
   border-radius: var(--radius-md);
 }
 
+.themeHint {
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Each theme's semantic mappings render as a stacked block — Light (the
+   token definitions) plus one per additional theme. Preview lives in the
+   canvas toolbar. see docs/plans/design-system-plan.md */
+.themeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.themeBlockHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.themeBlockName {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+input.themeBlockName {
+  border-color: var(--border);
+  background: var(--bg-input);
+}
+
+input.themeBlockName:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .header {
   display: flex;
   align-items: center;

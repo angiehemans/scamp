@@ -1,0 +1,16 @@
+.switcher {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.switcher:focus {
+  outline: none;
+  border-color: var(--accent);
+}

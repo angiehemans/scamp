@@ -10,10 +10,16 @@ import { createPortal } from 'react-dom';
 import { IconColorSwatch } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
-import { serializeThemeFile } from '@lib/parseTheme';
+import {
+  serializeThemeFile,
+  themeDefFromClass,
+  type ParsedTheme,
+  type ThemeBlock,
+} from '@lib/parseTheme';
 import { classifyToken, type TokenCategory } from '@lib/tokenClassify';
 import { buildColorModel, type PrimitivePalette } from '@lib/colorModel';
 import { generatePalette } from '@lib/palette';
+import { resolveTokenChain } from '@lib/resolveToken';
 import type { ThemeToken } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { Button } from './controls/Button';
@@ -136,10 +142,22 @@ const countTokenUsage = (
  * Changes write to theme.css on disk; chokidar hot-reloads them.
  */
 export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
-  const themeTokens = useCanvasStore((s) => s.themeTokens);
+  // `localTokens` mirrors the base (:root) tokens — primitives + light
+  // semantic + typography, all GLOBAL across themes. `localOverrides`
+  // holds the per-theme semantic overrides (.dark / .theme-*). The
+  // Semantic area renders the Light block (base values) plus one block
+  // per theme, each editable inline; preview lives in the canvas toolbar.
+  // see docs/plans/design-system-plan.md
+  const themeBaseTokens = useCanvasStore((s) => s.themeBaseTokens);
+  const storeOverrides = useCanvasStore((s) => s.themeOverrides);
   const elements = useCanvasStore((s) => s.elements);
   const allFonts = useFontsStore(selectAllFonts);
-  const [localTokens, setLocalTokens] = useState<ThemeToken[]>([...themeTokens]);
+  const [localTokens, setLocalTokens] = useState<ThemeToken[]>([
+    ...themeBaseTokens,
+  ]);
+  const [localOverrides, setLocalOverrides] = useState<ThemeBlock[]>([
+    ...storeOverrides,
+  ]);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const isLegacy = projectFormat === 'legacy';
   const [error, setError] = useState<string | null>(null);
@@ -180,10 +198,15 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     if (last instanceof HTMLElement) last.scrollIntoView({ block: 'nearest' });
   }, [scrollToEndAfterAdd]);
 
-  // Sync from store when tokens change externally (e.g. file edit).
+  // Sync from store when the theme data changes externally (file edit,
+  // theme switch, optimistic write). Base tokens + overrides both mirror
+  // the store so the panel always reflects on-disk truth.
   useEffect(() => {
-    setLocalTokens([...themeTokens]);
-  }, [themeTokens]);
+    setLocalTokens([...themeBaseTokens]);
+  }, [themeBaseTokens]);
+  useEffect(() => {
+    setLocalOverrides([...storeOverrides]);
+  }, [storeOverrides]);
 
   // Classify once per render so the tab lists and badges agree.
   const categories = useMemo(
@@ -250,29 +273,51 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     });
   }, [colorModel, grouped.colors, localTokens]);
 
-  const writeTokens = useCallback(
-    async (tokens: ThemeToken[]): Promise<void> => {
-      try {
-        // Preserve the font imports that live alongside tokens in
-        // theme.css — the fonts panel writes to the same file. Read the
-        // current file so hand-written CSS (resets, body rules) survives
-        // the token rewrite. see docs/plans/design-system-plan.md
-        const urls = useFontsStore.getState().projectFontUrls;
-        const existing = await window.scamp.readTheme({ projectPath });
-        await window.scamp.writeTheme({
-          projectPath,
-          content: serializeThemeFile(
-            { tokens, fontImportUrls: [...urls] },
-            existing
-          ),
-        });
-        setError(null);
-      } catch (e) {
-        setError(errorMessage(e));
-      }
-    },
-    [projectPath]
-  );
+  /**
+   * Persist the full design system — base (:root) tokens + per-theme
+   * override blocks — to theme.css. Optimistically pushes the model to
+   * the store first so the canvas + pickers reflect the edit immediately
+   * for the active theme; the chokidar reparse confirms it later. Font
+   * imports and hand-written CSS are preserved (see serializeThemeFile).
+   * see docs/plans/design-system-plan.md
+   */
+  const persist = async (
+    base: ThemeToken[],
+    overrides: ThemeBlock[]
+  ): Promise<void> => {
+    try {
+      const urls = useFontsStore.getState().projectFontUrls;
+      // Prune override tokens whose base definition is gone (renamed or
+      // deleted semantic) and drop blocks left empty — keeps theme blocks
+      // consistent without per-handler override bookkeeping.
+      const baseNames = new Set(base.map((t) => t.name));
+      const prunedOverrides = overrides
+        .map((b) => ({
+          cssClass: b.cssClass,
+          tokens: b.tokens.filter((t) => baseNames.has(t.name)),
+        }))
+        .filter((b) => b.tokens.length > 0);
+      const model: ParsedTheme = {
+        tokens: base,
+        themes: prunedOverrides,
+        fontImportUrls: [...urls],
+      };
+      useCanvasStore.getState().setThemeData(model);
+      const existing = await window.scamp.readTheme({ projectPath });
+      await window.scamp.writeTheme({
+        projectPath,
+        content: serializeThemeFile(model, existing),
+      });
+      setError(null);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+
+  /** Persist a base-token change, keeping the current theme overrides. */
+  const writeTokens = (base: ThemeToken[]): void => {
+    void persist(base, localOverrides);
+  };
 
   const nextDefaultName = (prefix: string): string => {
     const existing = new Set(localTokens.map((t) => t.name));
@@ -326,7 +371,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     const nameError = validateTokenName(token.name);
     if (nameError) {
       setError(`${token.name}: ${nameError}`);
-      setLocalTokens([...themeTokens]);
+      setLocalTokens([...themeBaseTokens]);
       return;
     }
     const duplicate = localTokens.some(
@@ -334,7 +379,7 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     );
     if (duplicate) {
       setError(`${token.name} already exists`);
-      setLocalTokens([...themeTokens]);
+      setLocalTokens([...themeBaseTokens]);
       return;
     }
     setError(null);
@@ -475,16 +520,54 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     applyTokens(next);
   };
 
-  /** Point a semantic token at a `<palette>/<shade>` primitive. */
+  /** Semantic override tokens for a theme class, keyed by token name. */
+  const overrideMapFor = (cssClass: string): Map<string, string> => {
+    const block = localOverrides.find((b) => b.cssClass === cssClass);
+    return new Map((block?.tokens ?? []).map((t) => [t.name, t.value]));
+  };
+
+  /** Upsert a semantic value into a specific theme's override block. */
+  const setOverrideFor = (
+    cssClass: string,
+    name: string,
+    value: string
+  ): ThemeBlock[] => {
+    const existing = localOverrides.find((b) => b.cssClass === cssClass);
+    if (!existing) {
+      return [...localOverrides, { cssClass, tokens: [{ name, value }] }];
+    }
+    const tokens = existing.tokens.some((t) => t.name === name)
+      ? existing.tokens.map((t) => (t.name === name ? { name, value } : t))
+      : [...existing.tokens, { name, value }];
+    return localOverrides.map((b) =>
+      b.cssClass === cssClass ? { ...b, tokens } : b
+    );
+  };
+
+  /**
+   * Point a semantic token at a `<palette>/<shade>` primitive for a given
+   * theme. The Light theme (cssClass `''`) edits the base `:root` value;
+   * any other theme writes into its override block, leaving the base — and
+   * thus every other theme — untouched.
+   */
   const handleSemanticMap = (
     tokenName: string,
     paletteName: string,
-    shade: number
+    shade: number,
+    cssClass: string
   ): void => {
     const value = `var(--color-${paletteName}-${shade})`;
-    applyTokens(
-      localTokens.map((t) => (t.name === tokenName ? { ...t, value } : t))
-    );
+    if (cssClass === '') {
+      const nextBase = localTokens.map((t) =>
+        t.name === tokenName ? { ...t, value } : t
+      );
+      setLocalTokens(nextBase);
+      void persist(nextBase, localOverrides);
+      return;
+    }
+    const nextOverrides = setOverrideFor(cssClass, tokenName, value);
+    setLocalOverrides(nextOverrides);
+    void persist(localTokens, nextOverrides);
   };
 
   const handleAddSemantic = (): void => {
@@ -497,6 +580,70 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     applyTokens([...localTokens, { name: nextSemanticName(), value }]);
     scrollTargetSection.current = 'colors';
     setScrollToEndAfterAdd((n) => n + 1);
+  };
+
+  const slugify = (s: string): string =>
+    s
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  /** CSS class for a theme name: "Dark" → `dark`, else `theme-<slug>`. */
+  const cssClassForName = (name: string): string => {
+    const slug = slugify(name);
+    return slug === 'dark' ? 'dark' : `theme-${slug}`;
+  };
+
+  /**
+   * Add a theme: a new override block seeded with a copy of every current
+   * semantic value, so it starts identical to Light and the user tweaks
+   * it in place. Auto-named ("Dark", then "Theme 2"…); rename inline via
+   * the block header. see docs/plans/design-system-plan.md
+   */
+  const handleAddTheme = (): void => {
+    const usedClasses = new Set(localOverrides.map((b) => b.cssClass));
+    let name = 'Dark';
+    if (usedClasses.has('dark')) {
+      let n = 2;
+      while (usedClasses.has(`theme-theme-${n}`)) n += 1;
+      name = `Theme ${n}`;
+    }
+    const cssClass = cssClassForName(name);
+    const seed = colorModel.semantic.map((s) => ({
+      name: s.name,
+      value: s.value,
+    }));
+    const nextOverrides = [...localOverrides, { cssClass, tokens: seed }];
+    setLocalOverrides(nextOverrides);
+    setError(null);
+    void persist(localTokens, nextOverrides);
+    scrollTargetSection.current = 'colors';
+    setScrollToEndAfterAdd((n) => n + 1);
+  };
+
+  /** Rename a theme block — changes its CSS class (and thus its label). */
+  const handleRenameTheme = (oldCssClass: string, rawName: string): void => {
+    const name = rawName.trim();
+    if (name === '') return;
+    const newCssClass = cssClassForName(name);
+    if (newCssClass === oldCssClass) return;
+    if (localOverrides.some((b) => b.cssClass === newCssClass)) {
+      setError(`Theme "${name}" already exists`);
+      return;
+    }
+    const nextOverrides = localOverrides.map((b) =>
+      b.cssClass === oldCssClass ? { ...b, cssClass: newCssClass } : b
+    );
+    setLocalOverrides(nextOverrides);
+    setError(null);
+    void persist(localTokens, nextOverrides);
+  };
+
+  const handleRemoveTheme = (cssClass: string): void => {
+    const nextOverrides = localOverrides.filter((b) => b.cssClass !== cssClass);
+    setLocalOverrides(nextOverrides);
+    void persist(localTokens, nextOverrides);
   };
 
   /**
@@ -631,22 +778,43 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     </div>
   );
 
-  const renderSemanticRow = (sem: {
-    name: string;
-    value: string;
-    resolved: string | null;
-  }): JSX.Element => {
+  /**
+   * A semantic token row for a given theme. Light (`cssClass === ''`)
+   * edits the base value and owns the token DEFINITION (name / delete);
+   * other themes show a read-only name and only remap the value into
+   * their own override block.
+   */
+  const renderSemanticRow = (
+    sem: { name: string; value: string; resolved: string | null },
+    cssClass: string,
+    overrideMap: Map<string, string> | null
+  ): JSX.Element => {
+    const isLightRow = cssClass === '';
     const index = localTokens.findIndex((t) => t.name === sem.name);
-    const m = sem.value.match(SEMANTIC_REF_RE);
+    const effectiveValue = isLightRow
+      ? sem.value
+      : (overrideMap?.get(sem.name) ?? sem.value);
+    const m = effectiveValue.match(SEMANTIC_REF_RE);
     const selectValue = m ? `${m[1]}:${m[2]}` : '';
+    const resolved = resolveTokenChain(effectiveValue, localTokens);
     return (
-      <div key={sem.name} className={styles.tokenRow} data-token-row>
+      <div
+        key={`${cssClass}:${sem.name}`}
+        className={styles.tokenRow}
+        data-token-row
+      >
         <input
           type="text"
           className={styles.tokenName}
           value={sem.name}
-          onChange={(e) => handleNameChange(index, e.target.value)}
-          onBlur={() => handleNameBlur(index)}
+          readOnly={!isLightRow}
+          aria-label={`Semantic token ${sem.name}`}
+          onChange={
+            isLightRow
+              ? (e) => handleNameChange(index, e.target.value)
+              : undefined
+          }
+          onBlur={isLightRow ? () => handleNameBlur(index) : undefined}
           onKeyDown={(e) => {
             if (e.key === 'Enter') e.currentTarget.blur();
           }}
@@ -658,12 +826,12 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
           onChange={(e) => {
             const [palette, shade] = e.target.value.split(':');
             if (palette && shade)
-              handleSemanticMap(sem.name, palette, Number(shade));
+              handleSemanticMap(sem.name, palette, Number(shade), cssClass);
           }}
         >
           {selectValue === '' && (
             <option value="" disabled>
-              {sem.value || '— custom —'}
+              {effectiveValue || '— custom —'}
             </option>
           )}
           {colorModel.palettes.map((p) => (
@@ -678,19 +846,61 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
         </select>
         <div
           className={styles.resolvedSwatch}
-          style={{ background: sem.resolved ?? 'transparent' }}
-          data-broken={sem.resolved === null}
-          title={sem.resolved ?? 'unresolved reference'}
+          style={{ background: resolved ?? 'transparent' }}
+          data-broken={resolved === null}
+          title={resolved ?? 'unresolved reference'}
         />
-        <Tooltip label="Delete token">
-          <button
-            className={styles.tokenDelete}
-            onClick={() => handleDeleteRequest(index)}
-            type="button"
-          >
-            x
-          </button>
-        </Tooltip>
+        {isLightRow && (
+          <Tooltip label="Delete token">
+            <button
+              className={styles.tokenDelete}
+              onClick={() => handleDeleteRequest(index)}
+              type="button"
+            >
+              x
+            </button>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
+
+  /** A stacked theme override block: header (rename + remove) + rows. */
+  const renderThemeBlock = (block: ThemeBlock): JSX.Element => {
+    const label = themeDefFromClass(block.cssClass).label;
+    const overrideMap = overrideMapFor(block.cssClass);
+    return (
+      <div
+        key={block.cssClass}
+        className={styles.themeBlock}
+        data-theme-block={block.cssClass}
+        data-token-row
+      >
+        <div className={styles.themeBlockHeader}>
+          <input
+            type="text"
+            className={styles.themeBlockName}
+            defaultValue={label}
+            aria-label={`Theme name for ${label}`}
+            onBlur={(e) => handleRenameTheme(block.cssClass, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+          />
+          <Tooltip label="Remove theme">
+            <button
+              type="button"
+              className={styles.tokenDelete}
+              aria-label={`Remove ${label} theme`}
+              onClick={() => handleRemoveTheme(block.cssClass)}
+            >
+              x
+            </button>
+          </Tooltip>
+        </div>
+        {colorModel.semantic.map((sem) =>
+          renderSemanticRow(sem, block.cssClass, overrideMap)
+        )}
       </div>
     );
   };
@@ -867,16 +1077,42 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
               </button>
 
               <h4 className={styles.subheading}>Semantic</h4>
-              {colorModel.semantic.length === 0 && (
-                <div className={styles.empty}>No semantic colors yet.</div>
-              )}
-              {colorModel.semantic.map(renderSemanticRow)}
+              <div className={styles.themeHint}>
+                Semantic tokens map to primitives per theme. Define the token
+                set once on Light; add a theme to give each token a different
+                value. Preview a theme from the canvas toolbar.
+              </div>
+
+              {/* Light theme — owns the token set (names, add, delete). */}
+              <div className={styles.themeBlock} data-theme-block="light">
+                <div className={styles.themeBlockHeader}>
+                  <span className={styles.themeBlockName}>Light</span>
+                </div>
+                {colorModel.semantic.length === 0 && (
+                  <div className={styles.empty}>No semantic colors yet.</div>
+                )}
+                {colorModel.semantic.map((sem) =>
+                  renderSemanticRow(sem, '', null)
+                )}
+                <button
+                  className={styles.addButton}
+                  onClick={handleAddSemantic}
+                  type="button"
+                >
+                  + Add semantic color
+                </button>
+              </div>
+
+              {/* One stacked block per additional theme. */}
+              {localOverrides.map(renderThemeBlock)}
+
               <button
                 className={styles.addButton}
-                onClick={handleAddSemantic}
+                onClick={handleAddTheme}
                 type="button"
+                data-testid="add-theme"
               >
-                + Add semantic color
+                + Add theme
               </button>
 
               {otherColorIndices.length > 0 && (

@@ -6,6 +6,7 @@ import { useSnapshotsStore } from '@store/snapshotsSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { Viewport } from '@renderer/src/canvas/Viewport';
 import { CanvasSizeControl } from '../CanvasSizeControl';
+import { ThemeSwitcher } from '../ThemeSwitcher';
 import { Toolbar } from '../Toolbar';
 import { SvgReloadBanner } from './SvgReloadBanner';
 import styles from '../ProjectShell.module.css';
@@ -43,7 +44,7 @@ export const CanvasArea = ({ activeComponent, activePageName, projectConfig, art
                                                 .getState()
                                                 .selectElement(ROOT_ELEMENT_ID), title: "Select component root", children: activeComponent.name })] })) : (_jsx("button", { type: "button", className: styles.canvasHeaderBadge, onClick: () => useCanvasStore
                                         .getState()
-                                        .selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(CanvasSizeControl, { config: projectConfig, onChange: onProjectConfigChange, componentName: activeComponent !== null
+                                        .selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(ThemeSwitcher, {}), _jsx(CanvasSizeControl, { config: projectConfig, onChange: onProjectConfigChange, componentName: activeComponent !== null
                                         ? activeComponent.name
                                         : undefined })] }), _jsx(Viewport, { canvasWidth: activeComponent !== null
                                 ? (projectConfig.componentCanvas?.[activeComponent.name]

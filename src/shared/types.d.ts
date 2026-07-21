@@ -265,6 +265,19 @@ export type ThemeToken = {
     /** The resolved value, e.g. `#3b82f6`. */
     value: string;
 };
+/**
+ * A theme in the design system's theme switcher. `light` is the default,
+ * living in the `:root` block; other themes override semantic tokens
+ * inside a CSS class block (`.dark`, `.theme-<slug>`).
+ */
+export type ThemeDef = {
+    /** Stable id: 'light' for the :root default, else the class slug ('dark', 'high-contrast'). */
+    id: string;
+    /** Human label shown on the theme tab ('Light', 'Dark', 'High contrast'). */
+    label: string;
+    /** CSS class the theme's overrides live under; '' for the light/:root default. */
+    cssClass: string;
+};
 export type CopyImageArgs = {
     sourcePath: string;
     projectPath: string;

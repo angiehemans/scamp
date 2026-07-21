@@ -1,8 +1,24 @@
 import postcss from 'postcss';
-import type { ThemeToken } from '@shared/types';
+import type { ThemeDef, ThemeToken } from '@shared/types';
+
+/**
+ * A per-theme override block — the semantic tokens declared inside a
+ * `.dark` / `.theme-<slug>` CSS class. `cssClass` is the selector class
+ * without the leading dot (`dark`, `theme-high-contrast`).
+ */
+export type ThemeBlock = {
+  cssClass: string;
+  tokens: ThemeToken[];
+};
 
 export type ParsedTheme = {
   tokens: ThemeToken[];
+  /**
+   * Per-theme override blocks (`.dark` / `.theme-*`). Optional so
+   * existing single-theme callers can keep passing `{ tokens,
+   * fontImportUrls }`. Order is source order.
+   */
+  themes?: ThemeBlock[];
   /**
    * Ordered `url(...)` values from top-level `@import` at-rules. We
    * care about these because projects track Google Fonts embeds here;
@@ -10,6 +26,60 @@ export type ParsedTheme = {
    * canvas preview and to merge Google families into the font picker.
    */
   fontImportUrls: string[];
+};
+
+/** Class selector for a theme override block. `theme-<slug>` for customs. */
+const THEME_CLASS_RE = /^\.(dark|theme-[\w-]+)$/;
+
+/**
+ * Derive a `ThemeDef` from a theme block's CSS class. `dark` → the
+ * built-in Dark theme; `theme-<slug>` → a custom theme whose id is the
+ * slug and whose label is the slug title-cased.
+ */
+export const themeDefFromClass = (cssClass: string): ThemeDef => {
+  if (cssClass === 'dark') return { id: 'dark', label: 'Dark', cssClass };
+  const slug = cssClass.startsWith('theme-')
+    ? cssClass.slice('theme-'.length)
+    : cssClass;
+  const label = slug
+    .split('-')
+    .filter((w) => w.length > 0)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return { id: slug, label: label || slug, cssClass };
+};
+
+/** The light theme is always present, backed by the `:root` block. */
+export const LIGHT_THEME: ThemeDef = { id: 'light', label: 'Light', cssClass: '' };
+
+/**
+ * The ordered theme list for a parsed file: Light (always) followed by
+ * each override block in source order.
+ */
+export const themeDefsFromParsed = (parsed: ParsedTheme): ThemeDef[] => [
+  LIGHT_THEME,
+  ...(parsed.themes ?? []).map((b) => themeDefFromClass(b.cssClass)),
+];
+
+/**
+ * Flatten to the token list for one theme: the base `:root` tokens with
+ * the theme's semantic overrides applied by name. Primitives and
+ * typography (which never appear in override blocks) pass through
+ * unchanged; an override naming a token absent from the base is appended.
+ */
+export const deriveThemeTokens = (
+  base: ReadonlyArray<ThemeToken>,
+  overrides: ReadonlyArray<ThemeToken>
+): ThemeToken[] => {
+  if (overrides.length === 0) return [...base];
+  const overrideMap = new Map(overrides.map((t) => [t.name, t.value]));
+  const baseNames = new Set(base.map((t) => t.name));
+  const merged = base.map((t) => {
+    const o = overrideMap.get(t.name);
+    return o !== undefined ? { name: t.name, value: o } : t;
+  });
+  const extra = overrides.filter((o) => !baseNames.has(o.name));
+  return [...merged, ...extra];
 };
 
 const IMPORT_URL_RE = /url\(\s*(?:"([^"]+)"|'([^']+)'|([^)\s]+))\s*\)/;
@@ -38,29 +108,40 @@ const extractImportUrl = (params: string): string | null => {
   return null;
 };
 
+/** Collect the `--*` declarations from a rule into an ordered token list. */
+const tokensFromRule = (rule: postcss.Rule): ThemeToken[] => {
+  const map = new Map<string, string>();
+  rule.walkDecls((decl) => {
+    if (decl.prop.startsWith('--')) map.set(decl.prop, decl.value);
+  });
+  return [...map.entries()].map(([name, value]) => ({ name, value }));
+};
+
 /**
  * Parse a CSS file and extract all custom properties (`--*`) from
- * `:root` rule blocks plus every top-level `@import` URL. Returns an
- * ordered list of tokens (last declaration wins on duplicates, same
- * as CSS cascade) and an ordered list of import URLs.
+ * `:root` rule blocks, every `.dark` / `.theme-*` theme override block,
+ * plus every top-level `@import` URL. Returns the `:root` tokens (last
+ * declaration wins on duplicates, same as CSS cascade), the per-theme
+ * override blocks in source order, and an ordered list of import URLs.
  *
- * Non-`:root` rules and non-custom-property declarations are ignored.
+ * Other rules and non-custom-property declarations are ignored.
  * Malformed CSS returns empty lists rather than throwing.
  */
 export const parseThemeFile = (css: string): ParsedTheme => {
   if (typeof css !== 'string' || css.trim().length === 0) {
-    return { tokens: [], fontImportUrls: [] };
+    return { tokens: [], themes: [], fontImportUrls: [] };
   }
 
   let root: postcss.Root;
   try {
     root = postcss.parse(css);
   } catch {
-    return { tokens: [], fontImportUrls: [] };
+    return { tokens: [], themes: [], fontImportUrls: [] };
   }
 
   const tokenMap = new Map<string, string>();
   const urls: string[] = [];
+  const themes: ThemeBlock[] = [];
 
   root.walkAtRules('import', (atRule) => {
     const url = extractImportUrl(atRule.params);
@@ -68,15 +149,27 @@ export const parseThemeFile = (css: string): ParsedTheme => {
   });
 
   root.walkRules((rule) => {
-    if (rule.selector.trim() !== ':root') return;
-    rule.walkDecls((decl) => {
-      if (!decl.prop.startsWith('--')) return;
-      tokenMap.set(decl.prop, decl.value);
-    });
+    const selector = rule.selector.trim();
+    if (selector === ':root') {
+      rule.walkDecls((decl) => {
+        if (decl.prop.startsWith('--')) tokenMap.set(decl.prop, decl.value);
+      });
+      return;
+    }
+    const m = selector.match(THEME_CLASS_RE);
+    if (m && m[1] !== undefined) {
+      const cssClass = m[1];
+      const tokens = tokensFromRule(rule);
+      if (tokens.length === 0) return;
+      const existing = themes.find((t) => t.cssClass === cssClass);
+      if (existing) existing.tokens.push(...tokens);
+      else themes.push({ cssClass, tokens });
+    }
   });
 
   return {
     tokens: [...tokenMap.entries()].map(([name, value]) => ({ name, value })),
+    themes,
     fontImportUrls: urls,
   };
 };
@@ -165,6 +258,44 @@ const mergeIntoExistingCss = (
     if (r && r.nodes.length === 0) r.remove();
   }
 
+  // Theme blocks: reconcile `.dark` / `.theme-*` rules to match the model.
+  // Strip their `--*` decls (keeping any hand-written non-custom CSS), then
+  // rewrite each model theme's tokens; drop managed blocks the model dropped.
+  const modelThemes = parsed.themes ?? [];
+  const themeRules: postcss.Rule[] = [];
+  root.walkRules((rule) => {
+    if (THEME_CLASS_RE.test(rule.selector.trim())) themeRules.push(rule);
+  });
+  for (const r of themeRules) {
+    r.walkDecls((decl) => {
+      if (decl.prop.startsWith('--')) decl.remove();
+    });
+  }
+  const modelClasses = new Set(modelThemes.map((t) => t.cssClass));
+  for (const block of modelThemes) {
+    const selector = `.${block.cssClass}`;
+    let rule = themeRules.find((r) => r.selector.trim() === selector);
+    if (!rule) {
+      rule = postcss.rule({ selector });
+      rule.raws.before = '\n\n';
+      rule.raws.between = ' ';
+      root.append(rule);
+      themeRules.push(rule);
+    }
+    rule.raws.after = '\n';
+    rule.raws.semicolon = true;
+    for (const t of block.tokens) {
+      const decl = postcss.decl({ prop: t.name, value: t.value });
+      decl.raws.before = '\n  ';
+      decl.raws.between = ': ';
+      rule.append(decl);
+    }
+  }
+  for (const r of themeRules) {
+    const cls = r.selector.trim().replace(/^\./, '');
+    if (!modelClasses.has(cls) && r.nodes.length === 0) r.remove();
+  }
+
   return root.toString();
 };
 
@@ -200,6 +331,12 @@ export const serializeThemeFile = (
   } else {
     const lines = parsed.tokens.map((t) => `  ${t.name}: ${t.value};`);
     parts.push(`:root {\n${lines.join('\n')}\n}`);
+  }
+  for (const block of parsed.themes ?? []) {
+    if (block.tokens.length === 0) continue;
+    const lines = block.tokens.map((t) => `  ${t.name}: ${t.value};`);
+    parts.push('');
+    parts.push(`.${block.cssClass} {\n${lines.join('\n')}\n}`);
   }
   return parts.join('\n') + '\n';
 };
