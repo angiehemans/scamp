@@ -22,8 +22,13 @@ const SHADE_LIGHTNESS: Record<number, number> = {
 export type PaletteShade = { shade: number; value: string };
 
 /**
- * Generate a 10-shade (50–900) palette from a single seed colour using OKLCH:
- * keep the seed's hue, walk lightness across the scale, and taper chroma
+ * Generate a 10-shade (50–900) palette from a single seed colour using OKLCH.
+ *
+ * The seed is treated as the **500 anchor**: the 500 shade is the seed's exact
+ * value, and the rest of the ramp is the standard lightness scale SHIFTED so it
+ * lines up with the seed's lightness. This means re-generating after changing
+ * the 500 shifts the whole palette to match the new colour, instead of snapping
+ * 500 back to a fixed mid-lightness. Hue is kept from the seed; chroma tapers
  * toward the light/dark ends where high chroma leaves the sRGB gamut. Returns
  * hex values, or `[]` if the seed can't be parsed.
  * see docs/plans/design-system-plan.md
@@ -33,8 +38,13 @@ export const generatePalette = (seedHex: string): PaletteShade[] => {
   if (!seed) return [];
   const h = seed.h ?? 0;
   const c = seed.c ?? 0;
+  const anchor = SHADE_LIGHTNESS[500] ?? 0.606;
+  // Shift the whole ramp so shade 500 sits at the seed's lightness.
+  const delta = (seed.l ?? anchor) - anchor;
   return PALETTE_SHADES.map((shade) => {
-    const l = SHADE_LIGHTNESS[shade] ?? 0.5;
+    // Keep the anchor shade as the seed's exact colour.
+    if (shade === 500) return { shade, value: seedHex };
+    const l = Math.min(0.99, Math.max(0.02, (SHADE_LIGHTNESS[shade] ?? 0.5) + delta));
     // Full chroma near the middle of the ramp, reduced toward the extremes.
     const taper = 1 - Math.abs(l - 0.6) * 0.7;
     const clamped = clampChroma(

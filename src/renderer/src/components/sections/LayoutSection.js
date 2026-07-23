@@ -7,7 +7,7 @@ import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { SpaceValueInput } from '../controls/SpaceValueInput';
-import { classifyToken } from '@lib/tokenClassify';
+import { tokensForField } from '@lib/tokensForField';
 import { Section, Row } from './Section';
 const ICON_SIZE = 16;
 const LAYOUT_OPTIONS = [
@@ -110,7 +110,8 @@ export const LayoutSection = ({ elementId }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);
     const themeTokens = useCanvasStore((s) => s.themeTokens);
     const openThemePanel = useCanvasStore((s) => s.openThemePanel);
-    const spacingTokens = useMemo(() => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'), [themeTokens]);
+    // Gap is a spacing property → float `--space-*` tokens to the top.
+    const spacingTokens = useMemo(() => tokensForField('spacing', themeTokens), [themeTokens]);
     if (!element)
         return null;
     const isFlex = element.display === 'flex';

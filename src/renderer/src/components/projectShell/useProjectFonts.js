@@ -60,6 +60,7 @@ export const useProjectTheme = (projectPath) => {
             const content = await window.scamp.readTheme({ projectPath });
             const parsed = parseThemeFile(content);
             useCanvasStore.getState().setThemeData(parsed);
+            useCanvasStore.getState().setThemeCssRaw(content);
             // `applyThemeFonts` derives Google families synchronously from
             // each URL, surfaces any cached Adobe kit families, then kicks
             // off background fetches to refresh Adobe kits from the network.

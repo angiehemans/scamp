@@ -128,6 +128,16 @@ const emitChange = async (changedPath) => {
         }
         return;
     }
+    // DESIGN.md changes (Scamp's own regen OR an external/agent edit) get
+    // their own event so the renderer can read authored prose back into the
+    // Design System forms. The renderer ignores echoes of its own writes.
+    if (basename(changedPath) === 'DESIGN.md') {
+        const content = await readIfExists(changedPath);
+        if (content !== null && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(IPC.DesignMdChanged, content);
+        }
+        return;
+    }
     const ext = extname(changedPath);
     // An imported SVG's asset file changed externally. Only forward genuine
     // external edits (`consumed === null` — Scamp's own copyImage write

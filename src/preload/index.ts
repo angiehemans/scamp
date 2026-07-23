@@ -272,6 +272,22 @@ const api = {
     return () => ipcRenderer.removeListener(IPC.ThemeChanged, listener);
   },
 
+  // DESIGN.md (project-root design-system doc)
+  readDesignMd: (args: { projectPath: string }): Promise<string> =>
+    ipcRenderer.invoke(IPC.DesignMdRead, args),
+
+  writeDesignMd: (args: {
+    projectPath: string;
+    content: string;
+  }): Promise<void> => ipcRenderer.invoke(IPC.DesignMdWrite, args),
+
+  onDesignMdChanged: (handler: (content: string) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, content: string): void =>
+      handler(content);
+    ipcRenderer.on(IPC.DesignMdChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.DesignMdChanged, listener);
+  },
+
   onSvgAssetChanged: (
     handler: (payload: SvgAssetChangedPayload) => void
   ): (() => void) => {

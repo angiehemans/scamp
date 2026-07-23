@@ -101,6 +101,14 @@ const api = {
         ipcRenderer.on(IPC.ThemeChanged, listener);
         return () => ipcRenderer.removeListener(IPC.ThemeChanged, listener);
     },
+    // DESIGN.md (project-root design-system doc)
+    readDesignMd: (args) => ipcRenderer.invoke(IPC.DesignMdRead, args),
+    writeDesignMd: (args) => ipcRenderer.invoke(IPC.DesignMdWrite, args),
+    onDesignMdChanged: (handler) => {
+        const listener = (_e, content) => handler(content);
+        ipcRenderer.on(IPC.DesignMdChanged, listener);
+        return () => ipcRenderer.removeListener(IPC.DesignMdChanged, listener);
+    },
     onSvgAssetChanged: (handler) => {
         const listener = (_e, payload) => handler(payload);
         ipcRenderer.on(IPC.SvgAssetChanged, listener);

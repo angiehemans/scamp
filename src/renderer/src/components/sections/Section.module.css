@@ -139,6 +139,16 @@
   margin-left: 0;
 }
 
+/* Preset icon accessory (Typography text-style / Shadows preset). The
+   margin-left:auto clusters it into the right-hand group next to the eye
+   / chevron. When the eye precedes it, the eye already anchors the group,
+   so this margin resolves to zero and the two sit adjacent. */
+.groupAccessory {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
 .groupToggleButton:hover {
   color: var(--text-primary);
   background: var(--bg-surface, transparent);

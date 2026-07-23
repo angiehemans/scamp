@@ -1,6 +1,7 @@
 import { type BreakpointOverride, type ElementAnimation, type ElementStateName, type KeyframesBlock, type PropertyGroup, type ScampElement } from '@lib/element';
 import { type Breakpoint, type ProjectFormat, type SvgAssetChangedPayload, type ThemeDef, type ThemeToken } from '@shared/types';
 import type { ParsedTheme, ThemeBlock } from '@lib/parseTheme';
+import type { DesignProse } from '@lib/designMd';
 export type Tool = 'select' | 'rectangle' | 'text' | 'image' | 'input';
 export type NewRectInput = {
     parentId: string;
@@ -376,6 +377,10 @@ export type CanvasState = {
     themes: ThemeDef[];
     /** Which theme is being previewed/edited. `light` uses the base tokens. */
     activeThemeId: string;
+    /** Raw theme.css text on disk — shown by the read-only Code panel. */
+    themeCssRaw: string;
+    /** Authored DESIGN.md prose (name / description / section bodies). */
+    designProse: DesignProse;
     /** Internal clipboard for copy/paste. Stores a snapshot of an element
      *  subtree at copy time, not a live reference. */
     clipboard: {
@@ -643,6 +648,10 @@ export type CanvasState = {
     setThemeData: (parsed: ParsedTheme) => void;
     /** Switch the previewed/edited theme; re-derives `themeTokens`. */
     setActiveTheme: (id: string) => void;
+    /** Store the raw theme.css text (for the Code panel). */
+    setThemeCssRaw: (raw: string) => void;
+    /** Set the authored DESIGN.md prose (from the Design System forms). */
+    setDesignProse: (prose: DesignProse) => void;
     /** Callback to open the theme panel. Set by ProjectShell on mount. */
     openThemePanel: (() => void) | null;
     setOpenThemePanel: (fn: (() => void) | null) => void;

@@ -8,11 +8,14 @@ import { classifyToken } from '@lib/tokenClassify';
 import { buildColorModel } from '@lib/colorModel';
 import { generatePalette } from '@lib/palette';
 import { resolveTokenChain } from '@lib/resolveToken';
+import { buildTextStyles, defaultTextStyleTokens, isTextStyleToken, textStyleTokenName, textStyleTokensFromTemplate, TEXT_STYLE_PROPS, } from '@lib/typographyModel';
+import { defaultTokensForRole, isDesignRoleToken, roleTokenName, tokensForRole, ROLE_LABEL, } from '@lib/tokenRoles';
 import { errorMessage } from '@shared/errorMessage';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { FontPicker } from './controls/FontPicker';
 import { Tooltip } from './controls/Tooltip';
+import { DesignDocSection } from './DesignDocSection';
 import styles from './ThemePanel.module.css';
 /** Category → default seed value when the user changes a typography
  * token's type via the badge menu. The classifier picks up the
@@ -94,7 +97,7 @@ const countTokenUsage = (elements, tokenName) => {
  * Tabs split tokens by inferred category (colors / typography / unknown).
  * Changes write to theme.css on disk; chokidar hot-reloads them.
  */
-export const ThemePanel = ({ projectPath, onClose }) => {
+export const ThemePanel = ({ projectPath }) => {
     // `localTokens` mirrors the base (:root) tokens — primitives + light
     // semantic + typography, all GLOBAL across themes. `localOverrides`
     // holds the per-theme semantic overrides (.dark / .theme-*). The
@@ -117,6 +120,8 @@ export const ThemePanel = ({ projectPath, onClose }) => {
     const [pendingDelete, setPendingDelete] = useState(null);
     /** Palette pending deletion — set only when a semantic token references it. */
     const [pendingPaletteDelete, setPendingPaletteDelete] = useState(null);
+    /** Text style pending deletion — set only when elements reference it. */
+    const [pendingTextStyleDelete, setPendingTextStyleDelete] = useState(null);
     /**
      * Which token's badge-picker menu is currently open. Carries the
      * trigger button's viewport rect so we can portal the menu out of
@@ -166,7 +171,13 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         let typography = 0;
         let unknown = 0;
         categories.forEach((c, i) => {
-            if (inColors(c, localTokens[i]?.name ?? ''))
+            const name = localTokens[i]?.name ?? '';
+            // Text-style group tokens (`--text-h1-size`, …) and design-role
+            // tokens (`--space/border/radius/shadow-*`) have their own sections;
+            // keep them out of the generic buckets.
+            if (isTextStyleToken(name) || isDesignRoleToken(name))
+                return;
+            if (inColors(c, name))
                 colors += 1;
             else if (TYPOGRAPHY_CATEGORIES.has(c))
                 typography += 1;
@@ -183,6 +194,10 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         const unknown = [];
         categories.forEach((c, i) => {
             const name = localTokens[i]?.name ?? '';
+            // Owned by the Text styles / Spacing / Border / Radius / Shadow
+            // sections (routed by name); keep out of the generic buckets.
+            if (isTextStyleToken(name) || isDesignRoleToken(name))
+                return;
             if (inColors(c, name))
                 colors.push(i);
             else if (TYPOGRAPHY_CATEGORIES.has(c))
@@ -192,6 +207,8 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         });
         return { colors, typography, unknown };
     }, [categories, localTokens]);
+    // Text styles: grouped `--text-<name>-<prop>` tokens, edited as a set.
+    const textStyles = useMemo(() => buildTextStyles(localTokens), [localTokens]);
     // Structured VIEW over the flat colour tokens: primitive palettes +
     // semantic tokens. The flat list stays authoritative; every edit below
     // mutates it and reserializes. see docs/plans/design-system-plan.md
@@ -374,9 +391,10 @@ export const ThemePanel = ({ projectPath, onClose }) => {
     };
     /**
      * Regenerate a palette's whole ramp from its current 500 shade (or the
-     * middle shade if 500 is absent). Existing shade tokens are replaced;
-     * every other token — including semantic refs to this palette — is left
-     * untouched, so the mappings survive.
+     * middle shade if 500 is absent). Shade values are updated IN PLACE so
+     * the palette keeps its position in the list (rebuilding it at the end
+     * made the palette jump to the bottom). Semantic refs to this palette
+     * are left untouched, so the mappings survive.
      */
     const handleRegeneratePalette = (palette) => {
         const seedShade = palette.shades.find((s) => s.shade === 500) ??
@@ -386,12 +404,32 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         const shades = generatePalette(seedShade.value);
         if (shades.length === 0)
             return;
-        const kept = localTokens.filter((t) => !isPaletteShade(t.name, palette.name));
-        const regenerated = shades.map((s) => ({
-            name: `--color-${palette.name}-${s.shade}`,
-            value: s.value,
-        }));
-        applyTokens([...kept, ...regenerated]);
+        const valueByShade = new Map(shades.map((s) => [s.shade, s.value]));
+        const prefix = `--color-${palette.name}-`;
+        // Update existing shade tokens in place.
+        const used = new Set();
+        const next = localTokens.map((t) => {
+            if (!isPaletteShade(t.name, palette.name))
+                return t;
+            const shade = Number(t.name.slice(prefix.length));
+            const value = valueByShade.get(shade);
+            if (value === undefined)
+                return t;
+            used.add(shade);
+            return { ...t, value };
+        });
+        // Insert any generated shades the palette didn't have yet, right after
+        // its last existing shade so the block stays contiguous (no jump).
+        const extras = shades.filter((s) => !used.has(s.shade));
+        if (extras.length > 0) {
+            let lastIdx = -1;
+            next.forEach((t, i) => {
+                if (isPaletteShade(t.name, palette.name))
+                    lastIdx = i;
+            });
+            next.splice(lastIdx + 1, 0, ...extras.map((s) => ({ name: `${prefix}${s.shade}`, value: s.value })));
+        }
+        applyTokens(next);
     };
     /**
      * Rename a palette: rewrite every `--color-<old>-<shade>` token name AND
@@ -543,6 +581,155 @@ export const ThemePanel = ({ projectPath, onClose }) => {
         setLocalOverrides(nextOverrides);
         void persist(localTokens, nextOverrides);
     };
+    // --- Text styles (grouped --text-<name>-<prop> tokens) ---
+    /** Persist a base-token change that came from a text-style edit. */
+    const applyBaseTokens = (next) => {
+        setLocalTokens(next);
+        void persist(next, localOverrides);
+    };
+    /** How many elements reference any of a text style's tokens via var(). */
+    const countTextStyleUsage = (style) => {
+        const refs = TEXT_STYLE_PROPS.map((p) => `var(${textStyleTokenName(style.name, p)})`);
+        let count = 0;
+        for (const raw of Object.values(elements)) {
+            const el = raw;
+            const used = (el.fontFamily !== undefined && refs.includes(el.fontFamily)) ||
+                (el.fontSize !== undefined && refs.includes(el.fontSize)) ||
+                (el.lineHeight !== undefined && refs.includes(el.lineHeight)) ||
+                (el.letterSpacing !== undefined && refs.includes(el.letterSpacing));
+            if (used)
+                count += 1;
+        }
+        return count;
+    };
+    const nextTextStyleName = () => {
+        const existing = new Set(textStyles.map((s) => s.name));
+        let i = 1;
+        while (existing.has(`style-${i}`))
+            i += 1;
+        return `style-${i}`;
+    };
+    /** Add the full PRD default set — only the styles not already present. */
+    const handleAddDefaultTextStyles = () => {
+        const existingNames = new Set(textStyles.map((s) => s.name));
+        const existingTokenNames = new Set(localTokens.map((t) => t.name));
+        const toAdd = defaultTextStyleTokens().filter((t) => {
+            const m = t.name.match(/^--text-(.+)-\w+$/);
+            const styleName = m?.[1];
+            return (styleName !== undefined &&
+                !existingNames.has(styleName) &&
+                !existingTokenNames.has(t.name));
+        });
+        if (toAdd.length === 0)
+            return;
+        applyBaseTokens([...localTokens, ...toAdd]);
+        scrollTargetSection.current = 'typography';
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
+    /** Add one blank text style seeded from the Body template. */
+    const handleAddTextStyle = () => {
+        const name = nextTextStyleName();
+        const tokens = textStyleTokensFromTemplate({
+            name,
+            size: '1rem',
+            weight: '400',
+            leading: '1.5',
+        });
+        applyBaseTokens([...localTokens, ...tokens]);
+        scrollTargetSection.current = 'typography';
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
+    /** Set one prop of a text style, creating the token if absent. */
+    const handleTextStyleProp = (styleName, prop, value) => {
+        const tokenName = textStyleTokenName(styleName, prop);
+        const trimmed = value.trim();
+        // Empty value removes an optional token (e.g. clearing tracking).
+        if (trimmed === '') {
+            applyBaseTokens(localTokens.filter((t) => t.name !== tokenName));
+            return;
+        }
+        const exists = localTokens.some((t) => t.name === tokenName);
+        const next = exists
+            ? localTokens.map((t) => t.name === tokenName ? { ...t, value: trimmed } : t)
+            : [...localTokens, { name: tokenName, value: trimmed }];
+        applyBaseTokens(next);
+    };
+    /** Rename a text style — moves every `--text-<old>-<prop>` token. */
+    const handleRenameTextStyle = (oldName, rawName) => {
+        const slug = slugify(rawName);
+        if (slug === '' || slug === oldName)
+            return;
+        if (textStyles.some((s) => s.name === slug)) {
+            setError(`Text style "${rawName.trim()}" already exists`);
+            return;
+        }
+        const oldPrefix = `--text-${oldName}-`;
+        const next = localTokens.map((t) => t.name.startsWith(oldPrefix) && isTextStyleToken(t.name)
+            ? { ...t, name: `--text-${slug}-${t.name.slice(oldPrefix.length)}` }
+            : t);
+        setError(null);
+        applyBaseTokens(next);
+    };
+    const handleDeleteTextStyleRequest = (style) => {
+        const usageCount = countTextStyleUsage(style);
+        if (usageCount > 0) {
+            setPendingTextStyleDelete({ style, usageCount });
+            return;
+        }
+        confirmDeleteTextStyle(style);
+    };
+    const confirmDeleteTextStyle = (style) => {
+        const prefix = `--text-${style.name}-`;
+        const next = localTokens.filter((t) => !(t.name.startsWith(prefix) && isTextStyleToken(t.name)));
+        setPendingTextStyleDelete(null);
+        applyBaseTokens(next);
+    };
+    // --- Design-role tokens (spacing / border / radius / shadow) ---
+    const handleAddDefaultRole = (role) => {
+        const existing = new Set(localTokens.map((t) => t.name));
+        const toAdd = defaultTokensForRole(role).filter((t) => !existing.has(t.name));
+        if (toAdd.length === 0)
+            return;
+        applyBaseTokens([...localTokens, ...toAdd]);
+        scrollTargetSection.current = role;
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
+    const handleAddRoleToken = (role) => {
+        const used = new Set(tokensForRole(role, localTokens).map((t) => t.label));
+        let i = 1;
+        while (used.has(String(i)))
+            i += 1;
+        const value = role === 'shadow' ? '0 1px 2px rgba(0, 0, 0, 0.1)' : '8px';
+        applyBaseTokens([
+            ...localTokens,
+            { name: roleTokenName(role, String(i)), value },
+        ]);
+        scrollTargetSection.current = role;
+        setScrollToEndAfterAdd((n) => n + 1);
+    };
+    const handleRoleTokenValue = (name, value) => {
+        const trimmed = value.trim();
+        if (trimmed === '')
+            return;
+        applyBaseTokens(localTokens.map((t) => (t.name === name ? { ...t, value: trimmed } : t)));
+    };
+    const handleRenameRoleToken = (role, oldName, rawLabel) => {
+        const label = rawLabel.trim();
+        if (label === '')
+            return;
+        const newName = roleTokenName(role, label);
+        if (newName === oldName)
+            return;
+        if (localTokens.some((t) => t.name === newName)) {
+            setError(`${newName} already exists`);
+            return;
+        }
+        setError(null);
+        applyBaseTokens(localTokens.map((t) => (t.name === oldName ? { ...t, name: newName } : t)));
+    };
+    const handleDeleteRoleToken = (name) => {
+        applyBaseTokens(localTokens.filter((t) => t.name !== name));
+    };
     /**
      * Reassign a typography token to a different category. We swap the
      * value for a category-appropriate seed; the classifier re-runs on
@@ -591,7 +778,7 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                     if (e.key === 'Enter')
                         e.currentTarget.blur();
                 } }), _jsx("div", { className: styles.tokenColor, children: _jsx(ColorInput, { value: token.value, onChange: (v) => handleColorChange(index, v) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
-    const renderPaletteBlock = (palette) => (_jsxs("div", { className: styles.palette, "data-token-row": true, children: [_jsxs("div", { className: styles.paletteHeader, children: [_jsx("input", { type: "text", className: styles.paletteName, defaultValue: palette.name, "aria-label": `Palette name for ${palette.name}`, onBlur: (e) => handleRenamePalette(palette.name, e.target.value), onKeyDown: (e) => {
+    const renderPaletteBlock = (palette) => (_jsxs("div", { className: styles.palette, "data-palette": palette.name, "data-token-row": true, children: [_jsxs("div", { className: styles.paletteHeader, children: [_jsx("input", { type: "text", className: styles.paletteName, defaultValue: palette.name, "aria-label": `Palette name for ${palette.name}`, onBlur: (e) => handleRenamePalette(palette.name, e.target.value), onKeyDown: (e) => {
                             if (e.key === 'Enter')
                                 e.currentTarget.blur();
                         } }), _jsx(Tooltip, { label: "Regenerate ramp from the 500 shade", children: _jsx("button", { type: "button", className: styles.generateButton, onClick: () => handleRegeneratePalette(palette), children: "Generate" }) }), _jsx(Tooltip, { label: "Delete palette", children: _jsx("button", { type: "button", className: styles.tokenDelete, onClick: () => handleDeletePaletteRequest(palette), children: "x" }) })] }), _jsx("div", { className: styles.shadeRow, children: palette.shades.map((shade) => {
@@ -633,6 +820,36 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                                     e.currentTarget.blur();
                             } }), _jsx(Tooltip, { label: "Remove theme", children: _jsx("button", { type: "button", className: styles.tokenDelete, "aria-label": `Remove ${label} theme`, onClick: () => handleRemoveTheme(block.cssClass), children: "x" }) })] }), colorModel.semantic.map((sem) => renderSemanticRow(sem, block.cssClass, overrideMap))] }, block.cssClass));
     };
+    /** A text-style block: rename/delete header + one row per prop. */
+    const renderTextStyleBlock = (style) => {
+        const values = {
+            family: style.family,
+            size: style.size,
+            weight: style.weight,
+            leading: style.leading,
+            tracking: style.tracking,
+        };
+        return (_jsxs("div", { className: styles.themeBlock, "data-text-style": style.name, "data-token-row": true, children: [_jsxs("div", { className: styles.themeBlockHeader, children: [_jsx("input", { type: "text", className: styles.themeBlockName, defaultValue: style.label, "aria-label": `Text style name for ${style.label}`, onBlur: (e) => handleRenameTextStyle(style.name, e.target.value), onKeyDown: (e) => {
+                                if (e.key === 'Enter')
+                                    e.currentTarget.blur();
+                            } }), _jsx(Tooltip, { label: "Delete text style", children: _jsx("button", { type: "button", className: styles.tokenDelete, "aria-label": `Delete ${style.label} text style`, onClick: () => handleDeleteTextStyleRequest(style), children: "x" }) })] }), TEXT_STYLE_PROPS.map((prop) => (_jsxs("div", { className: styles.textStyleRow, children: [_jsx("span", { className: styles.textStyleLabel, children: prop }), _jsx("input", { type: "text", className: styles.tokenValue, defaultValue: values[prop] ?? '', "aria-label": `${style.label} ${prop}`, placeholder: prop === 'tracking' ? '(none)' : prop, onBlur: (e) => handleTextStyleProp(style.name, prop, e.target.value), onKeyDown: (e) => {
+                                if (e.key === 'Enter')
+                                    e.currentTarget.blur();
+                            } }, `${prop}:${values[prop] ?? ''}`)] }, prop)))] }, style.name));
+    };
+    /** One row of a design-role section: editable label + value (+ preview). */
+    const renderRoleRow = (role, token) => (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, defaultValue: token.label, "aria-label": `${ROLE_LABEL[role]} token name for ${token.label}`, onBlur: (e) => handleRenameRoleToken(role, token.name, e.target.value), onKeyDown: (e) => {
+                    if (e.key === 'Enter')
+                        e.currentTarget.blur();
+                } }, `name:${token.name}`), role === 'radius' && (_jsx("span", { className: styles.radiusPreview, style: { borderRadius: token.value }, "aria-hidden": true })), _jsx("input", { type: "text", className: role === 'shadow' ? styles.shadowValue : styles.tokenValue, defaultValue: token.value, "aria-label": `${token.label} value`, onBlur: (e) => handleRoleTokenValue(token.name, e.target.value), onKeyDown: (e) => {
+                    if (e.key === 'Enter')
+                        e.currentTarget.blur();
+                } }, `val:${token.value}`), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRoleToken(token.name), type: "button", children: "x" }) })] }, token.name));
+    /** A design-role section (Spacing / Border widths / Radius / Shadows). */
+    const renderRoleSection = (role) => {
+        const roleTokens = tokensForRole(role, localTokens);
+        return (_jsxs("section", { className: styles.section, "data-theme-section": role, children: [_jsx("h3", { className: styles.sectionTitle, children: ROLE_LABEL[role] }), roleTokens.length === 0 ? (_jsxs("div", { className: styles.empty, children: [_jsxs("div", { children: ["No ", ROLE_LABEL[role].toLowerCase(), " tokens yet."] }), _jsxs("button", { className: styles.addButton, onClick: () => handleAddDefaultRole(role), type: "button", "data-testid": `add-default-${role}`, children: ["+ Add default ", ROLE_LABEL[role].toLowerCase()] })] })) : (roleTokens.map((t) => renderRoleRow(role, t))), _jsxs("button", { className: styles.addButton, onClick: () => handleAddRoleToken(role), type: "button", "data-testid": `add-${role}`, children: ["+ Add ", role, " token"] })] }, role));
+    };
     const renderTypographyRow = (index, token, category) => {
         const isFontFamily = category === 'fontFamily';
         const badgeOpen = badgeMenuFor?.index === index;
@@ -655,20 +872,31 @@ export const ThemePanel = ({ projectPath, onClose }) => {
                                 e.currentTarget.blur();
                         }, placeholder: "value" })) }), _jsx("div", { className: styles.badgeWrap, children: _jsx(Tooltip, { label: "Change token type", children: _jsxs("button", { type: "button", className: `${styles.tokenBadge} ${styles.tokenBadgeButton}`, onClick: handleBadgeClick, "aria-haspopup": "menu", "aria-expanded": badgeOpen, children: [categoryBadge(category), " ", _jsx("span", { children: "\u25BE" })] }) }) }), _jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) })] }, index));
     };
-    return (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.editor, "data-testid": "theme-panel", children: [_jsxs("div", { className: styles.header, children: [_jsx("h2", { className: styles.title, children: "Theme" }), _jsx("button", { className: styles.closeButton, onClick: onClose, type: "button", "aria-label": "Close theme panel", children: "\u00D7" })] }), isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), pendingPaletteDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingPaletteDelete.palette.name }), " is referenced by ", pendingPaletteDelete.refCount, " semantic token", pendingPaletteDelete.refCount > 1 ? 's' : '', ", which will break. Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingPaletteDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDeletePalette(pendingPaletteDelete.palette), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), _jsx("h4", { className: styles.subheading, children: "Primitives" }), colorModel.palettes.length === 0 && (_jsx("div", { className: styles.empty, children: "No palettes yet." })), colorModel.palettes.map(renderPaletteBlock), _jsx("button", { className: styles.addButton, onClick: handleAddPalette, type: "button", children: "+ Add palette" }), _jsx("h4", { className: styles.subheading, children: "Semantic" }), _jsx("div", { className: styles.themeHint, children: "Semantic tokens map to primitives per theme. Define the token set once on Light; add a theme to give each token a different value. Preview a theme from the canvas toolbar." }), _jsxs("div", { className: styles.themeBlock, "data-theme-block": "light", children: [_jsx("div", { className: styles.themeBlockHeader, children: _jsx("span", { className: styles.themeBlockName, children: "Light" }) }), colorModel.semantic.length === 0 && (_jsx("div", { className: styles.empty, children: "No semantic colors yet." })), colorModel.semantic.map((sem) => renderSemanticRow(sem, '', null)), _jsx("button", { className: styles.addButton, onClick: handleAddSemantic, type: "button", children: "+ Add semantic color" })] }), localOverrides.map(renderThemeBlock), _jsx("button", { className: styles.addButton, onClick: handleAddTheme, type: "button", "data-testid": "add-theme", children: "+ Add theme" }), otherColorIndices.length > 0 && (_jsxs(_Fragment, { children: [_jsx("h4", { className: styles.subheading, children: "Other" }), otherColorIndices.map((i) => {
-                                                const token = localTokens[i];
-                                                return token ? renderColorRow(i, token) : null;
-                                            })] }))] }), _jsxs("section", { className: styles.section, "data-theme-section": "typography", children: [_jsx("h3", { className: styles.sectionTitle, children: "Typography" }), grouped.typography.length === 0 && (_jsx("div", { className: styles.empty, children: "No typography tokens yet." })), grouped.typography.map((i) => {
-                                        const token = localTokens[i];
-                                        if (!token)
-                                            return null;
-                                        return renderTypographyRow(i, token, categories[i] ?? 'unknown');
-                                    }), _jsx("button", { className: styles.addButton, onClick: () => handleAddToken('typography'), type: "button", children: "+ Add Typography" })] }), grouped.unknown.length > 0 && (_jsxs("section", { className: styles.section, "data-theme-section": "unknown", children: [_jsx("h3", { className: styles.sectionTitle, children: "Unknown" }), grouped.unknown.map((i) => {
-                                        const token = localTokens[i];
-                                        if (!token)
-                                            return null;
-                                        return renderTypographyRow(i, token, categories[i] ?? 'unknown');
-                                    })] }))] }))] }), badgeMenuFor !== null &&
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.editor, "data-testid": "theme-panel", children: isLegacy ? (_jsx("div", { className: styles.legacyNotice, children: "Theme editing needs the Next.js project format. Migrate this project (using the banner above the canvas) to edit its design system." })) : (_jsxs("div", { ref: editorRef, className: styles.scroll, children: [error && _jsx("div", { className: styles.error, children: error }), pendingDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingDelete.name }), " is used by", ' ', pendingDelete.usageCount, " element", pendingDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDelete(pendingDelete.index), children: "Delete" })] })] })), pendingPaletteDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingPaletteDelete.palette.name }), " is referenced by ", pendingPaletteDelete.refCount, " semantic token", pendingPaletteDelete.refCount > 1 ? 's' : '', ", which will break. Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingPaletteDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDeletePalette(pendingPaletteDelete.palette), children: "Delete" })] })] })), pendingTextStyleDelete && (_jsxs("div", { className: styles.warning, children: [_jsx("strong", { children: pendingTextStyleDelete.style.label }), " is used by", ' ', pendingTextStyleDelete.usageCount, " element", pendingTextStyleDelete.usageCount > 1 ? 's' : '', ". Delete anyway?", _jsxs("div", { className: styles.warningActions, children: [_jsx(Button, { variant: "secondary", size: "sm", onClick: () => setPendingTextStyleDelete(null), children: "Cancel" }), _jsx(Button, { variant: "destructive", size: "sm", onClick: () => confirmDeleteTextStyle(pendingTextStyleDelete.style), children: "Delete" })] })] })), _jsxs("section", { className: styles.section, "data-theme-section": "colors", children: [_jsx("h3", { className: styles.sectionTitle, children: "Colors" }), _jsx("h4", { className: styles.subheading, children: "Primitives" }), colorModel.palettes.length === 0 && (_jsx("div", { className: styles.empty, children: "No palettes yet." })), colorModel.palettes.map(renderPaletteBlock), _jsx("button", { className: styles.addButton, onClick: handleAddPalette, type: "button", children: "+ Add palette" }), _jsx("h4", { className: styles.subheading, children: "Semantic" }), _jsx("div", { className: styles.themeHint, children: "Semantic tokens map to primitives per theme. Define the token set once on Light; add a theme to give each token a different value. Preview a theme from the canvas toolbar." }), _jsxs("div", { className: styles.themeBlock, "data-theme-block": "light", children: [_jsx("div", { className: styles.themeBlockHeader, children: _jsx("span", { className: styles.themeBlockName, children: "Light" }) }), colorModel.semantic.length === 0 && (_jsx("div", { className: styles.empty, children: "No semantic colors yet." })), colorModel.semantic.map((sem) => renderSemanticRow(sem, '', null)), _jsx("button", { className: styles.addButton, onClick: handleAddSemantic, type: "button", children: "+ Add semantic color" })] }), localOverrides.map(renderThemeBlock), _jsx("button", { className: styles.addButton, onClick: handleAddTheme, type: "button", "data-testid": "add-theme", children: "+ Add theme" }), otherColorIndices.length > 0 && (_jsxs(_Fragment, { children: [_jsx("h4", { className: styles.subheading, children: "Other" }), otherColorIndices.map((i) => {
+                                            const token = localTokens[i];
+                                            return token ? renderColorRow(i, token) : null;
+                                        })] }))] }), _jsxs("section", { className: styles.section, "data-theme-section": "typography", children: [_jsx("h3", { className: styles.sectionTitle, children: "Typography" }), _jsx("h4", { className: styles.subheading, children: "Font families" }), grouped.typography.filter((i) => categories[i] === 'fontFamily')
+                                    .length === 0 && (_jsx("div", { className: styles.empty, children: "No font family tokens yet." })), grouped.typography
+                                    .filter((i) => categories[i] === 'fontFamily')
+                                    .map((i) => {
+                                    const token = localTokens[i];
+                                    if (!token)
+                                        return null;
+                                    return renderTypographyRow(i, token, 'fontFamily');
+                                }), _jsx("h4", { className: styles.subheading, children: "Type scale" }), grouped.typography.filter((i) => categories[i] !== 'fontFamily')
+                                    .length === 0 && (_jsx("div", { className: styles.empty, children: "No type-scale tokens yet." })), grouped.typography
+                                    .filter((i) => categories[i] !== 'fontFamily')
+                                    .map((i) => {
+                                    const token = localTokens[i];
+                                    if (!token)
+                                        return null;
+                                    return renderTypographyRow(i, token, categories[i] ?? 'unknown');
+                                }), _jsx("button", { className: styles.addButton, onClick: () => handleAddToken('typography'), type: "button", children: "+ Add typography token" }), _jsx("h4", { className: styles.subheading, children: "Text styles" }), _jsx("div", { className: styles.themeHint, children: "A text style groups font family, size, weight, and line height under one name (H1, Body\u2026). Apply a whole style to an element from the Typography panel\u2019s \u201CText style\u201D dropdown." }), textStyles.length === 0 ? (_jsxs("div", { className: styles.empty, children: [_jsx("div", { children: "No text styles yet." }), _jsx("button", { className: styles.addButton, onClick: handleAddDefaultTextStyles, type: "button", "data-testid": "add-default-text-styles", children: "+ Add default text styles" })] })) : (textStyles.map(renderTextStyleBlock)), _jsx("button", { className: styles.addButton, onClick: handleAddTextStyle, type: "button", "data-testid": "add-text-style", children: "+ Add text style" })] }), renderRoleSection('spacing'), renderRoleSection('border'), renderRoleSection('radius'), renderRoleSection('shadow'), _jsx(DesignDocSection, {}), grouped.unknown.length > 0 && (_jsxs("section", { className: styles.section, "data-theme-section": "unknown", children: [_jsx("h3", { className: styles.sectionTitle, children: "Unknown" }), grouped.unknown.map((i) => {
+                                    const token = localTokens[i];
+                                    if (!token)
+                                        return null;
+                                    return renderTypographyRow(i, token, categories[i] ?? 'unknown');
+                                })] }))] })) }), badgeMenuFor !== null &&
                 createPortal(_jsxs(_Fragment, { children: [_jsx("div", { className: styles.badgeMenuBackdrop, onMouseDown: closeBadgeMenu }), _jsx("div", { className: styles.badgeMenu, role: "menu", style: {
                                 top: badgeMenuFor.anchor.bottom + 4,
                                 left: badgeMenuFor.anchor.right - 100,

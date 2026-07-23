@@ -78,6 +78,11 @@ export const IPC = {
   ThemeChanged: 'theme:changed',
   ThemeWrite: 'theme:write',
 
+  // DESIGN.md (design-system documentation, project root)
+  DesignMdRead: 'designMd:read',
+  DesignMdWrite: 'designMd:write',
+  DesignMdChanged: 'designMd:changed',
+
   // Preview mode
   PreviewOpen: 'preview:open',
   PreviewStop: 'preview:stop',

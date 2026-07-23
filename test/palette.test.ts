@@ -26,6 +26,23 @@ describe('generatePalette', () => {
     expect(lightness[lightness.length - 1]).toBeLessThan(0.4);
   });
 
+  it('anchors shade 500 to the seed colour exactly', () => {
+    const palette = generatePalette('#b91c1c');
+    expect(palette.find((p) => p.shade === 500)?.value).toBe('#b91c1c');
+  });
+
+  it('shifts the whole ramp to match the seed (a darker seed → darker palette)', () => {
+    // Same hue family, different lightness anchors.
+    const light = generatePalette('#fca5a5'); // a light red
+    const dark = generatePalette('#7f1d1d'); // a dark red
+    const l = (p: ReturnType<typeof generatePalette>, s: number): number =>
+      oklch(p.find((x) => x.shade === s)?.value ?? '')?.l ?? 0;
+    // Every shade of the dark-anchored palette is darker than the light one.
+    for (const shade of [50, 300, 500, 700, 900]) {
+      expect(l(dark, shade)).toBeLessThan(l(light, shade));
+    }
+  });
+
   it('preserves the seed hue across the ramp', () => {
     const seedHue = oklch('#3b82f6')?.h ?? -1;
     const palette = generatePalette('#3b82f6');

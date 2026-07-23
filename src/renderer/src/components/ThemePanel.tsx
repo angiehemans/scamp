@@ -20,12 +20,34 @@ import { classifyToken, type TokenCategory } from '@lib/tokenClassify';
 import { buildColorModel, type PrimitivePalette } from '@lib/colorModel';
 import { generatePalette } from '@lib/palette';
 import { resolveTokenChain } from '@lib/resolveToken';
+import {
+  buildTextStyles,
+  defaultTextStyleTokens,
+  isTextStyleToken,
+  textStyleLabel,
+  textStyleTokenName,
+  textStyleTokensFromTemplate,
+  TEXT_STYLE_PROPS,
+  type TextStyle,
+  type TextStyleProp,
+} from '@lib/typographyModel';
+import {
+  defaultTokensForRole,
+  isDesignRoleToken,
+  isRoleToken,
+  roleTokenName,
+  tokensForRole,
+  ROLE_LABEL,
+  type RoleToken,
+  type TokenRole,
+} from '@lib/tokenRoles';
 import type { ThemeToken } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { FontPicker } from './controls/FontPicker';
 import { Tooltip } from './controls/Tooltip';
+import { DesignDocSection } from './DesignDocSection';
 import styles from './ThemePanel.module.css';
 
 /** Category → default seed value when the user changes a typography
@@ -52,7 +74,6 @@ const TYPOGRAPHY_CATEGORY_OPTIONS: ReadonlyArray<{
 
 type Props = {
   projectPath: string;
-  onClose: () => void;
 };
 
 type PendingDelete = {
@@ -64,7 +85,15 @@ type PendingDelete = {
 // The editor renders every section stacked in the main area; the left sidebar
 // nav (ThemeSectionNav) scroll-jumps to these via `data-theme-section`.
 // see docs/plans/design-system-plan.md
-export type ThemeSectionId = 'colors' | 'typography' | 'unknown';
+export type ThemeSectionId =
+  | 'colors'
+  | 'typography'
+  | 'spacing'
+  | 'border'
+  | 'radius'
+  | 'shadow'
+  | 'documentation'
+  | 'unknown';
 
 const TYPOGRAPHY_CATEGORIES: ReadonlySet<TokenCategory> = new Set<TokenCategory>([
   'fontSize',
@@ -141,7 +170,7 @@ const countTokenUsage = (
  * Tabs split tokens by inferred category (colors / typography / unknown).
  * Changes write to theme.css on disk; chokidar hot-reloads them.
  */
-export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
+export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
   // `localTokens` mirrors the base (:root) tokens — primitives + light
   // semantic + typography, all GLOBAL across themes. `localOverrides`
   // holds the per-theme semantic overrides (.dark / .theme-*). The
@@ -166,6 +195,11 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   const [pendingPaletteDelete, setPendingPaletteDelete] = useState<{
     palette: PrimitivePalette;
     refCount: number;
+  } | null>(null);
+  /** Text style pending deletion — set only when elements reference it. */
+  const [pendingTextStyleDelete, setPendingTextStyleDelete] = useState<{
+    style: TextStyle;
+    usageCount: number;
   } | null>(null);
   /**
    * Which token's badge-picker menu is currently open. Carries the
@@ -229,7 +263,12 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     let typography = 0;
     let unknown = 0;
     categories.forEach((c, i) => {
-      if (inColors(c, localTokens[i]?.name ?? '')) colors += 1;
+      const name = localTokens[i]?.name ?? '';
+      // Text-style group tokens (`--text-h1-size`, …) and design-role
+      // tokens (`--space/border/radius/shadow-*`) have their own sections;
+      // keep them out of the generic buckets.
+      if (isTextStyleToken(name) || isDesignRoleToken(name)) return;
+      if (inColors(c, name)) colors += 1;
       else if (TYPOGRAPHY_CATEGORIES.has(c)) typography += 1;
       else unknown += 1;
     });
@@ -244,12 +283,18 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     const unknown: number[] = [];
     categories.forEach((c, i) => {
       const name = localTokens[i]?.name ?? '';
+      // Owned by the Text styles / Spacing / Border / Radius / Shadow
+      // sections (routed by name); keep out of the generic buckets.
+      if (isTextStyleToken(name) || isDesignRoleToken(name)) return;
       if (inColors(c, name)) colors.push(i);
       else if (TYPOGRAPHY_CATEGORIES.has(c)) typography.push(i);
       else unknown.push(i);
     });
     return { colors, typography, unknown };
   }, [categories, localTokens]);
+
+  // Text styles: grouped `--text-<name>-<prop>` tokens, edited as a set.
+  const textStyles = useMemo(() => buildTextStyles(localTokens), [localTokens]);
 
   // Structured VIEW over the flat colour tokens: primitive palettes +
   // semantic tokens. The flat list stays authoritative; every edit below
@@ -447,9 +492,10 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
 
   /**
    * Regenerate a palette's whole ramp from its current 500 shade (or the
-   * middle shade if 500 is absent). Existing shade tokens are replaced;
-   * every other token — including semantic refs to this palette — is left
-   * untouched, so the mappings survive.
+   * middle shade if 500 is absent). Shade values are updated IN PLACE so
+   * the palette keeps its position in the list (rebuilding it at the end
+   * made the palette jump to the bottom). Semantic refs to this palette
+   * are left untouched, so the mappings survive.
    */
   const handleRegeneratePalette = (palette: PrimitivePalette): void => {
     const seedShade =
@@ -458,12 +504,36 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     if (!seedShade) return;
     const shades = generatePalette(seedShade.value);
     if (shades.length === 0) return;
-    const kept = localTokens.filter((t) => !isPaletteShade(t.name, palette.name));
-    const regenerated = shades.map((s) => ({
-      name: `--color-${palette.name}-${s.shade}`,
-      value: s.value,
-    }));
-    applyTokens([...kept, ...regenerated]);
+    const valueByShade = new Map(shades.map((s) => [s.shade, s.value]));
+    const prefix = `--color-${palette.name}-`;
+
+    // Update existing shade tokens in place.
+    const used = new Set<number>();
+    const next = localTokens.map((t) => {
+      if (!isPaletteShade(t.name, palette.name)) return t;
+      const shade = Number(t.name.slice(prefix.length));
+      const value = valueByShade.get(shade);
+      if (value === undefined) return t;
+      used.add(shade);
+      return { ...t, value };
+    });
+
+    // Insert any generated shades the palette didn't have yet, right after
+    // its last existing shade so the block stays contiguous (no jump).
+    const extras = shades.filter((s) => !used.has(s.shade));
+    if (extras.length > 0) {
+      let lastIdx = -1;
+      next.forEach((t, i) => {
+        if (isPaletteShade(t.name, palette.name)) lastIdx = i;
+      });
+      next.splice(
+        lastIdx + 1,
+        0,
+        ...extras.map((s) => ({ name: `${prefix}${s.shade}`, value: s.value }))
+      );
+    }
+
+    applyTokens(next);
   };
 
   /**
@@ -646,6 +716,191 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     void persist(localTokens, nextOverrides);
   };
 
+  // --- Text styles (grouped --text-<name>-<prop> tokens) ---
+
+  /** Persist a base-token change that came from a text-style edit. */
+  const applyBaseTokens = (next: ThemeToken[]): void => {
+    setLocalTokens(next);
+    void persist(next, localOverrides);
+  };
+
+  /** How many elements reference any of a text style's tokens via var(). */
+  const countTextStyleUsage = (style: TextStyle): number => {
+    const refs = TEXT_STYLE_PROPS.map(
+      (p) => `var(${textStyleTokenName(style.name, p)})`
+    );
+    let count = 0;
+    for (const raw of Object.values(elements)) {
+      const el = raw as {
+        fontFamily?: string;
+        fontSize?: string;
+        lineHeight?: string;
+        letterSpacing?: string;
+      };
+      const used =
+        (el.fontFamily !== undefined && refs.includes(el.fontFamily)) ||
+        (el.fontSize !== undefined && refs.includes(el.fontSize)) ||
+        (el.lineHeight !== undefined && refs.includes(el.lineHeight)) ||
+        (el.letterSpacing !== undefined && refs.includes(el.letterSpacing));
+      if (used) count += 1;
+    }
+    return count;
+  };
+
+  const nextTextStyleName = (): string => {
+    const existing = new Set(textStyles.map((s) => s.name));
+    let i = 1;
+    while (existing.has(`style-${i}`)) i += 1;
+    return `style-${i}`;
+  };
+
+  /** Add the full PRD default set — only the styles not already present. */
+  const handleAddDefaultTextStyles = (): void => {
+    const existingNames = new Set(textStyles.map((s) => s.name));
+    const existingTokenNames = new Set(localTokens.map((t) => t.name));
+    const toAdd = defaultTextStyleTokens().filter((t) => {
+      const m = t.name.match(/^--text-(.+)-\w+$/);
+      const styleName = m?.[1];
+      return (
+        styleName !== undefined &&
+        !existingNames.has(styleName) &&
+        !existingTokenNames.has(t.name)
+      );
+    });
+    if (toAdd.length === 0) return;
+    applyBaseTokens([...localTokens, ...toAdd]);
+    scrollTargetSection.current = 'typography';
+    setScrollToEndAfterAdd((n) => n + 1);
+  };
+
+  /** Add one blank text style seeded from the Body template. */
+  const handleAddTextStyle = (): void => {
+    const name = nextTextStyleName();
+    const tokens = textStyleTokensFromTemplate({
+      name,
+      size: '1rem',
+      weight: '400',
+      leading: '1.5',
+    });
+    applyBaseTokens([...localTokens, ...tokens]);
+    scrollTargetSection.current = 'typography';
+    setScrollToEndAfterAdd((n) => n + 1);
+  };
+
+  /** Set one prop of a text style, creating the token if absent. */
+  const handleTextStyleProp = (
+    styleName: string,
+    prop: TextStyleProp,
+    value: string
+  ): void => {
+    const tokenName = textStyleTokenName(styleName, prop);
+    const trimmed = value.trim();
+    // Empty value removes an optional token (e.g. clearing tracking).
+    if (trimmed === '') {
+      applyBaseTokens(localTokens.filter((t) => t.name !== tokenName));
+      return;
+    }
+    const exists = localTokens.some((t) => t.name === tokenName);
+    const next = exists
+      ? localTokens.map((t) =>
+          t.name === tokenName ? { ...t, value: trimmed } : t
+        )
+      : [...localTokens, { name: tokenName, value: trimmed }];
+    applyBaseTokens(next);
+  };
+
+  /** Rename a text style — moves every `--text-<old>-<prop>` token. */
+  const handleRenameTextStyle = (oldName: string, rawName: string): void => {
+    const slug = slugify(rawName);
+    if (slug === '' || slug === oldName) return;
+    if (textStyles.some((s) => s.name === slug)) {
+      setError(`Text style "${rawName.trim()}" already exists`);
+      return;
+    }
+    const oldPrefix = `--text-${oldName}-`;
+    const next = localTokens.map((t) =>
+      t.name.startsWith(oldPrefix) && isTextStyleToken(t.name)
+        ? { ...t, name: `--text-${slug}-${t.name.slice(oldPrefix.length)}` }
+        : t
+    );
+    setError(null);
+    applyBaseTokens(next);
+  };
+
+  const handleDeleteTextStyleRequest = (style: TextStyle): void => {
+    const usageCount = countTextStyleUsage(style);
+    if (usageCount > 0) {
+      setPendingTextStyleDelete({ style, usageCount });
+      return;
+    }
+    confirmDeleteTextStyle(style);
+  };
+
+  const confirmDeleteTextStyle = (style: TextStyle): void => {
+    const prefix = `--text-${style.name}-`;
+    const next = localTokens.filter(
+      (t) => !(t.name.startsWith(prefix) && isTextStyleToken(t.name))
+    );
+    setPendingTextStyleDelete(null);
+    applyBaseTokens(next);
+  };
+
+  // --- Design-role tokens (spacing / border / radius / shadow) ---
+
+  const handleAddDefaultRole = (role: TokenRole): void => {
+    const existing = new Set(localTokens.map((t) => t.name));
+    const toAdd = defaultTokensForRole(role).filter((t) => !existing.has(t.name));
+    if (toAdd.length === 0) return;
+    applyBaseTokens([...localTokens, ...toAdd]);
+    scrollTargetSection.current = role;
+    setScrollToEndAfterAdd((n) => n + 1);
+  };
+
+  const handleAddRoleToken = (role: TokenRole): void => {
+    const used = new Set(tokensForRole(role, localTokens).map((t) => t.label));
+    let i = 1;
+    while (used.has(String(i))) i += 1;
+    const value =
+      role === 'shadow' ? '0 1px 2px rgba(0, 0, 0, 0.1)' : '8px';
+    applyBaseTokens([
+      ...localTokens,
+      { name: roleTokenName(role, String(i)), value },
+    ]);
+    scrollTargetSection.current = role;
+    setScrollToEndAfterAdd((n) => n + 1);
+  };
+
+  const handleRoleTokenValue = (name: string, value: string): void => {
+    const trimmed = value.trim();
+    if (trimmed === '') return;
+    applyBaseTokens(
+      localTokens.map((t) => (t.name === name ? { ...t, value: trimmed } : t))
+    );
+  };
+
+  const handleRenameRoleToken = (
+    role: TokenRole,
+    oldName: string,
+    rawLabel: string
+  ): void => {
+    const label = rawLabel.trim();
+    if (label === '') return;
+    const newName = roleTokenName(role, label);
+    if (newName === oldName) return;
+    if (localTokens.some((t) => t.name === newName)) {
+      setError(`${newName} already exists`);
+      return;
+    }
+    setError(null);
+    applyBaseTokens(
+      localTokens.map((t) => (t.name === oldName ? { ...t, name: newName } : t))
+    );
+  };
+
+  const handleDeleteRoleToken = (name: string): void => {
+    applyBaseTokens(localTokens.filter((t) => t.name !== name));
+  };
+
   /**
    * Reassign a typography token to a different category. We swap the
    * value for a category-appropriate seed; the classifier re-runs on
@@ -728,7 +983,12 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   );
 
   const renderPaletteBlock = (palette: PrimitivePalette): JSX.Element => (
-    <div key={palette.name} className={styles.palette} data-token-row>
+    <div
+      key={palette.name}
+      className={styles.palette}
+      data-palette={palette.name}
+      data-token-row
+    >
       <div className={styles.paletteHeader}>
         <input
           type="text"
@@ -905,6 +1165,148 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
     );
   };
 
+  /** A text-style block: rename/delete header + one row per prop. */
+  const renderTextStyleBlock = (style: TextStyle): JSX.Element => {
+    const values: Record<TextStyleProp, string | null> = {
+      family: style.family,
+      size: style.size,
+      weight: style.weight,
+      leading: style.leading,
+      tracking: style.tracking,
+    };
+    return (
+      <div
+        key={style.name}
+        className={styles.themeBlock}
+        data-text-style={style.name}
+        data-token-row
+      >
+        <div className={styles.themeBlockHeader}>
+          <input
+            type="text"
+            className={styles.themeBlockName}
+            defaultValue={style.label}
+            aria-label={`Text style name for ${style.label}`}
+            onBlur={(e) => handleRenameTextStyle(style.name, e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+            }}
+          />
+          <Tooltip label="Delete text style">
+            <button
+              type="button"
+              className={styles.tokenDelete}
+              aria-label={`Delete ${style.label} text style`}
+              onClick={() => handleDeleteTextStyleRequest(style)}
+            >
+              x
+            </button>
+          </Tooltip>
+        </div>
+        {TEXT_STYLE_PROPS.map((prop) => (
+          <div key={prop} className={styles.textStyleRow}>
+            <span className={styles.textStyleLabel}>{prop}</span>
+            <input
+              type="text"
+              // Re-mount when the persisted value changes so the
+              // uncontrolled input reflects external edits.
+              key={`${prop}:${values[prop] ?? ''}`}
+              className={styles.tokenValue}
+              defaultValue={values[prop] ?? ''}
+              aria-label={`${style.label} ${prop}`}
+              placeholder={prop === 'tracking' ? '(none)' : prop}
+              onBlur={(e) => handleTextStyleProp(style.name, prop, e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  /** One row of a design-role section: editable label + value (+ preview). */
+  const renderRoleRow = (role: TokenRole, token: RoleToken): JSX.Element => (
+    <div key={token.name} className={styles.tokenRow} data-token-row>
+      <input
+        key={`name:${token.name}`}
+        type="text"
+        className={styles.tokenName}
+        defaultValue={token.label}
+        aria-label={`${ROLE_LABEL[role]} token name for ${token.label}`}
+        onBlur={(e) => handleRenameRoleToken(role, token.name, e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+      />
+      {role === 'radius' && (
+        <span
+          className={styles.radiusPreview}
+          style={{ borderRadius: token.value }}
+          aria-hidden
+        />
+      )}
+      <input
+        key={`val:${token.value}`}
+        type="text"
+        className={role === 'shadow' ? styles.shadowValue : styles.tokenValue}
+        defaultValue={token.value}
+        aria-label={`${token.label} value`}
+        onBlur={(e) => handleRoleTokenValue(token.name, e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+      />
+      <Tooltip label="Delete token">
+        <button
+          className={styles.tokenDelete}
+          onClick={() => handleDeleteRoleToken(token.name)}
+          type="button"
+        >
+          x
+        </button>
+      </Tooltip>
+    </div>
+  );
+
+  /** A design-role section (Spacing / Border widths / Radius / Shadows). */
+  const renderRoleSection = (role: TokenRole): JSX.Element => {
+    const roleTokens = tokensForRole(role, localTokens);
+    return (
+      <section
+        key={role}
+        className={styles.section}
+        data-theme-section={role}
+      >
+        <h3 className={styles.sectionTitle}>{ROLE_LABEL[role]}</h3>
+        {roleTokens.length === 0 ? (
+          <div className={styles.empty}>
+            <div>No {ROLE_LABEL[role].toLowerCase()} tokens yet.</div>
+            <button
+              className={styles.addButton}
+              onClick={() => handleAddDefaultRole(role)}
+              type="button"
+              data-testid={`add-default-${role}`}
+            >
+              + Add default {ROLE_LABEL[role].toLowerCase()}
+            </button>
+          </div>
+        ) : (
+          roleTokens.map((t) => renderRoleRow(role, t))
+        )}
+        <button
+          className={styles.addButton}
+          onClick={() => handleAddRoleToken(role)}
+          type="button"
+          data-testid={`add-${role}`}
+        >
+          + Add {role} token
+        </button>
+      </section>
+    );
+  };
+
   const renderTypographyRow = (
     index: number,
     token: ThemeToken,
@@ -986,18 +1388,6 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
   return (
     <>
       <div className={styles.editor} data-testid="theme-panel">
-        <div className={styles.header}>
-          <h2 className={styles.title}>Theme</h2>
-          <button
-            className={styles.closeButton}
-            onClick={onClose}
-            type="button"
-            aria-label="Close theme panel"
-          >
-            ×
-          </button>
-        </div>
-
         {isLegacy ? (
           <div className={styles.legacyNotice}>
             Theme editing needs the Next.js project format. Migrate this
@@ -1052,6 +1442,32 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
                 size="sm"
                 onClick={() =>
                   confirmDeletePalette(pendingPaletteDelete.palette)
+                }
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {pendingTextStyleDelete && (
+          <div className={styles.warning}>
+            <strong>{pendingTextStyleDelete.style.label}</strong> is used by{' '}
+            {pendingTextStyleDelete.usageCount} element
+            {pendingTextStyleDelete.usageCount > 1 ? 's' : ''}. Delete anyway?
+            <div className={styles.warningActions}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPendingTextStyleDelete(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                  confirmDeleteTextStyle(pendingTextStyleDelete.style)
                 }
               >
                 Delete
@@ -1128,22 +1544,81 @@ export const ThemePanel = ({ projectPath, onClose }: Props): JSX.Element => {
 
             <section className={styles.section} data-theme-section="typography">
               <h3 className={styles.sectionTitle}>Typography</h3>
-              {grouped.typography.length === 0 && (
-                <div className={styles.empty}>No typography tokens yet.</div>
+
+              <h4 className={styles.subheading}>Font families</h4>
+              {grouped.typography.filter((i) => categories[i] === 'fontFamily')
+                .length === 0 && (
+                <div className={styles.empty}>No font family tokens yet.</div>
               )}
-              {grouped.typography.map((i) => {
-                const token = localTokens[i];
-                if (!token) return null;
-                return renderTypographyRow(i, token, categories[i] ?? 'unknown');
-              })}
+              {grouped.typography
+                .filter((i) => categories[i] === 'fontFamily')
+                .map((i) => {
+                  const token = localTokens[i];
+                  if (!token) return null;
+                  return renderTypographyRow(i, token, 'fontFamily');
+                })}
+
+              <h4 className={styles.subheading}>Type scale</h4>
+              {grouped.typography.filter((i) => categories[i] !== 'fontFamily')
+                .length === 0 && (
+                <div className={styles.empty}>No type-scale tokens yet.</div>
+              )}
+              {grouped.typography
+                .filter((i) => categories[i] !== 'fontFamily')
+                .map((i) => {
+                  const token = localTokens[i];
+                  if (!token) return null;
+                  return renderTypographyRow(
+                    i,
+                    token,
+                    categories[i] ?? 'unknown'
+                  );
+                })}
               <button
                 className={styles.addButton}
                 onClick={() => handleAddToken('typography')}
                 type="button"
               >
-                + Add Typography
+                + Add typography token
+              </button>
+
+              <h4 className={styles.subheading}>Text styles</h4>
+              <div className={styles.themeHint}>
+                A text style groups font family, size, weight, and line height
+                under one name (H1, Body…). Apply a whole style to an element
+                from the Typography panel’s “Text style” dropdown.
+              </div>
+              {textStyles.length === 0 ? (
+                <div className={styles.empty}>
+                  <div>No text styles yet.</div>
+                  <button
+                    className={styles.addButton}
+                    onClick={handleAddDefaultTextStyles}
+                    type="button"
+                    data-testid="add-default-text-styles"
+                  >
+                    + Add default text styles
+                  </button>
+                </div>
+              ) : (
+                textStyles.map(renderTextStyleBlock)
+              )}
+              <button
+                className={styles.addButton}
+                onClick={handleAddTextStyle}
+                type="button"
+                data-testid="add-text-style"
+              >
+                + Add text style
               </button>
             </section>
+
+            {renderRoleSection('spacing')}
+            {renderRoleSection('border')}
+            {renderRoleSection('radius')}
+            {renderRoleSection('shadow')}
+
+            <DesignDocSection />
 
             {grouped.unknown.length > 0 && (
               <section className={styles.section} data-theme-section="unknown">

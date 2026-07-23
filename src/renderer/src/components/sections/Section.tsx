@@ -63,6 +63,12 @@ type Props = {
    * nesting an interactive control there would be invalid.
    */
   titleAccessory?: ReactNode;
+  /**
+   * Optional control rendered inline right after the group-toggle eye
+   * (left-packed, not pushed to the far edge) — e.g. the Typography
+   * "Text style" preset icon. Non-collapsible sections only.
+   */
+  groupAccessory?: ReactNode;
 };
 
 /**
@@ -84,6 +90,7 @@ export const Section = ({
   cssProperties,
   groupToggle,
   titleAccessory,
+  groupAccessory,
 }: Props): JSX.Element => {
   const [open, setOpen] = useState(defaultOpen);
   const overrideInfo = useOverrideIndicator(elementId, fields);
@@ -182,6 +189,11 @@ export const Section = ({
             <h3 className={styles.heading}>{title}</h3>
             {duplicateDot}
             {overrideDot}
+            {/* Preset accessory sits to the LEFT of the eye toggle; the
+                margin-left:auto span clusters it with the eye on the right. */}
+            {groupAccessory && (
+              <span className={styles.groupAccessory}>{groupAccessory}</span>
+            )}
             {groupToggleButton}
             {titleAccessory && (
               <span className={styles.titleAccessory}>{titleAccessory}</span>
@@ -202,11 +214,19 @@ export const Section = ({
           type="button"
           onClick={handleToggle}
           aria-expanded={open}
+          // Explicit name so nested controls (eye toggle, preset menu)
+          // don't leak their labels into the toggle's accessible name.
+          aria-label={title}
         >
           <span className={styles.heading}>{title}</span>
           {duplicateDot}
           {overrideDot}
           {groupToggleButton}
+          {/* Preset accessory sits to the LEFT of the expand chevron. Its
+              own onClick stops propagation so it doesn't toggle the section. */}
+          {groupAccessory && (
+            <span className={styles.groupAccessory}>{groupAccessory}</span>
+          )}
           <IconChevronDown
             size={14}
             stroke={2}

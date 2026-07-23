@@ -5,8 +5,13 @@ export type PaletteShade = {
     value: string;
 };
 /**
- * Generate a 10-shade (50–900) palette from a single seed colour using OKLCH:
- * keep the seed's hue, walk lightness across the scale, and taper chroma
+ * Generate a 10-shade (50–900) palette from a single seed colour using OKLCH.
+ *
+ * The seed is treated as the **500 anchor**: the 500 shade is the seed's exact
+ * value, and the rest of the ramp is the standard lightness scale SHIFTED so it
+ * lines up with the seed's lightness. This means re-generating after changing
+ * the 500 shifts the whole palette to match the new colour, instead of snapping
+ * 500 back to a fixed mid-lightness. Hue is kept from the seed; chroma tapers
  * toward the light/dark ends where high chroma leaves the sRGB gamut. Returns
  * hex values, or `[]` if the seed can't be parsed.
  * see docs/plans/design-system-plan.md

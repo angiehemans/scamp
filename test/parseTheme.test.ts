@@ -370,6 +370,46 @@ body {
     expect(output).toContain(':root {');
     expect(output).toContain('--a: 1;');
   });
+
+  it('keeps managed section comments attached to their tokens after an edit', () => {
+    // Regression: the previous strip-and-re-append approach left every section
+    // comment orphaned at the top of :root with all values dumped beneath.
+    const sectioned = `:root {
+  /* Primitives — brand */
+  --color-brand-500: #3b82f6;
+  --color-brand-700: #1d4ed8;
+
+  /* Primitives — neutral */
+  --color-neutral-500: #64748b;
+
+  /* Semantic */
+  --color-primary: var(--color-brand-500);
+}
+`;
+    const output = serializeThemeFile(
+      {
+        tokens: [
+          { name: '--color-brand-500', value: '#2563eb' }, // changed
+          { name: '--color-brand-700', value: '#1d4ed8' },
+          { name: '--color-neutral-500', value: '#64748b' },
+          { name: '--color-primary', value: 'var(--color-brand-500)' },
+        ],
+        fontImportUrls: [],
+      },
+      sectioned
+    );
+
+    // The edit applied…
+    expect(output).toContain('--color-brand-500: #2563eb;');
+    // …and each section's tokens still sit under their own comment, in order:
+    // brand token before the neutral comment, neutral token before Semantic, etc.
+    const at = (needle: string) => output.indexOf(needle);
+    expect(at('/* Primitives — brand */')).toBeLessThan(at('--color-brand-500'));
+    expect(at('--color-brand-700')).toBeLessThan(at('/* Primitives — neutral */'));
+    expect(at('/* Primitives — neutral */')).toBeLessThan(at('--color-neutral-500'));
+    expect(at('--color-neutral-500')).toBeLessThan(at('/* Semantic */'));
+    expect(at('/* Semantic */')).toBeLessThan(at('--color-primary'));
+  });
 });
 
 describe('parseThemeFile — theme override blocks', () => {
@@ -552,5 +592,107 @@ body {
       existing
     );
     expect(output).not.toContain('.dark');
+  });
+});
+
+describe('serializeThemeFile — grouped :root sections', () => {
+  it('groups tokens under section comments by role', () => {
+    const output = serializeThemeFile(
+      {
+        tokens: [
+          { name: '--color-brand-50', value: '#eff6ff' },
+          { name: '--color-brand-900', value: '#1e3a8a' },
+          { name: '--color-primary', value: 'var(--color-brand-500)' },
+          { name: '--font-sans', value: 'system-ui' },
+        ],
+        fontImportUrls: [],
+      },
+      // A non-empty existing file routes through the grouped merge path.
+      ':root {\n}\n'
+    );
+    expect(output).toContain('/* Primitives — brand */');
+    expect(output).toContain('/* Semantic */');
+    expect(output).toContain('/* Typography */');
+    // Each comment precedes the tokens it labels, in role order.
+    expect(output.indexOf('/* Primitives — brand */')).toBeLessThan(
+      output.indexOf('--color-brand-50')
+    );
+    expect(output.indexOf('--color-brand-900')).toBeLessThan(
+      output.indexOf('/* Semantic */')
+    );
+    expect(output.indexOf('/* Semantic */')).toBeLessThan(
+      output.indexOf('--color-primary')
+    );
+    expect(output.indexOf('/* Typography */')).toBeLessThan(
+      output.indexOf('--font-sans')
+    );
+  });
+
+  it('heals a file whose section comments were orphaned from their tokens', () => {
+    // An older writer clustered every comment at the top and dumped all
+    // tokens under the last one (the reported bug).
+    const broken = `:root {
+  /* Primitives — brand */
+
+  /* Semantic */
+
+  /* Typography */
+  --color-brand-50: #eff6ff;
+  --color-primary: var(--color-brand-500);
+  --font-sans: system-ui;
+}
+`;
+    const output = serializeThemeFile(
+      {
+        tokens: [
+          { name: '--color-brand-50', value: '#eff6ff' },
+          { name: '--color-primary', value: 'var(--color-brand-500)' },
+          { name: '--font-sans', value: 'system-ui' },
+        ],
+        fontImportUrls: [],
+      },
+      broken
+    );
+    // The brand token now sits under its own comment, before Semantic.
+    expect(output.indexOf('/* Primitives — brand */')).toBeLessThan(
+      output.indexOf('--color-brand-50')
+    );
+    expect(output.indexOf('--color-brand-50')).toBeLessThan(
+      output.indexOf('/* Semantic */')
+    );
+    // No empty section: a comment is never immediately followed by another.
+    expect(output).not.toMatch(
+      /\/\* Primitives — brand \*\/\s*\/\* Semantic \*\//
+    );
+  });
+});
+
+describe('serializeThemeFile — design-role sections', () => {
+  it('groups spacing / radius / shadow tokens under their own comments', () => {
+    const output = serializeThemeFile(
+      {
+        tokens: [
+          { name: '--color-primary', value: '#3b82f6' },
+          { name: '--space-4', value: '16px' },
+          { name: '--radius-md', value: '8px' },
+          { name: '--shadow-sm', value: '0 1px 2px rgba(0, 0, 0, 0.05)' },
+        ],
+        fontImportUrls: [],
+      },
+      ':root {\n}\n'
+    );
+    expect(output).toContain('/* Spacing */');
+    expect(output).toContain('/* Radius */');
+    expect(output).toContain('/* Shadows */');
+    expect(output.indexOf('/* Spacing */')).toBeLessThan(
+      output.indexOf('--space-4')
+    );
+    expect(output.indexOf('--space-4')).toBeLessThan(output.indexOf('/* Radius */'));
+    // Round-trips: shadow value with commas survives.
+    const parsed = parseThemeFile(output);
+    expect(parsed.tokens).toContainEqual({
+      name: '--shadow-sm',
+      value: '0 1px 2px rgba(0, 0, 0, 0.05)',
+    });
   });
 });

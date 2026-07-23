@@ -48,6 +48,7 @@ import {
   useFontLinkReconciler,
   useProjectTheme,
 } from './projectShell/useProjectFonts';
+import { useDesignMdSync } from './projectShell/useDesignMdSync';
 import { useActiveTarget } from './projectShell/useActiveTarget';
 import { usePageManagement } from './projectShell/usePageManagement';
 import { useComponentManagement } from './projectShell/useComponentManagement';
@@ -203,6 +204,7 @@ export const ProjectShell = ({
   // imports from theme.css on open.
   useFontLinkReconciler();
   useProjectTheme(project.path);
+  useDesignMdSync(project.path, project.name);
 
   // Auto-save snapshot trigger (every ~5 min of canvas activity), unless
   // disabled via the project's `snapshotAutoSave` config flag.
@@ -427,10 +429,7 @@ export const ProjectShell = ({
           )}
         </aside>
         {showThemePanel ? (
-          <ThemePanel
-            projectPath={project.path}
-            onClose={() => setShowThemePanel(false)}
-          />
+          <ThemePanel projectPath={project.path} />
         ) : (
           <>
             <CanvasArea
@@ -455,7 +454,7 @@ export const ProjectShell = ({
         )}
         </div>
       </div>
-      {bottomPanel === 'code' && <CodePanel />}
+      {bottomPanel === 'code' && <CodePanel showTheme={showThemePanel} />}
       {/*
        * The terminal panel mounts on first open and stays mounted until
        * the project changes. We pass `hidden` so the active panel

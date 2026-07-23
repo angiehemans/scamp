@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { IconShadow } from '@tabler/icons-react';
+
 import { useCanvasStore } from '@store/canvasSlice';
 import {
   useColorPickerContext,
@@ -7,9 +10,12 @@ import { useListField } from '@store/hooks/useListField';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import type { BoxShadowDef } from '@lib/element';
 import { combineShadowColor, splitShadowColor } from '@lib/parsers';
+import { parseBoxShadowShorthand } from '@lib/parsers/boxShadow';
+import { tokensForField } from '@lib/tokensForField';
 import { Button } from '../controls/Button';
 import { ColorInput } from '../controls/ColorInput';
 import { NumberInput } from '../controls/NumberInput';
+import { PresetMenu } from '../controls/PresetMenu';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
@@ -49,9 +55,44 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
     () => element?.boxShadows ?? [],
     (next) => patchElement(elementId, { boxShadows: next })
   );
+  const shadowTokens = useMemo(
+    () => tokensForField('shadow', colorContext.themeTokens),
+    [colorContext.themeTokens]
+  );
   if (!element) return null;
 
   const shadows: ReadonlyArray<BoxShadowDef> = element.boxShadows;
+
+  /**
+   * Apply a shadow token as a PRESET: resolve its box-shadow value into
+   * structured rows, replacing whatever the element currently has. The
+   * element model stores shadows structurally (no `var()`), so this is a
+   * one-time application rather than a live token link.
+   * see docs/plans/design-system-plan.md
+   */
+  const applyShadowPreset = (name: string): void => {
+    const token = shadowTokens.find((t) => t.name === name);
+    if (!token) return;
+    const parsed = parseBoxShadowShorthand(token.value);
+    if (parsed === null) return;
+    patchElement(elementId, { boxShadows: parsed });
+  };
+
+  // The shadow preset picker sits in the section header, left of the
+  // expand chevron (PresetMenu renders nothing when there are no tokens).
+  const shadowPreset = (
+    <PresetMenu
+      icon={<IconShadow size={14} stroke={1.75} />}
+      ariaLabel="Apply shadow preset"
+      testId="shadow-preset-select"
+      options={shadowTokens.map((t) => ({
+        value: t.name,
+        label: t.name,
+        hint: t.value,
+      }))}
+      onSelect={applyShadowPreset}
+    />
+  );
 
   return (
     <Section
@@ -60,6 +101,7 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
       defaultOpen={shadows.length > 0}
       elementId={elementId}
       groupToggle={groupToggle}
+      groupAccessory={shadowPreset}
       fields={['boxShadows']}
       cssProperties={['box-shadow']}
     >

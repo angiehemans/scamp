@@ -71,7 +71,8 @@
       "Bash(gh api *)",
       "WebSearch",
       "Read(//home/angie-hemans/Documents/camp-files/component-slots/**)",
-      "Read(//home/angie-hemans/Documents/camp-files/**)"
+      "Read(//home/angie-hemans/Documents/camp-files/**)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

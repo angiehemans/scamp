@@ -18,7 +18,7 @@ import type {
   JustifyContent,
   ScampElement,
 } from '@lib/element';
-import { classifyToken } from '@lib/tokenClassify';
+import { tokensForField } from '@lib/tokensForField';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -148,8 +148,9 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
   const patchElement = useCanvasStore((s) => s.patchElement);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
+  // Gap is a spacing property → float `--space-*` tokens to the top.
   const spacingTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    () => tokensForField('spacing', themeTokens),
     [themeTokens]
   );
   if (!element) return null;

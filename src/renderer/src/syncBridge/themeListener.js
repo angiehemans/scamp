@@ -7,6 +7,8 @@ import { parseThemeFile } from '@lib/parseTheme';
 import { applyThemeFonts } from '../lib/applyThemeFonts';
 export const makeThemeChangedHandler = () => (content) => {
     const parsed = parseThemeFile(content);
-    useCanvasStore.getState().setThemeData(parsed);
+    const store = useCanvasStore.getState();
+    store.setThemeData(parsed);
+    store.setThemeCssRaw(content);
     applyThemeFonts(parsed.fontImportUrls);
 };

@@ -146,17 +146,121 @@ export const parseThemeCss = (css) => {
 };
 const MANAGED_IMPORTS_COMMENT = '/* scamp: font imports — managed by Project Settings → Fonts */';
 const MANAGED_IMPORTS_TEXT = 'scamp: font imports — managed by Project Settings → Fonts';
+const SHADE_SUFFIX_RE = /^(.+)-(\d+)$/;
+const TYPOGRAPHY_PREFIX_RE = /^--(font|text|leading|tracking|weight|line-height|letter-spacing)/;
 /**
- * Update an existing theme.css in place: reconcile the `:root` custom
- * properties and top-level `@import`s to match `parsed`, while leaving
- * every other rule, comment, and hand-written declaration untouched.
- *
- * The panel can reorder/rename tokens freely, so we don't try to match
- * old declarations to new ones — we strip all `--*` decls from `:root`
- * and rewrite the canonical set. Non-custom decls and other rules
- * (resets, `body {}`, etc.) survive. Returns null if the CSS won't
- * parse so the caller can fall back to a from-scratch write.
- * see docs/plans/design-system-plan.md
+ * Group `:root` tokens into commented sections by role so the generated
+ * theme.css stays organised: one "Primitives — <palette>" block per colour
+ * palette (first-seen order), then Semantic (`--color-*` without a numeric
+ * shade), Typography (`--font/text/leading/…`), then the length/shadow roles
+ * (Spacing/Border widths/Radius/Shadows), then anything else (uncommented).
+ * Purely name-driven — token order within a section follows the model.
+ */
+const groupRootTokens = (tokens) => {
+    const palettes = new Map();
+    const semantic = [];
+    const typography = [];
+    const spacing = [];
+    const border = [];
+    const radius = [];
+    const shadow = [];
+    const other = [];
+    const paletteBucket = (name) => {
+        const existing = palettes.get(name);
+        if (existing)
+            return existing;
+        const fresh = [];
+        palettes.set(name, fresh);
+        return fresh;
+    };
+    for (const t of tokens) {
+        if (t.name.startsWith('--color-')) {
+            const suffix = t.name.slice('--color-'.length);
+            const m = suffix.match(SHADE_SUFFIX_RE);
+            if (m && m[1] !== undefined)
+                paletteBucket(m[1]).push(t);
+            else
+                semantic.push(t);
+        }
+        else if (t.name.startsWith('--space-')) {
+            spacing.push(t);
+        }
+        else if (t.name.startsWith('--border-')) {
+            border.push(t);
+        }
+        else if (t.name.startsWith('--radius-')) {
+            radius.push(t);
+        }
+        else if (t.name.startsWith('--shadow-')) {
+            shadow.push(t);
+        }
+        else if (TYPOGRAPHY_PREFIX_RE.test(t.name)) {
+            typography.push(t);
+        }
+        else {
+            other.push(t);
+        }
+    }
+    const sections = [];
+    for (const [name, toks] of palettes)
+        sections.push({ comment: `Primitives — ${name}`, tokens: toks });
+    if (semantic.length > 0)
+        sections.push({ comment: 'Semantic', tokens: semantic });
+    if (typography.length > 0)
+        sections.push({ comment: 'Typography', tokens: typography });
+    if (spacing.length > 0)
+        sections.push({ comment: 'Spacing', tokens: spacing });
+    if (border.length > 0)
+        sections.push({ comment: 'Border widths', tokens: border });
+    if (radius.length > 0)
+        sections.push({ comment: 'Radius', tokens: radius });
+    if (shadow.length > 0)
+        sections.push({ comment: 'Shadows', tokens: shadow });
+    if (other.length > 0)
+        sections.push({
+            // Only label the trailing block when it sits alongside grouped
+            // sections; a tokens-only file (no palettes/semantic) stays flat.
+            comment: sections.length > 0 ? 'Other' : null,
+            tokens: other,
+        });
+    return sections;
+};
+/**
+ * Rebuild a `:root` rule's contents from the model: clears it, then
+ * appends grouped section comments + declarations. The `:root` token
+ * block is Scamp-managed, so this is authoritative (it self-heals files
+ * where an older writer orphaned the section comments).
+ */
+const rebuildRootBlock = (target, tokens) => {
+    target.removeAll();
+    target.raws.after = '\n';
+    target.raws.semicolon = true;
+    let firstNode = true;
+    for (const section of groupRootTokens(tokens)) {
+        if (section.comment !== null) {
+            const comment = postcss.comment({ text: section.comment });
+            comment.raws.left = ' ';
+            comment.raws.right = ' ';
+            comment.raws.before = firstNode ? '\n  ' : '\n\n  ';
+            target.append(comment);
+            firstNode = false;
+        }
+        for (const t of section.tokens) {
+            const decl = postcss.decl({ prop: t.name, value: t.value });
+            decl.raws.before = '\n  ';
+            decl.raws.between = ': ';
+            target.append(decl);
+            firstNode = false;
+        }
+    }
+};
+/**
+ * Update an existing theme.css in place: rebuild the managed `:root` token
+ * block (grouped, commented sections) and reconcile top-level `@import`s +
+ * `.dark`/`.theme-*` blocks to match `parsed`, while leaving every other
+ * rule and hand-written declaration (resets, `body {}`, user CSS) untouched.
+ * Returns null if the CSS won't parse so the caller can fall back to a
+ * from-scratch write. see docs/plans/design-system-plan.md
  */
 const mergeIntoExistingCss = (parsed, existingCss) => {
     let root;
@@ -182,38 +286,27 @@ const mergeIntoExistingCss = (parsed, existingCss) => {
             .join('\n')}\n\n`;
         root.prepend(...postcss.parse(importCss).nodes);
     }
-    // Tokens: strip every custom property from all :root blocks, then write
-    // the canonical set into the first one (creating it if none exists).
+    // Tokens: the `:root` block is Scamp-managed, so rebuild it wholesale
+    // from the model with grouped, commented sections. This self-heals files
+    // an older writer left with orphaned section comments (all values dumped
+    // under the last comment). Secondary `:root` blocks are consolidated away.
     const roots = [];
     root.walkRules((rule) => {
         if (rule.selector.trim() === ':root')
             roots.push(rule);
     });
-    for (const r of roots) {
-        r.walkDecls((decl) => {
-            if (decl.prop.startsWith('--'))
-                decl.remove();
-        });
-    }
     let target = roots[0];
     if (!target) {
         target = postcss.rule({ selector: ':root' });
         target.raws.before = '\n\n';
         target.raws.between = ' ';
         root.append(target);
+        roots.push(target);
     }
-    target.raws.after = '\n';
-    target.raws.semicolon = true;
-    for (const t of parsed.tokens) {
-        const decl = postcss.decl({ prop: t.name, value: t.value });
-        decl.raws.before = '\n  ';
-        decl.raws.between = ': ';
-        target.append(decl);
-    }
-    // Drop secondary :root blocks we just emptied so they don't linger.
+    rebuildRootBlock(target, parsed.tokens);
     for (let i = roots.length - 1; i >= 1; i -= 1) {
         const r = roots[i];
-        if (r && r.nodes.length === 0)
+        if (r)
             r.remove();
     }
     // Theme blocks: reconcile `.dark` / `.theme-*` rules to match the model.

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
-import { classifyToken } from '@lib/tokenClassify';
+import { tokensForField } from '@lib/tokensForField';
 import { FourSideInput } from '../controls/FourSideInput';
 import { Section, Row } from './Section';
 
@@ -15,12 +15,9 @@ export const SpacingSection = ({ elementId, hideMargin = false }: Props): JSX.El
   const patchElement = useCanvasStore((s) => s.patchElement);
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const openThemePanel = useCanvasStore((s) => s.openThemePanel);
-  // Spacing-typed controls offer length-shaped tokens (px / rem / em).
-  // `classifyToken` calls them `'fontSize'` because that's the bucket
-  // the classifier originally needed for typography; we reuse the
-  // same bucket here because spacing tokens are length values too.
+  // Padding / margin offer length tokens with `--space-*` floated first.
   const spacingTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    () => tokensForField('spacing', themeTokens),
     [themeTokens]
   );
   if (!element) return null;

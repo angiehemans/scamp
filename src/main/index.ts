@@ -14,6 +14,7 @@ import { registerSettingsIpc, readSettingsSync } from './ipc/settings';
 import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
+import { registerDesignMdIpc } from './ipc/designMd';
 import { registerImageIpc } from './ipc/image';
 import { registerClipboardIpc } from './ipc/clipboard';
 import { registerExportIpc } from './ipc/export';
@@ -226,6 +227,7 @@ app.whenReady().then(() => {
   registerProjectConfigIpc();
   registerTerminalIpc();
   registerThemeIpc();
+  registerDesignMdIpc();
   registerImageIpc();
   registerClipboardIpc();
   registerExportIpc();

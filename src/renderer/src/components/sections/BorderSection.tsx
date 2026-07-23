@@ -8,7 +8,7 @@ import { EnumSelect } from '../controls/EnumSelect';
 import { FourSideInput } from '../controls/FourSideInput';
 import type { BorderStyle } from '@lib/element';
 import { isZeroSpaceTuple } from '@lib/spaceValue';
-import { classifyToken } from '@lib/tokenClassify';
+import { tokensForField } from '@lib/tokensForField';
 import { Section, Row } from './Section';
 
 type Props = {
@@ -37,8 +37,12 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
       !isZeroSpaceTuple(element.borderWidth) ||
       !isZeroSpaceTuple(element.borderRadius));
   const groupToggle = useGroupToggle(elementId, 'border', hasBorderContent);
-  const spacingTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+  const borderWidthTokens = useMemo(
+    () => tokensForField('borderWidth', themeTokens),
+    [themeTokens]
+  );
+  const radiusTokens = useMemo(
+    () => tokensForField('radius', themeTokens),
     [themeTokens]
   );
   if (!element) return null;
@@ -82,7 +86,7 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           value={element.borderWidth}
           onChange={(next) => patchElement(elementId, { borderWidth: next })}
           min={0}
-          tokens={spacingTokens}
+          tokens={borderWidthTokens}
           onOpenTheme={onOpenTheme}
         />
         <FourSideInput
@@ -91,7 +95,7 @@ export const BorderSection = ({ elementId }: Props): JSX.Element | null => {
           value={element.borderRadius}
           onChange={(next) => patchElement(elementId, { borderRadius: next })}
           min={0}
-          tokens={spacingTokens}
+          tokens={radiusTokens}
           onOpenTheme={onOpenTheme}
         />
       </Row>

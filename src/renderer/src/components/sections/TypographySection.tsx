@@ -1,15 +1,22 @@
 import { useMemo } from 'react';
-import { IconAlignLeft, IconAlignCenter, IconAlignRight } from '@tabler/icons-react';
+import {
+  IconAlignLeft,
+  IconAlignCenter,
+  IconAlignRight,
+  IconTypography,
+} from '@tabler/icons-react';
 
 import { useCanvasStore } from '@store/canvasSlice';
 import { useColorPickerContext } from '@store/hooks/useColorPickerContext';
 import { useGroupToggle, useResolvedElement } from '@store/useResolvedElement';
 import { useFontsStore, selectAllFonts } from '@store/fontsSlice';
-import { classifyToken } from '@lib/tokenClassify';
+import { buildTextStyles, textStyleTokenName } from '@lib/typographyModel';
+import { tokensForField } from '@lib/tokensForField';
 import { ColorInput } from '../controls/ColorInput';
 import { previewStyle } from '../controls/livePreview';
 import { EnumSelect } from '../controls/EnumSelect';
 import { FontPicker } from '../controls/FontPicker';
+import { PresetMenu } from '../controls/PresetMenu';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { TokenOrNumberInput } from '../controls/TokenOrNumberInput';
 import type { FontWeight, TextAlign } from '@lib/element';
@@ -43,21 +50,25 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   const { presetColors, themeTokens, onOpenTheme } = useColorPickerContext();
   const allFonts = useFontsStore(selectAllFonts);
 
-  // Filter theme tokens by category so each input only offers tokens
-  // that make sense for that property.
+  // Each input offers only the tokens that make sense for it — see
+  // `tokensForField` for the category filtering + prefix prioritization.
   const fontSizeTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontSize'),
+    () => tokensForField('fontSize', themeTokens),
     [themeTokens]
   );
   const lineHeightTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'lineHeight'),
+    () => tokensForField('lineHeight', themeTokens),
     [themeTokens]
   );
   const fontFamilyTokens = useMemo(
-    () => themeTokens.filter((t) => classifyToken(t.value) === 'fontFamily'),
+    () => tokensForField('fontFamily', themeTokens),
     [themeTokens]
   );
-  const letterSpacingTokens = fontSizeTokens; // lengths work for both
+  const letterSpacingTokens = useMemo(
+    () => tokensForField('letterSpacing', themeTokens),
+    [themeTokens]
+  );
+  const textStyles = useMemo(() => buildTextStyles(themeTokens), [themeTokens]);
   // Hide the eye when none of the typed typography fields are set
   // (and the group isn't already off — leave it visible so the
   // user can toggle back on).
@@ -79,11 +90,60 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
 
   if (!element || element.type !== 'text') return null;
 
+  // Reflect the applied style back into the dropdown by matching the
+  // element's size reference (`var(--text-<name>-size)`).
+  const currentStyleName =
+    element.fontSize?.match(/^var\(--text-(.+)-size\)$/)?.[1] ?? '';
+
+  /**
+   * Apply a whole text style: link the string props to the style's tokens
+   * via `var()`, and set the concrete numeric weight (elements store weight
+   * as a number, so it can't hold a var). Only props the style defines are
+   * touched. see docs/plans/design-system-plan.md
+   */
+  const applyTextStyle = (name: string): void => {
+    const style = textStyles.find((s) => s.name === name);
+    if (!style) return;
+    const weight = style.weight !== null ? Number(style.weight) : null;
+    patchElement(elementId, {
+      ...(style.family
+        ? { fontFamily: `var(${textStyleTokenName(name, 'family')})` }
+        : {}),
+      ...(style.size
+        ? { fontSize: `var(${textStyleTokenName(name, 'size')})` }
+        : {}),
+      ...(style.leading
+        ? { lineHeight: `var(${textStyleTokenName(name, 'leading')})` }
+        : {}),
+      ...(style.tracking
+        ? { letterSpacing: `var(${textStyleTokenName(name, 'tracking')})` }
+        : {}),
+      ...(weight !== null && isFontWeight(weight)
+        ? { fontWeight: weight }
+        : {}),
+    });
+  };
+
+  // The Text style picker lives in the section header (next to the eye
+  // toggle) as an icon menu — it applies a whole preset (family/size/
+  // weight/leading/tracking) at once. Only shown when styles are defined.
+  const textStyleAccessory = (
+    <PresetMenu
+      icon={<IconTypography size={14} stroke={1.75} />}
+      ariaLabel="Apply text style"
+      testId="text-style-select"
+      active={currentStyleName !== ''}
+      options={textStyles.map((s) => ({ value: s.name, label: s.label }))}
+      onSelect={applyTextStyle}
+    />
+  );
+
   return (
     <Section
       title="Typography"
       elementId={elementId}
       groupToggle={groupToggle}
+      groupAccessory={textStyleAccessory}
       fields={[
         'fontFamily',
         'fontSize',

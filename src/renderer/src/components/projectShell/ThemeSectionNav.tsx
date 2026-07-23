@@ -2,6 +2,8 @@ import { useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
 import { classifyToken } from '@lib/tokenClassify';
+import { isTextStyleToken } from '@lib/typographyModel';
+import { isDesignRoleToken } from '@lib/tokenRoles';
 
 import type { ThemeSectionId } from '../ThemePanel';
 import styles from './ThemeSectionNav.module.css';
@@ -9,6 +11,11 @@ import styles from './ThemeSectionNav.module.css';
 const SECTIONS: Array<{ id: ThemeSectionId; label: string }> = [
   { id: 'colors', label: 'Colors' },
   { id: 'typography', label: 'Typography' },
+  { id: 'spacing', label: 'Spacing' },
+  { id: 'border', label: 'Border widths' },
+  { id: 'radius', label: 'Radius' },
+  { id: 'shadow', label: 'Shadows' },
+  { id: 'documentation', label: 'Documentation' },
 ];
 
 /**
@@ -21,12 +28,16 @@ export const ThemeSectionNav = (): JSX.Element => {
   const themeTokens = useCanvasStore((s) => s.themeTokens);
   const [active, setActive] = useState<ThemeSectionId>('colors');
 
-  // `--color-*` tokens live in the Colors section regardless of how their
-  // value classifies (a semantic `var(--color-…)` reads as `unknown`), so
-  // exclude them here — otherwise the nav shows an Unknown link that jumps
-  // to a section the panel doesn't render. Mirrors ThemePanel's grouping.
+  // Tokens owned by a named section (colours, text styles, spacing/border/
+  // radius/shadow) never count toward "Unknown" — a semantic colour or a
+  // text-style family reads as `unknown` by value, and shadows do too.
+  // Mirrors ThemePanel's grouping so the nav link matches a real section.
   const hasUnknown = themeTokens.some(
-    (t) => !t.name.startsWith('--color-') && classifyToken(t.value) === 'unknown'
+    (t) =>
+      !t.name.startsWith('--color-') &&
+      !isTextStyleToken(t.name) &&
+      !isDesignRoleToken(t.name) &&
+      classifyToken(t.value) === 'unknown'
   );
   const sections = hasUnknown
     ? [...SECTIONS, { id: 'unknown' as const, label: 'Unknown' }]

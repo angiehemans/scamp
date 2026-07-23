@@ -182,27 +182,94 @@ The foundation (A–D above) plus the Colors section:
 - e2e: `test/e2e/themes/theme-switcher.spec.ts` (add Dark → `.dark` block + tab;
   edit-on-Dark writes to `.dark` not `:root`; canvas switcher toggles preview).
 
-### Phase 4 — Typography tokens (story 4)
+### Phase 4 — Typography tokens (story 4) — ✅ DONE
 Font families (`--font-*`, Google/upload), type scale (preset ratios + custom),
 **semantic text styles** (each emits a group: family/size/weight/leading/
 tracking). A **"Text style" dropdown** in the WYSIWYG Typography section applies
 a whole style at once. Delete-warning for styles used on elements.
 
-### Phase 5 — Spacing / border / corner / shadow tokens (story 5)
+**Shipped:**
+- `lib/typographyModel.ts` — `buildTextStyles` groups `--text-<name>-<prop>`
+  (family/size/weight/leading/tracking) into `TextStyle[]`; `isTextStyleToken`,
+  `textStyleTokenName`, `textStyleLabel`, and `defaultTextStyleTokens` (the PRD
+  default set: Display, H1–H4, Body large/Body/Body small, Label, Code). Unit-tested.
+- `ThemePanel` Typography section reorganised into **Font families / Type scale /
+  Text styles**. Text-style tokens route out of the generic buckets by name.
+  Text Styles sub-section: per-style block (rename header + prop rows), add/rename/
+  delete with a **usage-count delete-warning**; empty-state "+ Add default text
+  styles" (full PRD set) + "+ Add text style". Text styles are global (base tokens).
+- WYSIWYG `TypographySection` — a **"Text style" dropdown** applies a whole style:
+  `var()` refs for family/size/leading/tracking, concrete number for weight (Q:
+  token references). The dropdown reflects the applied style via the size ref, and
+  text-style tokens are excluded from the individual size/weight/family pickers.
+- **Type-scale preset generator deferred** (Q: keep editable rows) — `--text-*`
+  scale tokens stay plain editable rows under "Type scale".
+- **Scaffold:** add-on-demand (no default text styles in new projects) — keeps the
+  scaffold lean and the WYSIWYG pickers unpolluted until the user opts in.
+- e2e: `test/e2e/themes/text-styles.spec.ts` (add defaults → token groups; apply
+  H1 → element linked to `var(--text-h1-*)` + concrete weight).
+
+### Phase 5 — Spacing / border / corner / shadow tokens (story 5) — ✅ DONE
 New **real categories** (extend `TokenCategory` + all inline `.filter` sites +
 ThemePanel bucketing — the classification bottleneck). Scales with presets;
 radius visual previews; shadows reuse the multi-layer shadow editor.
 **Also scaffold** the default spacing/radius/shadow tokens here (deferred from
 Phase 2 — they'd misclassify as lengths without these name-aware categories).
 
-### Phase 6 — Token pickers across the WYSIWYG (story 7)
+**Shipped:**
+- `lib/tokenRoles.ts` — the classification bottleneck solved by NAME (these are
+  all lengths/shadow strings, indistinguishable by value): `isRoleToken`,
+  `isDesignRoleToken`, `roleTokenName`/`roleTokenLabel`, `tokensForRole`, and the
+  PRD default sets (`--space-1…16`, `--border-thin/medium/thick`,
+  `--radius-none…full`, `--shadow-sm…xl`). Unit-tested. `--color-border` is NOT a
+  border-width token (prefix disambiguates).
+- `ThemePanel` — four new sections (**Spacing / Border widths / Radius /
+  Shadows**), routed by name out of the generic buckets. Each: add/rename(label)/
+  delete/edit-value, empty-state "+ Add default …" + "+ Add token". Radius rows
+  show a corner-preview swatch; shadow rows use a monospace box-shadow input.
+- `ThemeSectionNav` gets the four sections; `parseTheme.groupRootTokens` emits
+  `/* Spacing */`, `/* Border widths */`, `/* Radius */`, `/* Shadows */` blocks
+  so theme.css stays organised (shadow comma-values round-trip).
+- Picker hygiene: `TypographySection` excludes role tokens (and text-style
+  tokens) from the size/line-height/family pickers — they classify as lengths but
+  aren't type. **Positive picker wiring (radius/shadow/spacing pickers) stays
+  Phase 6** per the split.
+- **Scaffold:** add-on-demand (no defaults in new projects) — consistent with
+  text styles + Light-only themes; keeps length pickers unpolluted until opt-in.
+- e2e: `test/e2e/themes/design-tokens.spec.ts` (add defaults → grouped tokens;
+  shadow multi-layer value round-trips; section nav lists + scroll-jumps).
+
+### Phase 6 — Token pickers across the WYSIWYG (story 7) — ✅ DONE
 Wire category-correct pickers everywhere per the PRD table (radius, border-width,
 shadow presets, spacing, type scale, font family, text style). Mostly extends
 the existing pickers now that categories are real (Phase 5) and semantic tokens
 exist (Phase 2). Introduce a shared `tokensForCategory()` helper to replace the
 scattered inline `classifyToken(...) === '...'` filters.
 
-### Phase 7 — DESIGN.md generation (story 6)
+**Shipped:**
+- `lib/tokensForField.ts` — the shared `tokensForField(field, tokens)` helper the
+  plan called for: one source of truth mapping each WYSIWYG field (fontSize /
+  lineHeight / fontFamily / letterSpacing / spacing / borderWidth / radius /
+  shadow) to its eligible tokens, with category filtering + prefix prioritization
+  (type fields drop design-role/text-style internals; length fields keep the
+  design roles, drop text-style internals). Unit-tested.
+- Refactored Border/Spacing/Layout/Typography sections onto `tokensForField`,
+  removing the scattered `classifyToken(...) === 'fontSize'` + inline prioritize
+  snippets (kept the prefix prioritization from the previous slice).
+- **Shadow preset dropdown** (the one missing picker) — `ShadowsSection` gains a
+  "Shadow preset…" `<select>` of `--shadow-*` tokens; picking one resolves the
+  token's box-shadow value, parses it with `parseBoxShadowShorthand`, and
+  replaces the element's structured shadow rows. (Model stores shadows
+  structurally with no `var()`, so it's a one-time preset application, matching
+  the PRD "replaces the rows with the token value".)
+- Colors / spacing / radius / border / font-size / font-family / font-weight
+  (via the Phase-4 Text-style dropdown) pickers already existed — this completes
+  the PRD table.
+- e2e: `shadow-preset.spec.ts` (preset → multi-layer box-shadow on disk);
+  `tokensForField` unit tests; prioritization + refactor covered by the existing
+  picker specs.
+
+### Phase 7 — DESIGN.md generation (story 6) — 🚧 CORE DONE (forms + CLI deferred)
 Largely independent; can run after the model (2/4/5) exists.
 - New artifact `DESIGN.md` in project root (**Q6: exact filename** `DESIGN.md`
   vs `design.md`). YAML front matter auto-generated from tokens; markdown prose
@@ -213,6 +280,42 @@ Largely independent; can run after the model (2/4/5) exists.
   `google-labs-code/design.md` spec + `@google/design.md` CLI actually exist and
   are stable** before building to them — this is an external dependency and a
   real risk; if unavailable, we ship our own `DESIGN.md` format and skip the CLI.
+
+**Q7 verified:** the spec repo (`google-labs-code/design.md`) and CLI
+(`@google/design.md`, npm v0.3.0, `lint`/`diff`/`export`/`spec`) both exist —
+alpha, so generation is kept self-contained. **Q6:** `DESIGN.md` (uppercase).
+
+**Shipped (core, chosen over the full story):**
+- `lib/designMd.ts` — `generateDesignMd(tokens, prose)` (YAML front matter:
+  `name`/`description` + `colors` with `{colors.*}` refs for semantic tokens +
+  `typography` from text styles (resolved) + `rounded`/`spacing` from role
+  tokens; then prose sections in spec order) and `parseDesignMd` (reads
+  name/description + section bodies back; ignores token YAML). Round-trip unit-tested.
+- Main-process IPC (`DesignMdRead`/`DesignMdWrite`, `designMdOps.ts`) — DESIGN.md
+  lives at the project root next to agent.md, both formats.
+- `useDesignMdSync` — regenerates DESIGN.md from `themeBaseTokens` (debounced
+  500ms), reading the existing file to preserve authored prose; writes only on
+  change. Mounted in ProjectShell.
+- `agent.md` template references `DESIGN.md` (both nextjs + legacy).
+- e2e: `test/e2e/themes/design-md.spec.ts` (generated on open; token YAML
+  regenerates while authored prose round-trips).
+
+**Prose forms (added after core):**
+- Store `designProse` (`name` / `description` / section bodies) + `setDesignProse`.
+- `DesignDocSection` — a "Documentation" section at the bottom of the theme
+  panel: project name, description, and a textarea per spec section (Overview…
+  Do's and Don'ts), bound directly to the store (only this component subscribes,
+  so keystrokes don't re-render the panel). Added to `ThemeSectionNav`.
+- `useDesignMdSync` rewritten as two-way: loads prose on open, writes on
+  token/prose change (debounced), and reads external DESIGN.md edits back into
+  the forms via a `DesignMdChanged` watcher event — ignoring echoes of its own
+  writes through a `lastWritten` ref so a self-write can't clobber in-flight edits.
+- e2e extended: form edit → prose in DESIGN.md; external DESIGN.md edit →
+  form fields populate.
+
+**Still deferred:** the "Lint design system" CLI button (`npx @google/design.md
+lint`) — written up as a separate follow-up story in
+[`design-md-lint-plan.md`](./design-md-lint-plan.md).
 
 ---
 

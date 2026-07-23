@@ -53,6 +53,12 @@ type Props = {
      * nesting an interactive control there would be invalid.
      */
     titleAccessory?: ReactNode;
+    /**
+     * Optional control rendered inline right after the group-toggle eye
+     * (left-packed, not pushed to the far edge) — e.g. the Typography
+     * "Text style" preset icon. Non-collapsible sections only.
+     */
+    groupAccessory?: ReactNode;
 };
 /**
  * Card-like wrapper for one panel section. Renders a small heading
@@ -63,7 +69,7 @@ type Props = {
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, groupToggle, titleAccessory, }: Props) => JSX.Element;
+export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, groupToggle, titleAccessory, groupAccessory, }: Props) => JSX.Element;
 type RowProps = {
     label: string;
     children: ReactNode;

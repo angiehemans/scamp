@@ -85,6 +85,14 @@ declare const api: {
         content: string;
     }) => Promise<void>;
     onThemeChanged: (handler: (content: string) => void) => (() => void);
+    readDesignMd: (args: {
+        projectPath: string;
+    }) => Promise<string>;
+    writeDesignMd: (args: {
+        projectPath: string;
+        content: string;
+    }) => Promise<void>;
+    onDesignMdChanged: (handler: (content: string) => void) => (() => void);
     onSvgAssetChanged: (handler: (payload: SvgAssetChangedPayload) => void) => (() => void);
     createTerminal: (args: TerminalCreateArgs) => Promise<TerminalCreateResult>;
     writeTerminal: (args: TerminalWriteArgs) => Promise<void>;

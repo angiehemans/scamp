@@ -909,6 +909,16 @@ then write \`box-shadow: var(--shadow-card);\` in the module file.
 Do NOT change or remove existing token values without the user
 asking — that's a design-system overhaul, not a layout edit.
 
+## Design system
+
+See \`DESIGN.md\` in the project root for the design system: brand
+guidelines, design principles, and token usage guidance. It follows the
+google-labs-code/design.md specification — YAML front matter holds exact
+token values (auto-generated from \`theme.css\`), markdown prose holds
+rationale and usage notes. Scamp regenerates the YAML from \`theme.css\`,
+so don't hand-edit the front matter (it will be overwritten); the prose
+sections round-trip and are yours to write.
+
 ## Project config
 
 Each project also has a \`scamp.config.json\` file at the root. It holds
@@ -1793,6 +1803,16 @@ then write \`box-shadow: var(--shadow-card);\` in the module file.
 
 Do NOT change or remove existing token values without the user
 asking — that's a design-system overhaul, not a layout edit.
+
+## Design system
+
+See \`DESIGN.md\` in the project root for the design system: brand
+guidelines, design principles, and token usage guidance. It follows the
+google-labs-code/design.md specification — YAML front matter holds exact
+token values (auto-generated from \`theme.css\`), markdown prose holds
+rationale and usage notes. Scamp regenerates the YAML from \`theme.css\`,
+so don't hand-edit the front matter (it will be overwritten); the prose
+sections round-trip and are yours to write.
 
 ## Project config
 
