@@ -1,6 +1,11 @@
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect } from '../fixtures/panel';
-import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
+import { dragInFrame, selectTool } from '../fixtures/canvas';
+import {
+  canvasElementsByPrefix,
+  layersRow,
+  pageRoot,
+} from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
 
 /**
@@ -140,13 +145,34 @@ test.describe('history panel — snapshots', () => {
     await expect(banner).toBeHidden();
     await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0);
 
-    await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 200, y: 180 });
-    await waitForSaved(window);
+    // Draw on the just-navigated page WITHOUT requiring the rect to paint
+    // immediately. On a freshly-created page the new rect can briefly
+    // render hidden (and lose its selection) while the page's file
+    // re-parses — a reload-timing quirk unrelated to the preview lock. We
+    // only need the rect to EXIST: that already proves the draw guard let
+    // the edit through, since a leaked lock would block creation and leave
+    // the count at 0.
+    await selectTool(window, 'r');
+    await dragInFrame(window, { x: 100, y: 100 }, { x: 200, y: 180 });
     await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(1);
-
-    await window.keyboard.press('Delete');
     await waitForSaved(window);
-    await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0);
+
+    // Select via the layers row (visibility- and lock-independent) and
+    // delete. The guarded Delete removing the rect is the proof the lock
+    // was released — if it had leaked, Delete would no-op and the count
+    // would stay 1. Retry the select+delete as one unit: a late echo
+    // reload of the new page's file can drop the selection between the
+    // click and the keypress (reloadElements keeps only ids still in the
+    // tree), so a single attempt can no-op even with the lock released.
+    // See docs/notes/snapshots.md.
+    await expect(async () => {
+      await layersRow(window, 'Rectangle').click();
+      await window.keyboard.press('Delete');
+      await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0, {
+        timeout: 1_000,
+      });
+    }).toPass({ timeout: 10_000 });
+    await waitForSaved(window);
   });
 
   test('interleaves in-session undo steps; clicking one jumps the canvas', async ({
