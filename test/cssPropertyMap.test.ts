@@ -541,11 +541,22 @@ describe('cssToScampProperty', () => {
         fontSize: 'var(--text-lg)',
       });
     });
-    it('maps a recognised font-weight', () => {
+    it('maps a standard font-weight', () => {
       expect(apply('font-weight', '600')).toEqual({ fontWeight: 600 });
     });
-    it('refuses an unrecognised font-weight', () => {
-      expect(apply('font-weight', '350')).toBeNull();
+    it('maps the extreme named weights (100 Thin, 900 Black)', () => {
+      expect(apply('font-weight', '100')).toEqual({ fontWeight: 100 });
+      expect(apply('font-weight', '900')).toEqual({ fontWeight: 900 });
+    });
+    it('maps a non-multiple-of-100 variable-font weight', () => {
+      expect(apply('font-weight', '350')).toEqual({ fontWeight: 350 });
+    });
+    it('refuses an out-of-range font-weight', () => {
+      expect(apply('font-weight', '0')).toBeNull();
+      expect(apply('font-weight', '1200')).toBeNull();
+    });
+    it('refuses a keyword font-weight (routes to customProperties)', () => {
+      expect(apply('font-weight', 'bold')).toBeNull();
     });
     it('maps color', () => {
       expect(apply('color', '#222222')).toEqual({ color: '#222222' });

@@ -25,7 +25,12 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Layers Panel](layers-panel.md) — The element tree, selection, reordering, and nesting
 - [Code Output](code-output.md) — What Scamp generates, save status, and the live code preview
 - [Bidirectional Sync](bidirectional-sync.md) — External editing and working with AI agents
-- [Themes](themes.md) — Theme tokens, the theme.css file, and using tokens in your designs
+- [Design System](design-system.md) — The Design System panel, tokens, `theme.css`, and using tokens in your designs
+- [Colors](colors.md) — Color palettes (primitives) and semantic color tokens
+- [Text Styles](text-styles.md) — Fonts, the type scale, and reusable text styles
+- [Design Tokens](design-tokens.md) — Spacing, border widths, radius, and shadow tokens
+- [Themes](themes.md) — Light, dark, and custom theme switching
+- [DESIGN.md](design-md.md) — The auto-generated design document for AI agents
 - [Terminal](terminal.md) — The built-in terminal panel
 - [Settings](settings.md) — App and per-project configuration (breakpoints, artboard, fonts)
 - [Undo, Redo, and History](undo-redo.md) — Keyboard shortcuts plus the visual History panel for per-page history navigation

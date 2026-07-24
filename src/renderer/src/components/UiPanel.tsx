@@ -56,6 +56,9 @@ export const UiPanel = (): JSX.Element => {
           always `<div>` (the wrapping page component) and the section
           has nothing meaningful to show there. */}
       {!isRoot && <ElementSection elementId={elementId} />}
+      {/* Typography sits right below Element type: for a text element it's
+          the primary thing to edit, so it leads the style sections. */}
+      {isText && <TypographySection elementId={elementId} />}
       {showPosition && <PositionSection elementId={elementId} />}
       <SizeSection elementId={elementId} />
       {!isText && !isInput && <LayoutSection elementId={elementId} />}
@@ -66,7 +69,6 @@ export const UiPanel = (): JSX.Element => {
       <FiltersSection elementId={elementId} />
       {isImage && <ImageSection elementId={elementId} />}
       {isSvg && <SvgSection elementId={elementId} />}
-      {isText && <TypographySection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />
       <TransitionsSection elementId={elementId} />
       <AnimationSection elementId={elementId} />

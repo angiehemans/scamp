@@ -48,6 +48,8 @@ import { ColorInput } from './controls/ColorInput';
 import { FontPicker } from './controls/FontPicker';
 import { Tooltip } from './controls/Tooltip';
 import { DesignDocSection } from './DesignDocSection';
+import { FontsSection } from './sections/FontsSection';
+import { TextStyleRow } from './TextStyleRow';
 import styles from './ThemePanel.module.css';
 
 /** Category → default seed value when the user changes a typography
@@ -1166,66 +1168,6 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
   };
 
   /** A text-style block: rename/delete header + one row per prop. */
-  const renderTextStyleBlock = (style: TextStyle): JSX.Element => {
-    const values: Record<TextStyleProp, string | null> = {
-      family: style.family,
-      size: style.size,
-      weight: style.weight,
-      leading: style.leading,
-      tracking: style.tracking,
-    };
-    return (
-      <div
-        key={style.name}
-        className={styles.themeBlock}
-        data-text-style={style.name}
-        data-token-row
-      >
-        <div className={styles.themeBlockHeader}>
-          <input
-            type="text"
-            className={styles.themeBlockName}
-            defaultValue={style.label}
-            aria-label={`Text style name for ${style.label}`}
-            onBlur={(e) => handleRenameTextStyle(style.name, e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-          />
-          <Tooltip label="Delete text style">
-            <button
-              type="button"
-              className={styles.tokenDelete}
-              aria-label={`Delete ${style.label} text style`}
-              onClick={() => handleDeleteTextStyleRequest(style)}
-            >
-              x
-            </button>
-          </Tooltip>
-        </div>
-        {TEXT_STYLE_PROPS.map((prop) => (
-          <div key={prop} className={styles.textStyleRow}>
-            <span className={styles.textStyleLabel}>{prop}</span>
-            <input
-              type="text"
-              // Re-mount when the persisted value changes so the
-              // uncontrolled input reflects external edits.
-              key={`${prop}:${values[prop] ?? ''}`}
-              className={styles.tokenValue}
-              defaultValue={values[prop] ?? ''}
-              aria-label={`${style.label} ${prop}`}
-              placeholder={prop === 'tracking' ? '(none)' : prop}
-              onBlur={(e) => handleTextStyleProp(style.name, prop, e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.currentTarget.blur();
-              }}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   /** One row of a design-role section: editable label + value (+ preview). */
   const renderRoleRow = (role: TokenRole, token: RoleToken): JSX.Element => (
     <div key={token.name} className={styles.tokenRow} data-token-row>
@@ -1545,6 +1487,9 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
             <section className={styles.section} data-theme-section="typography">
               <h3 className={styles.sectionTitle}>Typography</h3>
 
+              <h4 className={styles.subheading}>Fonts</h4>
+              <FontsSection projectPath={projectPath} />
+
               <h4 className={styles.subheading}>Font families</h4>
               {grouped.typography.filter((i) => categories[i] === 'fontFamily')
                 .length === 0 && (
@@ -1601,7 +1546,19 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
                   </button>
                 </div>
               ) : (
-                textStyles.map(renderTextStyleBlock)
+                textStyles.map((s) => (
+                  <TextStyleRow
+                    key={s.name}
+                    style={s}
+                    tokens={localTokens}
+                    allFonts={allFonts}
+                    onProp={(prop, value) =>
+                      handleTextStyleProp(s.name, prop, value)
+                    }
+                    onRename={(newName) => handleRenameTextStyle(s.name, newName)}
+                    onDelete={() => handleDeleteTextStyleRequest(s)}
+                  />
+                ))
               )}
               <button
                 className={styles.addButton}

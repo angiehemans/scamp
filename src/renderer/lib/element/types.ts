@@ -79,7 +79,8 @@ export type Position =
   | 'absolute'
   | 'fixed'
   | 'sticky';
-export type FontWeight = 400 | 500 | 600 | 700;
+/** Any CSS numeric font weight (1–1000); validated at the parse boundary. */
+export type FontWeight = number;
 export type TextAlign = 'left' | 'center' | 'right';
 
 export type ElementType =

@@ -1,128 +1,76 @@
-# Themes
+# Themes — Light, Dark & Custom
 
-Scamp supports design tokens through a `theme.css` file in your
-project folder. Tokens let you define reusable values — colors,
-spacing scales, font sizes, line heights — and apply them across
-your design from the panel's pickers.
+A **theme** is a set of values for your semantic color tokens. Every
+project starts with one theme — **Light** — and you can add **Dark** or
+any number of custom themes. Each theme only overrides the *semantic*
+tokens (like `--color-background` or `--color-text`); your palettes and
+other tokens stay shared.
 
-## The theme.css File
+Themes are managed in the **Colors → Semantic** area of the
+[Design System panel](design-system.md), and previewed from the canvas
+toolbar.
 
-Every project has a `theme.css` file containing CSS custom
-properties:
+## How Themes Are Stored
+
+The default (Light) theme's semantic values live in `:root`. Each
+additional theme is a CSS class block — `.dark`, `.theme-<name>` — that
+overrides just the tokens that differ:
 
 ```css
 :root {
-  /* colors */
-  --primary: #3b82f6;
-  --secondary: #64748b;
-  --background: #ffffff;
-  --text: #1e293b;
+  --color-background: #ffffff;
+  --color-text: #1e293b;
+}
 
-  /* spacing scale */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 32px;
-
-  /* typography */
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-size-body: 16px;
-  --line-height-body: 1.5;
+.dark {
+  --color-background: #0f172a;
+  --color-text: #f1f5f9;
 }
 ```
 
-A new project ships with a small starter palette plus a default
-`--font-sans`. Add more tokens as your design system grows.
+## Adding a Theme
 
-## Token Categories
+In the Semantic area, themes render as **stacked blocks**:
 
-Scamp classifies each token by its value and routes it to the
-matching panel pickers. You never tag tokens by category yourself —
-the value alone decides where they appear.
+- The **Light block** owns the token set — this is where you add,
+  rename, and delete semantic tokens.
+- Each additional theme appears as its own block below.
 
-| Value shape | Category | Surfaces in |
-|---|---|---|
-| `#fff`, `rgb(…)`, `hsl(…)`, named colors | **Color** | Color Picker swatches and the Tokens tab |
-| `8px`, `1rem`, `1.5em` | **Length** | Spacing / border / gap pickers, font-size, letter-spacing |
-| Bare number (`1.5`, `0`) | **Number** | Line-height picker |
-| Quoted font name or generic family | **Font family** | Typography section's font picker |
-| Anything else | **Unknown** | Reserved — won't appear in any picker, but round-trips verbatim |
+Click **+ Add theme** to create one. It duplicates Light's semantic
+values into a new editable block (auto-named **Dark**, then **Theme 2**,
+**Theme 3**, …). Rename it inline in the block header, and remove it with
+the block's **×**.
 
-So `--space-md: 16px;` automatically shows up in every spacing
-control's picker, and `--font-size-body: 16px;` shows up in the
-same place (Scamp doesn't distinguish "spacing" from "font-size"
-intent — they're both lengths).
+## Editing a Theme's Values
 
-## Theme Panel
+Edit a semantic token inside a theme's block to set that token's value
+*for that theme only*:
 
-Click the **Design System** icon in the left sidebar rail to open the
-theme panel. From here you can:
+- Edits in the **Light block** write to `:root`.
+- Edits in a **Dark or custom block** write to that theme's class block.
 
-- **Add** new tokens with a name and value.
-- **Rename** existing tokens.
-- **Delete** tokens you no longer need.
+If you set a token in a theme and then clear it back to matching Light,
+Scamp prunes the now-redundant override so the file stays clean.
 
-Renaming or deleting a token rewrites every `var(--…)` reference
-across your project files so nothing dangles.
+## Previewing on the Canvas
 
-## Using Tokens
+When a project has more than one theme, a **theme switcher** appears in
+the canvas toolbar. Use it to preview any theme — the canvas re-resolves
+every semantic token to the selected theme's values and repaints
+instantly. This is a preview control, separate from panel editing, so you
+can design against Light while checking how it looks in Dark.
 
-### From the Color Picker
+Light-only projects don't show the switcher.
 
-Open the [Color Picker](color-picker.md) on any color field and
-switch to the **Tokens** tab. Click any color token to apply it.
-The element's CSS becomes `color: var(--token-name)` instead of a
-hardcoded value.
+## Fonts and Themes
 
-### From spacing fields
+Adding or editing a font never clobbers your theme blocks — the font
+manager writes to both the base and the theme overrides safely. See
+[Text Styles](text-styles.md) for the font manager.
 
-Padding, margin, gap, column-gap, row-gap, border-width, and
-border-radius all expose a small **token icon** on the inside-right
-of their input. Click it for a dropdown of every length token
-declared in `theme.css`. Picking one applies the token:
+## Editing theme.css Directly
 
-- On 4-side fields (padding, margin, border-radius, border-width)
-  the chosen token populates all four sides.
-- On singular gap fields, the chosen token replaces the single value.
-
-The token icon highlights in the accent color when any side of the
-field currently holds a token reference, so you can see at a glance
-which fields are token-bound vs literal-px.
-
-You can still type mixed values directly (e.g. `16 var(--space-md)`)
-when you want one side to use a token and others to stay px.
-
-### From typography fields
-
-Font-size, line-height, and letter-spacing all carry the same
-token-icon picker (they've had it since the typography work — it
-just got a sibling for spacing). The picker lists tokens whose
-values match the field's expected shape (lengths for font-size and
-letter-spacing, bare numbers for line-height).
-
-### From the CSS editor
-
-When editing in CSS mode in the [Properties Panel](properties-panel.md),
-token names autocomplete as you type `var(--`.
-
-### From an external editor or agent
-
-`var(--…)` references in any CSS file round-trip through Scamp
-unchanged. An AI agent writing `padding: var(--space-md);` into a
-class block parses into the same typed state the panel produces —
-no special syntax needed.
-
-## Adding a Token Inline
-
-When you click the token icon in a spacing field on a project that
-has **no length tokens declared yet**, the picker shows a small
-empty state with a **+ Add token** button. Click it to jump
-straight to the theme panel where you can declare one. The picker
-re-opens with the new token available as soon as you commit.
-
-## Visual Resolution
-
-On the canvas, tokens resolve to their actual values so the design
-preview matches what your deployed page will look like. Change a
-token's value in the theme panel and every element using it
-updates immediately, both on the canvas and in the generated CSS.
+Theme blocks round-trip through hand edits and AI-agent edits. Add a
+`.dark { … }` block in your editor and it loads into the panel as a Dark
+theme; the panel preserves any hand-written CSS around the managed
+blocks. See [Bidirectional Sync](bidirectional-sync.md).

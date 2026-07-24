@@ -14,24 +14,17 @@ import { buildTextStyles, textStyleTokenName } from '@lib/typographyModel';
 import { tokensForField } from '@lib/tokensForField';
 import { ColorInput } from '../controls/ColorInput';
 import { previewStyle } from '../controls/livePreview';
-import { EnumSelect } from '../controls/EnumSelect';
 import { FontPicker } from '../controls/FontPicker';
 import { PresetMenu } from '../controls/PresetMenu';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { TokenOrNumberInput } from '../controls/TokenOrNumberInput';
-import type { FontWeight, TextAlign } from '@lib/element';
+import { WeightSelect } from '../controls/WeightSelect';
+import type { TextAlign } from '@lib/element';
 import { Section, Row } from './Section';
 
 type Props = {
   elementId: string;
 };
-
-const FONT_WEIGHT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: '400', label: '400' },
-  { value: '500', label: '500' },
-  { value: '600', label: '600' },
-  { value: '700', label: '700' },
-];
 
 const ICON_SIZE = 14;
 
@@ -41,8 +34,9 @@ const TEXT_ALIGN_OPTIONS = [
   { value: 'right' as TextAlign, label: <IconAlignRight size={ICON_SIZE} />, ariaLabel: 'Align right' },
 ] as const;
 
-const isFontWeight = (n: number): n is FontWeight =>
-  n === 400 || n === 500 || n === 600 || n === 700;
+/** CSS numeric weights run 1–1000; anything else is rejected before storing. */
+const isFontWeight = (n: number): boolean =>
+  Number.isInteger(n) && n >= 1 && n <= 1000;
 
 export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
@@ -187,9 +181,8 @@ export const TypographySection = ({ elementId }: Props): JSX.Element | null => {
           onOpenTheme={onOpenTheme}
           placeholder="auto"
         />
-        <EnumSelect
+        <WeightSelect
           value={String(element.fontWeight ?? 400)}
-          options={FONT_WEIGHT_OPTIONS}
           onChange={(value) => {
             const n = Number(value);
             if (isFontWeight(n)) patchElement(elementId, { fontWeight: n });

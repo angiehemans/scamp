@@ -1,18 +1,33 @@
 # Typography
 
 Text elements have dedicated typographic controls in the [Properties Panel](properties-panel.md).
+For defining reusable **text styles** and managing fonts project-wide,
+see [Text Styles](text-styles.md).
 
 ## Creating Text
 
 Press **T** to activate the text tool, then click and drag on the [canvas](canvas.md) to place a text element.
 
+When a text element is selected, the **Typography** section leads the
+Properties panel — it sits directly below the Element type, since it's
+the primary thing you'll edit on text.
+
+## Applying a Text Style
+
+The **Text style** dropdown applies a whole named style (H1, Body, …) to
+the element at once — setting its family, size, weight, line height, and
+letter spacing together. Define these styles in the Design System panel;
+see [Text Styles](text-styles.md).
+
 ## Font Controls
 
 - **Font Family** -- A searchable picker that includes Google Fonts and web-safe system fonts. Fonts are loaded from Google Fonts via CDN, so you need an internet connection for non-system fonts.
 - **Font Size** -- Numeric input in pixels. A token icon on the
-  right opens a picker of length tokens declared in `theme.css`
-  (`--font-size-body`, `--text-lg`, etc.) — see [Themes](themes.md).
-- **Font Weight** -- Select from available weights for the chosen font family.
+  right opens a picker of size tokens declared in `theme.css`
+  (`--text-lg`, etc.) — see [Design System](design-system.md).
+- **Font Weight** -- An editable dropdown. Pick a named weight (100 Thin
+  through 900 Black), or type any value from 1 to 1000 for variable
+  fonts. See [Text Styles](text-styles.md#choosing-a-font-weight).
 - **Text Color** -- Opens the [Color Picker](color-picker.md).
 
 ## Alignment and Spacing

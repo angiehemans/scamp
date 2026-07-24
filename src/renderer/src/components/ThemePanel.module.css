@@ -128,20 +128,6 @@ input.themeBlockName:focus {
   border-color: var(--accent);
 }
 
-/* A text-style prop row: fixed label + value input. */
-.textStyleRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.textStyleLabel {
-  flex: 0 0 64px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-transform: capitalize;
-}
-
 .typographyIcon {
   color: var(--text-secondary);
   flex-shrink: 0;

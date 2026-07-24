@@ -9,25 +9,20 @@ import { buildTextStyles, textStyleTokenName } from '@lib/typographyModel';
 import { tokensForField } from '@lib/tokensForField';
 import { ColorInput } from '../controls/ColorInput';
 import { previewStyle } from '../controls/livePreview';
-import { EnumSelect } from '../controls/EnumSelect';
 import { FontPicker } from '../controls/FontPicker';
 import { PresetMenu } from '../controls/PresetMenu';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { TokenOrNumberInput } from '../controls/TokenOrNumberInput';
+import { WeightSelect } from '../controls/WeightSelect';
 import { Section, Row } from './Section';
-const FONT_WEIGHT_OPTIONS = [
-    { value: '400', label: '400' },
-    { value: '500', label: '500' },
-    { value: '600', label: '600' },
-    { value: '700', label: '700' },
-];
 const ICON_SIZE = 14;
 const TEXT_ALIGN_OPTIONS = [
     { value: 'left', label: _jsx(IconAlignLeft, { size: ICON_SIZE }), ariaLabel: 'Align left' },
     { value: 'center', label: _jsx(IconAlignCenter, { size: ICON_SIZE }), ariaLabel: 'Align center' },
     { value: 'right', label: _jsx(IconAlignRight, { size: ICON_SIZE }), ariaLabel: 'Align right' },
 ];
-const isFontWeight = (n) => n === 400 || n === 500 || n === 600 || n === 700;
+/** CSS numeric weights run 1–1000; anything else is rejected before storing. */
+const isFontWeight = (n) => Number.isInteger(n) && n >= 1 && n <= 1000;
 export const TypographySection = ({ elementId }) => {
     const element = useResolvedElement(elementId);
     const patchElement = useCanvasStore((s) => s.patchElement);
@@ -109,7 +104,7 @@ export const TypographySection = ({ elementId }) => {
             'letter-spacing',
         ], children: [_jsx(Row, { label: "", children: _jsx(FontPicker, { value: element.fontFamily ?? '', fonts: allFonts, fontTokens: fontFamilyTokens, onChange: (value) => patchElement(elementId, {
                         fontFamily: value.length > 0 ? value : undefined,
-                    }), title: "Font family" }) }), _jsxs(Row, { label: "", children: [_jsx(TokenOrNumberInput, { prefix: "Sz", title: "Font size", value: element.fontSize, tokens: fontSizeTokens, defaultUnit: "px", onChange: (value) => patchElement(elementId, { fontSize: value }), onOpenTheme: onOpenTheme, placeholder: "auto" }), _jsx(EnumSelect, { value: String(element.fontWeight ?? 400), options: FONT_WEIGHT_OPTIONS, onChange: (value) => {
+                    }), title: "Font family" }) }), _jsxs(Row, { label: "", children: [_jsx(TokenOrNumberInput, { prefix: "Sz", title: "Font size", value: element.fontSize, tokens: fontSizeTokens, defaultUnit: "px", onChange: (value) => patchElement(elementId, { fontSize: value }), onOpenTheme: onOpenTheme, placeholder: "auto" }), _jsx(WeightSelect, { value: String(element.fontWeight ?? 400), onChange: (value) => {
                             const n = Number(value);
                             if (isFontWeight(n))
                                 patchElement(elementId, { fontWeight: n });

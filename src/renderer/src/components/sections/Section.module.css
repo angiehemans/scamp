@@ -12,9 +12,20 @@
   gap: 6px;
 }
 
-/* Right-aligned title-row control (e.g. Size's ratio-lock toggle). */
-.titleAccessory {
+/* Right-aligned cluster of header icon buttons (preset accessory, eye
+   toggle, ratio-lock, collapse chevron). One margin-left:auto pushes the
+   whole group right; the icons inside stay adjacent with a small gap.
+   see docs/notes/section-header-actions.md */
+.titleActions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Size's ratio-lock toggle etc. — plain inline-flex now that the parent
+   .titleActions handles the right-alignment. */
+.titleAccessory {
   display: flex;
   align-items: center;
 }
@@ -50,7 +61,6 @@
 }
 
 .caret {
-  margin-left: auto;
   color: var(--text-tertiary);
   flex-shrink: 0;
   transition: transform 120ms ease;
@@ -129,24 +139,13 @@
   border-radius: var(--radius-sm, 3px);
   cursor: pointer;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
-/* Caret normally right-aligns itself; when an eye icon precedes
-   it, the eye is the right-cluster anchor instead, so cancel
-   the caret's auto margin to keep them adjacent. */
-.groupToggleButton ~ .caret {
-  margin-left: 0;
-}
-
-/* Preset icon accessory (Typography text-style / Shadows preset). The
-   margin-left:auto clusters it into the right-hand group next to the eye
-   / chevron. When the eye precedes it, the eye already anchors the group,
-   so this margin resolves to zero and the two sit adjacent. */
+/* Preset icon accessory (Typography text-style / Shadows preset). Sits
+   inside the .titleActions cluster; no own margin — the wrapper aligns it. */
 .groupAccessory {
   display: inline-flex;
   align-items: center;
-  margin-left: auto;
 }
 
 .groupToggleButton:hover {

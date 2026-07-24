@@ -181,6 +181,12 @@ export const Section = ({
     children
   );
 
+  // Header icon buttons (preset accessory, eye toggle, title accessory)
+  // cluster into a single right-aligned group. One `margin-left: auto` on
+  // the wrapper does the pushing — putting it on each icon would split the
+  // free space between them and spread them apart. see docs/notes/section-header-actions.md
+  const hasActions = Boolean(groupAccessory || groupToggleButton || titleAccessory);
+
   if (!collapsible) {
     return (
       <section className={styles.section} data-panel-section={title}>
@@ -189,14 +195,16 @@ export const Section = ({
             <h3 className={styles.heading}>{title}</h3>
             {duplicateDot}
             {overrideDot}
-            {/* Preset accessory sits to the LEFT of the eye toggle; the
-                margin-left:auto span clusters it with the eye on the right. */}
-            {groupAccessory && (
-              <span className={styles.groupAccessory}>{groupAccessory}</span>
-            )}
-            {groupToggleButton}
-            {titleAccessory && (
-              <span className={styles.titleAccessory}>{titleAccessory}</span>
+            {hasActions && (
+              <div className={styles.titleActions}>
+                {groupAccessory && (
+                  <span className={styles.groupAccessory}>{groupAccessory}</span>
+                )}
+                {groupToggleButton}
+                {titleAccessory && (
+                  <span className={styles.titleAccessory}>{titleAccessory}</span>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -221,18 +229,21 @@ export const Section = ({
           <span className={styles.heading}>{title}</span>
           {duplicateDot}
           {overrideDot}
-          {groupToggleButton}
-          {/* Preset accessory sits to the LEFT of the expand chevron. Its
-              own onClick stops propagation so it doesn't toggle the section. */}
-          {groupAccessory && (
-            <span className={styles.groupAccessory}>{groupAccessory}</span>
-          )}
-          <IconChevronDown
-            size={14}
-            stroke={2}
-            className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
-            aria-hidden="true"
-          />
+          {/* Preset accessory + eye toggle + chevron cluster right. Each
+              accessory's own onClick stops propagation so it doesn't toggle
+              the section. */}
+          <span className={styles.titleActions}>
+            {groupAccessory && (
+              <span className={styles.groupAccessory}>{groupAccessory}</span>
+            )}
+            {groupToggleButton}
+            <IconChevronDown
+              size={14}
+              stroke={2}
+              className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
+              aria-hidden="true"
+            />
+          </span>
         </button>
       )}
       {open && wrappedContent}

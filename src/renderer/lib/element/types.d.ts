@@ -56,7 +56,8 @@ export type BorderStyle = 'none' | 'solid' | 'dashed' | 'dotted';
  * other value pins it: that value is emitted exactly as written.
  */
 export type Position = 'auto' | 'static' | 'relative' | 'absolute' | 'fixed' | 'sticky';
-export type FontWeight = 400 | 500 | 600 | 700;
+/** Any CSS numeric font weight (1–1000); validated at the parse boundary. */
+export type FontWeight = number;
 export type TextAlign = 'left' | 'center' | 'right';
 export type ElementType = 'rectangle' | 'text' | 'image' | 'input' | 'component-instance';
 /**

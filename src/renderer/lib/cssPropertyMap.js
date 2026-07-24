@@ -189,7 +189,9 @@ export const cssToScampProperty = {
     },
     'font-weight': (v) => {
         const n = parseInt(v, 10);
-        if (n === 400 || n === 500 || n === 600 || n === 700) {
+        // Accept any numeric CSS weight (1–1000); keyword weights like `bold`
+        // and out-of-range values fall through to customProperties.
+        if (Number.isInteger(n) && n >= 1 && n <= 1000) {
             return { fontWeight: n };
         }
         return null;
