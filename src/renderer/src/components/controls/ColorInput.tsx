@@ -60,6 +60,13 @@ type Props = {
    * the two axes from racing.
    */
   disableAlpha?: boolean;
+  /**
+   * Render only the color swatch (no hex text field), filling its
+   * container. The swatch still opens the full picker popover on click.
+   * Used by the theme panel's palette ramp, where the color block is the
+   * content and the hex lives in the popover.
+   */
+  swatchOnly?: boolean;
 };
 
 // ---- Color format helpers ------------------------------------------------
@@ -186,6 +193,7 @@ export const ColorInput = ({
   tokens,
   onOpenTheme,
   disableAlpha = false,
+  swatchOnly = false,
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState(value);
   const [tab, setTab] = useState<PopoverTab>('color');
@@ -412,33 +420,8 @@ export const ColorInput = ({
     projectSwatches.push({ value: c, display: resolvedColor, label: c });
   }
 
-  return (
-    <div className={`${styles.colorInputRow} ${styles.colorInputRowSwatch}`}>
-      <Tooltip label="Pick color">
-        <button
-          ref={popover.triggerRef}
-          type="button"
-          className={styles.colorSwatch}
-          aria-label="Pick color"
-          onClick={popover.toggle}
-        >
-          <span
-            className={styles.colorSwatchInner}
-            style={{ background: resolved }}
-          />
-        </button>
-      </Tooltip>
-      <input
-        type="text"
-        className={styles.colorText}
-        value={displayValue}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commitDraft}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-        }}
-      />
-      <div className={styles.colorPickerWrap}>
+  const pickerWrap = (
+    <div className={styles.colorPickerWrap}>
         {popover.open && popover.position && (
           <div
             ref={popover.popoverRef}
@@ -579,7 +562,54 @@ export const ColorInput = ({
             )}
           </div>
         )}
+    </div>
+  );
+
+  if (swatchOnly) {
+    return (
+      <div className={styles.colorSwatchOnly}>
+        <Tooltip label="Pick color">
+          <button
+            ref={popover.triggerRef}
+            type="button"
+            className={styles.colorSwatchOnlyButton}
+            aria-label="Pick color"
+            onClick={popover.toggle}
+            style={{ background: resolved }}
+          />
+        </Tooltip>
+        {pickerWrap}
       </div>
+    );
+  }
+
+  return (
+    <div className={`${styles.colorInputRow} ${styles.colorInputRowSwatch}`}>
+      <Tooltip label="Pick color">
+        <button
+          ref={popover.triggerRef}
+          type="button"
+          className={styles.colorSwatch}
+          aria-label="Pick color"
+          onClick={popover.toggle}
+        >
+          <span
+            className={styles.colorSwatchInner}
+            style={{ background: resolved }}
+          />
+        </button>
+      </Tooltip>
+      <input
+        type="text"
+        className={styles.colorText}
+        value={displayValue}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commitDraft}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+      />
+      {pickerWrap}
     </div>
   );
 };

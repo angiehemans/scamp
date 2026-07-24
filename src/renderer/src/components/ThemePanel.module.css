@@ -28,13 +28,14 @@
   scroll-margin-top: 12px;
 }
 
+/* Section titles read by weight + spacing, not a rule — dropping the
+   underline is the biggest single reduction in the panel's line count.
+   see docs/notes/theme-panel-design.md */
 .sectionTitle {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 4px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
 }
 
 .legacyNotice {
@@ -43,16 +44,12 @@
   font-size: 13px;
   line-height: 1.5;
   background: var(--bg-raised);
-  border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
 
 .themeHint {
   padding: 8px 10px;
   margin-bottom: 4px;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
@@ -64,12 +61,11 @@
 .themeBlock {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+  gap: 4px;
+  padding: 12px 14px;
   margin-bottom: 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  border-radius: var(--radius-lg);
 }
 
 .themeBlockHeader {
@@ -91,13 +87,13 @@
   font-family: inherit;
 }
 
-input.themeBlockName {
-  border-color: var(--border);
+input.themeBlockName:hover {
   background: var(--bg-input);
 }
 
 input.themeBlockName:focus {
   outline: none;
+  background: var(--bg-input);
   border-color: var(--accent);
 }
 
@@ -114,8 +110,8 @@ input.themeBlockName:focus {
 .shadowValue {
   flex: 1;
   min-width: 0;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 12px;
@@ -123,8 +119,13 @@ input.themeBlockName:focus {
   color: var(--text-primary);
 }
 
+.shadowValue:hover {
+  background: var(--bg-input);
+}
+
 .shadowValue:focus {
   outline: none;
+  background: var(--bg-input);
   border-color: var(--accent);
 }
 
@@ -138,8 +139,8 @@ input.themeBlockName:focus {
 .tokenValue {
   flex: 1;
   min-width: 0;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 13px;
@@ -147,8 +148,13 @@ input.themeBlockName:focus {
   font-family: var(--font-ui);
 }
 
+.tokenValue:hover {
+  background: var(--bg-input);
+}
+
 .tokenValue:focus {
   outline: none;
+  background: var(--bg-input);
   border-color: var(--accent);
 }
 
@@ -233,21 +239,31 @@ input.themeBlockName:focus {
   color: var(--accent);
 }
 
+/* Token rows are borderless — separation comes from row rhythm and a
+   hover reveal, not an outline per row. Hover uses bg-hover so it reads
+   both on the panel surface (standalone rows) and inside a raised group
+   block (semantic rows). see docs/notes/theme-panel-design.md */
 .tokenRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  padding: 5px 8px;
   border-radius: var(--radius-md);
 }
 
+.tokenRow:hover {
+  background: var(--bg-hover);
+}
+
+/* Editable fields stay quiet at rest (transparent, no border) and reveal
+   an inset background on hover, plus an accent edge on focus. The 1px
+   transparent border reserves space so focus doesn't shift layout.
+   see docs/notes/theme-panel-design.md */
 .tokenName {
   flex: 1;
   min-width: 0;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 13px;
@@ -255,8 +271,13 @@ input.themeBlockName:focus {
   font-family: inherit;
 }
 
+.tokenName:hover {
+  background: var(--bg-input);
+}
+
 .tokenName:focus {
   outline: none;
+  background: var(--bg-input);
   border-color: var(--accent);
 }
 
@@ -281,11 +302,14 @@ input.themeBlockName:focus {
   background: var(--error-bg);
 }
 
+/* The one intentional outline left in the panel: a dashed "add" zone.
+   Dashed reads as "insert here" and there's exactly one per section, so
+   it aids rather than clutters. Kept subtle at rest. */
 .addButton {
   width: 100%;
   padding: 8px 16px;
   border-radius: var(--radius-md);
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-subtle);
   background: transparent;
   color: var(--text-secondary);
   font-size: 13px;
@@ -296,6 +320,7 @@ input.themeBlockName:focus {
 .addButton:hover {
   color: var(--text-primary);
   border-color: var(--accent);
+  background: var(--bg-raised);
 }
 
 .error {
@@ -341,11 +366,10 @@ input.themeBlockName:focus {
 .palette {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-raised);
+  border-radius: var(--radius-lg);
 }
 
 .paletteHeader {
@@ -357,8 +381,8 @@ input.themeBlockName:focus {
 .paletteName {
   flex: 1;
   min-width: 0;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 13px;
@@ -367,15 +391,20 @@ input.themeBlockName:focus {
   font-family: inherit;
 }
 
+.paletteName:hover {
+  background: var(--bg-input);
+}
+
 .paletteName:focus {
   outline: none;
+  background: var(--bg-input);
   border-color: var(--accent);
 }
 
 .generateButton {
   flex-shrink: 0;
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: none;
   border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: 12px;
@@ -386,27 +415,42 @@ input.themeBlockName:focus {
 
 .generateButton:hover {
   color: var(--text-primary);
-  border-color: var(--accent);
+  background: var(--bg-hover);
 }
 
+/* The palette renders as one continuous ramp: ten equal-width color
+   blocks that touch, with only the outer ends rounded, so the palette
+   reads as a single object. Shade numbers sit quietly beneath.
+   see docs/notes/theme-panel-design.md */
 .shadeRow {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  gap: 0;
 }
 
 .shade {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
 }
 
 .shadeSwatch {
-  width: 36px;
+  width: 100%;
+  height: 44px;
+  overflow: hidden;
+}
+
+.shadeRow .shade:first-child .shadeSwatch {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.shadeRow .shade:last-child .shadeSwatch {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }
 
 .shadeLabel {
+  margin-top: 6px;
+  text-align: center;
   font-size: 10px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
@@ -415,8 +459,8 @@ input.themeBlockName:focus {
 .semanticSelect {
   flex: 1;
   min-width: 0;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 4px 6px;
   font-size: 13px;
@@ -424,17 +468,22 @@ input.themeBlockName:focus {
   font-family: inherit;
 }
 
+.semanticSelect:hover {
+  background: var(--bg-input);
+}
+
 .semanticSelect:focus {
   outline: none;
+  background: var(--bg-input);
   border-color: var(--accent);
 }
 
 .resolvedSwatch {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
 }
 
 .resolvedSwatch[data-broken='true'] {

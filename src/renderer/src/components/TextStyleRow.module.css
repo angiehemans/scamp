@@ -13,11 +13,11 @@
   display: flex;
   align-items: center;
   text-align: left;
-  padding: 6px 10px;
+  padding: 8px 12px;
   max-height: 56px;
   overflow: hidden;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: var(--text-primary);
   cursor: pointer;

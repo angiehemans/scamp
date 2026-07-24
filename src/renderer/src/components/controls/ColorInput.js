@@ -103,7 +103,7 @@ const isEyeDropperSupported = () => {
 };
 const POPOVER_WIDTH = 240;
 const POPOVER_HEIGHT = 420;
-export const ColorInput = ({ value, onChange, onPreview, historyElementId, historyPropertyKey, presetColors, tokens, onOpenTheme, disableAlpha = false, }) => {
+export const ColorInput = ({ value, onChange, onPreview, historyElementId, historyPropertyKey, presetColors, tokens, onOpenTheme, disableAlpha = false, swatchOnly = false, }) => {
     const [draft, setDraft] = useState(value);
     const [tab, setTab] = useState('color');
     const popover = usePopover({
@@ -284,26 +284,30 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
         seenDisplays.add(resolvedColor);
         projectSwatches.push({ value: c, display: resolvedColor, label: c });
     }
+    const pickerWrap = (_jsx("div", { className: styles.colorPickerWrap, children: popover.open && popover.position && (_jsxs("div", { ref: popover.popoverRef, className: `${styles.colorPopover} ${styles.colorPopoverColorful}`, style: {
+                left: popover.position.left,
+                top: popover.position.top,
+                bottom: popover.position.bottom,
+            }, children: [_jsxs("div", { className: styles.pickerTabs, children: [_jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`, onClick: () => setTab('color'), children: "Color" }), _jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`, onClick: () => setTab('tokens'), children: "Tokens" })] }), tab === 'color' ? (_jsxs("div", { className: styles.colorTabBody, children: [_jsx("div", { className: styles.colorPickerCanvas, children: _jsx(PickerComponent, { color: pickerHex, onChange: handlePickerChange }) }), _jsxs("div", { className: styles.colorControlsRow, children: [eyedropperSupported && (_jsx(Tooltip, { label: "Pick from screen", children: _jsx("button", { type: "button", className: styles.colorPopoverEyedropper, onClick: () => void handleEyedropperClick(), "aria-label": "Pick color from screen", children: _jsx(IconColorPicker, { size: 14, stroke: 2.2 }) }) })), _jsx("input", { type: "text", className: `${styles.input} ${styles.colorPopoverHex}`, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
+                                        if (e.key === 'Enter')
+                                            e.currentTarget.blur();
+                                    }, spellCheck: false }), !disableAlpha && (_jsx("div", { className: styles.colorPopoverOpacity, children: _jsx(NumberInput, { value: alphaPercent, onChange: handleOpacityChange, min: 0, max: 100, suffix: "%", disabled: opacityDisabled, title: opacityDisabled
+                                            ? 'Opacity is disabled for token / named-color values. Pick a hex to enable.'
+                                            : 'Opacity (0–100)' }) }))] }), projectSwatches.length > 0 && (_jsxs("div", { className: styles.swatchSection, children: [_jsx("span", { className: styles.swatchSectionLabel, children: "Project" }), _jsx("div", { className: styles.swatchRow, children: projectSwatches.map((entry) => (_jsx(Tooltip, { label: entry.label, children: _jsx("button", { type: "button", className: styles.swatchButton, style: { background: entry.display }, onClick: () => {
+                                                commitColor(entry.value);
+                                                popover.setOpen(false);
+                                            }, "aria-label": `Apply ${entry.label}` }) }, entry.value))) })] }))] })) : (_jsx("div", { className: styles.tokenList, children: colorTokens && colorTokens.length > 0 ? (colorTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
+                            onChange(`var(${t.name})`);
+                            popover.setOpen(false);
+                        }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: resolveVar(t.value, tokens) } }), _jsx("span", { className: styles.tokenListName, children: t.name }), _jsx("span", { className: styles.tokenListValue, children: t.value })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {
+                                    popover.setOpen(false);
+                                    onOpenTheme();
+                                }, children: "+ Add Tokens" }))] })) }))] })) }));
+    if (swatchOnly) {
+        return (_jsxs("div", { className: styles.colorSwatchOnly, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatchOnlyButton, "aria-label": "Pick color", onClick: popover.toggle, style: { background: resolved } }) }), pickerWrap] }));
+    }
     return (_jsxs("div", { className: `${styles.colorInputRow} ${styles.colorInputRowSwatch}`, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatch, "aria-label": "Pick color", onClick: popover.toggle, children: _jsx("span", { className: styles.colorSwatchInner, style: { background: resolved } }) }) }), _jsx("input", { type: "text", className: styles.colorText, value: displayValue, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
                     if (e.key === 'Enter')
                         e.currentTarget.blur();
-                } }), _jsx("div", { className: styles.colorPickerWrap, children: popover.open && popover.position && (_jsxs("div", { ref: popover.popoverRef, className: `${styles.colorPopover} ${styles.colorPopoverColorful}`, style: {
-                        left: popover.position.left,
-                        top: popover.position.top,
-                        bottom: popover.position.bottom,
-                    }, children: [_jsxs("div", { className: styles.pickerTabs, children: [_jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`, onClick: () => setTab('color'), children: "Color" }), _jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`, onClick: () => setTab('tokens'), children: "Tokens" })] }), tab === 'color' ? (_jsxs("div", { className: styles.colorTabBody, children: [_jsx("div", { className: styles.colorPickerCanvas, children: _jsx(PickerComponent, { color: pickerHex, onChange: handlePickerChange }) }), _jsxs("div", { className: styles.colorControlsRow, children: [eyedropperSupported && (_jsx(Tooltip, { label: "Pick from screen", children: _jsx("button", { type: "button", className: styles.colorPopoverEyedropper, onClick: () => void handleEyedropperClick(), "aria-label": "Pick color from screen", children: _jsx(IconColorPicker, { size: 14, stroke: 2.2 }) }) })), _jsx("input", { type: "text", className: `${styles.input} ${styles.colorPopoverHex}`, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
-                                                if (e.key === 'Enter')
-                                                    e.currentTarget.blur();
-                                            }, spellCheck: false }), !disableAlpha && (_jsx("div", { className: styles.colorPopoverOpacity, children: _jsx(NumberInput, { value: alphaPercent, onChange: handleOpacityChange, min: 0, max: 100, suffix: "%", disabled: opacityDisabled, title: opacityDisabled
-                                                    ? 'Opacity is disabled for token / named-color values. Pick a hex to enable.'
-                                                    : 'Opacity (0–100)' }) }))] }), projectSwatches.length > 0 && (_jsxs("div", { className: styles.swatchSection, children: [_jsx("span", { className: styles.swatchSectionLabel, children: "Project" }), _jsx("div", { className: styles.swatchRow, children: projectSwatches.map((entry) => (_jsx(Tooltip, { label: entry.label, children: _jsx("button", { type: "button", className: styles.swatchButton, style: { background: entry.display }, onClick: () => {
-                                                        commitColor(entry.value);
-                                                        popover.setOpen(false);
-                                                    }, "aria-label": `Apply ${entry.label}` }) }, entry.value))) })] }))] })) : (_jsx("div", { className: styles.tokenList, children: colorTokens && colorTokens.length > 0 ? (colorTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
-                                    onChange(`var(${t.name})`);
-                                    popover.setOpen(false);
-                                }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: resolveVar(t.value, tokens) } }), _jsx("span", { className: styles.tokenListName, children: t.name }), _jsx("span", { className: styles.tokenListValue, children: t.value })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {
-                                            popover.setOpen(false);
-                                            onOpenTheme();
-                                        }, children: "+ Add Tokens" }))] })) }))] })) })] }));
+                } }), pickerWrap] }));
 };

@@ -1030,6 +1030,7 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
                 <ColorInput
                   value={shade.value}
                   onChange={(v) => idx >= 0 && handleColorChange(idx, v)}
+                  swatchOnly
                 />
               </div>
               <span className={styles.shadeLabel}>{shade.shade}</span>

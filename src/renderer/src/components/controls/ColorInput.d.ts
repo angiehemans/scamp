@@ -43,6 +43,13 @@ type Props = {
      * the two axes from racing.
      */
     disableAlpha?: boolean;
+    /**
+     * Render only the color swatch (no hex text field), filling its
+     * container. The swatch still opens the full picker popover on click.
+     * Used by the theme panel's palette ramp, where the color block is the
+     * content and the hex lives in the popover.
+     */
+    swatchOnly?: boolean;
 };
-export declare const ColorInput: ({ value, onChange, onPreview, historyElementId, historyPropertyKey, presetColors, tokens, onOpenTheme, disableAlpha, }: Props) => JSX.Element;
+export declare const ColorInput: ({ value, onChange, onPreview, historyElementId, historyPropertyKey, presetColors, tokens, onOpenTheme, disableAlpha, swatchOnly, }: Props) => JSX.Element;
 export {};

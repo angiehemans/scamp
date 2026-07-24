@@ -88,6 +88,32 @@
   border-radius: 3px 0 0 3px;
 }
 
+/* Swatch-only variant: the color block IS the control, filling its
+   container (e.g. a palette-ramp cell). No hex field, no divider; the
+   picker opens on click. Corner rounding is inherited from the container
+   so the ramp's outer ends round while inner blocks stay square. */
+.colorSwatchOnly {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.colorSwatchOnlyButton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  border-radius: inherit;
+  cursor: pointer;
+}
+
+.colorSwatchOnlyButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 /* Integrated input row: optional prefix label + text input, one box.
    Matches the design's 24px height, inset-input bg, 4px radius. */
 .colorInputRow {

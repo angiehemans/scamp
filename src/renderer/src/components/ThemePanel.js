@@ -785,7 +785,7 @@ export const ThemePanel = ({ projectPath }) => {
                                 e.currentTarget.blur();
                         } }), _jsx(Tooltip, { label: "Regenerate ramp from the 500 shade", children: _jsx("button", { type: "button", className: styles.generateButton, onClick: () => handleRegeneratePalette(palette), children: "Generate" }) }), _jsx(Tooltip, { label: "Delete palette", children: _jsx("button", { type: "button", className: styles.tokenDelete, onClick: () => handleDeletePaletteRequest(palette), children: "x" }) })] }), _jsx("div", { className: styles.shadeRow, children: palette.shades.map((shade) => {
                     const idx = localTokens.findIndex((t) => t.name === shade.name);
-                    return (_jsxs("div", { className: styles.shade, children: [_jsx("div", { className: styles.shadeSwatch, children: _jsx(ColorInput, { value: shade.value, onChange: (v) => idx >= 0 && handleColorChange(idx, v) }) }), _jsx("span", { className: styles.shadeLabel, children: shade.shade })] }, shade.name));
+                    return (_jsxs("div", { className: styles.shade, children: [_jsx("div", { className: styles.shadeSwatch, children: _jsx(ColorInput, { value: shade.value, onChange: (v) => idx >= 0 && handleColorChange(idx, v), swatchOnly: true }) }), _jsx("span", { className: styles.shadeLabel, children: shade.shade })] }, shade.name));
                 }) })] }, palette.name));
     /**
      * A semantic token row for a given theme. Light (`cssClass === ''`)
