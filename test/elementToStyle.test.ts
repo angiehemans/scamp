@@ -252,3 +252,76 @@ describe('elementToStyle — theme token resolution', () => {
     expect(style(el, { tokens }).background).toBe('transparent');
   });
 });
+
+describe('elementToStyle — typed text property wins over customProperties echo', () => {
+  const makeText = (overrides: Partial<ScampElement> = {}): ScampElement =>
+    makeEl({ type: 'text', text: 'Hello', ...overrides });
+
+  it('applies the typed fontWeight, ignoring a stale customProperties echo', () => {
+    // The canvas must not render a leftover `font-weight` echo (e.g. a
+    // keyword the parser could not type) once the typed field is set —
+    // this was the font-weight-not-updating bug.
+    const el = makeText({
+      fontWeight: 700,
+      customProperties: { 'font-weight': 'bold' },
+    });
+    expect(style(el).fontWeight).toBe(700);
+  });
+
+  it('drops every typed typography echo when its field is set', () => {
+    const el = makeText({
+      fontSize: '24px',
+      fontFamily: 'Inter',
+      color: '#111111',
+      lineHeight: '1.5',
+      letterSpacing: '0.02em',
+      textAlign: 'center',
+      customProperties: {
+        'font-size': '12px',
+        'font-family': 'Comic Sans',
+        color: 'red',
+        'line-height': '3',
+        'letter-spacing': '1px',
+        'text-align': 'left',
+      },
+    });
+    const s = style(el);
+    expect(s.fontSize).toBe('24px');
+    expect(s.fontFamily).toBe('Inter');
+    expect(s.color).toBe('#111111');
+    expect(s.lineHeight).toBe('1.5');
+    expect(s.letterSpacing).toBe('0.02em');
+    expect(s.textAlign).toBe('center');
+  });
+
+  it('still renders a customProperties font-weight echo when no typed weight is set', () => {
+    // Relative keywords (`lighter`/`bolder`) legitimately live in
+    // customProperties; with no typed weight, the echo must still render.
+    const el = makeText({
+      fontWeight: undefined,
+      customProperties: { 'font-weight': 'lighter' },
+    });
+    expect(style(el).fontWeight).toBe('lighter');
+  });
+
+  it('does not strip a colour echo on a non-text element', () => {
+    // The typed-wins rule is text-only; a rectangle with a custom
+    // `color` (e.g. for currentColor descendants) keeps rendering it.
+    const el = makeEl({
+      type: 'rectangle',
+      customProperties: { color: 'red' },
+    });
+    expect(style(el).color).toBe('red');
+  });
+
+  it('keeps the echo when the typography group is toggled off', () => {
+    // Typography off → base does not emit the typed field, so the echo
+    // is what should render (matches the generator's commented output).
+    const el = makeText({
+      fontWeight: 700,
+      toggledOffGroups: ['typography'],
+      customProperties: { 'font-weight': 'bold' },
+    });
+    expect(style(el).fontWeight).toBe('bold');
+  });
+});

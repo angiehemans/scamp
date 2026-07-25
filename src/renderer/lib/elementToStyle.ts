@@ -80,6 +80,24 @@ const resolveTokenValue = (
   return resolveTokenChain(value, tokens) ?? value;
 };
 
+/**
+ * CSS property names Scamp routes to a typed TEXT field, each paired with
+ * a predicate that's true when that field is set on the element. When a
+ * `customProperties` echo of one of these coexists with a set typed
+ * field, the typed value wins — same rule the generator applies on write.
+ * The canvas must skip the echo so it doesn't shadow the typed value.
+ * see docs/notes/typed-property-echo.md
+ */
+const TYPED_TEXT_CSS_PROPS: Record<string, (el: ScampElement) => boolean> = {
+  'font-family': (el) => el.fontFamily !== undefined,
+  'font-size': (el) => el.fontSize !== undefined,
+  'font-weight': (el) => el.fontWeight !== undefined,
+  color: (el) => el.color !== undefined,
+  'text-align': (el) => el.textAlign !== undefined,
+  'line-height': (el) => el.lineHeight !== undefined,
+  'letter-spacing': (el) => el.letterSpacing !== undefined,
+};
+
 
 export const elementToStyle = (
   el: ScampElement,
@@ -413,9 +431,16 @@ export const elementToStyle = (
   // `background-size`) when their group is toggled off so the canvas
   // matches the generator's commented-out output.
   const filteredCustomProperties: Record<string, string> = {};
+  // A typed text field wins over a stale `customProperties` echo of the
+  // same CSS property, matching the generator. Only for text elements
+  // with typography active — that's exactly when `base` emits these
+  // fields. see docs/notes/typed-property-echo.md
+  const typedTextWins = el.type === 'text' && !isOff('typography');
   for (const [key, value] of Object.entries(el.customProperties)) {
     const owningGroup = CUSTOM_PROP_TO_GROUP[key];
     if (owningGroup && isOff(owningGroup)) continue;
+    const typedPredicate = typedTextWins ? TYPED_TEXT_CSS_PROPS[key] : undefined;
+    if (typedPredicate && typedPredicate(el)) continue;
     filteredCustomProperties[key] = value;
   }
   const customStyle = customPropsToStyle(filteredCustomProperties);

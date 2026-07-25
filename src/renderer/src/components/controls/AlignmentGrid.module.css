@@ -1,0 +1,72 @@
+/* Figma-style 3×3 flex alignment picker. A square grid of nine
+ * clickable cells with faint dots, plus a live preview of three bars
+ * arranged by the element's actual align/justify (orientation flips
+ * with flex-direction). */
+
+.grid {
+  position: relative;
+  /* Fills its half of the Layout row (the dropdowns take the other
+   * half); */
+  width: 100%;
+  height: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
+.cell {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  z-index: 1;
+}
+
+.cell:hover {
+  background: var(--bg-hover);
+}
+
+.cell:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.cell:hover .dot {
+  background: var(--text-secondary);
+}
+
+.cellActive .dot {
+  background: var(--accent);
+}
+
+/* Live preview of the current alignment. Sits above the cells but
+ * ignores pointer events so clicks land on the cells beneath. */
+.preview {
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.bar {
+  background: var(--accent);
+  border-radius: 2px;
+  flex: none;
+}

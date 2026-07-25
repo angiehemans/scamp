@@ -522,8 +522,17 @@ describe('cssToScampProperty', () => {
             expect(apply('font-weight', '0')).toBeNull();
             expect(apply('font-weight', '1200')).toBeNull();
         });
-        it('refuses a keyword font-weight (routes to customProperties)', () => {
-            expect(apply('font-weight', 'bold')).toBeNull();
+        it('maps the absolute keyword weights to their numeric equivalents', () => {
+            expect(apply('font-weight', 'bold')).toEqual({ fontWeight: 700 });
+            expect(apply('font-weight', 'normal')).toEqual({ fontWeight: 400 });
+            // Case / whitespace insensitive.
+            expect(apply('font-weight', '  BOLD ')).toEqual({ fontWeight: 700 });
+        });
+        it('refuses relative keyword weights (routes to customProperties)', () => {
+            // `lighter` / `bolder` are relative to the inherited weight and have
+            // no fixed numeric equivalent, so they stay in customProperties.
+            expect(apply('font-weight', 'lighter')).toBeNull();
+            expect(apply('font-weight', 'bolder')).toBeNull();
         });
         it('maps color', () => {
             expect(apply('color', '#222222')).toEqual({ color: '#222222' });

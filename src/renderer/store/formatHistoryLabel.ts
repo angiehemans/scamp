@@ -100,6 +100,10 @@ export const formatHistoryLabel = (
       const name = live ? firstName : entry.previousName ?? '[deleted]';
       return `Deleted ${name}`;
     }
+    case 'delete-contents':
+      // The element itself survives — only its children / raw fragments /
+      // text were cleared — so `firstName` still resolves from the live map.
+      return `Cleared contents of ${firstName}`;
     case 'move':
       return `Moved ${firstName}`;
     case 'resize':

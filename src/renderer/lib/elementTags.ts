@@ -87,6 +87,12 @@ export const TAG_OPTIONS: Record<ElementType, ReadonlyArray<TagOption>> = {
     // dropdown needs to be able to render `'a'` as the selected
     // option when that's happened.
     { value: 'a', label: 'a' },
+    // `<button>` is dual-natured like `<a>`: a plain button with just a
+    // label parses as a text element (editable text), so the text-tag
+    // dropdown must be able to render `'button'` as the selected option.
+    // A button with element children is a rectangle (see the rectangle
+    // list above).
+    { value: 'button', label: 'button' },
   ],
   image: [
     { value: 'img', label: 'img' },

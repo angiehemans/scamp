@@ -15,6 +15,7 @@ export type HistoryActionKind =
   | 'detach-instance'
   | 'load'
   | 'delete'
+  | 'delete-contents'
   | 'move'
   | 'resize'
   | 'patch'

@@ -31,7 +31,7 @@ const parseSingle = (raw, min) => {
  * Mirrors the visual + interaction model of `FourSideInput` so all
  * spacing-typed controls behave consistently.
  */
-export const SpaceValueInput = ({ value, onChange, min = 0, prefix, title, tokens, onOpenTheme, }) => {
+export const SpaceValueInput = ({ value, onChange, min = 0, prefix, label, title, tokens, onOpenTheme, }) => {
     const stringValue = formatSpaceValue(value);
     const handleCommit = (draft) => {
         const parsed = parseSingle(draft, min);
@@ -55,6 +55,9 @@ export const SpaceValueInput = ({ value, onChange, min = 0, prefix, title, token
     const handleSelectToken = (varRef) => {
         onChange(tokenSpaceValue(varRef));
     };
-    const suffix = tokens ? (_jsx(SpaceTokenButton, { tokens: tokens, onSelect: handleSelectToken, ...(onOpenTheme ? { onOpenTheme } : {}), active: isTokenSpaceValue(value), ariaLabel: prefix ? `Pick ${prefix} token` : 'Pick spacing token' })) : undefined;
+    // The token picker's aria label needs plain text — use `label`, or
+    // `prefix` when it's a string, else a generic fallback.
+    const tokenName = label ?? (typeof prefix === 'string' ? prefix : undefined);
+    const suffix = tokens ? (_jsx(SpaceTokenButton, { tokens: tokens, onSelect: handleSelectToken, ...(onOpenTheme ? { onOpenTheme } : {}), active: isTokenSpaceValue(value), ariaLabel: tokenName ? `Pick ${tokenName} token` : 'Pick spacing token' })) : undefined;
     return (_jsx(PrefixSuffixInput, { value: stringValue, onCommit: handleCommit, onArrow: handleArrow, prefix: prefix, placeholder: "0", ...(title !== undefined ? { title } : {}), ...(suffix !== undefined ? { suffix } : {}) }));
 };

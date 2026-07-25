@@ -80,6 +80,7 @@ export const createElementsCreateSlice: StateCreator<
   | 'detachInstance'
   | 'renameComponentReferences'
   | 'deleteElement'
+  | 'deleteElementContents'
   | 'duplicateElement'
   | 'copyElement'
   | 'pasteElement'
@@ -509,6 +510,70 @@ export const createElementsCreateSlice: StateCreator<
       };
     });
     commitElementsToHistory({ kind: 'delete', elementIds: [id], previousName });
+  },
+
+  deleteElementContents: (id) => {
+    let didChange = false;
+    set((state) => {
+      const target = state.elements[id];
+      if (!target) return state;
+
+      // Nothing to clear — no child elements, no "Raw" fragments, no
+      // text. Bail so we don't push an empty history entry.
+      const hasText =
+        typeof target.text === 'string' && target.text.length > 0;
+      if (
+        target.childIds.length === 0 &&
+        target.inlineFragments.length === 0 &&
+        !hasText
+      ) {
+        return state;
+      }
+
+      // Collect every descendant of the target — its children and their
+      // subtrees — but NOT the target itself, which we keep. Depth-first
+      // over childIds; safe because the canvas tree has no cycles.
+      const toRemove = new Set<string>();
+      const visit = (visitId: string): void => {
+        if (toRemove.has(visitId)) return;
+        toRemove.add(visitId);
+        const el = state.elements[visitId];
+        if (!el) return;
+        for (const childId of el.childIds) visit(childId);
+      };
+      for (const childId of target.childIds) visit(childId);
+
+      const nextElements: Record<string, ScampElement> = {};
+      for (const [key, value] of Object.entries(state.elements)) {
+        if (toRemove.has(key)) continue;
+        nextElements[key] = value;
+      }
+
+      // Keep the element, emptied: drop its children, its loose inline
+      // fragments, and its own text. Clearing text only when it had any
+      // keeps rectangles (which never carry text) byte-stable.
+      nextElements[id] = {
+        ...target,
+        childIds: [],
+        inlineFragments: [],
+        text: hasText ? '' : target.text,
+      };
+
+      didChange = true;
+      return {
+        elements: nextElements,
+        selectedElementIds: state.selectedElementIds.filter(
+          (s) => !toRemove.has(s)
+        ),
+        editingElementId:
+          state.editingElementId && toRemove.has(state.editingElementId)
+            ? null
+            : state.editingElementId,
+      };
+    });
+    if (didChange) {
+      commitElementsToHistory({ kind: 'delete-contents', elementIds: [id] });
+    }
   },
 
   duplicateElement: (id) => {

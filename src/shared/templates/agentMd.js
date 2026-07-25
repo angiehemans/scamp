@@ -322,7 +322,7 @@ There are four element types, identified by the class-name prefix:
 - **Text** (\`text_\` prefix or custom name) — any text-bearing tag:
   \`p\`, \`h1\`–\`h6\`, \`span\`, \`a\`, \`label\`, \`blockquote\`, \`pre\`,
   \`code\`, \`strong\`, \`em\`, \`small\`, \`time\`, \`figcaption\`, \`legend\`,
-  \`li\`. Default: \`p\`.
+  \`li\`, \`button\`. Default: \`p\`.
 - **Container** (\`rect_\` prefix or custom name) — block-level tags:
   \`div\`, \`section\`, \`article\`, \`aside\`, \`main\`, \`header\`,
   \`footer\`, \`nav\`, \`figure\`, \`form\`, \`fieldset\`, \`ul\`, \`ol\`,
@@ -333,10 +333,90 @@ There are four element types, identified by the class-name prefix:
 - **Input / form control** (\`input_\` prefix or custom name) — \`input\`,
   \`textarea\`, \`select\`. Default: \`input\`.
 
+Three tags — \`<button>\`, \`<a>\`, and \`<li>\` — are **dual-natured**.
+A leaf holding only a text label (\`<button>Sign up</button>\`,
+\`<a href="/">Home</a>\`) is a TEXT element: Scamp reads and edits its
+label on the canvas like any other text. The SAME tag holding element
+children (\`<button><svg …/><span …>Go</span></button>\`) is a
+CONTAINER. Scamp decides automatically from the contents, so:
+
+- A button or link that is just a label needs NO nested \`<span>\` —
+  put the text directly inside (\`<button data-scamp-id="cta_a1b2"
+  className={styles.cta_a1b2}>Sign up</button>\`) and it's
+  canvas-editable. Give it a \`text_\` or custom prefix (not \`rect_\`).
+- Only reach for children inside a button/link when it genuinely
+  contains more than text (an icon plus a label). Then it's a
+  container, and the label goes in its own text child.
+
 Pick the tag that best describes the content. A page hero is a
 \`<header>\`. A page title is an \`<h1>\`. A paragraph of body copy is
 a \`<p>\`. The user will thank you (and so will their accessibility
 audit).
+
+### Text ALWAYS goes in a text element — never bare in a container
+
+This is the single most common mistake, and it produces broken,
+uneditable designs. **Read this carefully.**
+
+A container (\`<div>\`, \`<section>\`, a \`rect_\` element) is for
+layout. It is NOT a text element. If you write words directly
+inside a container, Scamp cannot model them as an editable text
+element — they collapse into a loose "Raw" fragment attached to the
+parent. That fragment renders on the canvas but is NOT selectable,
+NOT editable from the properties panel, and clutters the layers
+panel. This is exactly the "fragment" problem that makes a design
+unmanageable.
+
+**Every run of visible text must be the CONTENT of a text element**
+— a text-bearing tag (\`p\`, \`h1\`–\`h6\`, \`span\`, \`a\`, \`label\`,
+\`blockquote\`, \`li\`, …) with its own \`data-scamp-id\` and its own
+matching \`text_\`-prefixed (or custom-named) CSS class.
+
+❌ WRONG — raw text sitting directly in a container. Scamp turns
+"Welcome to Scamp" and "Draw, and it becomes code." into
+uneditable Raw fragments:
+
+\`\`\`tsx
+<div data-scamp-id="hero_h1a2" className={styles.hero_h1a2}>
+  Welcome to Scamp
+  <div data-scamp-id="rect_c3d4" className={styles.rect_c3d4}>
+    Draw, and it becomes code.
+  </div>
+</div>
+\`\`\`
+
+✅ RIGHT — the container holds text CHILDREN, each its own text
+element with an id + class. Now every line is selectable and
+editable on the canvas:
+
+\`\`\`tsx
+<div data-scamp-id="hero_h1a2" className={styles.hero_h1a2}>
+  <h1 data-scamp-id="hero_title_t1a2" className={styles.hero_title_t1a2}>Welcome to Scamp</h1>
+  <p data-scamp-id="hero_body_t3b4" className={styles.hero_body_t3b4}>Draw, and it becomes code.</p>
+</div>
+\`\`\`
+
+Rules of thumb:
+
+- A container's job is layout; it should contain child ELEMENTS,
+  not bare words. If a \`<div>\` / \`<section>\` has text in it,
+  that text belongs in a \`<p>\`, heading, or \`<span>\` child.
+- A button or link that is just a text label IS itself a text-
+  capable element — put the label directly inside the
+  \`<button>\` / \`<a>\` (\`<button …>Sign up</button>\`). You don't
+  need to nest a \`<span>\` for a plain label. But if a card is a
+  \`<div>\` with a heading and a paragraph, those are two separate
+  text children, never bare text in the div.
+- The ONLY text you may leave bare inside an element is inline
+  formatting WITHIN a text element — \`<strong>\`, \`<em>\`, \`<br>\`,
+  \`<code>\` interleaved with the words of a \`<p>\` (see "Loose text
+  and unclassed JSX" below). That is a text element containing
+  inline markup, not a container containing raw text — the
+  distinction that matters is whether the DIRECT parent of the
+  words is a text element or a container.
+- When in doubt: if you're about to type words as the direct child
+  of a \`<div>\`, stop and wrap them in a \`<p>\` (or the right
+  heading) with its own \`data-scamp-id\` + class first.
 
 ### Tag-specific attributes
 
@@ -1259,7 +1339,7 @@ There are four element types, identified by the class-name prefix:
 - **Text** (\`text_\` prefix or custom name) — any text-bearing tag:
   \`p\`, \`h1\`–\`h6\`, \`span\`, \`a\`, \`label\`, \`blockquote\`, \`pre\`,
   \`code\`, \`strong\`, \`em\`, \`small\`, \`time\`, \`figcaption\`, \`legend\`,
-  \`li\`. Default: \`p\`.
+  \`li\`, \`button\`. Default: \`p\`.
 - **Container** (\`rect_\` prefix or custom name) — block-level tags:
   \`div\`, \`section\`, \`article\`, \`aside\`, \`main\`, \`header\`,
   \`footer\`, \`nav\`, \`figure\`, \`form\`, \`fieldset\`, \`ul\`, \`ol\`,
@@ -1270,10 +1350,90 @@ There are four element types, identified by the class-name prefix:
 - **Input / form control** (\`input_\` prefix or custom name) — \`input\`,
   \`textarea\`, \`select\`. Default: \`input\`.
 
+Three tags — \`<button>\`, \`<a>\`, and \`<li>\` — are **dual-natured**.
+A leaf holding only a text label (\`<button>Sign up</button>\`,
+\`<a href="/">Home</a>\`) is a TEXT element: Scamp reads and edits its
+label on the canvas like any other text. The SAME tag holding element
+children (\`<button><svg …/><span …>Go</span></button>\`) is a
+CONTAINER. Scamp decides automatically from the contents, so:
+
+- A button or link that is just a label needs NO nested \`<span>\` —
+  put the text directly inside (\`<button data-scamp-id="cta_a1b2"
+  className={styles.cta_a1b2}>Sign up</button>\`) and it's
+  canvas-editable. Give it a \`text_\` or custom prefix (not \`rect_\`).
+- Only reach for children inside a button/link when it genuinely
+  contains more than text (an icon plus a label). Then it's a
+  container, and the label goes in its own text child.
+
 Pick the tag that best describes the content. A page hero is a
 \`<header>\`. A page title is an \`<h1>\`. A paragraph of body copy is
 a \`<p>\`. The user will thank you (and so will their accessibility
 audit).
+
+### Text ALWAYS goes in a text element — never bare in a container
+
+This is the single most common mistake, and it produces broken,
+uneditable designs. **Read this carefully.**
+
+A container (\`<div>\`, \`<section>\`, a \`rect_\` element) is for
+layout. It is NOT a text element. If you write words directly
+inside a container, Scamp cannot model them as an editable text
+element — they collapse into a loose "Raw" fragment attached to the
+parent. That fragment renders on the canvas but is NOT selectable,
+NOT editable from the properties panel, and clutters the layers
+panel. This is exactly the "fragment" problem that makes a design
+unmanageable.
+
+**Every run of visible text must be the CONTENT of a text element**
+— a text-bearing tag (\`p\`, \`h1\`–\`h6\`, \`span\`, \`a\`, \`label\`,
+\`blockquote\`, \`li\`, …) with its own \`data-scamp-id\` and its own
+matching \`text_\`-prefixed (or custom-named) CSS class.
+
+❌ WRONG — raw text sitting directly in a container. Scamp turns
+"Welcome to Scamp" and "Draw, and it becomes code." into
+uneditable Raw fragments:
+
+\`\`\`tsx
+<div data-scamp-id="hero_h1a2" className={styles.hero_h1a2}>
+  Welcome to Scamp
+  <div data-scamp-id="rect_c3d4" className={styles.rect_c3d4}>
+    Draw, and it becomes code.
+  </div>
+</div>
+\`\`\`
+
+✅ RIGHT — the container holds text CHILDREN, each its own text
+element with an id + class. Now every line is selectable and
+editable on the canvas:
+
+\`\`\`tsx
+<div data-scamp-id="hero_h1a2" className={styles.hero_h1a2}>
+  <h1 data-scamp-id="hero_title_t1a2" className={styles.hero_title_t1a2}>Welcome to Scamp</h1>
+  <p data-scamp-id="hero_body_t3b4" className={styles.hero_body_t3b4}>Draw, and it becomes code.</p>
+</div>
+\`\`\`
+
+Rules of thumb:
+
+- A container's job is layout; it should contain child ELEMENTS,
+  not bare words. If a \`<div>\` / \`<section>\` has text in it,
+  that text belongs in a \`<p>\`, heading, or \`<span>\` child.
+- A button or link that is just a text label IS itself a text-
+  capable element — put the label directly inside the
+  \`<button>\` / \`<a>\` (\`<button …>Sign up</button>\`). You don't
+  need to nest a \`<span>\` for a plain label. But if a card is a
+  \`<div>\` with a heading and a paragraph, those are two separate
+  text children, never bare text in the div.
+- The ONLY text you may leave bare inside an element is inline
+  formatting WITHIN a text element — \`<strong>\`, \`<em>\`, \`<br>\`,
+  \`<code>\` interleaved with the words of a \`<p>\` (see "Loose text
+  and unclassed JSX" below). That is a text element containing
+  inline markup, not a container containing raw text — the
+  distinction that matters is whether the DIRECT parent of the
+  words is a text element or a container.
+- When in doubt: if you're about to type words as the direct child
+  of a \`<div>\`, stop and wrap them in a \`<p>\` (or the right
+  heading) with its own \`data-scamp-id\` + class first.
 
 ### Tag-specific attributes
 

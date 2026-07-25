@@ -8,8 +8,10 @@ import {
 import { useMemo } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
+import { AlignmentGrid } from '../controls/AlignmentGrid';
 import { EnumSelect } from '../controls/EnumSelect';
-import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
+import { GapIcon } from '../controls/GapIcon';
+import { GridTemplateEditor } from '../controls/GridTemplateEditor';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { SpaceValueInput } from '../controls/SpaceValueInput';
 import type {
@@ -222,22 +224,49 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
       {isFlex && (
         <>
           <Row label="">
-            <EnumSelect<AlignItems>
-              value={element.alignItems}
-              options={ALIGN_OPTIONS}
-              onChange={(value) => patchElement(elementId, { alignItems: value })}
-              title="Align items"
+            <AlignmentGrid
+              direction={element.flexDirection}
+              alignItems={element.alignItems}
+              justifyContent={element.justifyContent}
+              onChange={(patch) => patchElement(elementId, patch)}
             />
-            <EnumSelect<JustifyContent>
-              value={element.justifyContent}
-              options={JUSTIFY_OPTIONS}
-              onChange={(value) => patchElement(elementId, { justifyContent: value })}
-              title="Justify content"
-            />
-          </Row>
-          <Row label="">
-            <SpaceValueInput
-              prefix="Gap"
+            {/* Dropdowns fill the other half of the row, stacked. Grid
+                (not flex) so each select keeps its 24px height. */}
+            <div
+              style={{
+                display: 'grid',
+                gap: 6,
+                alignContent: 'center',
+                minWidth: 0,
+              }}
+            >
+              <EnumSelect<AlignItems>
+                value={element.alignItems}
+                options={ALIGN_OPTIONS}
+                onChange={(value) =>
+                  patchElement(elementId, { alignItems: value })
+                }
+                title="Align items"
+              />
+              <EnumSelect<JustifyContent>
+                value={element.justifyContent}
+                options={JUSTIFY_OPTIONS}
+                onChange={(value) =>
+                  patchElement(elementId, { justifyContent: value })
+                }
+                title="Justify content"
+              />
+              <SpaceValueInput
+              prefix={
+                <GapIcon
+                  orientation={
+                    element.flexDirection === 'column'
+                      ? 'vertical'
+                      : 'horizontal'
+                  }
+                />
+              }
+              label="Gap"
               title="Gap between flex children"
               value={element.gap}
               onChange={(value) => patchElement(elementId, { gap: value })}
@@ -245,36 +274,23 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
               tokens={spacingTokens}
               {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
             />
+            </div>
           </Row>
         </>
       )}
       {isGrid && (
         <>
           <Row label="">
-            <PrefixSuffixInput
-              prefix="Cols"
-              title="grid-template-columns"
-              value={element.gridTemplateColumns}
-              placeholder="1fr 1fr"
-              onCommit={(value) =>
-                patchElement(elementId, { gridTemplateColumns: value.trim() })
-              }
-            />
-          </Row>
-          <Row label="">
-            <PrefixSuffixInput
-              prefix="Rows"
-              title="grid-template-rows"
-              value={element.gridTemplateRows}
-              placeholder="auto"
-              onCommit={(value) =>
-                patchElement(elementId, { gridTemplateRows: value.trim() })
-              }
+            <GridTemplateEditor
+              columns={element.gridTemplateColumns}
+              rows={element.gridTemplateRows}
+              onChange={(patch) => patchElement(elementId, patch)}
             />
           </Row>
           <Row label="">
             <SpaceValueInput
-              prefix="C-gap"
+              prefix={<GapIcon orientation="horizontal" />}
+              label="Column gap"
               title="column-gap"
               value={element.columnGap}
               onChange={(value) =>
@@ -285,7 +301,8 @@ export const LayoutSection = ({ elementId }: Props): JSX.Element | null => {
               {...(openThemePanel ? { onOpenTheme: openThemePanel } : {})}
             />
             <SpaceValueInput
-              prefix="R-gap"
+              prefix={<GapIcon orientation="vertical" />}
+              label="Row gap"
               title="row-gap"
               value={element.rowGap}
               onChange={(value) => patchElement(elementId, { rowGap: value })}

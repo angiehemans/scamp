@@ -62,6 +62,17 @@ describe('formatHistoryLabel — action kinds', () => {
     ).toBe('Deleted rect_a1b2');
   });
 
+  it('renders "Cleared contents of rect_a1b2" for delete-contents', () => {
+    // The emptied element survives, so its name resolves from the live map.
+    const elements = { a1b2: makeRect('a1b2') };
+    expect(
+      formatHistoryLabel(
+        entry({ kind: 'delete-contents', elementIds: ['a1b2'] }),
+        elements
+      )
+    ).toBe('Cleared contents of rect_a1b2');
+  });
+
   it('renders "Moved rect_a1b2"', () => {
     const elements = { a1b2: makeRect('a1b2') };
     expect(

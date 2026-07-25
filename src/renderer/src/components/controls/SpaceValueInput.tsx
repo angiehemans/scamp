@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { PrefixSuffixInput } from './PrefixSuffixInput';
 import { SpaceTokenButton } from './SpaceTokenButton';
 import {
@@ -14,8 +16,11 @@ type Props = {
   onChange: (next: SpaceValue) => void;
   /** Minimum allowed numeric value. Tokens bypass this clamp. */
   min?: number;
-  /** Inline prefix (e.g. "Gap", "C-gap"). */
-  prefix?: string;
+  /** Inline prefix — a short string (e.g. "C-gap") or an icon node. */
+  prefix?: ReactNode;
+  /** Plain-text name for the field, used for the token picker's aria
+   *  label when `prefix` is an icon (a node) rather than a string. */
+  label?: string;
   /** Tooltip on hover. */
   title?: string;
   /** Length-shaped theme tokens to offer in the picker. Omit to hide. */
@@ -58,6 +63,7 @@ export const SpaceValueInput = ({
   onChange,
   min = 0,
   prefix,
+  label,
   title,
   tokens,
   onOpenTheme,
@@ -89,13 +95,16 @@ export const SpaceValueInput = ({
     onChange(tokenSpaceValue(varRef));
   };
 
+  // The token picker's aria label needs plain text — use `label`, or
+  // `prefix` when it's a string, else a generic fallback.
+  const tokenName = label ?? (typeof prefix === 'string' ? prefix : undefined);
   const suffix = tokens ? (
     <SpaceTokenButton
       tokens={tokens}
       onSelect={handleSelectToken}
       {...(onOpenTheme ? { onOpenTheme } : {})}
       active={isTokenSpaceValue(value)}
-      ariaLabel={prefix ? `Pick ${prefix} token` : 'Pick spacing token'}
+      ariaLabel={tokenName ? `Pick ${tokenName} token` : 'Pick spacing token'}
     />
   ) : undefined;
 

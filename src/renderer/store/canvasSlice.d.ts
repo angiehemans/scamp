@@ -429,6 +429,13 @@ export type CanvasState = {
     /** Clone from the clipboard and insert at the current selection point. */
     pasteElement: () => string | null;
     deleteElement: (id: string) => void;
+    /**
+     * Empty an element without removing it: recursively deletes every
+     * descendant and clears the element's own raw text and inline "Raw"
+     * fragments, leaving the element in place. No-op (and no history
+     * entry) when the element is already empty.
+     */
+    deleteElementContents: (id: string) => void;
     /** Wrap the given sibling ids in a new flex group. Returns the new id or null. */
     groupElements: (ids: string[]) => string | null;
     /** Promote the children of `id` to its grandparent and remove `id`. */

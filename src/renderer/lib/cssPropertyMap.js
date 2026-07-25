@@ -188,9 +188,18 @@ export const cssToScampProperty = {
         return { fontSize: trimmed };
     },
     'font-weight': (v) => {
+        // The two absolute keyword weights have exact numeric equivalents —
+        // type them so the panel + canvas control them instead of leaving
+        // them stranded in customProperties. see docs/notes/typed-property-echo.md
+        const keyword = v.trim().toLowerCase();
+        if (keyword === 'normal')
+            return { fontWeight: 400 };
+        if (keyword === 'bold')
+            return { fontWeight: 700 };
         const n = parseInt(v, 10);
-        // Accept any numeric CSS weight (1–1000); keyword weights like `bold`
-        // and out-of-range values fall through to customProperties.
+        // Accept any numeric CSS weight (1–1000); relative keywords
+        // (`lighter`, `bolder`), `inherit`, and out-of-range values fall
+        // through to customProperties.
         if (Number.isInteger(n) && n >= 1 && n <= 1000) {
             return { fontWeight: n };
         }

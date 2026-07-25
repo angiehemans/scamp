@@ -1,0 +1,178 @@
+/* Visual CSS-grid builder: a quick N×M picker plus per-track chip
+ * editors for columns and rows, with a proportional preview. Shared by
+ * GridTemplateEditor, GridQuickSize, and GridTrackList. */
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+/* --- Quick N×M matrix picker --- */
+.quick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.quickGrid {
+  display: grid;
+  gap: 2px;
+}
+
+.quickCell {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.quickCellActive {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}
+
+.quickLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* --- Track list (accordion) --- */
+.trackList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accordionHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: inherit;
+}
+
+.accordionHeader:hover {
+  color: var(--text-primary);
+}
+
+.accordionCount {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.trackHeader {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: inherit;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trackIndex {
+  flex: none;
+  width: 14px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.trackType {
+  flex: 0 0 66px;
+  display: flex;
+  min-width: 0;
+}
+
+.trackValue {
+  flex: 1 1 0;
+  display: flex;
+  min-width: 0;
+}
+
+.iconButton {
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.iconButton:hover {
+  color: var(--text-primary);
+  background: var(--bg-input);
+}
+
+.addButton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--control-h);
+  padding: 0 8px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.addButton:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* --- Proportional preview --- */
+.preview {
+  display: grid;
+  width: 100%;
+  height: 6px;
+  gap: 2px;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.previewCell {
+  min-width: 2px;
+  height: 100%;
+  background: var(--accent-muted);
+  border-radius: 1px;
+}
+
+/* --- Complex-template text fallback --- */
+.fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fallbackNote {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}

@@ -149,6 +149,12 @@ const TEXT_TAGS = new Set([
     'figcaption',
     'legend',
     'li',
+    // `<button>` is text-capable: a plain `<button>Sign up</button>` is a
+    // text element (editable label). A button that gains Scamp element
+    // children (icon + span, etc.) is auto-upgraded to a rectangle by the
+    // structural correction in `onclosetag` — same dual-nature handling as
+    // `<a>` and `<li>`.
+    'button',
 ]);
 const INPUT_TAGS = new Set(['input', 'textarea', 'select']);
 /**

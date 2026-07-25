@@ -98,7 +98,21 @@ export const ElementContextMenu = (): JSX.Element | null => {
   const targetHasChildren = useCanvasStore((s) =>
     menu ? (s.elements[menu.elementId]?.childIds.length ?? 0) > 0 : false
   );
+  // "Delete contents" is offered only when there's something to clear:
+  // child elements, loose "Raw" inline fragments, or the element's own
+  // text. Empty elements don't show the item.
+  const targetHasContents = useCanvasStore((s) => {
+    if (!menu) return false;
+    const el = s.elements[menu.elementId];
+    if (!el) return false;
+    return (
+      el.childIds.length > 0 ||
+      el.inlineFragments.length > 0 ||
+      (typeof el.text === 'string' && el.text.length > 0)
+    );
+  });
   const toggleSlotOnRect = useCanvasStore((s) => s.toggleSlotOnRect);
+  const deleteElementContents = useCanvasStore((s) => s.deleteElementContents);
 
   useEffect(() => {
     const handler = (e: Event): void => {
@@ -194,6 +208,14 @@ export const ElementContextMenu = (): JSX.Element | null => {
                 )
               );
             },
+          },
+        ]
+      : []),
+    ...(targetHasContents
+      ? [
+          {
+            label: 'Delete contents',
+            onSelect: () => deleteElementContents(menu.elementId),
           },
         ]
       : []),
