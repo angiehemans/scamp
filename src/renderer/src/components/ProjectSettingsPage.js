@@ -6,6 +6,9 @@ import { NumberInput } from './controls/NumberInput';
 import { PrefixSuffixInput } from './controls/PrefixSuffixInput';
 import { FontsSection } from './sections/FontsSection';
 import styles from './ProjectSettingsPage.module.css';
+/** Fallback shown in the card-color picker when the project has none set.
+ *  Matches the Start Screen card's CSS default (`--bg-raised`). */
+const DEFAULT_CARD_BACKGROUND = '#1f1f1f';
 export const ProjectSettingsPage = ({ projectName, projectPath, config, onChange, onBack, }) => {
     const handleArtboardChange = (value) => {
         onChange({ ...config, artboardBackground: value });
@@ -16,7 +19,10 @@ export const ProjectSettingsPage = ({ projectName, projectPath, config, onChange
         const sorted = [...breakpoints].sort((a, b) => b.width - a.width);
         onChange({ ...config, breakpoints: sorted });
     };
-    return (_jsxs("div", { className: styles.page, children: [_jsxs("div", { className: styles.header, children: [_jsx("button", { className: styles.backButton, onClick: onBack, type: "button", children: "\u2190 Back" }), _jsx("h1", { className: styles.headerTitle, children: "Project Settings" }), _jsx("span", { className: styles.headerProject, children: projectName })] }), _jsxs("div", { className: styles.body, children: [_jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "General" }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Artboard background" }), _jsx("div", { className: styles.rowControl, children: _jsx(ColorInput, { value: config.artboardBackground, onChange: handleArtboardChange }) })] })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Breakpoints" }), _jsx(BreakpointsEditor, { breakpoints: config.breakpoints, onChange: updateBreakpoints })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Fonts" }), _jsx(FontsSection, { projectPath: projectPath })] })] })] }));
+    return (_jsxs("div", { className: styles.page, children: [_jsxs("div", { className: styles.header, children: [_jsx("button", { className: styles.backButton, onClick: onBack, type: "button", children: "\u2190 Back" }), _jsx("h1", { className: styles.headerTitle, children: "Project Settings" }), _jsx("span", { className: styles.headerProject, children: projectName })] }), _jsxs("div", { className: styles.body, children: [_jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "General" }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Artboard background" }), _jsx("div", { className: styles.rowControl, children: _jsx(ColorInput, { value: config.artboardBackground, onChange: handleArtboardChange }) })] }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Card background" }), _jsx("div", { className: styles.rowControl, children: _jsx(ColorInput, { value: config.cardBackground ?? DEFAULT_CARD_BACKGROUND, onChange: (value) => onChange({ ...config, cardBackground: value }) }) })] }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Status" }), _jsx("div", { className: styles.rowControl, children: _jsx(PrefixSuffixInput, { value: config.state ?? '', placeholder: "e.g. in progress", onCommit: (value) => onChange({
+                                                ...config,
+                                                state: value.trim() ? value.trim() : undefined,
+                                            }) }) })] })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Breakpoints" }), _jsx(BreakpointsEditor, { breakpoints: config.breakpoints, onChange: updateBreakpoints })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Fonts" }), _jsx(FontsSection, { projectPath: projectPath })] })] })] }));
 };
 const BreakpointsEditor = ({ breakpoints, onChange, }) => {
     // Local id for newly-added breakpoints before the user types a real

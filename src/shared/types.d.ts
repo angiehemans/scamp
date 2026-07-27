@@ -86,6 +86,10 @@ export type StartScreenProject = {
     format: ProjectFormat;
     lastOpened: string | null;
     exists: boolean;
+    /** Card background color from the project's `scamp.config.json`, if set. */
+    cardBackground?: string;
+    /** Free-text status from the project's `scamp.config.json`, if set. */
+    state?: string;
 };
 export type ChooseFolderResult = {
     canceled: boolean;
@@ -228,6 +232,17 @@ export type ProjectConfig = {
      * design intent.
      */
     componentCanvas?: Record<string, ComponentCanvasSize>;
+    /**
+     * Background color of this project's CARD on the Start Screen — distinct
+     * from `artboardBackground` (the canvas backdrop). Lets users tint a
+     * card to track status at a glance. Absent = the default card background.
+     */
+    cardBackground?: string;
+    /**
+     * Free-text status shown as a badge on the project's Start Screen card
+     * (e.g. "in progress", "ready to review"). Absent / empty = no badge.
+     */
+    state?: string;
 };
 export type ComponentCanvasSize = {
     width: number;

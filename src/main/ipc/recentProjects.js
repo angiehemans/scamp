@@ -3,7 +3,8 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { parseRecentStore, upsertRecent, setRecentFormat, removeRecentByPath, } from './recentProjectsOps';
-import { mergeProjectsForDisplay } from './projectListOps';
+import { attachCardMeta, mergeProjectsForDisplay } from './projectListOps';
+import { readConfig } from './projectConfigOps';
 import { scanProjectsInFolder } from './projectScan';
 import { getSettings } from './settings';
 const storePath = () => join(app.getPath('userData'), 'recentProjects.json');
@@ -63,7 +64,14 @@ const listStartScreenProjects = async () => {
     const scanned = defaultProjectsFolder
         ? await scanProjectsInFolder(defaultProjectsFolder)
         : [];
-    return mergeProjectsForDisplay(recents, scanned);
+    const merged = mergeProjectsForDisplay(recents, scanned);
+    // Enrich each card with its per-project card color + state from
+    // scamp.config.json. `readConfig` bypasses the active-project IPC guard
+    // (it's the ops-level reader), so it's safe for not-yet-open projects.
+    return attachCardMeta(merged, async (path) => {
+        const cfg = await readConfig(path);
+        return { cardBackground: cfg.cardBackground, state: cfg.state };
+    });
 };
 export const registerRecentProjectsIpc = () => {
     ipcMain.handle(IPC.ProjectsList, () => listStartScreenProjects());

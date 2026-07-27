@@ -53,3 +53,20 @@ export const mergeProjectsForDisplay = (recents, scanned) => {
     }
     return [...byPath.values()].sort(compareForDisplay);
 };
+/**
+ * Enrich Start Screen projects with each project's card meta
+ * (`cardBackground` / `state`) read from its `scamp.config.json`.
+ * `readMeta` is injected so this stays pure/testable — the caller supplies
+ * the disk-backed reader. Projects whose folder is gone (`exists: false`)
+ * are left untouched (nothing to read).
+ */
+export const attachCardMeta = async (projects, readMeta) => Promise.all(projects.map(async (p) => {
+    if (!p.exists)
+        return p;
+    const { cardBackground, state } = await readMeta(p.path);
+    return {
+        ...p,
+        ...(cardBackground ? { cardBackground } : {}),
+        ...(state ? { state } : {}),
+    };
+}));

@@ -218,3 +218,35 @@ describe('parseProjectConfig — overflow & height fields', () => {
         expect(cfg.canvasFixedHeight).toBeUndefined();
     });
 });
+describe('parseProjectConfig — card meta', () => {
+    it('parses a valid card background color', () => {
+        const cfg = parseProjectConfig(JSON.stringify({ cardBackground: '#3b82f6' }));
+        expect(cfg.cardBackground).toBe('#3b82f6');
+    });
+    it('drops an invalid card background (non-string / control chars)', () => {
+        expect(parseProjectConfig(JSON.stringify({ cardBackground: 42 })).cardBackground).toBeUndefined();
+        expect(parseProjectConfig(JSON.stringify({ cardBackground: 'red\n' }))
+            .cardBackground).toBeUndefined();
+    });
+    it('trims and length-caps the state string', () => {
+        const cfg = parseProjectConfig(JSON.stringify({ state: '  ready to review  ' }));
+        expect(cfg.state).toBe('ready to review');
+        const long = parseProjectConfig(JSON.stringify({ state: 'x'.repeat(80) }));
+        expect(long.state).toHaveLength(40);
+    });
+    it('omits state when empty or whitespace', () => {
+        expect(parseProjectConfig(JSON.stringify({ state: '   ' })).state).toBeUndefined();
+        expect(parseProjectConfig(JSON.stringify({ state: 5 })).state).toBeUndefined();
+    });
+    it('omits both fields when absent', () => {
+        const cfg = parseProjectConfig(JSON.stringify({ canvasWidth: 1440 }));
+        expect(cfg.cardBackground).toBeUndefined();
+        expect(cfg.state).toBeUndefined();
+    });
+    it('round-trips card meta through serialize → parse', () => {
+        const written = serializeProjectConfig(parseProjectConfig(JSON.stringify({ cardBackground: '#112233', state: 'in progress' })));
+        const back = parseProjectConfig(written);
+        expect(back.cardBackground).toBe('#112233');
+        expect(back.state).toBe('in progress');
+    });
+});

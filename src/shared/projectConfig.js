@@ -152,6 +152,12 @@ export const parseProjectConfig = (raw) => {
     const canvasHeight = obj['canvasHeight'] !== undefined
         ? clampCanvasHeight(obj['canvasHeight'])
         : undefined;
+    const cardBackground = obj['cardBackground'];
+    // Free-text status — trimmed and length-capped so a card badge stays sane.
+    const stateRaw = obj['state'];
+    const state = typeof stateRaw === 'string' && stateRaw.trim().length > 0
+        ? stateRaw.trim().slice(0, 40)
+        : undefined;
     return {
         artboardBackground: isValidColor(artboard)
             ? artboard
@@ -166,6 +172,8 @@ export const parseProjectConfig = (raw) => {
         ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
         ...(snapshotAutoSave === false ? { snapshotAutoSave: false } : {}),
         ...(componentCanvas ? { componentCanvas } : {}),
+        ...(isValidColor(cardBackground) ? { cardBackground } : {}),
+        ...(state ? { state } : {}),
     };
 };
 /** Serialize a `ProjectConfig` to its on-disk JSON form. */

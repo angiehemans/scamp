@@ -144,8 +144,23 @@
   overflow-y: auto;
 }
 
+.mainHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Constrain the segmented control so it doesn't stretch to fill the row
+   (its `.segmented` base is `flex: 1 1 0`). */
+.viewToggle {
+  flex: none;
+  width: 64px;
+}
+
 .recentTitle {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
@@ -233,6 +248,139 @@
   justify-content: center;
   color: var(--text-tertiary);
   font-size: 14px;
+}
+
+/* ---- Card grid ---- */
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  overflow: hidden;
+  transition: border-color 0.12s ease;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+.cardMissing {
+  opacity: 0.5;
+}
+
+.cardOpen {
+  flex: 1;
+  min-width: 0;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+}
+
+.cardOpen:disabled {
+  cursor: not-allowed;
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardState {
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  white-space: nowrap;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.cardPath {
+  margin-top: auto;
+  font-size: 11px;
+  color: inherit;
+  opacity: 0.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMissingLabel {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--error-text);
+}
+
+.cardRemove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  opacity: 0.6;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cardRemove:hover {
+  opacity: 1;
+}
+
+/* ---- List-view status badge ---- */
+
+.recentState {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  vertical-align: middle;
 }
 
 .welcomeState {

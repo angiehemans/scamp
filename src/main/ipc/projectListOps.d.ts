@@ -14,3 +14,14 @@ import type { RecentProject, ScannedProject, StartScreenProject } from '@shared/
 export declare const mergeProjectsForDisplay: (recents: ReadonlyArray<RecentProject & {
     exists: boolean;
 }>, scanned: ReadonlyArray<ScannedProject>) => StartScreenProject[];
+/**
+ * Enrich Start Screen projects with each project's card meta
+ * (`cardBackground` / `state`) read from its `scamp.config.json`.
+ * `readMeta` is injected so this stays pure/testable — the caller supplies
+ * the disk-backed reader. Projects whose folder is gone (`exists: false`)
+ * are left untouched (nothing to read).
+ */
+export declare const attachCardMeta: (projects: ReadonlyArray<StartScreenProject>, readMeta: (path: string) => Promise<{
+    cardBackground?: string;
+    state?: string;
+}>) => Promise<StartScreenProject[]>;

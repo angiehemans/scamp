@@ -7,6 +7,10 @@ import { PrefixSuffixInput } from './controls/PrefixSuffixInput';
 import { FontsSection } from './sections/FontsSection';
 import styles from './ProjectSettingsPage.module.css';
 
+/** Fallback shown in the card-color picker when the project has none set.
+ *  Matches the Start Screen card's CSS default (`--bg-raised`). */
+const DEFAULT_CARD_BACKGROUND = '#1f1f1f';
+
 type Props = {
   projectName: string;
   projectPath: string;
@@ -52,6 +56,32 @@ export const ProjectSettingsPage = ({
               <ColorInput
                 value={config.artboardBackground}
                 onChange={handleArtboardChange}
+              />
+            </div>
+          </div>
+          <div className={styles.row}>
+            <span className={styles.rowLabel}>Card background</span>
+            <div className={styles.rowControl}>
+              <ColorInput
+                value={config.cardBackground ?? DEFAULT_CARD_BACKGROUND}
+                onChange={(value) =>
+                  onChange({ ...config, cardBackground: value })
+                }
+              />
+            </div>
+          </div>
+          <div className={styles.row}>
+            <span className={styles.rowLabel}>Status</span>
+            <div className={styles.rowControl}>
+              <PrefixSuffixInput
+                value={config.state ?? ''}
+                placeholder="e.g. in progress"
+                onCommit={(value) =>
+                  onChange({
+                    ...config,
+                    state: value.trim() ? value.trim() : undefined,
+                  })
+                }
               />
             </div>
           </div>

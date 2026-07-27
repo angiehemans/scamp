@@ -13,7 +13,8 @@ import {
   setRecentFormat,
   removeRecentByPath,
 } from './recentProjectsOps';
-import { mergeProjectsForDisplay } from './projectListOps';
+import { attachCardMeta, mergeProjectsForDisplay } from './projectListOps';
+import { readConfig } from './projectConfigOps';
 import { scanProjectsInFolder } from './projectScan';
 import { getSettings } from './settings';
 
@@ -97,7 +98,14 @@ const listStartScreenProjects = async (): Promise<StartScreenProject[]> => {
   const scanned = defaultProjectsFolder
     ? await scanProjectsInFolder(defaultProjectsFolder)
     : [];
-  return mergeProjectsForDisplay(recents, scanned);
+  const merged = mergeProjectsForDisplay(recents, scanned);
+  // Enrich each card with its per-project card color + state from
+  // scamp.config.json. `readConfig` bypasses the active-project IPC guard
+  // (it's the ops-level reader), so it's safe for not-yet-open projects.
+  return attachCardMeta(merged, async (path) => {
+    const cfg = await readConfig(path);
+    return { cardBackground: cfg.cardBackground, state: cfg.state };
+  });
 };
 
 export const registerRecentProjectsIpc = (): void => {

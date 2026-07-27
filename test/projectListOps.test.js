@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeProjectsForDisplay } from '../src/main/ipc/projectListOps';
+import { attachCardMeta, mergeProjectsForDisplay, } from '../src/main/ipc/projectListOps';
 const recent = (path, lastOpened, over = {}) => ({
     name: path.split('/').pop() ?? path,
     path,
@@ -69,5 +69,40 @@ describe('mergeProjectsForDisplay', () => {
     it('carries a stale recent (missing folder) through with exists=false', () => {
         const result = mergeProjectsForDisplay([recent('/gone/ghost', '2026-06-03T00:00:00.000Z', { exists: false })], []);
         expect(result[0]).toMatchObject({ path: '/gone/ghost', exists: false });
+    });
+});
+const startProject = (over = {}) => ({
+    name: 'Proj',
+    path: '/p/proj',
+    format: 'nextjs',
+    lastOpened: null,
+    exists: true,
+    ...over,
+});
+describe('attachCardMeta', () => {
+    it('attaches cardBackground / state read for each existing project', async () => {
+        const projects = [
+            startProject({ path: '/p/a' }),
+            startProject({ path: '/p/b' }),
+        ];
+        const meta = {
+            '/p/a': { cardBackground: '#111', state: 'in progress' },
+            '/p/b': {},
+        };
+        const result = await attachCardMeta(projects, async (path) => meta[path] ?? {});
+        expect(result[0]).toMatchObject({ cardBackground: '#111', state: 'in progress' });
+        // No meta for b → fields omitted.
+        expect(result[1]?.cardBackground).toBeUndefined();
+        expect(result[1]?.state).toBeUndefined();
+    });
+    it('skips the disk read for a missing project', async () => {
+        const projects = [startProject({ path: '/gone', exists: false })];
+        let called = false;
+        const result = await attachCardMeta(projects, async () => {
+            called = true;
+            return { cardBackground: '#fff' };
+        });
+        expect(called).toBe(false);
+        expect(result[0]?.cardBackground).toBeUndefined();
     });
 });
