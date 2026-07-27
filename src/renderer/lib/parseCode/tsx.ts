@@ -15,6 +15,15 @@ export type RawElement = {
   className: string;
   parentId: string | null;
   childIds: string[];
+  /**
+   * Set only when this element's id collided with an earlier one and was
+   * reassigned a fresh id. Holds the ORIGINAL class name so `index.ts`
+   * can source this element's styles from the duplicated class (keeping
+   * the repaired copy visually identical). Also drives the load-time
+   * "repaired duplicate id" notice. Undefined for the normal case.
+   * see docs/notes/duplicate-id-repair.md
+   */
+  dedupedFrom?: string;
   text: string | null;
   /**
    * Loose text + unclassed JSX subtrees that appear between this
@@ -264,10 +273,77 @@ const inferElementType = (className: string, tagName: string): ElementType => {
  *     `selectOptions` list on the select rather than treated as canvas
  *     elements in their own right.
  */
+/** Normalise a `data-scamp-id` / instance-id attribute to the short id. */
+const shortId = (raw: string): string =>
+  raw === ROOT_ELEMENT_ID
+    ? raw
+    : raw.includes('_')
+      ? raw.slice(raw.lastIndexOf('_') + 1)
+      : raw;
+
+/**
+ * A fresh 4-char hex id derived DETERMINISTICALLY from `base`, guaranteed
+ * not to be in `reserved`. Deterministic (no randomness) so parseCode
+ * stays pure — the same duplicate file always repairs to the same ids,
+ * keeping the parse→generate→parse round-trip stable.
+ */
+const freshHexId = (base: string, reserved: ReadonlySet<string>): string => {
+  let n = 0;
+  for (const ch of base) n = (n * 31 + ch.charCodeAt(0)) & 0xffff;
+  for (let i = 0; i < 0x10000; i += 1) {
+    n = (n + 0x9e37) & 0xffff; // odd step walks the whole 16-bit space
+    const hex = n.toString(16).padStart(4, '0');
+    if (!reserved.has(hex)) return hex;
+  }
+  return `${base}0`;
+};
+
+/** Replace the hex suffix of a class name (`rect_1a2b` → `rect_<hex>`). */
+const renameClassSuffix = (className: string, hex: string): string => {
+  if (className.length === 0) return hex;
+  const us = className.lastIndexOf('_');
+  return us >= 0 ? `${className.slice(0, us + 1)}${hex}` : hex;
+};
+
+/** Collect every id already present in the source so generated ids can't
+ *  collide with a later real one (the parser is a single streaming pass). */
+const collectExistingIds = (tsx: string): Set<string> => {
+  const ids = new Set<string>();
+  const re = /data-scamp-(?:id|instance-id)="([^"]*)"/g;
+  for (const m of tsx.matchAll(re)) {
+    const raw = m[1];
+    if (raw && raw.length > 0) ids.add(shortId(raw));
+  }
+  return ids;
+};
+
 export const parseTsxStructure = (tsx: string): RawElement[] => {
   const elements: RawElement[] = [];
   const stack: RawElement[] = [];
   const byId = new Map<string, RawElement>();
+  // Duplicate-id repair: `seenIds` tracks ids already assigned; `reserved`
+  // (seeded with EVERY id in the source) prevents a generated id from
+  // colliding with a real one. When an id repeats, we reassign the later
+  // element a fresh id in place — before its children are parsed, so the
+  // whole subtree adopts it. see docs/notes/duplicate-id-repair.md
+  const seenIds = new Set<string>();
+  const reserved = collectExistingIds(tsx);
+  const claimId = (el: RawElement): void => {
+    if (el.id === ROOT_ELEMENT_ID) {
+      seenIds.add(el.id);
+      return;
+    }
+    if (!seenIds.has(el.id)) {
+      seenIds.add(el.id);
+      return;
+    }
+    const hex = freshHexId(el.id, reserved);
+    reserved.add(hex);
+    seenIds.add(hex);
+    if (el.className.length > 0) el.dedupedFrom = el.className;
+    el.id = hex;
+    el.className = renameClassSuffix(el.className, hex);
+  };
   // Resolve lowercased JSX tag names back to their imported
   // PascalCase form (htmlparser2 lowercases tags). Pages that
   // don't use any components get an empty map; the
@@ -375,12 +451,13 @@ export const parseTsxStructure = (tsx: string): RawElement[] => {
             propOverrides,
             missingComponent: resolvedName === undefined,
           };
+          claimId(el);
           if (parentId) {
             const parent = byId.get(parentId);
-            parent?.childIds.push(id);
+            parent?.childIds.push(el.id);
           }
           elements.push(el);
-          byId.set(id, el);
+          byId.set(el.id, el);
           stack.push(el);
           frames.push('pushed');
           return;
@@ -472,12 +549,13 @@ export const parseTsxStructure = (tsx: string): RawElement[] => {
           propOverrides: null,
           missingComponent: false,
         };
+        claimId(el);
         if (parentId) {
           const parent = byId.get(parentId);
-          parent?.childIds.push(id);
+          parent?.childIds.push(el.id);
         }
         elements.push(el);
-        byId.set(id, el);
+        byId.set(el.id, el);
         stack.push(el);
         frames.push('pushed');
 

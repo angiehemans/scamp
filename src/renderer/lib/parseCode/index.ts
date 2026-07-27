@@ -33,6 +33,14 @@ export type ParsedTree = {
    */
   migrated?: boolean;
   /**
+   * Elements whose `data-scamp-id` collided with an earlier one and were
+   * reassigned a fresh id on load (each `{ from: originalClass, to:
+   * newClass }`). Present only when a repair happened. The load layer
+   * uses it to notify the user that the file was repaired.
+   * see docs/notes/duplicate-id-repair.md
+   */
+  duplicateIdRepairs?: ReadonlyArray<{ from: string; to: string }>;
+  /**
    * Any `@media` blocks the parser couldn't match to a known
    * breakpoint — agent-written `min-width` queries, prefers-color-
    * scheme, orientation, and custom max-widths that aren't in the
@@ -255,7 +263,9 @@ export const parseCode = (
 
     // Resolve the CSS class this element's styles live under — exact match
     // normally, or the same-hex-id class if it was renamed on one side only.
-    const cls = resolveClassName(raw.className, raw.id);
+    // A duplicate-id-repaired element sources its styles from the ORIGINAL
+    // class (`dedupedFrom`) so the reassigned copy stays visually identical.
+    const cls = raw.dedupedFrom ?? resolveClassName(raw.className, raw.id);
 
     const baseline = makeBaseline(raw, isComponent);
     let decls = parsedCss.byClass.get(cls) ?? [];
@@ -416,6 +426,12 @@ export const parseCode = (
     elements[id] = { ...el, slotName: marker, attributes: restAttrs };
   }
 
+  // Elements the parser reassigned because their id collided with an
+  // earlier one. Surfaced so the load layer can notify the user.
+  const duplicateIdRepairs = rawElements
+    .filter((raw) => raw.dedupedFrom !== undefined)
+    .map((raw) => ({ from: raw.dedupedFrom as string, to: raw.className }));
+
   return {
     elements,
     rootId: ROOT_ELEMENT_ID,
@@ -423,6 +439,7 @@ export const parseCode = (
     keyframesBlocks: parsedCss.keyframesBlocks,
     cssDuplicates,
     ...(migrated ? { migrated: true } : {}),
+    ...(duplicateIdRepairs.length > 0 ? { duplicateIdRepairs } : {}),
   };
 };
 

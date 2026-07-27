@@ -7,7 +7,7 @@ test.describe('properties panel: override indicator dot', () => {
     test('no dot at desktop even when base styles are set', async ({ window }) => {
         await expect(pageRoot(window)).toBeVisible();
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '16');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '16');
         await waitForSaved(window);
         // Desktop is the base — sections never show the override dot there.
         await expect(panelSection(window, 'Spacing').locator('[data-testid="override-dot"]')).toHaveCount(0);
@@ -15,10 +15,10 @@ test.describe('properties panel: override indicator dot', () => {
     test('dot appears next to Spacing after a Tablet-scoped padding edit', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '24');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '24');
         await waitForSaved(window);
         await switchBreakpoint(window, 'tablet', 'Tablet');
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '12');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '12');
         await waitForSaved(window);
         // Override dot now sits next to the Spacing section heading.
         const dot = panelSection(window, 'Spacing').locator('[data-testid="override-dot"]');
@@ -29,10 +29,10 @@ test.describe('properties panel: override indicator dot', () => {
     test('right-clicking the dot resets the section overrides at the active breakpoint', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '24');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '24');
         await waitForSaved(window);
         await switchBreakpoint(window, 'tablet', 'Tablet');
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '12');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '12');
         await waitForSaved(window);
         let { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(/@media \(max-width: 768px\)/);

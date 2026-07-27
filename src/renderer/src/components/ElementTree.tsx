@@ -293,9 +293,14 @@ export const ElementTree = (): JSX.Element => {
   // parser) so the user can see the fragments exist even though
   // they're not editable from the canvas.
   const rows: TreeRow[] = [];
+  // Guard against a malformed tree that references the same id from more
+  // than one place (e.g. a duplicate `data-scamp-id`): render each
+  // element at most once and never recurse into a cycle.
+  const seen = new Set<string>();
   const visit = (id: string, depth: number): void => {
     const el = elements[id];
-    if (!el) return;
+    if (!el || seen.has(id)) return;
+    seen.add(id);
     rows.push({ kind: 'element', element: el, depth });
     for (const childId of el.childIds) visit(childId, depth + 1);
     if (el.inlineFragments.length > 0) {

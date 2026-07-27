@@ -43,11 +43,11 @@ test.describe('components: canvas sizing', () => {
     test('a stretched element yields a full-width component canvas, not the default', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 300, y: 220 });
-        // Width → Stretch: the element now fills the page width.
+        // Width → Fill: the element now fills the page width.
         await panelSection(window, 'Size')
-            .locator('select')
-            .first()
-            .selectOption('stretch');
+            .getByRole('button', { name: 'Width type' })
+            .click();
+        await window.getByRole('option', { name: 'Fill' }).click();
         await waitForSaved(window);
         const stretchedWidth = await canvasElementsByPrefix(window, 'rect_')
             .first()

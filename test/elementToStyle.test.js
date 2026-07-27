@@ -176,14 +176,14 @@ describe('elementToStyle — theme token resolution', () => {
             { name: '--color-blue-500', value: '#3b82f6' },
         ];
         const el = makeEl({ backgroundColor: 'var(--color-brand)' });
-        expect(style(el, { tokens }).background).toBe('#3b82f6');
+        expect(style(el, { tokens }).backgroundColor).toBe('#3b82f6');
     });
     it('renders a broken colour reference as transparent, not the raw var', () => {
         const tokens = [
             { name: '--color-brand-500', value: '#3b82f6' },
         ];
         const el = makeEl({ backgroundColor: 'var(--color-gone)' });
-        expect(style(el, { tokens }).background).toBe('transparent');
+        expect(style(el, { tokens }).backgroundColor).toBe('transparent');
     });
 });
 describe('elementToStyle — typed text property wins over customProperties echo', () => {

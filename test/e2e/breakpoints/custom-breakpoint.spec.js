@@ -17,7 +17,7 @@ test.describe('breakpoints: custom breakpoint', () => {
     test('edits at a custom breakpoint emit its @media (max-width) block', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '20');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '20');
         await waitForSaved(window);
         // Add a custom breakpoint.
         await openProjectSettings(window);
@@ -25,7 +25,7 @@ test.describe('breakpoints: custom breakpoint', () => {
         await closeProjectSettings(window);
         // Switch to the new one and edit padding.
         await switchBreakpoint(window, 'custom-1', 'Custom');
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '4');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '4');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(/@media \(max-width: 600px\)/);

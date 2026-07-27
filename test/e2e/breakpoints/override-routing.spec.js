@@ -13,11 +13,11 @@ test.describe('breakpoints: override routing', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         // Baseline padding at desktop.
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '24');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '24');
         await waitForSaved(window);
         await switchBreakpoint(window, 'tablet', 'Tablet');
         // Tablet override.
-        await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '12');
+        await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '12');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         // Base class still carries 24px padding.

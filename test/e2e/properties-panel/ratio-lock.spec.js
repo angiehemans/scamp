@@ -36,12 +36,12 @@ test.describe('properties panel: aspect-ratio lock', () => {
         const lock = sizeLockToggle(window);
         await lock.click();
         await expect(lock).toHaveAttribute('aria-pressed', 'true');
-        // Width → Stretch (percentage) can't be ratio-locked against a fixed
-        // height, so the lock drops automatically.
+        // Width → Fill (100%) can't be ratio-locked against a fixed height,
+        // so the lock drops automatically.
         await panelSection(window, 'Size')
-            .locator('select')
-            .first()
-            .selectOption('stretch');
+            .getByRole('button', { name: 'Width type' })
+            .click();
+        await window.getByRole('option', { name: 'Fill' }).click();
         await expect(lock).toHaveAttribute('aria-pressed', 'false');
     });
     test('locking disables the edge resize handles, leaving only corners', async ({ window, }) => {

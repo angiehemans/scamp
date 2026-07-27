@@ -21,6 +21,17 @@ export type ParsedTree = {
      */
     migrated?: boolean;
     /**
+     * Elements whose `data-scamp-id` collided with an earlier one and were
+     * reassigned a fresh id on load (each `{ from: originalClass, to:
+     * newClass }`). Present only when a repair happened. The load layer
+     * uses it to notify the user that the file was repaired.
+     * see docs/notes/duplicate-id-repair.md
+     */
+    duplicateIdRepairs?: ReadonlyArray<{
+        from: string;
+        to: string;
+    }>;
+    /**
      * Any `@media` blocks the parser couldn't match to a known
      * breakpoint — agent-written `min-width` queries, prefers-color-
      * scheme, orientation, and custom max-widths that aren't in the

@@ -80,6 +80,17 @@ export const useActiveTarget = ({ project, onProjectChange, projectConfig, handl
         if (parsed.migrated && !projectConfig.canvasMigrationAcknowledged) {
             setShowMigrationBanner(true);
         }
+        // Notify when the parser had to repair duplicate `data-scamp-id`s —
+        // it reassigns the later element a fresh id (keeping both elements and
+        // their styling). The fix is in-memory until the next save.
+        if (parsed.duplicateIdRepairs && parsed.duplicateIdRepairs.length > 0) {
+            const list = parsed.duplicateIdRepairs
+                .map((r) => `${r.from} → ${r.to}`)
+                .join(', ');
+            useAppLogStore
+                .getState()
+                .log('warn', `Repaired ${parsed.duplicateIdRepairs.length} duplicate element id(s) in "${page.name}": ${list}. Save the page to persist the fix.`);
+        }
         loadPage({ name: page.name, tsxPath: page.tsxPath, cssPath: page.cssPath }, parsed.elements, { tsx: page.tsxContent, css: page.cssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
         // Per-page history persists across page switches — `loadPage`
         // activates this page's bucket in the history slice. Don't

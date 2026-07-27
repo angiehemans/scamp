@@ -11,6 +11,15 @@ export type RawElement = {
     className: string;
     parentId: string | null;
     childIds: string[];
+    /**
+     * Set only when this element's id collided with an earlier one and was
+     * reassigned a fresh id. Holds the ORIGINAL class name so `index.ts`
+     * can source this element's styles from the duplicated class (keeping
+     * the repaired copy visually identical). Also drives the load-time
+     * "repaired duplicate id" notice. Undefined for the normal case.
+     * see docs/notes/duplicate-id-repair.md
+     */
+    dedupedFrom?: string;
     text: string | null;
     /**
      * Loose text + unclassed JSX subtrees that appear between this
@@ -69,20 +78,4 @@ export declare const parseSlotNames: (tsx: string) => Set<string>;
  * prop name.
  */
 export declare const parsePropsDestructure: (tsx: string) => Map<string, string>;
-/**
- * Walk the TSX with htmlparser2 and produce the element tree shape (no
- * styles yet — those come from the CSS pass). We rely on the strict format
- * generateCode emits, so we don't need a real JSX parser:
- *
- *   <div data-scamp-id="..." className={styles.X}>...</div>
- *   <p   data-scamp-id="..." className={styles.X}>text</p>
- *
- * Special cases:
- *   - `<svg>` inner source is captured verbatim via the parser's
- *     start/end indices; nested open/close events inside the svg are
- *     suppressed so children of the svg don't become canvas elements.
- *   - `<select>` children named `<option>` are consumed into a typed
- *     `selectOptions` list on the select rather than treated as canvas
- *     elements in their own right.
- */
 export declare const parseTsxStructure: (tsx: string) => RawElement[];

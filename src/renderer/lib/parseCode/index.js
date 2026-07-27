@@ -153,7 +153,9 @@ export const parseCode = (tsx, css, options) => {
             rootSeen = true;
         // Resolve the CSS class this element's styles live under — exact match
         // normally, or the same-hex-id class if it was renamed on one side only.
-        const cls = resolveClassName(raw.className, raw.id);
+        // A duplicate-id-repaired element sources its styles from the ORIGINAL
+        // class (`dedupedFrom`) so the reassigned copy stays visually identical.
+        const cls = raw.dedupedFrom ?? resolveClassName(raw.className, raw.id);
         const baseline = makeBaseline(raw, isComponent);
         let decls = parsedCss.byClass.get(cls) ?? [];
         if (isRoot) {
@@ -321,6 +323,11 @@ export const parseCode = (tsx, css, options) => {
         const { [SLOT_MARKER_ATTR]: _drop, ...restAttrs } = el.attributes;
         elements[id] = { ...el, slotName: marker, attributes: restAttrs };
     }
+    // Elements the parser reassigned because their id collided with an
+    // earlier one. Surfaced so the load layer can notify the user.
+    const duplicateIdRepairs = rawElements
+        .filter((raw) => raw.dedupedFrom !== undefined)
+        .map((raw) => ({ from: raw.dedupedFrom, to: raw.className }));
     return {
         elements,
         rootId: ROOT_ELEMENT_ID,
@@ -328,5 +335,6 @@ export const parseCode = (tsx, css, options) => {
         keyframesBlocks: parsedCss.keyframesBlocks,
         cssDuplicates,
         ...(migrated ? { migrated: true } : {}),
+        ...(duplicateIdRepairs.length > 0 ? { duplicateIdRepairs } : {}),
     };
 };

@@ -251,7 +251,11 @@ inComponentEditor = false) => {
         ...flexProps,
         // `background` lives in the background group; `border-radius`
         // is a sizing/shape concern that doesn't get a toggle.
-        background: isOff('background')
+        // Longhand (not the `background` shorthand) so it coexists cleanly
+        // with `background-image` / `background-size` longhands that arrive
+        // via customProperties — mixing shorthand + longhand in one inline
+        // style makes React warn and can wipe the image on the canvas.
+        backgroundColor: isOff('background')
             ? undefined
             : resolveTokenColor(el.backgroundColor, tokens),
         borderRadius: formatSpaceShorthand(el.borderRadius),
