@@ -27,7 +27,7 @@
   height: 14px;
   padding: 0;
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 2px;
   cursor: pointer;
 }
@@ -114,7 +114,7 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
@@ -134,7 +134,7 @@
   height: var(--control-h);
   padding: 0 8px;
   background: transparent;
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: 12px;

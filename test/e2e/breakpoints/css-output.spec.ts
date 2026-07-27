@@ -22,15 +22,15 @@ test.describe('breakpoints: CSS output', () => {
       { x: 100, y: 100 },
       { x: 260, y: 200 }
     );
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '24');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '24');
     await waitForSaved(window);
 
     await switchBreakpoint(window, 'tablet', 'Tablet');
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '12');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '12');
     await waitForSaved(window);
 
     await switchBreakpoint(window, 'mobile', 'Mobile');
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '8');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '8');
     await waitForSaved(window);
 
     const { css } = await readPageFiles(project.dir, project.pageName);
@@ -65,7 +65,7 @@ test.describe('breakpoints: CSS output', () => {
       { x: 100, y: 100 },
       { x: 260, y: 200 }
     );
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '16');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '16');
     await waitForSaved(window);
 
     // Open the code panel — it mirrors pageSource, which the sync
@@ -92,7 +92,7 @@ test.describe('breakpoints: CSS output', () => {
 
     // Now a canvas edit. Regenerated CSS should still include the
     // custom @media block we appended externally.
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '18');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '18');
     await waitForSaved(window);
 
     const finalCss = await fs.readFile(cssPath, 'utf-8');

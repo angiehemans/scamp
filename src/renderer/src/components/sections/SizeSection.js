@@ -5,22 +5,28 @@ import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { EnumSelect } from '../controls/EnumSelect';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
-import { formatSizeValue, parseSizeValue } from '@lib/parsers';
+import { SizeTypeSelect } from '../controls/SizeTypeSelect';
+import { parseSizeValue } from '@lib/parsers';
+import { combineTypedWithType, rawForType, sizeTypeLabel, sizeTypeOf, } from '@lib/sizeType';
 import { lockedSizePatch } from '@lib/aspectRatio';
 import { Section, Row } from './Section';
 import styles from './SizeSection.module.css';
-const WIDTH_MODE_OPTIONS = [
-    { value: 'fixed', label: 'Fixed' },
-    { value: 'stretch', label: 'Stretch' },
-    { value: 'fit-content', label: 'Hug' },
-    { value: 'auto', label: 'Auto' },
-];
-const HEIGHT_MODE_OPTIONS = [
-    { value: 'fixed', label: 'Fixed' },
-    { value: 'stretch', label: 'Stretch' },
-    { value: 'fit-content', label: 'Hug' },
-    { value: 'auto', label: 'Auto' },
-];
+// "Hug" (fit-content) and "Auto" size to content, which a plain (non
+// flex/grid) rectangle can't do — disable those types there.
+const CONTENT_DISABLED_TYPES = new Set(['hug', 'auto']);
+// Types whose value is a single plain number the arrow keys can step.
+// (Keyword modes have no number; `custom` may be a calc()/var() expression.)
+const STEPPABLE_TYPES = new Set([
+    'px',
+    'percent',
+    'vh',
+    'vw',
+]);
+/** Leading numeric value of a string (e.g. "50%" → 50), or null. */
+const leadingNumber = (s) => {
+    const m = s.trim().match(/^-?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : null;
+};
 const GRID_SELF_OPTIONS = [
     { value: 'start', label: 'Start' },
     { value: 'center', label: 'Center' },
@@ -132,14 +138,36 @@ export const SizeSection = ({ elementId }) => {
     const contentSizingDisabled = element.type === 'rectangle' &&
         element.display !== 'flex' &&
         element.display !== 'grid';
-    const gateContentModes = (options) => contentSizingDisabled
-        ? options.map((o) => o.value === 'fit-content' || o.value === 'auto'
-            ? { ...o, disabled: true }
-            : o)
-        : options;
-    const modeSelectTitle = (axis) => contentSizingDisabled
-        ? `${axis} mode — Hug and Auto need a Flex or Grid layout`
-        : `${axis} mode`;
+    const disabledTypes = contentSizingDisabled
+        ? CONTENT_DISABLED_TYPES
+        : undefined;
+    // Current type per axis (px / % / Fill / Hug / Auto / …) and the
+    // number shown in the field. For a fixed axis the number is the stored
+    // value (a raw calc()/var() shows verbatim); a non-fixed axis shows its
+    // measured render size.
+    const widthType = sizeTypeOf(element.widthMode, element.widthCustom);
+    const heightType = sizeTypeOf(element.heightMode, element.heightCustom);
+    const widthFieldValue = !isWidthFixed
+        ? measured.width !== undefined
+            ? String(measured.width)
+            : ''
+        : widthType === 'custom'
+            ? element.widthCustom ?? ''
+            : String(element.widthValue);
+    const heightFieldValue = !isHeightFixed
+        ? measured.height !== undefined
+            ? String(measured.height)
+            : ''
+        : heightType === 'custom'
+            ? element.heightCustom ?? ''
+            : String(element.heightValue);
+    // Seed value used when switching type from the menu.
+    const widthNumber = isWidthFixed
+        ? element.widthValue
+        : measured.width ?? element.widthValue;
+    const heightNumber = isHeightFixed
+        ? element.heightValue
+        : measured.height ?? element.heightValue;
     // Ratio to feed the commit helpers — only when the lock is actually in
     // effect (both axes fixed). `lockedRatio` may be undefined when unlocked.
     const activeRatio = ratioLocked ? lockedRatio ?? null : null;
@@ -155,6 +183,19 @@ export const SizeSection = ({ elementId }) => {
         if (parseSizeValue(raw).mode !== 'fixed')
             clearRatioLock(elementId);
         patchElement(elementId, lockedSizePatch(element, 'height', raw, activeRatio));
+    };
+    // Picking a type from the right-side menu converts the current value to
+    // that type (seeded with the axis's current number) and commits it.
+    const handleSelectWidthType = (type) => handleCommitWidth(rawForType(type, widthNumber));
+    const handleSelectHeightType = (type) => handleCommitHeight(rawForType(type, heightNumber));
+    // Arrow-key stepping (±1, ±10 with Shift). Steps the field's current
+    // number and re-commits with the active unit. Only wired for the
+    // plain-number types (see STEPPABLE_TYPES).
+    const makeArrowHandler = (type, seed, commit) => (draft, direction, shift) => {
+        const step = (shift ? 10 : 1) * direction;
+        const base = leadingNumber(draft) ?? seed;
+        const next = Math.max(0, base + step);
+        commit(combineTypedWithType(String(next), type));
     };
     const handleToggleLock = () => {
         // Pass the measured render size so a non-fixed axis can be snapped to
@@ -188,28 +229,12 @@ export const SizeSection = ({ elementId }) => {
             'align-self',
             'justify-self',
         ], children: [_jsxs(Row, { label: "", children: [_jsx(PrefixSuffixInput, { prefix: "W", title: isWidthFixed
-                            ? 'Width — type any CSS length (100, 100px, 100vh, 100%, calc(...), auto, fit-content)'
-                            : 'Computed width (border-box, including padding). Type any CSS length to override.', value: isWidthFixed
-                            ? formatSizeValue(element.widthMode, element.widthValue, element.widthCustom)
-                            : measured.width !== undefined
-                                ? `${measured.width}px`
-                                : '', placeholder: isWidthFixed ? undefined : element.widthMode, onCommit: handleCommitWidth, computed: !isWidthFixed }), _jsx(EnumSelect, { value: element.widthMode, options: gateContentModes(WIDTH_MODE_OPTIONS), onChange: (mode) => {
-                            if (mode !== 'fixed')
-                                clearRatioLock(elementId);
-                            patchElement(elementId, mode === 'fixed'
-                                ? { widthMode: 'fixed', widthCustom: undefined }
-                                : { widthMode: mode, widthCustom: undefined });
-                        }, title: modeSelectTitle('Width') })] }), _jsxs(Row, { label: "", children: [_jsx(PrefixSuffixInput, { prefix: "H", title: isHeightFixed
-                            ? 'Height — type any CSS length (100, 100px, 100vh, 100%, calc(...), auto, fit-content)'
-                            : 'Computed height (border-box, including padding). Type any CSS length to override.', value: isHeightFixed
-                            ? formatSizeValue(element.heightMode, element.heightValue, element.heightCustom)
-                            : measured.height !== undefined
-                                ? `${measured.height}px`
-                                : '', placeholder: isHeightFixed ? undefined : element.heightMode, onCommit: handleCommitHeight, computed: !isHeightFixed }), _jsx(EnumSelect, { value: element.heightMode, options: gateContentModes(HEIGHT_MODE_OPTIONS), onChange: (mode) => {
-                            if (mode !== 'fixed')
-                                clearRatioLock(elementId);
-                            patchElement(elementId, mode === 'fixed'
-                                ? { heightMode: 'fixed', heightCustom: undefined }
-                                : { heightMode: mode, heightCustom: undefined });
-                        }, title: modeSelectTitle('Height') })] }), parentIsGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Col", title: "grid-column", value: element.gridColumn, placeholder: "span 2", onCommit: (value) => patchElement(elementId, { gridColumn: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Row", title: "grid-row", value: element.gridRow, placeholder: "1 / 3", onCommit: (value) => patchElement(elementId, { gridRow: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self" }), _jsx(EnumSelect, { value: element.justifySelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifySelf: value }), title: "Justify self" })] })] }))] }));
+                            ? 'Width — type a number, or any CSS length (100vh, calc(...)). Set the unit on the right.'
+                            : 'Computed width (border-box). Type a number to make it fixed, or change the type on the right.', value: widthFieldValue, placeholder: isWidthFixed ? undefined : sizeTypeLabel(widthType), onCommit: (raw) => handleCommitWidth(combineTypedWithType(raw, widthType)), ...(STEPPABLE_TYPES.has(widthType)
+                            ? { onArrow: makeArrowHandler(widthType, widthNumber, handleCommitWidth) }
+                            : {}), computed: !isWidthFixed, suffix: _jsx(SizeTypeSelect, { value: widthType, orientation: "horizontal", onSelect: handleSelectWidthType, ...(disabledTypes ? { disabledTypes } : {}), ariaLabel: "Width type" }) }), _jsx(PrefixSuffixInput, { prefix: "H", title: isHeightFixed
+                            ? 'Height — type a number, or any CSS length (100vh, calc(...)). Set the unit on the right.'
+                            : 'Computed height (border-box). Type a number to make it fixed, or change the type on the right.', value: heightFieldValue, placeholder: isHeightFixed ? undefined : sizeTypeLabel(heightType), onCommit: (raw) => handleCommitHeight(combineTypedWithType(raw, heightType)), ...(STEPPABLE_TYPES.has(heightType)
+                            ? { onArrow: makeArrowHandler(heightType, heightNumber, handleCommitHeight) }
+                            : {}), computed: !isHeightFixed, suffix: _jsx(SizeTypeSelect, { value: heightType, orientation: "vertical", onSelect: handleSelectHeightType, ...(disabledTypes ? { disabledTypes } : {}), ariaLabel: "Height type" }) })] }), parentIsGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Col", title: "grid-column", value: element.gridColumn, placeholder: "span 2", onCommit: (value) => patchElement(elementId, { gridColumn: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Row", title: "grid-row", value: element.gridRow, placeholder: "1 / 3", onCommit: (value) => patchElement(elementId, { gridRow: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self" }), _jsx(EnumSelect, { value: element.justifySelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifySelf: value }), title: "Justify self" })] })] }))] }));
 };

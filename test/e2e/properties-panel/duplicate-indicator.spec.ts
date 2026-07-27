@@ -81,9 +81,10 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     });
 
     // Edit any size field — the typed-state-driven CSS rewrite drops
-    // the duplicate.
+    // the duplicate. Type an explicit px value (the seeded duplicate ends
+    // in `100vh`, so a bare number would now inherit the `vh` unit).
     const heightInput = panelInputByPrefix(window, 'Size', 'H');
-    await commitInput(heightInput, '200');
+    await commitInput(heightInput, '200px');
     await waitForSaved(window);
 
     // Indicator should clear optimistically AND on the next parse.

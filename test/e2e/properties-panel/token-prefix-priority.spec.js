@@ -45,7 +45,7 @@ test.describe('properties panel: token prefix prioritization', () => {
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
         await panelSection(window, 'Spacing')
-            .getByRole('button', { name: 'Pick P token' })
+            .getByRole('button', { name: 'Pick Padding token' })
             .click();
         await expect(firstTokenOption(window)).toContainText('--space-4');
     });

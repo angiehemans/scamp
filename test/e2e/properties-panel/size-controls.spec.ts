@@ -26,7 +26,7 @@ test.describe('properties panel: size controls', () => {
     expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*320px`, 's'));
   });
 
-  test('switching width mode to Stretch emits width: 100%', async ({
+  test('switching the width type to Fill emits width: 100%', async ({
     window,
     project,
   }) => {
@@ -38,8 +38,12 @@ test.describe('properties panel: size controls', () => {
     );
     await waitForSaved(window);
 
-    const widthModeSelect = panelSection(window, 'Size').locator('select').first();
-    await widthModeSelect.selectOption('stretch');
+    // The width mode is now an in-field type picker (px / % / Fill / Hug /
+    // Auto). Fill maps to stretch → width: 100%.
+    await panelSection(window, 'Size')
+      .getByRole('button', { name: 'Width type' })
+      .click();
+    await window.getByRole('option', { name: 'Fill' }).click();
 
     await waitForSaved(window);
     const { css } = await readPageFiles(project.dir, project.pageName);

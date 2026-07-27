@@ -166,6 +166,7 @@ export const GridTrackList = ({
       <button
         type="button"
         className={styles.accordionHeader}
+        aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >

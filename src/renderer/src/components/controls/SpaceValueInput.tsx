@@ -114,6 +114,7 @@ export const SpaceValueInput = ({
       onCommit={handleCommit}
       onArrow={handleArrow}
       prefix={prefix}
+      {...(label !== undefined ? { dataPrefix: label } : {})}
       placeholder="0"
       {...(title !== undefined ? { title } : {})}
       {...(suffix !== undefined ? { suffix } : {})}

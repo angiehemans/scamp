@@ -12,7 +12,7 @@ const V_LABEL = ['top', 'middle', 'bottom'];
  * widths for a column), so the alignment you pick visibly aligns
  * bars of different sizes. Tweak these freely.
  */
-const BAR_LENGTHS = ['25%', '33%', '18%'];
+const BAR_LENGTHS = ['18%', '25%', '12%'];
 /** Uniform thickness along the layout's main axis (px). */
 const BAR_THICKNESS = 3;
 /**
@@ -25,12 +25,14 @@ const BAR_THICKNESS = 3;
 export const AlignmentGrid = ({ direction, alignItems, justifyContent, onChange, }) => {
     const active = flexAlignToCell(alignItems, justifyContent, direction);
     const stretched = alignItems === 'stretch';
-    // The preview is a real flex box, so `space-between` / `space-around`
-    // / `stretch` render exactly as they will on the canvas.
+    // The preview is just a real flex box with a small inset (see
+    // `.preview`), so the bars justify / align exactly like real flex
+    // children: flush to the edge for start / end, centred for center,
+    // spread for space-*, filling for stretch.
     const previewStyle = {
         flexDirection: direction,
-        alignItems,
         justifyContent,
+        alignItems,
     };
     // Each bar keeps a fixed length along the CROSS axis (the alignment
     // axis) and a uniform thickness along the main axis. `stretch`

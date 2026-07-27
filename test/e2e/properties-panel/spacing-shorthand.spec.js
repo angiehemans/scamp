@@ -7,7 +7,7 @@ test.describe('properties panel: spacing shorthand', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const paddingInput = panelInputByPrefix(window, 'Spacing', 'P');
+        const paddingInput = panelInputByPrefix(window, 'Spacing', 'Padding');
         await commitInput(paddingInput, '10');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
@@ -19,7 +19,7 @@ test.describe('properties panel: spacing shorthand', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const paddingInput = panelInputByPrefix(window, 'Spacing', 'P');
+        const paddingInput = panelInputByPrefix(window, 'Spacing', 'Padding');
         await commitInput(paddingInput, '10 20');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
@@ -31,7 +31,7 @@ test.describe('properties panel: spacing shorthand', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const paddingInput = panelInputByPrefix(window, 'Spacing', 'P');
+        const paddingInput = panelInputByPrefix(window, 'Spacing', 'Padding');
         await commitInput(paddingInput, '1 2 3 4');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);

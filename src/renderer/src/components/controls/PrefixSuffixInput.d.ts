@@ -10,6 +10,10 @@ type Props = {
     onDraftChange?: (draft: string) => void;
     /** Label inside the row's left edge (e.g. "W", "Sz") or a custom node. */
     prefix?: ReactNode;
+    /** Value for the row's `data-prefix` attribute (the stable test/query
+     *  hook). Defaults to `prefix` when it's a string; pass this when the
+     *  prefix is an icon node so the field is still locatable. */
+    dataPrefix?: string;
     /** Node at the row's right edge (unit indicator, picker button, caret). */
     suffix?: ReactNode;
     /** Removes the row's left padding + gap so a flush-mounted swatch or
@@ -50,5 +54,5 @@ type Props = {
  * commit reads as "draft moves to new value" and an invalid one reads
  * as "draft reverts".
  */
-export declare const PrefixSuffixInput: ({ value, onCommit, onDraftChange, prefix, suffix, flushPrefix, placeholder, inputMode, title, disabled, onArrow, stopKeyPropagation, inputRef, inputClassName, spellCheck, autoCapitalize, autoCorrect, computed, }: Props) => JSX.Element;
+export declare const PrefixSuffixInput: ({ value, onCommit, onDraftChange, prefix, dataPrefix, suffix, flushPrefix, placeholder, inputMode, title, disabled, onArrow, stopKeyPropagation, inputRef, inputClassName, spellCheck, autoCapitalize, autoCorrect, computed, }: Props) => JSX.Element;
 export {};

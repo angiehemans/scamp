@@ -19,6 +19,10 @@ type Props = {
   onDraftChange?: (draft: string) => void;
   /** Label inside the row's left edge (e.g. "W", "Sz") or a custom node. */
   prefix?: ReactNode;
+  /** Value for the row's `data-prefix` attribute (the stable test/query
+   *  hook). Defaults to `prefix` when it's a string; pass this when the
+   *  prefix is an icon node so the field is still locatable. */
+  dataPrefix?: string;
   /** Node at the row's right edge (unit indicator, picker button, caret). */
   suffix?: ReactNode;
   /** Removes the row's left padding + gap so a flush-mounted swatch or
@@ -65,6 +69,7 @@ export const PrefixSuffixInput = ({
   onCommit,
   onDraftChange,
   prefix,
+  dataPrefix,
   suffix,
   flushPrefix = false,
   placeholder,
@@ -103,7 +108,8 @@ export const PrefixSuffixInput = ({
     ? `${styles.colorInputRow} ${styles.colorInputRowSwatch}`
     : styles.colorInputRow;
 
-  const prefixAttr = typeof prefix === 'string' ? prefix : undefined;
+  const prefixAttr =
+    dataPrefix ?? (typeof prefix === 'string' ? prefix : undefined);
   const row = (
     <div className={rowClass} data-prefix={prefixAttr}>
       {prefix !== undefined &&

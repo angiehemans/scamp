@@ -13,7 +13,7 @@ test.describe('properties panel: override indicator dot', () => {
   test('no dot at desktop even when base styles are set', async ({ window }) => {
     await expect(pageRoot(window)).toBeVisible();
     await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '16');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '16');
     await waitForSaved(window);
 
     // Desktop is the base — sections never show the override dot there.
@@ -27,11 +27,11 @@ test.describe('properties panel: override indicator dot', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
     await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '24');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '24');
     await waitForSaved(window);
 
     await switchBreakpoint(window, 'tablet', 'Tablet');
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '12');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '12');
     await waitForSaved(window);
 
     // Override dot now sits next to the Spacing section heading.
@@ -55,11 +55,11 @@ test.describe('properties panel: override indicator dot', () => {
       { x: 100, y: 100 },
       { x: 260, y: 200 }
     );
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '24');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '24');
     await waitForSaved(window);
 
     await switchBreakpoint(window, 'tablet', 'Tablet');
-    await commitInput(panelInputByPrefix(window, 'Spacing', 'P'), '12');
+    await commitInput(panelInputByPrefix(window, 'Spacing', 'Padding'), '12');
     await waitForSaved(window);
 
     let { css } = await readPageFiles(project.dir, project.pageName);

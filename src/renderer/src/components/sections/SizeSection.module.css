@@ -23,7 +23,7 @@
 /* Locked: use the accent so the linked state reads at a glance. */
 .lockButtonActive {
   color: var(--accent);
-  border-color: var(--border);
+  border-color: var(--border-subtle);
 }
 
 .lockButtonActive:hover {

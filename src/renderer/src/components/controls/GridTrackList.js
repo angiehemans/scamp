@@ -71,6 +71,6 @@ export const GridTrackList = ({ label, template, onChange, }) => {
                     // eslint-disable-next-line react/no-array-index-key -- positional preview cells
                     _jsx("span", { className: styles.previewCell }, i))) }))] }));
     };
-    return (_jsxs("div", { className: styles.trackList, children: [_jsxs("button", { type: "button", className: styles.accordionHeader, "aria-expanded": open, onClick: () => setOpen((o) => !o), children: [open ? (_jsx(IconChevronDown, { size: 13 })) : (_jsx(IconChevronRight, { size: 13 })), _jsx("span", { className: styles.trackHeader, children: label }), _jsx("span", { className: styles.accordionCount, children: countLabel })] }), open &&
+    return (_jsxs("div", { className: styles.trackList, children: [_jsxs("button", { type: "button", className: styles.accordionHeader, "aria-label": label, "aria-expanded": open, onClick: () => setOpen((o) => !o), children: [open ? (_jsx(IconChevronDown, { size: 13 })) : (_jsx(IconChevronRight, { size: 13 })), _jsx("span", { className: styles.trackHeader, children: label }), _jsx("span", { className: styles.accordionCount, children: countLabel })] }), open &&
                 (tracks === null ? (_jsxs("div", { className: styles.fallback, children: [_jsx(PrefixSuffixInput, { value: template, onCommit: (v) => onChange(v.trim()), title: `${label} template` }), _jsx("span", { className: styles.fallbackNote, children: "Complex template \u2014 editing as text." })] })) : (renderTracks(tracks)))] }));
 };

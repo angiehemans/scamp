@@ -1,0 +1,79 @@
+/* In-field type/unit picker for the Size panel's W/H fields. A compact
+ * button sits in the input's right-side suffix slot and opens a popover
+ * menu of size types (px / % / Fill / Hug / Auto). */
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 20px;
+  padding: 0 3px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.trigger:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.popover {
+  position: fixed;
+  z-index: 100;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.itemIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.itemActive .itemIcon {
+  color: var(--accent);
+}
+
+.item:hover {
+  background: var(--bg-hover);
+}
+
+.itemActive {
+  color: var(--accent);
+}
+
+.itemDisabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
+.itemDisabled:hover {
+  background: transparent;
+}

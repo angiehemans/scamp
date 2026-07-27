@@ -45,7 +45,7 @@
   right: 0;
   min-width: 140px;
   background: var(--bg-canvas);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-tooltip);
   display: flex;

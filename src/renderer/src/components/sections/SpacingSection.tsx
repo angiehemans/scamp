@@ -1,3 +1,5 @@
+import { IconBoxMargin, IconBoxPadding } from '@tabler/icons-react';
+
 import { useMemo } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
@@ -31,7 +33,15 @@ export const SpacingSection = ({ elementId, hideMargin = false }: Props): JSX.El
     >
       <Row label="">
         <FourSideInput
-          prefix="P"
+          prefix={
+            <IconBoxPadding
+              size={16}
+              stroke={1.75}
+              color="var(--text-secondary)"
+              style={{ display: 'block' }}
+            />
+          }
+          label="Padding"
           title="Padding (top right bottom left)"
           value={element.padding}
           onChange={(next) => patchElement(elementId, { padding: next })}
@@ -43,7 +53,15 @@ export const SpacingSection = ({ elementId, hideMargin = false }: Props): JSX.El
       {!hideMargin && (
         <Row label="">
           <FourSideInput
-            prefix="M"
+            prefix={
+              <IconBoxMargin
+                size={16}
+                stroke={1.75}
+                color="var(--text-secondary)"
+                style={{ display: 'block' }}
+              />
+            }
+            label="Margin"
             title="Margin (top right bottom left)"
             value={element.margin}
             onChange={(next) => patchElement(elementId, { margin: next })}

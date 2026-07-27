@@ -79,7 +79,7 @@
 .addRow {
   width: 100%;
   background: transparent;
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-subtle);
   padding: 6px 10px;
   color: var(--text-secondary);
   font-size: 12px;

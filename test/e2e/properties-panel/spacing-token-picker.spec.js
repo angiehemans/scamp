@@ -16,12 +16,12 @@ test.describe('properties panel: spacing token picker', () => {
         await waitForSaved(window);
         // Wait for theme tokens to surface — the renderer polls theme.css
         // on project open. A short visible-element wait covers it.
-        const paddingInput = panelInputByPrefix(window, 'Spacing', 'P');
+        const paddingInput = panelInputByPrefix(window, 'Spacing', 'Padding');
         await expect(paddingInput).toBeVisible();
         // Open the picker — the icon button is the only "Pick P token"
         // labeled button inside the Spacing section.
         const pickerButton = panelSection(window, 'Spacing').getByRole('button', {
-            name: 'Pick P token',
+            name: 'Pick Padding token',
         });
         await pickerButton.click();
         // Pick the --space-md token.
@@ -41,13 +41,13 @@ test.describe('properties panel: spacing token picker', () => {
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
         // First type a px value via the input.
-        const paddingInput = panelInputByPrefix(window, 'Spacing', 'P');
+        const paddingInput = panelInputByPrefix(window, 'Spacing', 'Padding');
         await commitInput(paddingInput, '12');
         await waitForSaved(window);
         await expect(paddingInput).toHaveValue('12px');
         // Then swap to a token via the picker — should replace cleanly.
         const pickerButton = panelSection(window, 'Spacing').getByRole('button', {
-            name: 'Pick P token',
+            name: 'Pick Padding token',
         });
         await pickerButton.click();
         await window.getByRole('option', { name: /--space-sm/ }).click();
@@ -63,7 +63,7 @@ test.describe('properties panel: spacing token picker', () => {
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
         const pickerButton = panelSection(window, 'Spacing').getByRole('button', {
-            name: 'Pick P token',
+            name: 'Pick Padding token',
         });
         await pickerButton.click();
         await expect(window.getByText('No spacing tokens yet.')).toBeVisible();

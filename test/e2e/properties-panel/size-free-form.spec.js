@@ -18,11 +18,8 @@ test.describe('properties panel: free-form size input', () => {
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*height:\\s*100vh;`, 's'));
-        // Mode dropdown should still read "Fixed".
-        const heightModeSelect = panelSection(window, 'Size')
-            .locator('select')
-            .nth(1);
-        await expect(heightModeSelect).toHaveValue('fixed');
+        // The height type indicator reflects the unit parsed from the value.
+        await expect(panelSection(window, 'Size').getByRole('button', { name: 'Height type' })).toHaveAttribute('data-size-type', 'vh');
     });
     test('a bare number is treated as px', async ({ window, project }) => {
         await expect(pageRoot(window)).toBeVisible();
@@ -34,7 +31,7 @@ test.describe('properties panel: free-form size input', () => {
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*320px;`, 's'));
     });
-    test('typing 100% auto-switches the mode dropdown to Stretch', async ({ window, project, }) => {
+    test('typing 100% switches the width type to Fill', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
@@ -43,13 +40,8 @@ test.describe('properties panel: free-form size input', () => {
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*100%`, 's'));
-        // Width mode is the FIRST select in the Size section. (height is
-        // the second, grid items would come after but only when parent is
-        // grid.)
-        const widthModeSelect = panelSection(window, 'Size')
-            .locator('select')
-            .first();
-        await expect(widthModeSelect).toHaveValue('stretch');
+        // 100% maps to the Fill type on the width field's type indicator.
+        await expect(panelSection(window, 'Size').getByRole('button', { name: 'Width type' })).toHaveAttribute('data-size-type', 'fill');
     });
     test('typing auto / fit-content switches modes accordingly', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();

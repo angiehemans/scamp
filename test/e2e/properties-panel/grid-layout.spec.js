@@ -10,19 +10,16 @@ test.describe('properties panel: grid layout', () => {
         const layout = panelSection(window, 'Layout');
         await layout.getByRole('radio', { name: 'Grid' }).click();
         await waitForSaved(window);
-        const cols = panelInputByPrefix(window, 'Layout', 'Cols');
-        await commitInput(cols, '1fr 1fr');
-        const rows = panelInputByPrefix(window, 'Layout', 'Rows');
-        await commitInput(rows, 'auto auto');
-        const cgap = panelInputByPrefix(window, 'Layout', 'C-gap');
-        await commitInput(cgap, '16');
-        const rgap = panelInputByPrefix(window, 'Layout', 'R-gap');
-        await commitInput(rgap, '8');
+        // Quick-size to a 2×2 grid (equal fr tracks) via the matrix picker,
+        // then set the axis gaps.
+        await layout.getByRole('button', { name: '2 by 2 grid' }).click();
+        await commitInput(panelInputByPrefix(window, 'Layout', 'Column gap'), '16');
+        await commitInput(panelInputByPrefix(window, 'Layout', 'Row gap'), '8');
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*display:\\s*grid;`, 's'));
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*grid-template-columns:\\s*1fr 1fr;`, 's'));
-        expect(css).toMatch(new RegExp(`\\.${className}[^}]*grid-template-rows:\\s*auto auto;`, 's'));
+        expect(css).toMatch(new RegExp(`\\.${className}[^}]*grid-template-rows:\\s*1fr 1fr;`, 's'));
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*column-gap:\\s*16px;`, 's'));
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*row-gap:\\s*8px;`, 's'));
     });
@@ -53,8 +50,9 @@ test.describe('properties panel: grid layout', () => {
         await waitForSaved(window);
         const layout = panelSection(window, 'Layout');
         await layout.getByRole('radio', { name: 'Grid' }).click();
-        await commitInput(panelInputByPrefix(window, 'Layout', 'Cols'), 'repeat(3, 1fr)');
         await waitForSaved(window);
+        // display:grid alone makes children grid items — no explicit template
+        // needed for the grid-item controls to appear.
         // Draw a child inside it.
         const innerClass = await drawAndSelectRect(window, { x: 100, y: 120 }, { x: 200, y: 220 });
         await waitForSaved(window);
@@ -73,7 +71,8 @@ test.describe('properties panel: grid layout', () => {
         await waitForSaved(window);
         const layout = panelSection(window, 'Layout');
         await layout.getByRole('radio', { name: 'Grid' }).click();
-        await commitInput(panelInputByPrefix(window, 'Layout', 'Cols'), '1fr 1fr 1fr');
+        // Quick-size to 3 columns so the overlay draws column lines.
+        await layout.getByRole('button', { name: '3 by 1 grid' }).click();
         await waitForSaved(window);
         // Overlay container exists with at least one column line inside.
         const overlay = canvasFrame(window).locator('[data-testid="grid-overlay"]');

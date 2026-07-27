@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { type SpaceTuple } from '@lib/spaceValue';
 import type { ThemeToken } from '@shared/types';
 type Props = {
@@ -6,8 +7,11 @@ type Props = {
     /** Minimum allowed per-side numeric value (inclusive). Tokens
      *  bypass this — they're emitted verbatim. */
     min?: number;
-    /** Inline prefix label shown inside the input (e.g. "P", "M"). */
-    prefix?: string;
+    /** Inline prefix — a short string (e.g. "M") or an icon node. */
+    prefix?: ReactNode;
+    /** Plain-text name for the field, used for the token picker's aria
+     *  label when `prefix` is an icon (a node) rather than a string. */
+    label?: string;
     /** Tooltip shown on hover. */
     title?: string;
     /** Length-shaped theme tokens to offer in the picker. Omit to hide
@@ -24,5 +28,5 @@ type Props = {
  *
  * Invalid input reverts on blur via the PrefixSuffixInput value sync.
  */
-export declare const FourSideInput: ({ value, onChange, min, prefix, title, tokens, onOpenTheme, }: Props) => JSX.Element;
+export declare const FourSideInput: ({ value, onChange, min, prefix, label, title, tokens, onOpenTheme, }: Props) => JSX.Element;
 export {};

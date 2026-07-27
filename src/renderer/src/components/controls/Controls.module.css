@@ -29,7 +29,7 @@
   min-width: 0;
   height: var(--control-h);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 0 6px;
   font-size: 14px;
@@ -68,7 +68,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--border-subtle);
   border-radius: 3px 0 0 3px;
   cursor: pointer;
   flex-shrink: 0;
@@ -124,7 +124,7 @@
   min-height: var(--control-h);
   max-height: var(--control-h);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 0 6px;
   /* flex: 1 1 0 forces equal sizing when multiple inputs share a row,
@@ -185,7 +185,7 @@
      panel doesn't resize when switching tabs. */
   width: 240px;
   background: var(--bg-raised);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   overflow: hidden;
@@ -241,7 +241,7 @@
   align-items: center;
   gap: 4px;
   padding: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .colorPopoverHex {
@@ -265,7 +265,7 @@
   width: var(--control-h);
   height: var(--control-h);
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
@@ -282,7 +282,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .swatchSection:last-child {
@@ -311,7 +311,7 @@
   width: 20px;
   height: 20px;
   border-radius: 3px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   background-clip: padding-box;
   cursor: pointer;
   padding: 0;
@@ -325,7 +325,7 @@
 .pickerTabs {
   display: flex;
   background: var(--bg-raised);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .pickerTab {
@@ -368,7 +368,7 @@
   padding: 8px 10px;
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
@@ -394,7 +394,7 @@
   width: 18px;
   height: 18px;
   border-radius: 3px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
@@ -430,7 +430,7 @@
 
 .tokenListAddButton {
   background: transparent;
-  border: 1px dashed var(--border);
+  border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 6px 14px;
   color: var(--text-secondary);
@@ -453,7 +453,7 @@
 .sketchDark input {
   background: var(--bg-input) !important;
   color: var(--text-primary) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid var(--border-subtle) !important;
   border-radius: var(--radius-sm) !important;
   padding: 5px 4px 4px !important;
 font-size: 12px !important;
@@ -478,7 +478,7 @@ font-size: 11px !important;
 
 /* Preset swatches divider — override the light default border. */
 .sketchDark :global(.flexbox-fix[style*="border-top"]) {
-  border-top-color: var(--border) !important;
+  border-top-color: var(--border-subtle) !important;
 }
 
 
@@ -487,7 +487,7 @@ font-size: 11px !important;
   min-width: 0;
   height: var(--control-h);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 0 6px;
   font-size: 14px;
@@ -522,7 +522,7 @@ font-size: 11px !important;
   display: flex;
   height: var(--control-h);
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 2px;
   gap: 2px;
@@ -577,7 +577,7 @@ font-size: 11px !important;
 
 .linkButton {
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 3px;
   padding: 2px 6px;
 font-size: 11px;
