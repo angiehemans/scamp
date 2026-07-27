@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { css as cssLang } from '@codemirror/lang-css';
 import { autocompletion } from '@codemirror/autocomplete';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { useCanvasStore } from '@store/canvasSlice';
 import { breakpointOverrideLines, classNameFor, elementDeclarationLines, } from '@lib/generateCode';
 import { createCssCompletion } from '@lib/cssCompletion';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { savePatch } from '../syncBridge';
+import { editorThemeFor } from '../lib/editorTheme';
+import { useAppTheme } from '../hooks/useAppTheme';
 import styles from './PropertiesPanel.module.css';
 const buildClassBody = (el, parent) => {
     return elementDeclarationLines(el, parent).join('\n');
@@ -54,6 +55,7 @@ export const CssPanel = () => {
     const breakpoints = useCanvasStore((s) => s.breakpoints);
     const activeBreakpoint = useMemo(() => breakpoints.find((b) => b.id === activeBreakpointId), [breakpoints, activeBreakpointId]);
     const isDesktop = activeBreakpointId === DESKTOP_BREAKPOINT_ID;
+    const editorTheme = editorThemeFor(useAppTheme());
     // Rebuild CodeMirror extensions when theme tokens change so the
     // autocomplete source always has the latest var(--name) suggestions.
     const cssExtensions = useMemo(() => [
@@ -172,7 +174,7 @@ export const CssPanel = () => {
     const hintSuffix = isDesktop
         ? `Cmd/Ctrl+S or click outside to commit. Your edit writes to .module.css; the canvas reloads from the file.`
         : `Editing ${activeBreakpoint?.label ?? activeBreakpointId} (@media max-width: ${activeBreakpoint?.width ?? '?'}px). Commit writes inside that media block.`;
-    return (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.editorWrap, onBlur: () => void flushDraft(), onKeyDown: handleKeyDown, children: _jsx(CodeMirror, { value: draft, height: "100%", theme: oneDark, extensions: cssExtensions, basicSetup: {
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.editorWrap, onBlur: () => void flushDraft(), onKeyDown: handleKeyDown, children: _jsx(CodeMirror, { value: draft, height: "100%", theme: editorTheme, extensions: cssExtensions, basicSetup: {
                         lineNumbers: false,
                         foldGutter: false,
                         highlightActiveLine: false,

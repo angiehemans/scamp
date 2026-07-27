@@ -40,6 +40,7 @@ export declare const IPC: {
     readonly ThemeRead: "theme:read";
     readonly ThemeChanged: "theme:changed";
     readonly ThemeWrite: "theme:write";
+    readonly WindowSetTitleBarOverlay: "window:setTitleBarOverlay";
     readonly DesignMdRead: "designMd:read";
     readonly DesignMdWrite: "designMd:write";
     readonly DesignMdChanged: "designMd:changed";

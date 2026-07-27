@@ -21,7 +21,7 @@
   flex-shrink: 0;
   font-size: 16px;
   line-height: 1.3;
-  color: #6ba0ff;
+  color: var(--info-text);
 }
 
 .text {
@@ -34,17 +34,17 @@
 .title {
   font-size: 12px;
   font-weight: 600;
-  color: #e5ecff;
+  color: var(--info-text);
 }
 
 .message {
   font-size: 12px;
   line-height: 1.5;
-  color: #b3c2e8;
+  color: var(--info-text);
 }
 
 .message code {
-  background: #0f1a33;
+  background: var(--info-border);
   border-radius: 3px;
   padding: 1px 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

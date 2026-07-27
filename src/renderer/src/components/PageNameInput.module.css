@@ -25,12 +25,12 @@
 }
 
 .inputError {
-  border-color: #e55;
+  border-color: var(--status-error);
 }
 
 .error {
   font-size: 11px;
-  color: #ff7a7a;
+  color: var(--error-text);
   padding: 0 2px;
 }
 

@@ -2,7 +2,10 @@ export const DEFAULT_SETTINGS = {
     defaultProjectsFolder: null,
     artboardBackground: '#0f0f0f',
     sentryOptIn: null,
+    theme: 'dark',
 };
+/** Keep only the two themes we ship; anything else falls back to dark. */
+const parseTheme = (value) => value === 'light' ? 'light' : 'dark';
 /**
  * Parse a Settings JSON blob with migration / defaulting. Pure so the
  * sync startup read and the async IPC read share one source of truth,
@@ -28,5 +31,6 @@ export const parseSettingsBlob = (raw) => {
         defaultProjectsFolder: typeof folder === 'string' ? folder : null,
         artboardBackground: artboardValue,
         sentryOptIn: typeof optIn === 'boolean' ? optIn : null,
+        theme: parseTheme(obj['theme']),
     };
 };

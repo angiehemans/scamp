@@ -67,6 +67,8 @@ export const IPC = {
     ThemeRead: 'theme:read',
     ThemeChanged: 'theme:changed',
     ThemeWrite: 'theme:write',
+    // Window chrome — recolor the native title-bar overlay on theme change.
+    WindowSetTitleBarOverlay: 'window:setTitleBarOverlay',
     // DESIGN.md (design-system documentation, project root)
     DesignMdRead: 'designMd:read',
     DesignMdWrite: 'designMd:write',

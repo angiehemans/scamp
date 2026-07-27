@@ -32,7 +32,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 0 6px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-primary);
   font-family: var(--font-ui);
 }
@@ -44,7 +44,7 @@
 
 /* Inline prefix label inside an input row (e.g. "W", "H", "P", "M"). */
 .inputPrefix {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--text-secondary);
   flex-shrink: 0;
@@ -74,10 +74,10 @@
   flex-shrink: 0;
   /* Checkerboard behind the color so alpha is visible. */
   background-image:
-    linear-gradient(45deg, #444 25%, transparent 25%),
-    linear-gradient(-45deg, #444 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #444 75%),
-    linear-gradient(-45deg, transparent 75%, #444 75%);
+    linear-gradient(45deg, var(--checkerboard) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checkerboard) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checkerboard) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checkerboard) 75%);
   background-size: 8px 8px;
   background-position: 0 0, 0 4px, 4px -4px, -4px 0;
 }
@@ -147,7 +147,7 @@
   background: transparent;
   border: none;
   padding: 0 6px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-primary);
   font-family: var(--font-ui);
 }
@@ -490,7 +490,7 @@ font-size: 11px !important;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   padding: 0 6px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-primary);
   /* Native <select> elements don't inherit the document font in most
    * browsers — set it explicitly to match the rest of the panel. */
@@ -536,7 +536,7 @@ font-size: 11px !important;
   border: none;
   border-radius: 3px;
   padding: 0 4px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-secondary);
   cursor: pointer;
   font-family: inherit;

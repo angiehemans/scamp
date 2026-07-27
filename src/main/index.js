@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, net, protocol, session, shell } from 'electron';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
+import { TITLE_BAR_COLORS, TITLE_BAR_HEIGHT, } from '@shared/titleBarColors';
 import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
@@ -76,13 +77,29 @@ const iconPath = () => app.isPackaged
     ? join(process.resourcesPath, 'scamp-icon.png')
     : join(__dirname, '../../src/renderer/src/assets/scamp-icon.png');
 const createWindow = () => {
+    // Start the title bar in the persisted theme so the window-control
+    // buttons and background don't flash the wrong palette before the
+    // renderer mounts. The renderer re-asserts on load and on toggle.
+    const theme = readSettingsSync().theme;
     const win = new BrowserWindow({
         width: 1440,
         height: 900,
         show: false,
         autoHideMenuBar: true,
         icon: iconPath(),
-        backgroundColor: '#1a1a1a',
+        backgroundColor: theme === 'light' ? '#f5f5f5' : '#1a1a1a',
+        // Hide the OS title bar and draw our own themed strip in the renderer
+        // (so it can use the app font). On Windows/Linux the native min/max/
+        // close buttons stay as a themed overlay; on macOS the traffic lights
+        // show inset over our bar. See docs/notes/title-bar.md.
+        titleBarStyle: 'hidden',
+        // Overlay is 1px shorter than the HTML bar so the bar's bottom border
+        // shows continuously beneath the window controls. See docs/notes/title-bar.md.
+        titleBarOverlay: {
+            ...TITLE_BAR_COLORS[theme],
+            height: TITLE_BAR_HEIGHT - 1,
+        },
+        trafficLightPosition: { x: 12, y: 10 },
         webPreferences: {
             preload: join(__dirname, '../preload/index.js'),
             // OS-level renderer isolation, on top of contextIsolation +
@@ -224,6 +241,15 @@ app.whenReady().then(() => {
     // renderer can't read `app.getVersion()` directly through
     // contextIsolation.
     ipcMain.handle(IPC.AppGetVersion, () => app.getVersion());
+    // Recolor the native window-controls overlay when the renderer flips
+    // theme. macOS traffic lights are native and not recolorable — our
+    // themed HTML bar behind them is enough there, so skip it.
+    ipcMain.on(IPC.WindowSetTitleBarOverlay, (e, colors) => {
+        if (process.platform === 'darwin')
+            return;
+        const w = BrowserWindow.fromWebContents(e.sender);
+        w?.setTitleBarOverlay({ ...colors, height: TITLE_BAR_HEIGHT - 1 });
+    });
     // Application menu — platform-standard entries (File / Edit /
     // View / Window) plus the Help → Report a bug submenu that
     // opens a pre-filled GitHub issue. Must register BEFORE the

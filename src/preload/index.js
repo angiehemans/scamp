@@ -64,6 +64,9 @@ const api = {
     /** The Scamp app version (from package.json) — useful in any
      *  diagnostic UI that wants to surface it. */
     getAppVersion: () => ipcRenderer.invoke(IPC.AppGetVersion),
+    /** Recolor the native title-bar overlay (Windows/Linux window
+     *  controls) to match the app theme. Fire-and-forget. */
+    setTitleBarOverlayColors: (colors) => ipcRenderer.send(IPC.WindowSetTitleBarOverlay, colors),
     readProjectConfig: (args) => ipcRenderer.invoke(IPC.ProjectConfigRead, args),
     writeProjectConfig: (args) => ipcRenderer.invoke(IPC.ProjectConfigWrite, args),
     onFileChanged: (handler) => {

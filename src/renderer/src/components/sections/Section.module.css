@@ -31,8 +31,8 @@
 }
 
 .heading {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
   margin: 0;

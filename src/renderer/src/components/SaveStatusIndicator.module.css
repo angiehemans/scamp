@@ -39,7 +39,7 @@
 }
 
 .saved {
-  color: #6b7280;
+  color: var(--text-secondary);
   background: transparent;
   animation: fadeIn 220ms ease-out;
 }
@@ -80,7 +80,7 @@
 
 .retryButton {
   background: var(--bg-raised);
-  border: 1px solid #4b5563;
+  border: 1px solid var(--border-strong);
   color: var(--text-primary);
   border-radius: 3px;
   padding: 2px 8px;
@@ -90,7 +90,7 @@
 
 .retryButton:hover {
   background: var(--bg-hover);
-  border-color: #6b7280;
+  border-color: var(--text-secondary);
 }
 
 .spinner {

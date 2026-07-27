@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from '@shared/ipcChannels';
+import type { TitleBarColors } from '@shared/titleBarColors';
 import type {
   ChooseFolderResult,
   ChooseImageArgs,
@@ -203,6 +204,11 @@ const api = {
    *  diagnostic UI that wants to surface it. */
   getAppVersion: (): Promise<string> =>
     ipcRenderer.invoke(IPC.AppGetVersion),
+
+  /** Recolor the native title-bar overlay (Windows/Linux window
+   *  controls) to match the app theme. Fire-and-forget. */
+  setTitleBarOverlayColors: (colors: TitleBarColors): void =>
+    ipcRenderer.send(IPC.WindowSetTitleBarOverlay, colors),
 
   readProjectConfig: (args: ProjectConfigReadArgs): Promise<ProjectConfig> =>
     ipcRenderer.invoke(IPC.ProjectConfigRead, args),

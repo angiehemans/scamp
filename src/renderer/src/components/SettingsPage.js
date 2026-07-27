@@ -1,5 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useCallback, useEffect, useState } from 'react';
+import { IconMoon, IconSun } from '@tabler/icons-react';
+import { applyAppTheme } from '../lib/applyAppTheme';
+import { SegmentedControl } from './controls/SegmentedControl';
 import { Tooltip } from './controls/Tooltip';
 import styles from './SettingsPage.module.css';
 export const SettingsPage = ({ onBack }) => {
@@ -26,6 +29,13 @@ export const SettingsPage = ({ onBack }) => {
         const next = await window.scamp.setDefaultProjectsFolder(null);
         setSettings(next);
     };
+    const handleThemeChange = async (next) => {
+        // Flip the chrome immediately, then persist. applyAppTheme also
+        // refreshes the localStorage mirror so the next launch paints right.
+        applyAppTheme(next);
+        const updated = await window.scamp.updateSettings({ theme: next });
+        setSettings(updated);
+    };
     const handleSentryToggle = async (optedIn) => {
         // Persist the new choice and signal main to re-init or tear
         // down Sentry so the change takes effect this session — no
@@ -36,7 +46,20 @@ export const SettingsPage = ({ onBack }) => {
     };
     if (!settings)
         return _jsx("div", { className: styles.page });
-    return (_jsxs("div", { className: styles.page, children: [_jsxs("div", { className: styles.header, children: [_jsx("button", { className: styles.backButton, onClick: onBack, type: "button", children: "\u2190 Back" }), _jsx("h1", { className: styles.headerTitle, children: "Settings" })] }), _jsxs("div", { className: styles.body, children: [_jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "General" }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Default folder" }), _jsxs("div", { className: styles.rowControl, children: [settings.defaultProjectsFolder ? (_jsx(Tooltip, { label: settings.defaultProjectsFolder, children: _jsx("span", { className: styles.folderPath, children: settings.defaultProjectsFolder }) })) : (_jsx("span", { className: styles.folderNone, children: "Not set" })), _jsx("button", { className: styles.smallButton, onClick: handlePickFolder, type: "button", children: settings.defaultProjectsFolder ? 'Change' : 'Choose' }), settings.defaultProjectsFolder && (_jsx("button", { className: styles.smallButton, onClick: handleClearFolder, type: "button", children: "Clear" }))] })] })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Privacy" }), _jsxs("div", { className: styles.row, children: [_jsxs("div", { className: styles.rowLabel, children: [_jsx("div", { children: "Send anonymous crash reports" }), _jsx("div", { className: styles.rowHint, children: "Helps fix bugs faster. No personal data or project files are ever shared." })] }), _jsxs("div", { className: styles.rowControl, children: [_jsx("button", { type: "button", className: `${styles.smallButton} ${settings.sentryOptIn === true ? styles.smallButtonActive : ''}`, onClick: () => void handleSentryToggle(true), children: "On" }), _jsx("button", { type: "button", className: `${styles.smallButton} ${settings.sentryOptIn === false
+    return (_jsxs("div", { className: styles.page, children: [_jsxs("div", { className: styles.header, children: [_jsx("button", { className: styles.backButton, onClick: onBack, type: "button", children: "\u2190 Back" }), _jsx("h1", { className: styles.headerTitle, children: "Settings" })] }), _jsxs("div", { className: styles.body, children: [_jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "General" }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Default folder" }), _jsxs("div", { className: styles.rowControl, children: [settings.defaultProjectsFolder ? (_jsx(Tooltip, { label: settings.defaultProjectsFolder, children: _jsx("span", { className: styles.folderPath, children: settings.defaultProjectsFolder }) })) : (_jsx("span", { className: styles.folderNone, children: "Not set" })), _jsx("button", { className: styles.smallButton, onClick: handlePickFolder, type: "button", children: settings.defaultProjectsFolder ? 'Change' : 'Choose' }), settings.defaultProjectsFolder && (_jsx("button", { className: styles.smallButton, onClick: handleClearFolder, type: "button", children: "Clear" }))] })] })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Appearance" }), _jsxs("div", { className: styles.row, children: [_jsxs("div", { className: styles.rowLabel, children: [_jsx("div", { children: "Theme" }), _jsx("div", { className: styles.rowHint, children: "Changes Scamp\u2019s interface only \u2014 your project\u2019s design is unaffected." })] }), _jsx("div", { className: styles.rowControl, children: _jsx("div", { className: styles.themeToggle, children: _jsx(SegmentedControl, { value: settings.theme, options: [
+                                                    {
+                                                        value: 'dark',
+                                                        label: _jsx(IconMoon, { size: 16, stroke: 1.75 }),
+                                                        ariaLabel: 'Dark',
+                                                        tooltip: 'Dark',
+                                                    },
+                                                    {
+                                                        value: 'light',
+                                                        label: _jsx(IconSun, { size: 16, stroke: 1.75 }),
+                                                        ariaLabel: 'Light',
+                                                        tooltip: 'Light',
+                                                    },
+                                                ], onChange: (next) => void handleThemeChange(next) }) }) })] })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "Privacy" }), _jsxs("div", { className: styles.row, children: [_jsxs("div", { className: styles.rowLabel, children: [_jsx("div", { children: "Send anonymous crash reports" }), _jsx("div", { className: styles.rowHint, children: "Helps fix bugs faster. No personal data or project files are ever shared." })] }), _jsxs("div", { className: styles.rowControl, children: [_jsx("button", { type: "button", className: `${styles.smallButton} ${settings.sentryOptIn === true ? styles.smallButtonActive : ''}`, onClick: () => void handleSentryToggle(true), children: "On" }), _jsx("button", { type: "button", className: `${styles.smallButton} ${settings.sentryOptIn === false
                                                     ? styles.smallButtonActive
                                                     : ''}`, onClick: () => void handleSentryToggle(false), children: "Off" })] })] })] }), _jsxs("div", { className: styles.section, children: [_jsx("h2", { className: styles.sectionTitle, children: "About" }), _jsxs("div", { className: styles.row, children: [_jsx("span", { className: styles.rowLabel, children: "Version" }), _jsx("div", { className: styles.rowControl, children: _jsx("span", { className: styles.versionValue, children: version === null ? '—' : `Scamp ${version}` }) })] })] })] })] }));
 };

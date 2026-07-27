@@ -16,10 +16,10 @@
 }
 
 .positionBtn:hover {
-  background: #363636;
+  background: var(--bg-input);
 }
 
 .positionActive {
-  background: #4a4a4a;
-  border-color: #6a6aff;
+  background: var(--bg-hover);
+  border-color: var(--accent);
 }

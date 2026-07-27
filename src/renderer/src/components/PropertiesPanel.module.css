@@ -73,7 +73,7 @@ font-size: 11px;
 
 .className {
 font-size: 13px;
-  color: #cfe0fb;
+  color: var(--accent-text);
   background: var(--bg-canvas);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
@@ -113,7 +113,7 @@ font-size: 13px;
 }
 
 .editorWrap :global(.cm-scroller) {
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
 }
 
 .error {
@@ -129,7 +129,7 @@ font-size: 13px;
   background: var(--warn-bg);
   color: var(--warn-text);
 font-size: 12px;
-  border-top: 1px solid #3a2e1c;
+  border-top: 1px solid var(--border);
 }
 
 .hint {

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { css as cssLang } from '@codemirror/lang-css';
 import { autocompletion } from '@codemirror/autocomplete';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { useCanvasStore } from '@store/canvasSlice';
 import {
   breakpointOverrideLines,
@@ -14,6 +13,8 @@ import type { ScampElement } from '@lib/element';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import { savePatch } from '../syncBridge';
+import { editorThemeFor } from '../lib/editorTheme';
+import { useAppTheme } from '../hooks/useAppTheme';
 import styles from './PropertiesPanel.module.css';
 
 const buildClassBody = (el: ScampElement, parent: ScampElement | null): string => {
@@ -77,6 +78,7 @@ export const CssPanel = (): JSX.Element => {
     [breakpoints, activeBreakpointId]
   );
   const isDesktop = activeBreakpointId === DESKTOP_BREAKPOINT_ID;
+  const editorTheme = editorThemeFor(useAppTheme());
 
   // Rebuild CodeMirror extensions when theme tokens change so the
   // autocomplete source always has the latest var(--name) suggestions.
@@ -213,7 +215,7 @@ export const CssPanel = (): JSX.Element => {
         <CodeMirror
           value={draft}
           height="100%"
-          theme={oneDark}
+          theme={editorTheme}
           extensions={cssExtensions}
           basicSetup={{
             lineNumbers: false,

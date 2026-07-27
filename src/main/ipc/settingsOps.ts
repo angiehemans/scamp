@@ -1,10 +1,15 @@
-import type { Settings } from '@shared/types';
+import type { AppTheme, Settings } from '@shared/types';
 
 export const DEFAULT_SETTINGS: Settings = {
   defaultProjectsFolder: null,
   artboardBackground: '#0f0f0f',
   sentryOptIn: null,
+  theme: 'dark',
 };
+
+/** Keep only the two themes we ship; anything else falls back to dark. */
+const parseTheme = (value: unknown): AppTheme =>
+  value === 'light' ? 'light' : 'dark';
 
 /**
  * Parse a Settings JSON blob with migration / defaulting. Pure so the
@@ -31,5 +36,6 @@ export const parseSettingsBlob = (raw: string): Settings => {
     defaultProjectsFolder: typeof folder === 'string' ? folder : null,
     artboardBackground: artboardValue,
     sentryOptIn: typeof optIn === 'boolean' ? optIn : null,
+    theme: parseTheme(obj['theme']),
   };
 };

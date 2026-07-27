@@ -17,10 +17,12 @@ describe('parseSettingsBlob', () => {
             defaultProjectsFolder: '/work',
             artboardBackground: '#fff',
             sentryOptIn: true,
+            theme: 'light',
         }))).toEqual({
             defaultProjectsFolder: '/work',
             artboardBackground: '#fff',
             sentryOptIn: true,
+            theme: 'light',
         });
     });
     it('migrates the legacy canvasBackground key to artboardBackground', () => {
@@ -34,5 +36,15 @@ describe('parseSettingsBlob', () => {
         const r = parseSettingsBlob(JSON.stringify({ defaultProjectsFolder: 5, sentryOptIn: 'yes' }));
         expect(r.defaultProjectsFolder).toBeNull();
         expect(r.sentryOptIn).toBeNull();
+    });
+    it('defaults theme to dark when the key is missing', () => {
+        expect(parseSettingsBlob('{}').theme).toBe('dark');
+    });
+    it('keeps an explicit light theme', () => {
+        expect(parseSettingsBlob(JSON.stringify({ theme: 'light' })).theme).toBe('light');
+    });
+    it('falls back to dark for an unknown theme value', () => {
+        expect(parseSettingsBlob(JSON.stringify({ theme: 'solarized' })).theme).toBe('dark');
+        expect(parseSettingsBlob(JSON.stringify({ theme: 42 })).theme).toBe('dark');
     });
 });

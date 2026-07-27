@@ -4,7 +4,7 @@
   display: flex;
   height: 100%;
   width: 100%;
-  background: #141414;
+  background: var(--bg-surface);
 }
 
 /* ---- Sidebar ---- */
@@ -130,7 +130,7 @@
 }
 
 .secondary:hover {
-  background: #404040;
+  background: var(--bg-hover);
 }
 
 /* ---- Main area ---- */
@@ -229,7 +229,7 @@
   width: 32px;
   background: none;
   border: none;
-  color: #444;
+  color: var(--text-tertiary);
   font-size: 18px;
   cursor: pointer;
   font-family: inherit;

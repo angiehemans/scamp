@@ -34,6 +34,10 @@
   color-scheme: dark;
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -48,6 +52,14 @@ body,
   background: var(--bg-surface);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Reserve space for the fixed themed title bar (TitleBar.tsx) — its full
+   36px height incl. the bottom border. box-sizing: border-box (set on *
+   above) keeps #root at 100% height, so children still fill the area below
+   the bar. */
+#root {
+  padding-top: 36px;
 }
 
 button {
@@ -74,7 +86,7 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: var(--scrollbar-thumb);
   border-radius: 10px;
   /* The border trick gives the thumb its visual inset — Chromium paints
      the background through the border as long as background-clip is
@@ -85,7 +97,7 @@ button {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.22);
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner {

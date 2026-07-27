@@ -118,7 +118,15 @@ export type Settings = {
      * any legacy install whose `settings.json` predates this field.
      */
     sentryOptIn: boolean | null;
+    /**
+     * App-chrome theme. Dark is the default; light is opt-in via
+     * Settings → Appearance. Only the Scamp UI flips — the user's
+     * project canvas renders with their own CSS regardless.
+     */
+    theme: AppTheme;
 };
+/** The app-chrome color themes Scamp ships. */
+export type AppTheme = 'dark' | 'light';
 /**
  * Per-project configuration persisted as `scamp.config.json` at the
  * project root. Holds settings that are scoped to one project rather

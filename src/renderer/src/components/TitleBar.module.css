@@ -1,0 +1,36 @@
+/* Fixed themed strip behind the OS window controls. The window is created
+   with titleBarStyle: 'hidden', so this is the whole visible title bar. */
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  /* Fixed height, 1px taller than the native overlay (main sets its height
+     to TITLE_BAR_HEIGHT - 1) so this bottom border shows continuously,
+     including beneath the OS window controls. */
+  height: 36px;
+  display: flex;
+  align-items: center;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  /* The whole strip drags the window (Mac-style). Interactive children
+     must opt out with `-webkit-app-region: no-drag`. */
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+/* Centered across the full window (not the titlebar-area, which is offset by
+   the window controls and would read as off-center). The app name is short
+   enough that it never reaches the controls on either platform. */
+.title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--text-secondary);
+}

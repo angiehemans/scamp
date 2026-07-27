@@ -86,7 +86,7 @@
 }
 
 .presetActive:hover {
-  background: #334466;
+  background: var(--accent-dark);
 }
 
 .presetName {
@@ -100,7 +100,7 @@
 }
 
 .presetActive .presetWidth {
-  color: #b0c4ff;
+  color: var(--accent-text);
 }
 
 .customRow {

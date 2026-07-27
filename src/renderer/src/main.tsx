@@ -2,11 +2,19 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/electron/renderer';
 import { App } from './App';
+import { TitleBar } from './components/TitleBar';
 import { UpdateBanner } from './components/UpdateBanner';
+import { applyAppTheme, readInitialAppTheme } from './lib/applyAppTheme';
 // `theme.css` must come first — it declares the `--*` variables that
 // global.css and every module CSS reference.
 import './styles/theme.css';
 import './styles/global.css';
+
+// Paint the persisted theme before React mounts. The pre-paint script in
+// index.html already set `data-theme` from the same localStorage mirror to
+// avoid a flash; this re-asserts it once the module graph is live. The
+// authoritative value from settings.json is reconciled on mount (see App).
+applyAppTheme(readInitialAppTheme());
 
 // Renderer-side Sentry init. The main process already initialised
 // Sentry from settings.json (synchronously, before any other code);
@@ -50,6 +58,7 @@ const container = document.getElementById('root');
 if (!container) throw new Error('Root container missing');
 createRoot(container).render(
   <React.StrictMode>
+    <TitleBar />
     <App />
     <UpdateBanner />
   </React.StrictMode>

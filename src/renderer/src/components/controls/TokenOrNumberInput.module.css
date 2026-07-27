@@ -17,7 +17,7 @@
 }
 
 .prefix {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--text-secondary);
   flex-shrink: 0;
@@ -30,7 +30,7 @@
   background: transparent;
   border: none;
   padding: 0 2px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-primary);
   font-family: var(--font-ui);
 }
@@ -50,7 +50,7 @@
   background: var(--accent-dark);
   border-radius: 3px;
   font-size: 12px;
-  color: #cfe0ff;
+  color: var(--accent-text);
   font-family: var(--font-ui);
   white-space: nowrap;
   overflow: hidden;
@@ -66,7 +66,7 @@
 .pillClear {
   background: transparent;
   border: none;
-  color: #8fb3ff;
+  color: var(--accent-text);
   padding: 0 2px;
   font-size: 12px;
   cursor: pointer;

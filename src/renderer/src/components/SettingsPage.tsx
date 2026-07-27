@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Settings } from '@shared/types';
+import { IconMoon, IconSun } from '@tabler/icons-react';
+import type { AppTheme, Settings } from '@shared/types';
+import { applyAppTheme } from '../lib/applyAppTheme';
+import { SegmentedControl } from './controls/SegmentedControl';
 import { Tooltip } from './controls/Tooltip';
 import styles from './SettingsPage.module.css';
 
@@ -34,6 +37,14 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
   const handleClearFolder = async (): Promise<void> => {
     const next = await window.scamp.setDefaultProjectsFolder(null);
     setSettings(next);
+  };
+
+  const handleThemeChange = async (next: AppTheme): Promise<void> => {
+    // Flip the chrome immediately, then persist. applyAppTheme also
+    // refreshes the localStorage mirror so the next launch paints right.
+    applyAppTheme(next);
+    const updated = await window.scamp.updateSettings({ theme: next });
+    setSettings(updated);
   };
 
   const handleSentryToggle = async (optedIn: boolean): Promise<void> => {
@@ -87,6 +98,41 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
                   Clear
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Appearance</h2>
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              <div>Theme</div>
+              <div className={styles.rowHint}>
+                Changes Scamp&rsquo;s interface only — your project&rsquo;s
+                design is unaffected.
+              </div>
+            </div>
+            <div className={styles.rowControl}>
+              <div className={styles.themeToggle}>
+                <SegmentedControl<AppTheme>
+                  value={settings.theme}
+                  options={[
+                    {
+                      value: 'dark',
+                      label: <IconMoon size={16} stroke={1.75} />,
+                      ariaLabel: 'Dark',
+                      tooltip: 'Dark',
+                    },
+                    {
+                      value: 'light',
+                      label: <IconSun size={16} stroke={1.75} />,
+                      ariaLabel: 'Light',
+                      tooltip: 'Light',
+                    },
+                  ]}
+                  onChange={(next) => void handleThemeChange(next)}
+                />
+              </div>
             </div>
           </div>
         </div>

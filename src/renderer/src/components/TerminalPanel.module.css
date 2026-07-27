@@ -36,7 +36,7 @@ font-size: 12px;
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: #161616;
+  background: var(--bg-input);
   border-radius: var(--radius-sm);
 font-size: 12px;
   color: var(--text-primary);
@@ -83,7 +83,7 @@ font-size: 13px;
 
 .addTab {
   background: none;
-  border: 1px dashed #444;
+  border: 1px dashed var(--border-strong);
   color: var(--text-secondary);
 font-size: 13px;
   width: 22px;
@@ -94,7 +94,7 @@ font-size: 13px;
 }
 
 .addTab:hover {
-  border-color: #666;
+  border-color: var(--border-strong);
   color: var(--text-inverse);
 }
 

@@ -34,9 +34,9 @@
 }
 
 .destructive {
-  color: #ff7a7a;
+  color: var(--error-text);
 }
 
 .destructive:hover:not(:disabled) {
-  background: rgba(255, 80, 80, 0.1);
+  background: var(--error-bg);
 }

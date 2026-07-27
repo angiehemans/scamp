@@ -56,6 +56,9 @@
   --accent-muted: rgba(74, 140, 255, 0.2);
   /* Deep selected-row background (layers panel, etc.). */
   --accent-dark: #1d3a6e;
+  /* Text/icon color that pairs with `--accent-dark` (selected rows, active
+     size presets, token chips) — a light blue on the dark selection. */
+  --accent-text: #cfe0fb;
 
   /* ---------- Status ---------- */
   --status-error: #ef4444;
@@ -81,6 +84,14 @@
   --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.4);
   --shadow-tooltip: 0 2px 8px rgba(0, 0, 0, 0.2);
 
+  /* Overlay scrollbar thumb (see global.css). Light-on-dark by default;
+     flips to dark-on-light under the light theme. */
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+  /* Squares of the transparency checkerboard behind color swatches. */
+  --checkerboard: #444;
+
   /* ---------- Geometry ---------- */
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -92,7 +103,80 @@
   --row-h: 28px;
 
   /* ---------- Typography ---------- */
-  --font-ui: 'Ubuntu Mono', monospace;
+  /* EXPERIMENT: previewing the whole UI in Google Sans. To revert, put
+     this back to `'Ubuntu Mono', monospace`. */
+  --font-ui: 'Google Sans', var(--font-sans);
   --font-sans:
     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Code / monospace surfaces (code preview, CSS panel editors). Stays
+     Ubuntu Mono regardless of the --font-ui experiment above. */
+  --font-mono: 'Ubuntu Mono', monospace;
+}
+
+/*
+ * Light theme — opt-in via Settings → Appearance (Settings.theme = 'light',
+ * applied as `data-theme="light"` on <html> by @lib/appTheme).
+ *
+ * Overrides ONLY the color tokens; geometry/typography are theme-agnostic
+ * and inherit from :root above. Deliberately no stark white — the base
+ * surface is a soft grey (#f5f5f5), surfaces layer up to #fbfbfb at most.
+ *
+ * Watch the semantic flips (not plain inversions): --accent-dark is a
+ * SELECTED-ROW BACKGROUND, so in light it becomes a pale blue tint that
+ * dark text reads on; the --info/--warn/--error bg↔text pairs flip contrast
+ * DIRECTION so text stays legible on its paired background.
+ */
+:root[data-theme='light'] {
+  /* ---------- Backgrounds ---------- */
+  --bg-canvas: #e6e6e6;
+  --bg-surface: #f5f5f5;
+  --bg-input: #ececec;
+  --bg-raised: #fbfbfb;
+  --bg-header: #ededed;
+  --bg-hover: #e2e2e2;
+
+  /* ---------- Borders & dividers ---------- */
+  --border: #d6d6d6;
+  --border-subtle: #e4e4e4;
+  --border-strong: #bcbcbc;
+
+  /* ---------- Text ---------- */
+  --text-primary: #1c1c1c;
+  --text-secondary: #5f5f5f;
+  --text-tertiary: #8c8c8c;
+  --text-inverse: #fff;
+
+  /* ---------- Accent ---------- */
+  --accent: #2f6fe0;
+  --accent-hover: #4a86f0;
+  --accent-muted: rgba(47, 111, 224, 0.14);
+  /* Selected-row background — pale tint, NOT the dark navy. */
+  --accent-dark: #d3e2ff;
+  /* Text on the pale selection — a deep blue so it reads on light. */
+  --accent-text: #1e40af;
+
+  /* ---------- Status ---------- */
+  --status-error: #dc2626;
+  --status-warn: #d97706;
+  --status-success: #059669;
+
+  --info-bg: #e7efff;
+  --info-border: #c5d8ff;
+  --info-text: #1e40af;
+
+  --warn-bg: #fdf3d9;
+  --warn-text: #8a5a00;
+
+  --error-bg: #fde7e7;
+  --error-text: #b42318;
+
+  /* ---------- Overlay ---------- */
+  --backdrop: rgba(0, 0, 0, 0.35);
+  --shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-tooltip: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  --scrollbar-thumb: rgba(0, 0, 0, 0.18);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
+
+  --checkerboard: #cfcfcf;
 }

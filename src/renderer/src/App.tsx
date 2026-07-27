@@ -5,6 +5,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SentryOptInPrompt } from './components/SentryOptInPrompt';
 import { initSyncBridge, flushPendingPageWrite } from './syncBridge';
+import { applyAppTheme } from './lib/applyAppTheme';
 import { useFontsStore } from '@store/fontsSlice';
 import { useTerminalActivityStore } from '@store/terminalActivitySlice';
 import type { ProjectData } from '@shared/types';
@@ -33,6 +34,10 @@ export const App = (): JSX.Element => {
     void (async () => {
       try {
         const settings = await window.scamp.getSettings();
+        // settings.json is authoritative — reconcile against the fast
+        // localStorage mirror the boot script painted from (they only
+        // differ on a fresh install or an edit from another machine).
+        applyAppTheme(settings.theme);
         setOptInState(settings.sentryOptIn === null ? 'pending' : 'resolved');
       } catch {
         // Settings read failed — fall through to the prompt so the

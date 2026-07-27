@@ -8,7 +8,7 @@
 .sourcePath {
   flex: 1;
   font-size: 11px;
-  color: #999;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -26,7 +26,7 @@
 }
 
 .altInput:focus {
-  border-color: #6a6aff;
+  border-color: var(--accent);
 }
 
 .positionGrid {
@@ -47,10 +47,10 @@
 }
 
 .positionBtn:hover {
-  background: #363636;
+  background: var(--bg-input);
 }
 
 .positionActive {
-  background: #4a4a4a;
-  border-color: #6a6aff;
+  background: var(--bg-hover);
+  border-color: var(--accent);
 }

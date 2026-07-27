@@ -1,9 +1,10 @@
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { css as cssLang } from '@codemirror/lang-css';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView } from '@codemirror/view';
 import { useCanvasStore } from '@store/canvasSlice';
+import { editorThemeFor } from '../lib/editorTheme';
+import { useAppTheme } from '../hooks/useAppTheme';
 import { Tooltip } from './controls/Tooltip';
 import styles from './CodePanel.module.css';
 
@@ -28,6 +29,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
   const themeCssRaw = useCanvasStore((s) => s.themeCssRaw);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+  const editorTheme = editorThemeFor(useAppTheme());
 
   const tsx = pageSource?.tsx ?? '';
   const css = pageSource?.css ?? '';
@@ -59,7 +61,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
               <CodeMirror
                 value={themeCssRaw}
                 height="100%"
-                theme={oneDark}
+                theme={editorTheme}
                 extensions={[cssLang(), READ_ONLY]}
                 basicSetup={{
                   lineNumbers: true,
@@ -98,7 +100,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
             <CodeMirror
               value={tsx}
               height="100%"
-              theme={oneDark}
+              theme={editorTheme}
               extensions={[javascript({ jsx: true, typescript: true }), READ_ONLY]}
               basicSetup={{
                 lineNumbers: true,
@@ -116,7 +118,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
             <CodeMirror
               value={css}
               height="100%"
-              theme={oneDark}
+              theme={editorTheme}
               extensions={[cssLang(), READ_ONLY]}
               basicSetup={{
                 lineNumbers: true,

@@ -14,7 +14,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  background: #161616;
+  background: var(--bg-input);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -73,7 +73,7 @@
 }
 
 .levelInfo {
-  color: #60a5fa;
+  color: var(--accent);
   font-weight: 600;
 }
 

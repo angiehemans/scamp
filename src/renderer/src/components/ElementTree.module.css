@@ -57,7 +57,7 @@ font-size: 13px;
 }
 
 .row:hover {
-  background: #262626;
+  background: var(--bg-hover);
   color: var(--text-inverse);
 }
 
@@ -82,7 +82,7 @@ font-size: 11px;
 }
 
 .rowSelected .icon {
-  color: #cfe0fb;
+  color: var(--accent-text);
 }
 
 .label {

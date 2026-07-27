@@ -1,3 +1,4 @@
+import type { TitleBarColors } from '@shared/titleBarColors';
 import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
@@ -63,6 +64,9 @@ declare const api: {
     /** The Scamp app version (from package.json) — useful in any
      *  diagnostic UI that wants to surface it. */
     getAppVersion: () => Promise<string>;
+    /** Recolor the native title-bar overlay (Windows/Linux window
+     *  controls) to match the app theme. Fire-and-forget. */
+    setTitleBarOverlayColors: (colors: TitleBarColors) => void;
     readProjectConfig: (args: ProjectConfigReadArgs) => Promise<ProjectConfig>;
     writeProjectConfig: (args: ProjectConfigWriteArgs) => Promise<ProjectConfig>;
     onFileChanged: (handler: (payload: FileChangedPayload) => void) => (() => void);

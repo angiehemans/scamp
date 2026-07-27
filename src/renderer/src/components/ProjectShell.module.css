@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   padding: 6px;
-  background: #222222;
+  background: var(--bg-raised);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-popover);
 }
@@ -97,7 +97,7 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
-  background: #222222;
+  background: var(--bg-raised);
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -414,7 +414,7 @@ font-size: 14px;
 .addPageButton:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: #4a4a4a;
+  border-color: var(--border-strong);
 }
 
 .canvasArea {
