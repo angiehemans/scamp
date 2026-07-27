@@ -10,6 +10,9 @@ import { SegmentedControl } from "./controls/SegmentedControl"
 import { Tooltip } from "./controls/Tooltip"
 import styles from "./StartScreen.module.css"
 
+// Vite resolves this to the bundled, hashed asset URL at build time.
+const scampLogoUrl = new URL("../assets/scamp-icon.png", import.meta.url).href
+
 type ViewMode = "card" | "list"
 const VIEW_STORAGE_KEY = "scamp.projectsView"
 const readStoredView = (): ViewMode =>
@@ -306,7 +309,10 @@ export const StartScreen = ({
   return (
     <div className={styles.screen}>
       <aside className={styles.sidebar}>
-        <h1 className={styles.sidebarTitle}>Scamp</h1>
+        <div className={styles.brand}>
+          <img className={styles.brandLogo} src={scampLogoUrl} alt="" />
+          <h1 className={styles.sidebarTitle}>Scamp</h1>
+        </div>
         <p className={styles.sidebarSubtitle}>
           Local design tool — draw, get real code.
         </p>

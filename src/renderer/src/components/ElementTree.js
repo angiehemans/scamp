@@ -155,6 +155,18 @@ const Row = ({ element, depth, dragOver, setDragOver }) => {
                             toggleSelectElement(element.id);
                         else
                             selectElement(element.id);
+                    }, onContextMenu: (e) => {
+                        if (renaming)
+                            return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Mirror the canvas right-click: select the target, then open the
+                        // shared element context menu (ElementContextMenu listens globally
+                        // for this event, so the menu and its items are identical).
+                        selectElement(element.id);
+                        window.dispatchEvent(new CustomEvent('scamp:open-element-context-menu', {
+                            detail: { x: e.clientX, y: e.clientY, elementId: element.id },
+                        }));
                     }, onDoubleClick: () => {
                         // Root can't be renamed.
                         if (element.id === ROOT_ELEMENT_ID)
