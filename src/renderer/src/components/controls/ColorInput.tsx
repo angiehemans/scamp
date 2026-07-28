@@ -88,6 +88,25 @@ const resolveVar = (
   return resolveTokenChain(value, tokens) ?? value;
 };
 
+/** Strip the conventional `--color-` (or bare `--`) prefix so token names
+ *  read as their semantic label in the picker — `--color-primary` →
+ *  `primary`. The full name still commits and shows on hover. */
+const stripTokenPrefix = (name: string): string =>
+  name.replace(/^--color-/, '').replace(/^--/, '');
+
+/** A token is "semantic" when its value points at another token
+ *  (`var(--x)`) rather than holding a literal color. Those are the
+ *  purpose-named tokens users reach for first (background, border, …). */
+const isSemanticToken = (t: ThemeToken): boolean => VAR_RE.test(t.value.trim());
+
+/** Format a token's value for the picker's secondary column: a `var(--x)`
+ *  reference becomes the referenced token's clean name (so you can see where
+ *  the color came from); a literal (hex/rgb) is shown verbatim. */
+const formatTokenValue = (value: string): string => {
+  const inner = value.trim().match(VAR_RE)?.[1];
+  return inner ? stripTokenPrefix(inner) : value;
+};
+
 /**
  * Format an alpha 0..1 as a two-digit hex suffix (`80` for 0.5).
  */
@@ -208,6 +227,9 @@ export const ColorInput = ({
       // popover is fixed-height so we don't want it clipped by
       // the viewport edge.
       minFitBelow: POPOVER_HEIGHT,
+      // When neither side has room for the full-height picker, overlay it
+      // centered on the trigger instead of cramping it to one side.
+      overlayWhenTight: true,
     },
   });
 
@@ -383,6 +405,15 @@ export const ColorInput = ({
     );
   });
 
+  // Surface semantic tokens (those that reference another token) first;
+  // primitives follow. V8's Array.sort is stable, so file order holds
+  // within each group.
+  const orderedTokens = colorTokens
+    ? [...colorTokens].sort(
+        (a, b) => Number(isSemanticToken(b)) - Number(isSemanticToken(a))
+      )
+    : colorTokens;
+
   // Show the token name in the text input when a var() is applied.
   const displayValue = isVarRef && varName ? varName : draft;
 
@@ -403,13 +434,13 @@ export const ColorInput = ({
   type SwatchEntry = { value: string; display: string; label: string };
   const projectSwatches: SwatchEntry[] = [];
   const seenDisplays = new Set<string>();
-  for (const t of colorTokens ?? []) {
+  for (const t of orderedTokens ?? []) {
     if (seenDisplays.has(t.value)) continue;
     seenDisplays.add(t.value);
     projectSwatches.push({
       value: `var(${t.name})`,
       display: resolveVar(t.value, tokens),
-      label: t.name,
+      label: stripTokenPrefix(t.name),
     });
   }
   const rawProjectColors = presetColors ?? PRESET_COLORS;
@@ -430,6 +461,11 @@ export const ColorInput = ({
               left: popover.position.left,
               top: popover.position.top,
               bottom: popover.position.bottom,
+              // Respect the computed clamp so a flipped-up popover can never
+              // overflow the top of the window / title bar; scroll if the
+              // available space is shorter than the picker's content.
+              maxHeight: popover.position.maxHeight,
+              overflowY: 'auto',
             }}
           >
             <div className={styles.pickerTabs}>
@@ -522,8 +558,8 @@ export const ColorInput = ({
               </div>
             ) : (
               <div className={styles.tokenList}>
-                {colorTokens && colorTokens.length > 0 ? (
-                  colorTokens.map((t) => (
+                {orderedTokens && orderedTokens.length > 0 ? (
+                  orderedTokens.map((t) => (
                     <button
                       key={t.name}
                       type="button"
@@ -537,8 +573,12 @@ export const ColorInput = ({
                         className={styles.tokenListSwatch}
                         style={{ background: resolveVar(t.value, tokens) }}
                       />
-                      <span className={styles.tokenListName}>{t.name}</span>
-                      <span className={styles.tokenListValue}>{t.value}</span>
+                      <span className={styles.tokenListName} title={t.name}>
+                        {stripTokenPrefix(t.name)}
+                      </span>
+                      <span className={styles.tokenListValue} title={t.value}>
+                        {formatTokenValue(t.value)}
+                      </span>
                     </button>
                   ))
                 ) : (

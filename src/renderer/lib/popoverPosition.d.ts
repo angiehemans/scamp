@@ -30,6 +30,14 @@ export type PopoverPositionOptions = {
      * Default 120 — lets short menus render below almost always.
      */
     minFitBelow?: number;
+    /**
+     * When set, and neither below nor above can show the popover at its full
+     * `desiredMaxHeight`, overlay it centered on the trigger so it uses the
+     * full usable window height instead of being cramped to one side. For
+     * fixed-height content (e.g. a color picker) that reads better centered
+     * over the cursor than clipped short. Off by default (menus still dock).
+     */
+    overlayWhenTight?: boolean;
 };
 /**
  * The vertical anchor is either `top` (placed below the trigger) or
@@ -52,4 +60,5 @@ export type PopoverPosition = {
 export declare const computePopoverPosition: (triggerRect: DOMRect, options: PopoverPositionOptions, viewport?: {
     width: number;
     height: number;
+    top?: number;
 }) => PopoverPosition;

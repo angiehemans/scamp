@@ -490,3 +490,116 @@ input.themeBlockName:focus {
   border: 1px dashed var(--error-text);
   background: var(--error-bg) !important;
 }
+
+/* Semantic mapping picker — a swatch + name token list matching the color
+   picker popover (see ColorInput / Controls.module.css `.tokenList*`). */
+.semanticTrigger {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.semanticTrigger:hover {
+  background: var(--bg-input);
+}
+
+.semanticTriggerSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.semanticTriggerSwatch[data-broken='true'] {
+  border: 1px dashed var(--error-text);
+  background: var(--error-bg) !important;
+}
+
+.semanticTriggerLabel {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-primary);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semanticTriggerCaret {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.semanticMenu {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.semanticMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.semanticMenuItem:last-child {
+  border-bottom: none;
+}
+
+.semanticMenuItem:hover {
+  background: var(--bg-hover);
+}
+
+.semanticMenuItemActive,
+.semanticMenuItemActive:hover {
+  background: var(--accent-dark);
+}
+
+.semanticMenuSwatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.semanticMenuName {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.semanticMenuValue {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}

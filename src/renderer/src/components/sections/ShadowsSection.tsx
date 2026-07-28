@@ -85,10 +85,11 @@ export const ShadowsSection = ({ elementId }: Props): JSX.Element | null => {
       icon={<IconShadow size={14} stroke={1.75} />}
       ariaLabel="Apply shadow preset"
       testId="shadow-preset-select"
+      // Name only — a full box-shadow value is too long/noisy for this
+      // compact preset menu (the shadow renders on the canvas anyway).
       options={shadowTokens.map((t) => ({
         value: t.name,
         label: t.name,
-        hint: t.value,
       }))}
       onSelect={applyShadowPreset}
     />

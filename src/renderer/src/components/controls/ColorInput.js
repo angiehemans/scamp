@@ -25,6 +25,21 @@ const resolveVar = (value, tokens) => {
         return value;
     return resolveTokenChain(value, tokens) ?? value;
 };
+/** Strip the conventional `--color-` (or bare `--`) prefix so token names
+ *  read as their semantic label in the picker — `--color-primary` →
+ *  `primary`. The full name still commits and shows on hover. */
+const stripTokenPrefix = (name) => name.replace(/^--color-/, '').replace(/^--/, '');
+/** A token is "semantic" when its value points at another token
+ *  (`var(--x)`) rather than holding a literal color. Those are the
+ *  purpose-named tokens users reach for first (background, border, …). */
+const isSemanticToken = (t) => VAR_RE.test(t.value.trim());
+/** Format a token's value for the picker's secondary column: a `var(--x)`
+ *  reference becomes the referenced token's clean name (so you can see where
+ *  the color came from); a literal (hex/rgb) is shown verbatim. */
+const formatTokenValue = (value) => {
+    const inner = value.trim().match(VAR_RE)?.[1];
+    return inner ? stripTokenPrefix(inner) : value;
+};
 /**
  * Format an alpha 0..1 as a two-digit hex suffix (`80` for 0.5).
  */
@@ -115,6 +130,9 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
             // popover is fixed-height so we don't want it clipped by
             // the viewport edge.
             minFitBelow: POPOVER_HEIGHT,
+            // When neither side has room for the full-height picker, overlay it
+            // centered on the trigger instead of cramping it to one side.
+            overlayWhenTight: true,
         },
     });
     useEffect(() => {
@@ -262,18 +280,24 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
             RGBA_RE.test(v) ||
             /^[a-z]+$/i.test(v));
     });
+    // Surface semantic tokens (those that reference another token) first;
+    // primitives follow. V8's Array.sort is stable, so file order holds
+    // within each group.
+    const orderedTokens = colorTokens
+        ? [...colorTokens].sort((a, b) => Number(isSemanticToken(b)) - Number(isSemanticToken(a)))
+        : colorTokens;
     // Show the token name in the text input when a var() is applied.
     const displayValue = isVarRef && varName ? varName : draft;
     const projectSwatches = [];
     const seenDisplays = new Set();
-    for (const t of colorTokens ?? []) {
+    for (const t of orderedTokens ?? []) {
         if (seenDisplays.has(t.value))
             continue;
         seenDisplays.add(t.value);
         projectSwatches.push({
             value: `var(${t.name})`,
             display: resolveVar(t.value, tokens),
-            label: t.name,
+            label: stripTokenPrefix(t.name),
         });
     }
     const rawProjectColors = presetColors ?? PRESET_COLORS;
@@ -288,6 +312,11 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
                 left: popover.position.left,
                 top: popover.position.top,
                 bottom: popover.position.bottom,
+                // Respect the computed clamp so a flipped-up popover can never
+                // overflow the top of the window / title bar; scroll if the
+                // available space is shorter than the picker's content.
+                maxHeight: popover.position.maxHeight,
+                overflowY: 'auto',
             }, children: [_jsxs("div", { className: styles.pickerTabs, children: [_jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'color' ? styles.pickerTabActive : ''}`, onClick: () => setTab('color'), children: "Color" }), _jsx("button", { type: "button", className: `${styles.pickerTab} ${tab === 'tokens' ? styles.pickerTabActive : ''}`, onClick: () => setTab('tokens'), children: "Tokens" })] }), tab === 'color' ? (_jsxs("div", { className: styles.colorTabBody, children: [_jsx("div", { className: styles.colorPickerCanvas, children: _jsx(PickerComponent, { color: pickerHex, onChange: handlePickerChange }) }), _jsxs("div", { className: styles.colorControlsRow, children: [eyedropperSupported && (_jsx(Tooltip, { label: "Pick from screen", children: _jsx("button", { type: "button", className: styles.colorPopoverEyedropper, onClick: () => void handleEyedropperClick(), "aria-label": "Pick color from screen", children: _jsx(IconColorPicker, { size: 14, stroke: 2.2 }) }) })), _jsx("input", { type: "text", className: `${styles.input} ${styles.colorPopoverHex}`, value: draft, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
                                         if (e.key === 'Enter')
                                             e.currentTarget.blur();
@@ -296,10 +325,10 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
                                             : 'Opacity (0–100)' }) }))] }), projectSwatches.length > 0 && (_jsxs("div", { className: styles.swatchSection, children: [_jsx("span", { className: styles.swatchSectionLabel, children: "Project" }), _jsx("div", { className: styles.swatchRow, children: projectSwatches.map((entry) => (_jsx(Tooltip, { label: entry.label, children: _jsx("button", { type: "button", className: styles.swatchButton, style: { background: entry.display }, onClick: () => {
                                                 commitColor(entry.value);
                                                 popover.setOpen(false);
-                                            }, "aria-label": `Apply ${entry.label}` }) }, entry.value))) })] }))] })) : (_jsx("div", { className: styles.tokenList, children: colorTokens && colorTokens.length > 0 ? (colorTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
+                                            }, "aria-label": `Apply ${entry.label}` }) }, entry.value))) })] }))] })) : (_jsx("div", { className: styles.tokenList, children: orderedTokens && orderedTokens.length > 0 ? (orderedTokens.map((t) => (_jsxs("button", { type: "button", className: `${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`, onClick: () => {
                             onChange(`var(${t.name})`);
                             popover.setOpen(false);
-                        }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: resolveVar(t.value, tokens) } }), _jsx("span", { className: styles.tokenListName, children: t.name }), _jsx("span", { className: styles.tokenListValue, children: t.value })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {
+                        }, children: [_jsx("span", { className: styles.tokenListSwatch, style: { background: resolveVar(t.value, tokens) } }), _jsx("span", { className: styles.tokenListName, title: t.name, children: stripTokenPrefix(t.name) }), _jsx("span", { className: styles.tokenListValue, title: t.value, children: formatTokenValue(t.value) })] }, t.name)))) : (_jsxs("div", { className: styles.tokenListEmpty, children: [_jsx("span", { children: "No tokens defined yet." }), onOpenTheme && (_jsx("button", { type: "button", className: styles.tokenListAddButton, onClick: () => {
                                     popover.setOpen(false);
                                     onOpenTheme();
                                 }, children: "+ Add Tokens" }))] })) }))] })) }));

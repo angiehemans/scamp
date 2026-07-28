@@ -42,10 +42,11 @@ export const TextStyleRow = ({
   onDelete,
 }: Props): JSX.Element => {
   const popover = usePopover<HTMLButtonElement>({
-    // Nested FontPicker / token popovers portal outside this one, so
-    // outside-click can't close it — use the × / Escape / trigger toggle.
+    // Closes on outside click, but not when the click lands in a nested
+    // FontPicker / token dropdown — those portal outside this popover's DOM
+    // yet are still "inside" from the user's point of view.
     position: { width: 260, desiredMaxHeight: 320, align: 'right' },
-    closeOnOutsideClick: false,
+    ignoreNestedPopovers: true,
   });
 
   const resolve = (v: string | null): string | undefined =>

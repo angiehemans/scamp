@@ -20,6 +20,8 @@ import { classifyToken, type TokenCategory } from '@lib/tokenClassify';
 import { buildColorModel, type PrimitivePalette } from '@lib/colorModel';
 import { generatePalette } from '@lib/palette';
 import { resolveTokenChain } from '@lib/resolveToken';
+import { computePopoverPosition } from '@lib/popoverPosition';
+import { TITLE_BAR_HEIGHT } from '@shared/titleBarColors';
 import {
   buildTextStyles,
   defaultTextStyleTokens,
@@ -214,6 +216,23 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
     anchor: { left: number; top: number; right: number; bottom: number };
   } | null>(null);
   const closeBadgeMenu = useCallback(() => setBadgeMenuFor(null), []);
+
+  /**
+   * The semantic token whose palette/shade picker is open. Carries the
+   * trigger rect (for edge-aware positioning) and the current mapping
+   * (`palette:shade`) so the open row is highlighted. Portaled like the
+   * badge menu to escape the scrollable token list.
+   */
+  const [semanticPickerFor, setSemanticPickerFor] = useState<{
+    semName: string;
+    cssClass: string;
+    anchor: DOMRect;
+    current: string;
+  } | null>(null);
+  const closeSemanticPicker = useCallback(
+    () => setSemanticPickerFor(null),
+    []
+  );
 
   /**
    * Ref + signal pair for "scroll the token list to the bottom on the
@@ -1082,37 +1101,44 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
             if (e.key === 'Enter') e.currentTarget.blur();
           }}
         />
-        <select
-          className={styles.semanticSelect}
-          value={selectValue}
+        <button
+          type="button"
+          className={styles.semanticTrigger}
           aria-label={`Mapping for ${sem.name}`}
-          onChange={(e) => {
-            const [palette, shade] = e.target.value.split(':');
-            if (palette && shade)
-              handleSemanticMap(sem.name, palette, Number(shade), cssClass);
+          aria-haspopup="menu"
+          aria-expanded={
+            semanticPickerFor?.semName === sem.name &&
+            semanticPickerFor?.cssClass === cssClass
+          }
+          onClick={(e) => {
+            const isOpen =
+              semanticPickerFor?.semName === sem.name &&
+              semanticPickerFor?.cssClass === cssClass;
+            if (isOpen) {
+              setSemanticPickerFor(null);
+              return;
+            }
+            setSemanticPickerFor({
+              semName: sem.name,
+              cssClass,
+              anchor: e.currentTarget.getBoundingClientRect(),
+              current: selectValue,
+            });
           }}
         >
-          {selectValue === '' && (
-            <option value="" disabled>
-              {effectiveValue || '— custom —'}
-            </option>
-          )}
-          {colorModel.palettes.map((p) => (
-            <optgroup key={p.name} label={p.name}>
-              {p.shades.map((s) => (
-                <option key={s.shade} value={`${p.name}:${s.shade}`}>
-                  {p.name} / {s.shade}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <div
-          className={styles.resolvedSwatch}
-          style={{ background: resolved ?? 'transparent' }}
-          data-broken={resolved === null}
-          title={resolved ?? 'unresolved reference'}
-        />
+          <span
+            className={styles.semanticTriggerSwatch}
+            style={{ background: resolved ?? 'transparent' }}
+            data-broken={resolved === null}
+            title={resolved ?? 'unresolved reference'}
+          />
+          <span className={styles.semanticTriggerLabel}>
+            {m ? `${m[1]} / ${m[2]}` : effectiveValue || '— custom —'}
+          </span>
+          <span className={styles.semanticTriggerCaret} aria-hidden="true">
+            ▾
+          </span>
+        </button>
         {isLightRow && (
           <Tooltip label="Delete token">
             <button
@@ -1625,6 +1651,84 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
                 );
               })}
             </div>
+          </>,
+          document.body
+        )}
+      {/* Semantic palette/shade picker — a swatch + name token list styled
+          like the color picker's, portaled out of the scrollable list and
+          positioned edge-aware (clears the title bar, flips/overlays when
+          tight). */}
+      {semanticPickerFor !== null &&
+        createPortal(
+          <>
+            <div
+              className={styles.badgeMenuBackdrop}
+              onMouseDown={closeSemanticPicker}
+            />
+            {(() => {
+              const pos = computePopoverPosition(
+                semanticPickerFor.anchor,
+                {
+                  width: 240,
+                  desiredMaxHeight: 320,
+                  align: 'left',
+                  overlayWhenTight: true,
+                },
+                {
+                  width: window.innerWidth,
+                  height: window.innerHeight,
+                  top: TITLE_BAR_HEIGHT,
+                }
+              );
+              return (
+                <div
+                  className={styles.semanticMenu}
+                  role="menu"
+                  style={{
+                    left: pos.left,
+                    top: pos.top,
+                    bottom: pos.bottom,
+                    width: pos.width,
+                    maxHeight: pos.maxHeight,
+                  }}
+                >
+                  {colorModel.palettes.flatMap((p) =>
+                    p.shades.map((s) => {
+                      const key = `${p.name}:${s.shade}`;
+                      const active = key === semanticPickerFor.current;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          role="menuitem"
+                          className={`${styles.semanticMenuItem} ${active ? styles.semanticMenuItemActive : ''}`}
+                          onClick={() => {
+                            handleSemanticMap(
+                              semanticPickerFor.semName,
+                              p.name,
+                              Number(s.shade),
+                              semanticPickerFor.cssClass
+                            );
+                            setSemanticPickerFor(null);
+                          }}
+                        >
+                          <span
+                            className={styles.semanticMenuSwatch}
+                            style={{ background: s.value }}
+                          />
+                          <span className={styles.semanticMenuName}>
+                            {p.name} / {s.shade}
+                          </span>
+                          <span className={styles.semanticMenuValue}>
+                            {s.value}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              );
+            })()}
           </>,
           document.body
         )}

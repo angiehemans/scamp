@@ -10,6 +10,7 @@ import {
   type PopoverPosition,
   type PopoverPositionOptions,
 } from '@lib/popoverPosition';
+import { TITLE_BAR_HEIGHT } from '@shared/titleBarColors';
 
 type UsePopoverOptions = {
   /** Positioning options passed to computePopoverPosition. The hook
@@ -20,6 +21,14 @@ type UsePopoverOptions = {
   /** Close when the user mousedowns outside both the trigger and the
    * popover. Default: true. */
   closeOnOutsideClick?: boolean;
+  /**
+   * When true, outside-click also ignores mousedowns that land inside ANY
+   * popover layer (`[data-popover-layer]`), not just this one's container.
+   * Use it for popovers that host nested pickers which portal outside their
+   * DOM (font / token dropdowns) — those clicks shouldn't close the parent.
+   * Default: false.
+   */
+  ignoreNestedPopovers?: boolean;
   /** Fires every time the popover transitions from open to closed —
    * regardless of the cause (setOpen(false), Escape, outside click). */
   onClose?: () => void;
@@ -54,6 +63,7 @@ export const usePopover = <T extends HTMLElement = HTMLButtonElement>(
 
   const closeOnEscape = options.closeOnEscape ?? true;
   const closeOnOutsideClick = options.closeOnOutsideClick ?? true;
+  const ignoreNestedPopovers = options.ignoreNestedPopovers ?? false;
   const positionOptions = options.position;
   const onCloseRef = useRef(options.onClose);
   onCloseRef.current = options.onClose;
@@ -61,7 +71,12 @@ export const usePopover = <T extends HTMLElement = HTMLButtonElement>(
   const compute = useCallback((): PopoverPosition | null => {
     const el = triggerRef.current;
     if (!el) return null;
-    return computePopoverPosition(el.getBoundingClientRect(), positionOptions);
+    return computePopoverPosition(el.getBoundingClientRect(), positionOptions, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      // Keep popovers clear of the custom title bar at the top of the window.
+      top: TITLE_BAR_HEIGHT,
+    });
   }, [positionOptions]);
 
   const setOpen = useCallback(
@@ -86,6 +101,12 @@ export const usePopover = <T extends HTMLElement = HTMLButtonElement>(
     setOpen(!open);
   }, [open, setOpen]);
 
+  // Tag this popover's container so nested-popover-aware parents can tell
+  // a click landed inside a popover layer (their portaled child pickers).
+  useEffect(() => {
+    if (open) popoverRef.current?.setAttribute('data-popover-layer', '');
+  }, [open]);
+
   // Outside-click → close. mousedown fires before click, so clicking a
   // different trigger that opens its own popover works without a double
   // toggle. Inside-trigger/inside-popover clicks are excluded.
@@ -95,11 +116,18 @@ export const usePopover = <T extends HTMLElement = HTMLButtonElement>(
       const target = e.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (popoverRef.current?.contains(target)) return;
+      // Nested pickers portal outside this popover; a click inside one of
+      // them is still "inside" from the user's perspective.
+      if (ignoreNestedPopovers) {
+        const el =
+          target instanceof Element ? target : target.parentElement;
+        if (el?.closest('[data-popover-layer]')) return;
+      }
       setOpen(false);
     };
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [open, closeOnOutsideClick, setOpen]);
+  }, [open, closeOnOutsideClick, ignoreNestedPopovers, setOpen]);
 
   // Escape → close. Uses keydown at the document level so focused
   // inputs inside the popover still trigger it.

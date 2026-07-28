@@ -9,6 +9,14 @@ type UsePopoverOptions = {
     /** Close when the user mousedowns outside both the trigger and the
      * popover. Default: true. */
     closeOnOutsideClick?: boolean;
+    /**
+     * When true, outside-click also ignores mousedowns that land inside ANY
+     * popover layer (`[data-popover-layer]`), not just this one's container.
+     * Use it for popovers that host nested pickers which portal outside their
+     * DOM (font / token dropdowns) — those clicks shouldn't close the parent.
+     * Default: false.
+     */
+    ignoreNestedPopovers?: boolean;
     /** Fires every time the popover transitions from open to closed —
      * regardless of the cause (setOpen(false), Escape, outside click). */
     onClose?: () => void;

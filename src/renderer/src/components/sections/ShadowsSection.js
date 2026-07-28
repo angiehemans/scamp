@@ -57,10 +57,12 @@ export const ShadowsSection = ({ elementId }) => {
     };
     // The shadow preset picker sits in the section header, left of the
     // expand chevron (PresetMenu renders nothing when there are no tokens).
-    const shadowPreset = (_jsx(PresetMenu, { icon: _jsx(IconShadow, { size: 14, stroke: 1.75 }), ariaLabel: "Apply shadow preset", testId: "shadow-preset-select", options: shadowTokens.map((t) => ({
+    const shadowPreset = (_jsx(PresetMenu, { icon: _jsx(IconShadow, { size: 14, stroke: 1.75 }), ariaLabel: "Apply shadow preset", testId: "shadow-preset-select", 
+        // Name only — a full box-shadow value is too long/noisy for this
+        // compact preset menu (the shadow renders on the canvas anyway).
+        options: shadowTokens.map((t) => ({
             value: t.name,
             label: t.name,
-            hint: t.value,
         })), onSelect: applyShadowPreset }));
     return (_jsxs(Section, { title: "Shadow", collapsible: true, defaultOpen: shadows.length > 0, elementId: elementId, groupToggle: groupToggle, groupAccessory: shadowPreset, fields: ['boxShadows'], cssProperties: ['box-shadow'], children: [shadows.length === 0 && _jsx(SectionEmptyState, { testId: "shadows-empty" }), shadows.map((shadow, idx) => (_jsx(ShadowRow, { index: idx, shadow: shadow, elementId: elementId, onChange: (patch) => shadowField.update(idx, patch), onRemove: () => shadowField.remove(idx), colorContext: colorContext }, idx))), _jsx(Row, { label: "", children: _jsx(Button, { variant: "addRow", onClick: () => shadowField.add({ ...DEFAULT_NEW_SHADOW }), children: "+ Add shadow" }) })] }));
 };
