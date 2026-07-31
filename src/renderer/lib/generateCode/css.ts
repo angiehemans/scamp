@@ -1,6 +1,6 @@
 // generateCode/css.ts — split out of generateCode.ts (4.5).
 import { ELEMENT_STATES, type BreakpointOverride, type ElementStateName, type KeyframesBlock, type ScampElement, type StateOverride } from "../element";
-import { breakpointOverrideLines, elementDeclarationLines } from "./declarations";
+import { breakpointOverrideLines, elementDeclarationLines, sizeDeclarationLines } from "./declarations";
 import { classNameFor, computeElementsNeedingPositioningContext } from "./internal";
 import { DESKTOP_BREAKPOINT_ID, type Breakpoint } from "@shared/types";
 
@@ -11,6 +11,32 @@ const overrideHasAny = (
   override: BreakpointOverride | undefined
 ): override is BreakpointOverride =>
   override !== undefined && Object.keys(override).length > 0;
+
+
+/** The size-only slice of a breakpoint override — the only properties a
+ *  component instance is allowed to carry on a page. Returns undefined
+ *  when the override sets nothing about size. */
+const SIZE_OVERRIDE_KEYS = [
+  'widthMode',
+  'widthValue',
+  'widthCustom',
+  'heightMode',
+  'heightValue',
+  'heightCustom',
+] as const satisfies ReadonlyArray<keyof BreakpointOverride>;
+
+const sizeOverrideOnly = (
+  override: BreakpointOverride | undefined
+): BreakpointOverride | undefined => {
+  if (override === undefined) return undefined;
+  const out: BreakpointOverride = {};
+  for (const key of SIZE_OVERRIDE_KEYS) {
+    if (override[key] !== undefined) {
+      Object.assign(out, { [key]: override[key] });
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+};
 
 
 const collectElementsDfs = (
@@ -64,12 +90,25 @@ const elementCssChunks = (
   parent: ScampElement | null,
   mustEstablishPositioningContext: boolean = false
 ): string[] => {
-  // Component instances don't own a class block — their visual
-  // styles live inside the component definition's own
-  // `[Name].module.css`. The instance JSX carries no `className`
-  // and the page CSS module should NOT emit an empty `.…  {}` for
-  // it.
-  if (el.type === 'component-instance') return [];
+  // A component instance owns exactly one thing: its size on this page.
+  // Everything else about how it looks lives in the component
+  // definition's own `[Name].module.css`. An instance left at the
+  // default size emits nothing at all, so pages that only place
+  // components stay free of empty `.… {}` rules.
+  //
+  // The selector is DOUBLED (`.inst_x.inst_x`). The page rule and the
+  // component's own `.root` rule are single-class selectors in two
+  // different CSS modules, so with equal specificity the winner is
+  // bundle order — and the component module, imported by the page,
+  // lands last. Doubling lifts the page rule to (0,2,0) so a size set
+  // on the instance reliably beats the component's own width/height.
+  if (el.type === 'component-instance') {
+    const sizeLines = sizeDeclarationLines(el);
+    if (sizeLines.length === 0) return [];
+    const cls = classNameFor(el);
+    const body = sizeLines.map((line) => `  ${line}`).join('\n');
+    return [`.${cls}.${cls} {\n${body}\n}`];
+  }
 
   const chunks: string[] = [];
 
@@ -141,15 +180,19 @@ export const generateCss = (
     if (bp.id === DESKTOP_BREAKPOINT_ID) continue;
     const rules: string[] = [];
     for (const el of ordered) {
-      // Component instances don't own a class block at any
-      // breakpoint — same reason as the base block above.
-      if (el.type === 'component-instance') continue;
-      const override = el.breakpointOverrides?.[bp.id];
+      const isInstance = el.type === 'component-instance';
+      // An instance owns only its size, so a per-breakpoint rule for one
+      // carries only the size keys — and needs the same doubled selector
+      // as its base block to outrank the component's own `.root`.
+      const override = isInstance
+        ? sizeOverrideOnly(el.breakpointOverrides?.[bp.id])
+        : el.breakpointOverrides?.[bp.id];
       if (!overrideHasAny(override)) continue;
       const lines = breakpointOverrideLines(override, el);
       if (lines.length === 0) continue;
       const body = lines.map((line) => line.length === 0 ? "" : `    ${line}`).join('\n');
-      rules.push(`  .${classNameFor(el)} {\n${body}\n  }`);
+      const cls = classNameFor(el);
+      rules.push(`  .${cls}${isInstance ? `.${cls}` : ''} {\n${body}\n  }`);
     }
     if (rules.length === 0) continue;
     mediaBlocks.push(

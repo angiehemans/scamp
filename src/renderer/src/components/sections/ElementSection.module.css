@@ -73,3 +73,20 @@
   outline: none;
   border-color: var(--accent);
 }
+
+/* Read-only instance identifier on a component instance. Matches the
+   class chip in the panel header — it's the same kind of value (the
+   handle the generated file uses for this element). */
+.instanceId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0 6px;
+  line-height: var(--control-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

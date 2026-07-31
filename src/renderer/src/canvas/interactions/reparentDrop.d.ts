@@ -1,5 +1,5 @@
 import type { ScampElement } from '@lib/element';
-import type { CanvasGeometry, ReparentDrop } from './types';
+import type { CanvasGeometry, DropIndicator, ReparentDrop } from './types';
 type ComponentTree = {
     elements: Record<string, ScampElement>;
     rootId: string;
@@ -16,6 +16,25 @@ type ComponentTree = {
  */
 export declare const slotDropCreatesCycle: (drop: ReparentDrop, draggedId: string, elements: Record<string, ScampElement>, componentTrees: Record<string, ComponentTree>, activeComponentName: string | null) => boolean;
 /**
+ * Stand-in for "no element is being dragged" — used by the component
+ * sidebar drag, which creates a NEW instance rather than moving an
+ * existing one. No element can have this id, so self-exclusion checks
+ * (`isSelfOrDescendant`, sibling filtering) become no-ops.
+ */
+export declare const NO_DRAGGED_ID = "";
+/**
+ * Gap-line indicator + insert index for dropping into a flow (flex/grid)
+ * container. Generalised from the same-parent reorder math to any parent.
+ * Grid containers append to the end (Q3); flex uses the sibling under the
+ * cursor and which side of its centre. When no sibling is under the cursor
+ * (empty container, padding, between rows), falls back to appending at the
+ * container's trailing edge so any drop inside the container is valid.
+ */
+export declare const flowIndicator: (parent: ScampElement, 
+/** Excluded from sibling scanning. Pass `NO_DRAGGED_ID` when the drag
+ *  isn't moving an existing element (a new instance from the sidebar). */
+draggedId: string, clientX: number, clientY: number, geometry: CanvasGeometry) => DropIndicator | null;
+/**
  * Resolve a pending reparent for the dragged element under the cursor, or
  * null when there's no valid DIFFERENT container (decision (b): reparent
  * only when the target differs from the current parent). `grab` is the
@@ -26,6 +45,18 @@ export declare const resolveReparentDrop: (draggedEl: ScampElement, grab: {
     dx: number;
     dy: number;
 }, clientX: number, clientY: number, geometry: CanvasGeometry, elements: Record<string, ScampElement>) => ReparentDrop | null;
+/**
+ * Resolve where a component dragged in from the sidebar would land.
+ *
+ * Same container resolution as `resolveReparentDrop`, minus the two rules
+ * that only make sense when moving an existing element: there's nothing to
+ * exclude from the hit-test, and there's no "current parent" to reject as a
+ * no-op — dropping onto the element you're already inside is a real drop
+ * here. Falls back to the page root, so a drop anywhere on the canvas
+ * always produces an instance.
+ * see docs/notes/components-data-model.md
+ */
+export declare const resolveComponentDrop: (clientX: number, clientY: number, geometry: CanvasGeometry, elements: Record<string, ScampElement>, rootId: string) => ReparentDrop;
 /**
  * Commit a resolved reparent. Flow targets reorder into the destination
  * at the computed index (layout owns position); absolute targets reparent

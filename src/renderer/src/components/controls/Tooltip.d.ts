@@ -5,8 +5,10 @@ type Props = {
     label: string;
     /**
      * Optional header rendered above the body with a subtle
-     * border-bottom separator. Used by richer tooltips (e.g. the
-     * section override indicator's "Style Overrides" block).
+     * border-bottom separator — typically the field name ("Height").
+     * When omitted, a `Name — description` label splits into a header
+     * and body automatically (see `@lib/tooltipLabel`). Either way the
+     * body steps down to secondary text so the name reads as the title.
      */
     header?: string;
     /**

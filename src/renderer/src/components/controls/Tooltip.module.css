@@ -67,6 +67,14 @@
   white-space: pre-line;
 }
 
+/* Only applied when a header is present. The header carries the field
+   name at full contrast, so the description below it steps down to
+   secondary to establish the hierarchy. Headerless tooltips keep
+   `.tooltipText`'s primary color — their label IS the whole tooltip. */
+.tooltipBody {
+  color: var(--text-secondary);
+}
+
 @keyframes tooltipFadeIn {
   from {
     opacity: 0;

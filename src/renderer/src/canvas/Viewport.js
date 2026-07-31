@@ -1,12 +1,10 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { useAppLogStore } from '@store/appLogSlice';
-import { wouldCreateComponentCycle } from '@lib/componentUsage';
 import { nextZoomFromWheel } from '@lib/zoom';
 import { DEFAULT_BODY_FONT_FAMILY, } from '@shared/agentMd';
 import { MAX_COMPONENT_CANVAS_DIM, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
-import { overflowExtent } from '@lib/canvasOverflow';
+import { overflowExtent, settleExtent } from '@lib/canvasOverflow';
 import { ElementRenderer } from './ElementRenderer';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import { CanvasBoundaryOverlay } from './CanvasBoundaryOverlay';
@@ -182,7 +180,16 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
             right = Math.max(right, (r.right - frameRect.left) / appliedScale);
             bottom = Math.max(bottom, (r.bottom - frameRect.top) / appliedScale);
         }
-        setContent({ right: Math.round(right), bottom: Math.round(bottom) });
+        // `settleExtent` absorbs the sub-pixel wobble an exactly-frame-width
+        // element produces, and the identity bail keeps an unchanged
+        // measurement from re-rendering — the extent feeds the zoom, so a
+        // no-op re-render here is a lap around the whole sizing loop.
+        // see docs/notes/canvas-extent-oscillation.md
+        const nextRight = settleExtent(right, frame.clientWidth);
+        const nextBottom = settleExtent(bottom, frame.clientHeight);
+        setContent((prev) => prev.right === nextRight && prev.bottom === nextBottom
+            ? prev
+            : { right: nextRight, bottom: nextBottom });
     }, []);
     // Tight bounding box of the root's descendants, in logical px — the size the
     // artboard should be to "hug" its content. Unlike `measureFrame` this SKIPS
@@ -268,50 +275,6 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
     useLayoutEffect(() => {
         measureFrame();
     }, [elements, frameW, canvasHeight, heightIsFixed, clipContent, measureFrame]);
-    // Drop target for the sidebar's component drag-and-drop. The
-    // `onDragOver` preventDefault is the HTML5-DnD opt-in that
-    // makes the element a valid drop target; we gate it on our
-    // own mime so other drags (text selections, files, etc.)
-    // aren't accidentally consumed.
-    const handleDragOver = (e) => {
-        if (e.dataTransfer.types.includes('application/x-scamp-component')) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-        }
-    };
-    const handleDrop = (e) => {
-        const componentName = e.dataTransfer.getData('application/x-scamp-component');
-        if (!componentName)
-            return;
-        e.preventDefault();
-        // Cycle guard. see docs/notes/components-multi-file-ops.md
-        const store = useCanvasStore.getState();
-        const activeTargetName = store.activeComponent?.name ?? null;
-        if (wouldCreateComponentCycle(store.componentTrees, activeTargetName, componentName)) {
-            useAppLogStore
-                .getState()
-                .log('warn', `Refused: placing ${componentName} inside ${activeTargetName} would create a cycle.`);
-            return;
-        }
-        const frame = frameRef.current;
-        if (!frame)
-            return;
-        // The frame is `transform: scale(scale)` from its top-left,
-        // so converting client coords to canvas-local is (clientX -
-        // rect.left) / scale on each axis. Phase 3 places every
-        // instance at the page root regardless of what's beneath the
-        // cursor — parent-resolution + drop-into-container land in
-        // Phase 4+.
-        const rect = frame.getBoundingClientRect();
-        const x = Math.max(0, Math.round((e.clientX - rect.left) / scale));
-        const y = Math.max(0, Math.round((e.clientY - rect.top) / scale));
-        store.insertComponentInstance({
-            parentId: rootElementId,
-            componentName,
-            x,
-            y,
-        });
-    };
     const SIGN = {
         br: { w: 1, h: 1 },
         bl: { w: -1, h: 1 },
@@ -391,7 +354,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
                     ? 'crosshair'
                     : activeTool === 'text'
                         ? 'text'
-                        : 'default', onDragOver: handleDragOver, onDrop: handleDrop, style: {
+                        : 'default', style: {
                     // Project theme tokens live on the frame as real CSS custom
                     // properties, so `var(--…)` references inside any descendant
                     // (typed inline styles, customProperties, hand-written CSS

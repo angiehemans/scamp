@@ -130,7 +130,7 @@ describe('generateCode — component-instance JSX', () => {
     );
   });
 
-  it('does not emit a CSS class block for component-instance elements', () => {
+  it('emits no CSS class block for an instance left at its default size', () => {
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
       a1b2: makeInstance({
@@ -144,9 +144,10 @@ describe('generateCode — component-instance JSX', () => {
       rootId: ROOT_ELEMENT_ID,
       pageName: 'home',
     });
-    // The page's CSS module has the root block and nothing else —
-    // the instance's visual styles live in Button.module.css, not
-    // in the page's own CSS.
+    // The page's CSS module has the root block and nothing else. An
+    // instance's visual styles live in Button.module.css; the ONLY thing
+    // the page can own is the instance's size, and this one has none.
+    // see test/instanceSize.test.ts for the sized case.
     expect(css).toContain('.root');
     expect(css).not.toMatch(/\.a1b2\b/);
     expect(css).not.toMatch(/\.inst_a1b2\b/);

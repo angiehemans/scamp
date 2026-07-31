@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { cloneElement, useLayoutEffect, useRef, useState, } from 'react';
 import { createPortal } from 'react-dom';
+import { splitTooltipLabel } from '@lib/tooltipLabel';
 import { resolveTooltipPlacement, TOOLTIP_GAP, } from '@lib/tooltipPlacement';
 import styles from './Tooltip.module.css';
 /**
@@ -18,6 +19,11 @@ const VIEWPORT_INSET = 12;
  * doesn't add an extra DOM node, so layout of the trigger is preserved.
  */
 export const Tooltip = ({ label, header, children, delay = 400, placement = 'auto', }) => {
+    // An explicit `header` prop always wins; otherwise fall back to the
+    // `Name — description` convention baked into most label strings.
+    const parts = splitTooltipLabel(label);
+    const resolvedHeader = header ?? parts.header;
+    const resolvedBody = header === undefined ? parts.body : label;
     const [position, setPosition] = useState(null);
     const timerRef = useRef(null);
     const triggerRef = useRef(null);
@@ -119,5 +125,5 @@ export const Tooltip = ({ label, header, children, delay = 400, placement = 'aut
                 createPortal(_jsxs("div", { ref: tooltipRef, className: `${styles.tooltip} ${position.placement === 'bottom' ? styles.bottom : ''}`, style: {
                         left: position.left,
                         top: position.top,
-                    }, role: "tooltip", children: [header !== undefined && (_jsx("p", { className: styles.tooltipHeader, children: header })), _jsx("p", { className: styles.tooltipText, children: label })] }), document.body)] }));
+                    }, role: "tooltip", children: [resolvedHeader !== null && (_jsx("p", { className: styles.tooltipHeader, children: resolvedHeader })), _jsx("p", { className: `${styles.tooltipText} ${resolvedHeader !== null ? styles.tooltipBody : ''}`, children: resolvedBody })] }), document.body)] }));
 };

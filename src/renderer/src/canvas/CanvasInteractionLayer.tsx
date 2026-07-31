@@ -1,4 +1,12 @@
-import { MouseEvent, PointerEvent, RefObject, useLayoutEffect, useRef, useState } from 'react';
+import {
+  DragEvent,
+  MouseEvent,
+  PointerEvent,
+  RefObject,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -12,6 +20,10 @@ import { useMoveInteraction } from './interactions/useMoveInteraction';
 import { useResizeInteraction } from './interactions/useResizeInteraction';
 import { useReorderInteraction } from './interactions/useReorderInteraction';
 import { useDropInsert } from './interactions/useDropInsert';
+import {
+  COMPONENT_DRAG_MIME,
+  useComponentDrop,
+} from './interactions/useComponentDrop';
 import type { SelectedRect } from './interactions/types';
 import styles from './CanvasInteractionLayer.module.css';
 
@@ -71,6 +83,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const resize = useResizeInteraction(geometry, scale);
   const reorder = useReorderInteraction(geometry);
   const dropInsert = useDropInsert(geometry);
+  const componentDrop = useComponentDrop(geometry);
 
   // Re-measure the selected element from the DOM whenever anything that
   // could move it changes. useLayoutEffect runs after layout/render but
@@ -187,13 +200,31 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     );
   };
 
+  // Two independent drag sources land on this layer — OS image files and
+  // the component sidebar — each gated on its own dataTransfer type, so
+  // they're dispatched together rather than competing for the handler.
+  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
+    dropInsert.handleDragOver(e);
+    componentDrop.handleDragOver(e);
+  };
+  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
+    if (e.dataTransfer.types.includes(COMPONENT_DRAG_MIME)) {
+      componentDrop.handleDrop(e);
+      return;
+    }
+    dropInsert.handleDrop(e);
+  };
+
   const selectedEl = selectedElementId ? elements[selectedElementId] : null;
   const isEditing =
     editingElementId !== null || editingInstanceProp !== null;
   const drawState = draw.draw;
   // Cross-parent reparent target — only one drag path is active per
   // gesture, so move and reorder never both report one.
-  const crossDrop = move.crossDrop ?? reorder.crossDrop;
+  // A component dragged in from the sidebar reuses the same two
+  // indicators, so hovering a container reads identically whether the
+  // thing being placed is new or already on the canvas.
+  const crossDrop = move.crossDrop ?? reorder.crossDrop ?? componentDrop.drop;
   // Gap line: same-parent flex reorder, or a flow (flex/grid) reparent.
   const gapRect =
     reorder.dropIndicator?.rect ??
@@ -213,8 +244,9 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
       onPointerCancel={handlePointerUp}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
-      onDragOver={dropInsert.handleDragOver}
-      onDrop={dropInsert.handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={componentDrop.handleDragLeave}
+      onDrop={handleDrop}
     >
       {drawState && (
         <DrawPreview

@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { splitTooltipLabel } from '@lib/tooltipLabel';
 import {
   resolveTooltipPlacement,
   TOOLTIP_GAP,
@@ -25,8 +26,10 @@ type Props = {
   label: string;
   /**
    * Optional header rendered above the body with a subtle
-   * border-bottom separator. Used by richer tooltips (e.g. the
-   * section override indicator's "Style Overrides" block).
+   * border-bottom separator — typically the field name ("Height").
+   * When omitted, a `Name — description` label splits into a header
+   * and body automatically (see `@lib/tooltipLabel`). Either way the
+   * body steps down to secondary text so the name reads as the title.
    */
   header?: string;
   /**
@@ -65,6 +68,12 @@ export const Tooltip = ({
   delay = 400,
   placement = 'auto',
 }: Props): JSX.Element => {
+  // An explicit `header` prop always wins; otherwise fall back to the
+  // `Name — description` convention baked into most label strings.
+  const parts = splitTooltipLabel(label);
+  const resolvedHeader = header ?? parts.header;
+  const resolvedBody = header === undefined ? parts.body : label;
+
   const [position, setPosition] = useState<Position | null>(null);
   const timerRef = useRef<number | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -189,10 +198,16 @@ export const Tooltip = ({
             }}
             role="tooltip"
           >
-            {header !== undefined && (
-              <p className={styles.tooltipHeader}>{header}</p>
+            {resolvedHeader !== null && (
+              <p className={styles.tooltipHeader}>{resolvedHeader}</p>
             )}
-            <p className={styles.tooltipText}>{label}</p>
+            <p
+              className={`${styles.tooltipText} ${
+                resolvedHeader !== null ? styles.tooltipBody : ''
+              }`}
+            >
+              {resolvedBody}
+            </p>
           </div>,
           document.body
         )}

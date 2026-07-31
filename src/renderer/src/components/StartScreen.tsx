@@ -381,10 +381,9 @@ export const StartScreen = ({
         </div>
 
         <button
-          className={styles.linkButton}
+          className={`${styles.secondary} ${styles.settingsButton}`}
           onClick={onOpenSettings}
           type="button"
-          style={{ marginBottom: 16 }}
         >
           Settings
         </button>

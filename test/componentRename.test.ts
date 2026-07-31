@@ -106,7 +106,7 @@ describe('rewriteComponentForRename', () => {
     );
     expect(renamed.tsx).toContain('type CallToActionProps = {');
     expect(renamed.tsx).toContain(
-      'export default function CallToAction({ label = "Click me" }: CallToActionProps)'
+      'export default function CallToAction({ label = "Click me", className }: CallToActionProps)'
     );
     expect(renamed.tsx).not.toContain('ButtonProps');
   });

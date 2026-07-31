@@ -4,6 +4,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { CANVAS_SKIP_ATTRS_BY_TAG, canvasRenderTag, elementToStyle, } from '@lib/elementToStyle';
 import { DEFAULT_ROOT_STYLES } from '@lib/defaults';
+import { instanceStretchStyle } from '@lib/instanceStretch';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
 import { formatAnimationShorthand } from '@lib/parsers';
@@ -101,6 +102,12 @@ renderSlot) => {
     const className = classNameFor(element);
     const props = {
         'data-scamp-id': className,
+        // Same UA-chrome reset the page / component-editor renderer applies.
+        // Without it a `button` / `a` / `input` inside an instance keeps its
+        // browser-default colour, font and border, while the identical element
+        // in the component editor gets `all: unset` — so an instance renders
+        // system-button grey where the definition renders the designed styles.
+        className: styles.element,
         style,
     };
     // Forward agent-written attributes through the same per-tag deny
@@ -449,14 +456,14 @@ export const ElementRenderer = ({ elementId }) => {
                 detail: { x: e.clientX, y: e.clientY, elementId: element.id },
             }));
         };
-        // An instance renders its component subtree with absolute positioning, so
-        // the wrapper never gets width from content — it's structurally 0-sized and
-        // the content is positioned against it. A component whose root is `stretch`
-        // (width:100%) therefore resolves against a 0-width wrapper and collapses.
-        // Give the wrapper the root's stretch so `100%` resolves against the page,
-        // matching the component — without the user re-applying stretch per
-        // instance. Non-stretch roots keep their intrinsic size (no override).
-        // see docs/notes/components-data-model.md
+        // The wrapper is an extra box that the generated page doesn't have, and
+        // it's the thing that lays out where the component root would. A
+        // component whose root is `stretch` must therefore stretch the WRAPPER,
+        // or the root resolves `100%` against a content-sized box and collapses.
+        // Translate stretch exactly the way `elementToStyle` does for a plain
+        // element in the same slot (main axis → `flex: 1`, cross axis → the
+        // per-axis rule), so an instance and an equivalent stretch rectangle lay
+        // out identically. see docs/notes/components-data-model.md
         const instanceRoot = componentTreeForInstance
             ? componentTreeForInstance.elements[componentTreeForInstance.rootId]
             : undefined;
@@ -466,8 +473,7 @@ export const ElementRenderer = ({ elementId }) => {
             className: `${styles.element} ${isSelected ? styles.selected : ''}`.trim(),
             style: {
                 ...style,
-                ...(instanceRoot?.widthMode === 'stretch' ? { width: '100%' } : {}),
-                ...(instanceRoot?.heightMode === 'stretch' ? { height: '100%' } : {}),
+                ...instanceStretchStyle(element.widthMode, element.heightMode, instanceRoot?.widthMode, instanceRoot?.heightMode, parentDisplay, parentDirection),
             },
             onClick: handleInstanceClick,
             onDoubleClick: handleInstanceDoubleClick,

@@ -10,6 +10,30 @@
  */
 export const overflowExtent = (scroll, client) => Math.max(0, Math.round(scroll - client));
 /**
+ * Sub-pixel slack, in logical px, allowed between a measured content
+ * extent and the frame's own box before the content counts as
+ * overflowing. see docs/notes/canvas-extent-oscillation.md
+ */
+export const CONTENT_EXTENT_TOLERANCE_PX = 2;
+/**
+ * Snap a measured content extent onto the frame's own box when the two are
+ * within `tolerance` px of each other.
+ *
+ * The canvas measures content by dividing client rects by the applied
+ * scale, so at a fractional zoom an element exactly as wide as the frame
+ * measures a hair over or under it. Rounding that raw figure makes it
+ * alternate between `frameBox` and `frameBox + 1`, and the canvas feeds
+ * the extent back into its own zoom — so the alternation never settles.
+ * Anything inside the tolerance reports as "exactly the frame", which is
+ * both stable and true. Real overflow rounds up, so the boundary label
+ * never under-reports. see docs/notes/canvas-extent-oscillation.md
+ */
+export const settleExtent = (measured, frameBox, tolerance = CONTENT_EXTENT_TOLERANCE_PX) => {
+    if (!Number.isFinite(measured))
+        return frameBox;
+    return measured - frameBox > tolerance ? Math.ceil(measured) : frameBox;
+};
+/**
  * Label for an overflow indicator, e.g. `"+ 240px overflow"`. Empty
  * string when there's no overflow so callers can render nothing.
  */

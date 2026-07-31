@@ -59,12 +59,20 @@ const pathExists = async (p: string): Promise<boolean> => {
  * handler reloaded the empty tree on top of any rect the user
  * had just drawn. see docs/notes/component-scaffold-roundtrip.md
  */
+// Must match `generateTsx` byte-for-byte, including the `className`
+// passthrough every component accepts — a scaffold that doesn't
+// round-trip triggers a canonical-migration write on load.
+// see docs/notes/component-scaffold-roundtrip.md
 const defaultComponentTsx = (componentName: string): string =>
   `import styles from './${componentName}.module.css';
 
-export default function ${componentName}() {
+type ${componentName}Props = {
+  className?: string;
+};
+
+export default function ${componentName}({ className }: ${componentName}Props) {
   return (
-    <div data-scamp-id="root" className={styles.root} />
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
   );
 }
 `;

@@ -29,6 +29,24 @@ export const ElementSection = ({ elementId }: Props): JSX.Element | null => {
   const patchElement = useCanvasStore((s) => s.patchElement);
   if (!element) return null;
 
+  // A component instance has no tag to pick and no attributes of its
+  // own — its identity IS the component it points at, so the section
+  // takes the component's name as its title. This is where
+  // instance-level component controls will live as they're built.
+  if (element.type === 'component-instance') {
+    return (
+      <Section
+        title={element.componentName ?? 'Unknown component'}
+        collapsible
+        defaultOpen
+      >
+        <Row label="Instance">
+          <code className={styles.instanceId}>{element.instanceId ?? '—'}</code>
+        </Row>
+      </Section>
+    );
+  }
+
   const baseTagOptions = TAG_OPTIONS[element.type];
   const currentTag = element.tag ?? DEFAULT_TAG[element.type];
   // Defensive fallback: if the current tag isn't in the predefined

@@ -19,6 +19,13 @@ export const ElementSection = ({ elementId }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);
     if (!element)
         return null;
+    // A component instance has no tag to pick and no attributes of its
+    // own — its identity IS the component it points at, so the section
+    // takes the component's name as its title. This is where
+    // instance-level component controls will live as they're built.
+    if (element.type === 'component-instance') {
+        return (_jsx(Section, { title: element.componentName ?? 'Unknown component', collapsible: true, defaultOpen: true, children: _jsx(Row, { label: "Instance", children: _jsx("code", { className: styles.instanceId, children: element.instanceId ?? '—' }) }) }));
+    }
     const baseTagOptions = TAG_OPTIONS[element.type];
     const currentTag = element.tag ?? DEFAULT_TAG[element.type];
     // Defensive fallback: if the current tag isn't in the predefined

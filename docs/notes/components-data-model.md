@@ -72,6 +72,38 @@ When `ElementRenderer` hits a `component-instance` element, it looks up `compone
 
 Missing-component placeholder: when `componentTrees[name]` is undefined (deleted, renamed externally), the renderer paints a labelled red box so the broken reference is visible on the canvas.
 
+### What a page owns about an instance: its size
+
+A page can set an instance's width and height, and nothing else. Everything else about how a component looks belongs to its definition, and the page has nowhere to write it — so `UiPanel` shows only Element + Size for a `component-instance`. Offering Background or Border there would offer edits that silently vanish on the next reload.
+
+The size travels as a page CSS class forwarded through the component's `className` prop:
+
+```tsx
+// page.tsx                          // page.module.css
+<Button data-scamp-instance-id="inst_c7d7"      .inst_c7d7.inst_c7d7 {
+        className={styles.inst_c7d7} />           width: 158px;
+                                                }
+// Button.tsx
+export default function Button({ className }: ButtonProps) {
+  return <button className={`${styles.root} ${className ?? ''}`} …
+```
+
+Three things make that work, each with a reason that isn't obvious:
+
+- **Every component accepts `className`, unconditionally** (`generateTsx`). Whether it's needed depends on how some *other* page uses the component, and a component's own file must not change because a page sized an instance.
+- **The page selector is doubled** (`.inst_x.inst_x`). Both rules are single-class selectors in different CSS modules, so at equal specificity the winner is bundle order — and the component module, imported by the page, lands last. Doubling lifts the page rule to (0,2,0) so it reliably wins. `classifyClassSelector` reads `.x.x` back as a base rule.
+- **The parser normalises the merged `className` away before the HTML parse** (`lib/classNamePassthrough.ts`). The template literal necessarily contains a space, which htmlparser2 would read as the end of an unquoted attribute value.
+
+An instance left at the default size emits neither the rule nor the `className` attribute, so pages that only place components stay free of empty rules.
+
+Components written before the passthrough existed still parse — they just ignore a forwarded class until Scamp next regenerates the file.
+
+### Instance wrapper sizing
+
+The wrapper is a canvas-only box — the generated page has no element for it, the component root is the page's direct child there. So the wrapper, not the root, is what the page's layout sizes, and a `stretch` root has to be reproduced on the wrapper or `100%` resolves against a content-sized box and collapses. `lib/instanceStretch.ts` does that translation, mirroring the flex branch of `elementToStyle` (main axis → `flex: 1`, cross axis → the asymmetric per-axis rule) so an instance and a plain stretch rectangle in the same slot lay out the same way. A naive `width: 100%` here does NOT match: as a flex item it keeps a `100%` flex-basis and shrinks against its siblings, so an instance would take a share of the row where an equivalent rectangle takes the remainder.
+
+`renderComponentSubtree` also applies `ElementRenderer.module.css`'s `.element` class, the same UA-chrome reset (`all: unset` on `button` / `a` / form tags) the page and component-editor renderers apply. Without it the same `<button>` renders with browser-default colour, font and border inside an instance but with the designed styles in the component editor.
+
 ## Slots (`children` / `React.ReactNode`)
 
 Slots let a component accept page-supplied content, the layout analog of text
@@ -128,6 +160,18 @@ data attributes, then tag new/moved content via `setElementSlotName`.
   `REQUEST_REMOVE_SLOT_EVENT` → a ConfirmDialog listing affected pages
   (`findInstancesWithSlotContent`). The content is never deleted — it stays in
   the page file and simply stops rendering until re-placed.
+
+## Dropping a component from the sidebar
+
+`useComponentDrop` (canvas interaction layer) owns the drag from the sidebar. It resolves the target with `resolveComponentDrop`, which reuses the same `resolveDropContainer` walk as the canvas reparent drag, so the instance lands inside whatever container is under the cursor and the hover indicator looks identical to moving an existing element.
+
+Two rules from `resolveReparentDrop` deliberately don't carry over, because nothing is being moved: there's no element to exclude from the hit-test (hence `NO_DRAGGED_ID`), and there's no current parent to reject as a same-parent no-op — dropping onto the container you're hovering IS the drop.
+
+- **Flow target** (flex/grid): gap line, and the instance inserts at that index — `insertComponentInstance` takes an optional `index` so the drop lands where the line promised rather than always appending.
+- **Anything else**: container outline, instance placed at the cursor in the container's local space, clamped inside it. A new instance has no size yet (the component's root defines its box), so the cursor point is the top-left with no dimension to offset against.
+- **No container resolved**: falls back to the page root, so a drop anywhere on the canvas always produces an instance.
+
+`resolveDropContainer` only accepts rectangles, so hovering a text / image / instance routes the drop to its nearest rectangle ancestor. A component-instance is only enterable through a slot zone.
 
 ## Extraction (convert-to-component)
 

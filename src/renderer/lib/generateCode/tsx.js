@@ -1,3 +1,7 @@
+// generateCode/tsx.ts — split out of generateCode.ts (4.5).
+import { PASSTHROUGH_PROP, rootClassNameAttribute } from "../classNamePassthrough";
+import { ROOT_ELEMENT_ID } from "../element";
+import { sizeDeclarationLines } from "./declarations";
 import { classNameFor, tagFor } from "./internal";
 const escapeHtml = (raw) => raw
     .replace(/&/g, '&amp;')
@@ -76,6 +80,13 @@ const renderJsx = (el, elements, level, isComponent) => {
         const attrs = [
             `data-scamp-instance-id="${escapeHtml(el.instanceId ?? '')}"`,
         ];
+        // The page's size class, forwarded to the component's root via its
+        // `className` prop. Only emitted when the instance actually has a
+        // size — `elementCssChunks` skips the rule in that case too, so the
+        // two stay in step and a default-sized instance keeps a bare tag.
+        if (sizeDeclarationLines(el).length > 0) {
+            attrs.push(`className={styles.${classNameFor(el)}}`);
+        }
         const overrides = el.propOverrides ?? {};
         for (const [propName, value] of Object.entries(overrides)) {
             attrs.push(`${propName}="${escapeHtml(value)}"`);
@@ -128,9 +139,14 @@ const renderJsx = (el, elements, level, isComponent) => {
     // iframe, svg) carry their own attribute sets via the generic bag
     // because `alt` is invalid on them and `src` has tag-specific
     // semantics.
+    // A component's root forwards the caller's `className` so a page can
+    // size the instance; every other element takes its class directly.
+    const isComponentRoot = isComponent && el.id === ROOT_ELEMENT_ID;
     const baseAttrs = [
         `data-scamp-id="${className}"`,
-        `className={styles.${className}}`,
+        isComponentRoot
+            ? rootClassNameAttribute(className)
+            : `className={styles.${className}}`,
     ];
     if (el.type === 'image' && tag === 'img') {
         baseAttrs.push(`src="${escapeHtml(el.src ?? '')}"`);
@@ -342,11 +358,15 @@ export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isC
     // output is stable across saves. see docs/plans/component-slots-plan.md
     const textProps = isComponent ? collectTextProps(elements, rootId) : [];
     const slots = isComponent ? collectSlots(elements, rootId) : [];
-    const hasProps = textProps.length > 0 || slots.length > 0;
+    // Every component accepts `className` — unconditionally, because whether
+    // it's needed depends on how some other page uses the component, and a
+    // component's own file must not change when a page sizes an instance.
+    const hasProps = isComponent;
     const propsTypeName = `${componentName}Props`;
     const typeLines = [
         ...textProps.map((p) => `  ${p.name}?: string;`),
         ...slots.map((name) => `  ${name}?: React.ReactNode;`),
+        ...(isComponent ? [`  ${PASSTHROUGH_PROP}?: string;`] : []),
     ];
     const propsTypeBlock = hasProps
         ? `type ${propsTypeName} = {\n${typeLines.join('\n')}\n};\n\n`
@@ -354,6 +374,7 @@ export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isC
     const signatureParts = [
         ...textProps.map((p) => `${p.name} = ${tsStringLiteral(p.defaultText)}`),
         ...slots,
+        ...(isComponent ? [PASSTHROUGH_PROP] : []),
     ];
     const signatureArgs = hasProps
         ? `{ ${signatureParts.join(', ')} }: ${propsTypeName}`

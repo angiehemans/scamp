@@ -21,9 +21,13 @@ const componentName = 'Card';
 
 const scaffoldTsx = `import styles from './${componentName}.module.css';
 
-export default function ${componentName}() {
+type ${componentName}Props = {
+  className?: string;
+};
+
+export default function ${componentName}({ className }: ${componentName}Props) {
   return (
-    <div data-scamp-id="root" className={styles.root} />
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
   );
 }
 `;

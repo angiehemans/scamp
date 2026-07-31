@@ -124,7 +124,7 @@ describe('generateComponentFromSubtree', () => {
         const result = generateComponentFromSubtree(elements, 'a1b2', 'Button');
         expect(result).not.toBeNull();
         expect(result.tsx).toContain("import styles from './Button.module.css';");
-        expect(result.tsx).toContain('export default function Button()');
+        expect(result.tsx).toContain('export default function Button({ className }: ButtonProps)');
     });
     it('emits the subtree root as <div data-scamp-id="root">', () => {
         const elements = {

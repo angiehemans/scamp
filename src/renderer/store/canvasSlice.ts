@@ -106,6 +106,12 @@ export type NewComponentInstanceInput = {
   componentName: string;
   x: number;
   y: number;
+  /**
+   * Where in the parent's `childIds` to insert. Omitted appends, which is
+   * what an absolute parent wants. A flex/grid parent passes the index the
+   * drop indicator promised, so the instance lands where the gap line was.
+   */
+  index?: number;
 };
 
 export type NewImageInput = {

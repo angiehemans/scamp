@@ -1,4 +1,5 @@
 // parseCode/tsx.ts — split out of parseCode.ts (4.4).
+import { normalizeRootClassNamePassthrough } from "../classNamePassthrough";
 import { ROOT_ELEMENT_ID, type ElementType, type SelectOption } from "../element";
 import { requireAt } from "../safeAccess";
 import { Parser } from "htmlparser2";
@@ -317,7 +318,12 @@ const collectExistingIds = (tsx: string): Set<string> => {
   return ids;
 };
 
-export const parseTsxStructure = (tsx: string): RawElement[] => {
+export const parseTsxStructure = (rawTsx: string): RawElement[] => {
+  // A component root's className is a template literal joining its own
+  // class with the forwarded `className` prop. The space inside it would
+  // terminate the unquoted attribute value for the HTML parser below, so
+  // collapse it back to the plain `className={styles.X}` form first.
+  const tsx = normalizeRootClassNamePassthrough(rawTsx);
   const elements: RawElement[] = [];
   const stack: RawElement[] = [];
   const byId = new Map<string, RawElement>();
@@ -419,23 +425,24 @@ export const parseTsxStructure = (tsx: string): RawElement[] => {
           const id = rawInstanceId.includes('_')
             ? rawInstanceId.slice(rawInstanceId.lastIndexOf('_') + 1)
             : rawInstanceId;
-          // Every attribute other than the instance id is treated
-          // as a prop override. Empty-string values are kept (an
-          // explicit "render empty" override is distinct from
-          // absence). React-specific attributes that don't follow
-          // PascalCase prop conventions (e.g. `className`,
-          // `style`) round-trip through `propOverrides` too — we
-          // don't model styling on instances in Phase 1.
+          // `className` is the page's own size class, forwarded to the
+          // component root — it's this element's class, not a prop
+          // override. Every other attribute is an override; empty-string
+          // values are kept (an explicit "render empty" override is
+          // distinct from absence).
+          const classRaw = attribs['className'] ?? attribs['classname'] ?? '';
+          const instanceClass = classRaw.match(CLASS_NAME_RE)?.[1] ?? '';
           const propOverrides: Record<string, string> = {};
           for (const [attrName, attrValue] of Object.entries(attribs)) {
             if (attrName === 'data-scamp-instance-id') continue;
+            if (attrName === 'className' || attrName === 'classname') continue;
             propOverrides[attrName] = attrValue;
           }
           const el: RawElement = {
             id,
             type: 'component-instance',
             tag: componentName,
-            className: '',
+            className: instanceClass,
             parentId,
             childIds: [],
             text: null,

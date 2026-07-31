@@ -50,6 +50,14 @@ export const slotDropCreatesCycle = (
 const LINE = 2;
 
 /**
+ * Stand-in for "no element is being dragged" — used by the component
+ * sidebar drag, which creates a NEW instance rather than moving an
+ * existing one. No element can have this id, so self-exclusion checks
+ * (`isSelfOrDescendant`, sibling filtering) become no-ops.
+ */
+export const NO_DRAGGED_ID = '';
+
+/**
  * Gap-line indicator + insert index for dropping into a flow (flex/grid)
  * container. Generalised from the same-parent reorder math to any parent.
  * Grid containers append to the end (Q3); flex uses the sibling under the
@@ -57,8 +65,10 @@ const LINE = 2;
  * (empty container, padding, between rows), falls back to appending at the
  * container's trailing edge so any drop inside the container is valid.
  */
-const flowIndicator = (
+export const flowIndicator = (
   parent: ScampElement,
+  /** Excluded from sibling scanning. Pass `NO_DRAGGED_ID` when the drag
+   *  isn't moving an existing element (a new instance from the sidebar). */
   draggedId: string,
   clientX: number,
   clientY: number,
@@ -167,6 +177,64 @@ export const resolveReparentDrop = (
     // The default `children` slot carries no explicit slotName (it emits as
     // JSX children); only named slots get one.
     ...(drop.slotName !== undefined && drop.slotName !== 'children'
+      ? { slotName: drop.slotName }
+      : {}),
+  };
+};
+
+/**
+ * Resolve where a component dragged in from the sidebar would land.
+ *
+ * Same container resolution as `resolveReparentDrop`, minus the two rules
+ * that only make sense when moving an existing element: there's nothing to
+ * exclude from the hit-test, and there's no "current parent" to reject as a
+ * no-op — dropping onto the element you're already inside is a real drop
+ * here. Falls back to the page root, so a drop anywhere on the canvas
+ * always produces an instance.
+ * see docs/notes/components-data-model.md
+ */
+export const resolveComponentDrop = (
+  clientX: number,
+  clientY: number,
+  geometry: CanvasGeometry,
+  elements: Record<string, ScampElement>,
+  rootId: string
+): ReparentDrop => {
+  const drop = geometry.resolveDropContainer(clientX, clientY, NO_DRAGGED_ID);
+  const targetId = drop?.parentId ?? rootId;
+  const target = elements[targetId];
+  const isFlow =
+    drop?.isFlow ?? (target?.display === 'flex' || target?.display === 'grid');
+
+  if (isFlow && target) {
+    const indicator = flowIndicator(
+      target,
+      NO_DRAGGED_ID,
+      clientX,
+      clientY,
+      geometry
+    );
+    if (indicator) return { kind: 'flow', targetId, indicator };
+  }
+
+  // Absolute target: drop at the cursor in the container's local space. A
+  // new instance has no size yet (the component's own root defines its
+  // box), so there's no dimension to offset or clamp against — the cursor
+  // point IS the top-left.
+  const rect = geometry.measureElementInFrame(targetId) ?? {
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+  };
+  const cursor = geometry.toFrame(clientX, clientY);
+  return {
+    kind: 'absolute',
+    targetId,
+    rect,
+    x: Math.round(Math.max(0, Math.min(cursor.x - rect.x, rect.w))),
+    y: Math.round(Math.max(0, Math.min(cursor.y - rect.y, rect.h))),
+    ...(drop?.slotName !== undefined && drop.slotName !== 'children'
       ? { slotName: drop.slotName }
       : {}),
   };

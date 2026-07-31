@@ -35,6 +35,12 @@
   inset: 0;
   overflow: auto;
   padding: 80px 20px 20px 20px;
+  /* Reserve the scrollbar gutter permanently. The fit-to-width zoom is
+     derived from this element's clientWidth, and the frame it sizes is
+     what makes this element scroll — so letting a scrollbar appear and
+     disappear closes a feedback loop the canvas can never settle out of.
+     see docs/notes/canvas-extent-oscillation.md */
+  scrollbar-gutter: stable;
 }
 
 /* Flex column inside the scroll area that stacks the canvas header

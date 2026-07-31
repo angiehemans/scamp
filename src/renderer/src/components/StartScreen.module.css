@@ -148,6 +148,10 @@
   background: var(--bg-hover);
 }
 
+.settingsButton {
+  margin-bottom: 16px;
+}
+
 /* ---- Main area ---- */
 
 .main {

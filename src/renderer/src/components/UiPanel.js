@@ -44,9 +44,19 @@ export const UiPanel = () => {
     const isImage = element.type === 'image';
     const isInput = element.type === 'input';
     const isSvg = element.tag === 'svg';
+    const isInstance = element.type === 'component-instance';
     // Position is only meaningful when there's a non-flex parent to
     // anchor against. Root has no parent; flex children flow with the
     // layout engine.
     const showPosition = !isRoot && !parentIsFlex;
+    // A component instance's appearance belongs to the component
+    // definition, and the page can't override it — the only thing the
+    // page owns is the instance's size. Showing background / border /
+    // spacing here would offer edits that silently vanish on the next
+    // reload, because the generator has nowhere to write them.
+    // see docs/notes/components-data-model.md
+    if (isInstance) {
+        return (_jsxs("div", { className: styles.uiPanelBody, children: [_jsx(ElementSection, { elementId: elementId }), _jsx(SizeSection, { elementId: elementId }), _jsx(ExportSection, {})] }));
+    }
     return (_jsxs("div", { className: styles.uiPanelBody, children: [!isRoot && _jsx(ElementSection, { elementId: elementId }), isText && _jsx(TypographySection, { elementId: elementId }), showPosition && _jsx(PositionSection, { elementId: elementId }), _jsx(SizeSection, { elementId: elementId }), !isText && !isInput && _jsx(LayoutSection, { elementId: elementId }), _jsx(SpacingSection, { elementId: elementId, hideMargin: isRoot }), _jsx(BackgroundSection, { elementId: elementId }), _jsx(BorderSection, { elementId: elementId }), _jsx(ShadowsSection, { elementId: elementId }), _jsx(FiltersSection, { elementId: elementId }), isImage && _jsx(ImageSection, { elementId: elementId }), isSvg && _jsx(SvgSection, { elementId: elementId }), _jsx(VisibilitySection, { elementId: elementId }), _jsx(TransitionsSection, { elementId: elementId }), _jsx(AnimationSection, { elementId: elementId }), _jsx(ExportSection, {})] }));
 };

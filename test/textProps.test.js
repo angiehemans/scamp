@@ -136,7 +136,7 @@ describe('generateCode — component props emission', () => {
             pageName: 'Button',
             isComponent: true,
         });
-        expect(tsx).toContain('export default function Button({ label = "Click me" }: ButtonProps)');
+        expect(tsx).toContain('export default function Button({ label = "Click me", className }: ButtonProps)');
     });
     it('emits {propName} JSX reference in place of the literal text', () => {
         const { tsx } = generateCode({
@@ -166,7 +166,7 @@ describe('generateCode — component props emission', () => {
         expect(tsx).not.toContain('type HomeProps');
         expect(tsx).toContain('>Click me</p>');
     });
-    it('emits no Props type for a component with all-locked text descendants', () => {
+    it('emits only the className prop for a component with all-locked text descendants', () => {
         const { tsx } = generateCode({
             elements: {
                 [ROOT_ELEMENT_ID]: makeRoot(['t1']),
@@ -176,8 +176,8 @@ describe('generateCode — component props emission', () => {
             pageName: 'Button',
             isComponent: true,
         });
-        expect(tsx).not.toContain('type ButtonProps');
-        expect(tsx).toContain('export default function Button()');
+        expect(tsx).toContain('type ButtonProps = {\n  className?: string;\n};');
+        expect(tsx).toContain('export default function Button({ className }: ButtonProps)');
         expect(tsx).toContain('>Hi</p>');
     });
     it('emits multiple props in destructure order', () => {
@@ -193,7 +193,7 @@ describe('generateCode — component props emission', () => {
         });
         expect(tsx).toContain('title?: string;');
         expect(tsx).toContain('body?: string;');
-        expect(tsx).toContain('export default function Card({ title = "Title", body = "Body" }: CardProps)');
+        expect(tsx).toContain('export default function Card({ title = "Title", body = "Body", className }: CardProps)');
     });
     it('escapes double-quotes and backslashes in the default-text literal', () => {
         const { tsx } = generateCode({
@@ -220,7 +220,7 @@ type ButtonProps = {
   label?: string;
 };
 
-export default function Button({ label = "Click me" }: ButtonProps) {
+export default function Button({ label = "Click me", className }: ButtonProps) {
   return (
     <div data-scamp-id="root" className={styles.root}>
       <p data-scamp-id="text_t1" className={styles.text_t1}>{label}</p>

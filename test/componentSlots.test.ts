@@ -58,7 +58,7 @@ describe('component slots — codegen', () => {
     };
     const { tsx } = gen(elements);
     expect(tsx).toContain('children?: React.ReactNode;');
-    expect(tsx).toContain('{ children }: CardProps');
+    expect(tsx).toContain('{ children, className }: CardProps');
     expect(tsx).toMatch(/<div[^>]*data-scamp-id="rect_s001"[^>]*>\{children\}<\/div>/);
     // A slot has no `= default` in the destructure (it's a node, not a string).
     expect(tsx).not.toContain('children =');
@@ -73,7 +73,7 @@ describe('component slots — codegen', () => {
     const { tsx } = gen(elements);
     expect(tsx).toContain('left?: React.ReactNode;');
     expect(tsx).toContain('right?: React.ReactNode;');
-    expect(tsx).toContain('{ left, right }: CardProps');
+    expect(tsx).toContain('{ left, right, className }: CardProps');
   });
 
   it('lists text props before slots in the props type + signature', () => {
@@ -85,7 +85,7 @@ describe('component slots — codegen', () => {
     const { tsx } = gen(elements);
     expect(tsx).toContain('label?: string;');
     expect(tsx).toContain('children?: React.ReactNode;');
-    expect(tsx).toContain('{ label = "Hi", children }: CardProps');
+    expect(tsx).toContain('{ label = "Hi", children, className }: CardProps');
   });
 
   it('does not treat a slot marker as a page prop (pages emit no props type)', () => {

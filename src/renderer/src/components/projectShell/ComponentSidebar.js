@@ -1,4 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { COMPONENT_DRAG_MIME } from '../../canvas/interactions/useComponentDrop';
 import { ComponentNameInput } from '../ComponentNameInput';
 import { ComponentSidebarItem } from '../ComponentSidebarItem';
 import styles from '../ProjectShell.module.css';
@@ -19,13 +20,13 @@ export const ComponentSidebar = ({ components, projectPath, componentEdit, compo
                                     }, error: componentEditError, busy: renamingComponent }) }, component.name));
                         }
                         return (_jsx("li", { children: _jsx(ComponentSidebarItem, { componentName: component.name, projectPath: projectPath, isActive: activeComponent?.name === component.name, onClick: () => openComponent(component.name, null), onContextMenu: (e) => openComponentMenu(e, component.name), 
-                                // HTML5 DnD source: dragging a component onto
-                                // the canvas inserts an instance there. The
-                                // Viewport's drop handler reads this
-                                // dataTransfer mime to distinguish a
-                                // component-drag from any other drag.
+                                // HTML5 DnD source: dragging a component onto the
+                                // canvas inserts an instance inside whatever container
+                                // is under the cursor. The canvas interaction layer
+                                // reads this mime to tell a component-drag apart from
+                                // any other drag.
                                 onDragStart: (e) => {
-                                    e.dataTransfer.setData('application/x-scamp-component', component.name);
+                                    e.dataTransfer.setData(COMPONENT_DRAG_MIME, component.name);
                                     e.dataTransfer.effectAllowed = 'copy';
                                 } }) }, component.name));
                     }), componentEdit === 'new' && (_jsx("li", { children: _jsx(ComponentNameInput, { existingNames: components.map((c) => c.name), onConfirm: (name) => void handleAddComponent(name), onCancel: () => {

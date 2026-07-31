@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, } from 'react';
 import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -13,6 +13,7 @@ import { useMoveInteraction } from './interactions/useMoveInteraction';
 import { useResizeInteraction } from './interactions/useResizeInteraction';
 import { useReorderInteraction } from './interactions/useReorderInteraction';
 import { useDropInsert } from './interactions/useDropInsert';
+import { COMPONENT_DRAG_MIME, useComponentDrop, } from './interactions/useComponentDrop';
 import styles from './CanvasInteractionLayer.module.css';
 /**
  * The chrome layer that sits above the rendered canvas and owns all
@@ -58,6 +59,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const resize = useResizeInteraction(geometry, scale);
     const reorder = useReorderInteraction(geometry);
     const dropInsert = useDropInsert(geometry);
+    const componentDrop = useComponentDrop(geometry);
     // Re-measure the selected element from the DOM whenever anything that
     // could move it changes. useLayoutEffect runs after layout/render but
     // before paint, so the overlay never visibly lags the element.
@@ -174,18 +176,35 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
             detail: { x: e.clientX, y: e.clientY, elementId: hitId },
         }));
     };
+    // Two independent drag sources land on this layer — OS image files and
+    // the component sidebar — each gated on its own dataTransfer type, so
+    // they're dispatched together rather than competing for the handler.
+    const handleDragOver = (e) => {
+        dropInsert.handleDragOver(e);
+        componentDrop.handleDragOver(e);
+    };
+    const handleDrop = (e) => {
+        if (e.dataTransfer.types.includes(COMPONENT_DRAG_MIME)) {
+            componentDrop.handleDrop(e);
+            return;
+        }
+        dropInsert.handleDrop(e);
+    };
     const selectedEl = selectedElementId ? elements[selectedElementId] : null;
     const isEditing = editingElementId !== null || editingInstanceProp !== null;
     const drawState = draw.draw;
     // Cross-parent reparent target — only one drag path is active per
     // gesture, so move and reorder never both report one.
-    const crossDrop = move.crossDrop ?? reorder.crossDrop;
+    // A component dragged in from the sidebar reuses the same two
+    // indicators, so hovering a container reads identically whether the
+    // thing being placed is new or already on the canvas.
+    const crossDrop = move.crossDrop ?? reorder.crossDrop ?? componentDrop.drop;
     // Gap line: same-parent flex reorder, or a flow (flex/grid) reparent.
     const gapRect = reorder.dropIndicator?.rect ??
         (crossDrop?.kind === 'flow' ? crossDrop.indicator.rect : null);
     // Outline: an absolute-container reparent target.
     const containerRect = crossDrop?.kind === 'absolute' ? crossDrop.rect : null;
-    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: dropInsert.handleDragOver, onDrop: dropInsert.handleDrop, children: [drawState && (_jsx(DrawPreview, { x: Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX, y: Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY, width: Math.abs(drawState.currentX - drawState.startX), height: Math.abs(drawState.currentY - drawState.startY) })), gapRect && (_jsx("div", { className: styles.dropIndicator, style: {
+    return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: handleDragOver, onDragLeave: componentDrop.handleDragLeave, onDrop: handleDrop, children: [drawState && (_jsx(DrawPreview, { x: Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX, y: Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY, width: Math.abs(drawState.currentX - drawState.startX), height: Math.abs(drawState.currentY - drawState.startY) })), gapRect && (_jsx("div", { className: styles.dropIndicator, style: {
                     left: gapRect.x,
                     top: gapRect.y,
                     width: gapRect.w,

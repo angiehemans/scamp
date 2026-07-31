@@ -187,6 +187,10 @@ const classifyClassSelector = (
   const className = match[1] ?? '';
   const rest = (match[2] ?? '').trim();
   if (rest.length === 0) return { kind: 'base', className };
+  // `.x.x` — the doubled selector a component instance's size rule uses to
+  // outrank the component's own `.root`. Same element, same declarations,
+  // just more specificity. see docs/notes/components-data-model.md
+  if (rest === `.${className}`) return { kind: 'base', className };
   const stateMatch = SUPPORTED_STATES.get(rest);
   if (stateMatch !== undefined) {
     return { kind: 'state', className, state: stateMatch };

@@ -11,7 +11,9 @@ test.describe('components sidebar — add component', () => {
         // Files exist on disk under components/<Name>/.
         expect(await project.componentExists('Button')).toBe(true);
         const { tsx, css } = await project.readComponent('Button');
-        expect(tsx).toContain('export default function Button()');
+        // Every component accepts a `className` it forwards onto its root, so
+        // a page can size an instance. see docs/notes/components-data-model.md
+        expect(tsx).toContain('export default function Button({ className }: ButtonProps)');
         expect(tsx).toContain("import styles from './Button.module.css';");
         expect(css).toContain('.root');
     });

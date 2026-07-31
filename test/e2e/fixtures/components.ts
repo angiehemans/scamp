@@ -104,6 +104,11 @@ export const dragComponentToCanvas = async (
         '[data-testid="canvas-frame"]'
       ) as HTMLElement | null;
       if (!frame) throw new Error('canvas frame not mounted');
+      // Dispatch at the drop POINT, the way the browser would. The drop
+      // handlers live on the canvas interaction layer (a child of the
+      // frame), and a synthetic event dispatched on the frame only
+      // bubbles upward — it would never reach them.
+      const target = (document.elementFromPoint(x, y) as HTMLElement | null) ?? frame;
       const dt = new DataTransfer();
       dt.setData('application/x-scamp-component', name);
       dt.effectAllowed = 'copy';
@@ -120,7 +125,7 @@ export const dragComponentToCanvas = async (
         clientX: x,
         clientY: y,
       });
-      frame.dispatchEvent(over);
+      target.dispatchEvent(over);
       const drop = new DragEvent('drop', {
         bubbles: true,
         cancelable: true,
@@ -128,7 +133,7 @@ export const dragComponentToCanvas = async (
         clientX: x,
         clientY: y,
       });
-      frame.dispatchEvent(drop);
+      target.dispatchEvent(drop);
       const end = new DragEvent('dragend', {
         bubbles: true,
         cancelable: true,

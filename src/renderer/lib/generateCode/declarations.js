@@ -7,6 +7,53 @@ import { formatSpaceShorthand, formatSpaceValue, isZeroSpaceTuple, spaceValueEqu
 import { getTagDefaultPadding, paddingEquals } from "../tagDefaults";
 import { tagFor } from "./internal";
 /**
+ * The `width:` / `height:` lines for one element, measured against the
+ * default set that applies to it.
+ *
+ * The 'auto' mode is the implicit CSS default (no declaration), so it
+ * deliberately emits nothing — that's how round-trips stay text-stable for
+ * files that simply omit a width or height.
+ *
+ * Split out because a component instance emits ONLY these two properties
+ * (everything else about an instance lives in the component definition).
+ * see docs/notes/components-data-model.md
+ */
+export const sizeDeclarationLines = (el, base = DEFAULT_RECT_STYLES) => {
+    const lines = [];
+    if (el.widthMode === 'stretch') {
+        lines.push(`width: 100%;`);
+    }
+    else if (el.widthMode === 'fit-content') {
+        lines.push(`width: fit-content;`);
+    }
+    else if (el.widthMode === 'fixed') {
+        // `widthCustom` carries non-px values (vh, vw, em, calc, var, …)
+        // verbatim. When set, it overrides the px fallback so the file
+        // round-trips exactly what the user / agent wrote.
+        if (el.widthCustom !== undefined && el.widthCustom.length > 0) {
+            lines.push(`width: ${el.widthCustom};`);
+        }
+        else if (el.widthValue !== base.widthValue) {
+            lines.push(`width: ${el.widthValue}px;`);
+        }
+    }
+    if (el.heightMode === 'stretch') {
+        lines.push(`height: 100%;`);
+    }
+    else if (el.heightMode === 'fit-content') {
+        lines.push(`height: fit-content;`);
+    }
+    else if (el.heightMode === 'fixed') {
+        if (el.heightCustom !== undefined && el.heightCustom.length > 0) {
+            lines.push(`height: ${el.heightCustom};`);
+        }
+        else if (el.heightValue !== base.heightValue) {
+            lines.push(`height: ${el.heightValue}px;`);
+        }
+    }
+    return lines;
+};
+/**
  * Build the list of `prop: value;` lines for one element. Skips anything
  * equal to its default; appends customProperties verbatim at the end.
  *
@@ -68,41 +115,7 @@ mustEstablishPositioningContext = false) => {
     // so the exported CSS works outside Scamp. Everything else flows
     // through the same code path.
     const BASE = isRoot ? DEFAULT_ROOT_STYLES : DEFAULT_RECT_STYLES;
-    // Sizing. The 'auto' mode is the implicit CSS default (no
-    // declaration), so we deliberately emit nothing for it — that's
-    // how round-trips stay text-stable for files that simply omit a
-    // width or height.
-    if (el.widthMode === 'stretch') {
-        lines.push(`width: 100%;`);
-    }
-    else if (el.widthMode === 'fit-content') {
-        lines.push(`width: fit-content;`);
-    }
-    else if (el.widthMode === 'fixed') {
-        // `widthCustom` carries non-px values (vh, vw, em, calc, var, …)
-        // verbatim. When set, it overrides the px fallback so the file
-        // round-trips exactly what the user / agent wrote.
-        if (el.widthCustom !== undefined && el.widthCustom.length > 0) {
-            lines.push(`width: ${el.widthCustom};`);
-        }
-        else if (el.widthValue !== BASE.widthValue) {
-            lines.push(`width: ${el.widthValue}px;`);
-        }
-    }
-    if (el.heightMode === 'stretch') {
-        lines.push(`height: 100%;`);
-    }
-    else if (el.heightMode === 'fit-content') {
-        lines.push(`height: fit-content;`);
-    }
-    else if (el.heightMode === 'fixed') {
-        if (el.heightCustom !== undefined && el.heightCustom.length > 0) {
-            lines.push(`height: ${el.heightCustom};`);
-        }
-        else if (el.heightValue !== BASE.heightValue) {
-            lines.push(`height: ${el.heightValue}px;`);
-        }
-    }
+    lines.push(...sizeDeclarationLines(el, BASE));
     // `min-height` — free-form string. Page-root defaults to `100vh`
     // (via DEFAULT_ROOT_STYLES) so generated pages have visible height
     // in any browser; non-root elements default to undefined and emit

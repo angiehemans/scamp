@@ -2,6 +2,8 @@ import { type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction 
 
 import type { ComponentFile } from '@shared/types';
 
+import { COMPONENT_DRAG_MIME } from '../../canvas/interactions/useComponentDrop';
+
 import { ComponentNameInput } from '../ComponentNameInput';
 import { ComponentSidebarItem } from '../ComponentSidebarItem';
 import type { ActiveComponent, ComponentEdit } from './types';
@@ -80,16 +82,13 @@ export const ComponentSidebar = ({
                 onContextMenu={(e) =>
                   openComponentMenu(e, component.name)
                 }
-                // HTML5 DnD source: dragging a component onto
-                // the canvas inserts an instance there. The
-                // Viewport's drop handler reads this
-                // dataTransfer mime to distinguish a
-                // component-drag from any other drag.
+                // HTML5 DnD source: dragging a component onto the
+                // canvas inserts an instance inside whatever container
+                // is under the cursor. The canvas interaction layer
+                // reads this mime to tell a component-drag apart from
+                // any other drag.
                 onDragStart={(e) => {
-                  e.dataTransfer.setData(
-                    'application/x-scamp-component',
-                    component.name
-                  );
+                  e.dataTransfer.setData(COMPONENT_DRAG_MIME, component.name);
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
               />

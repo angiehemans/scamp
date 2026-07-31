@@ -89,7 +89,7 @@ describe('componentOps — create / read / delete', () => {
     expect(file.cssPath).toBe(paths.cssPath);
     const tsx = await fs.readFile(paths.tsxPath, 'utf-8');
     const css = await fs.readFile(paths.cssPath, 'utf-8');
-    expect(tsx).toContain('export default function Button()');
+    expect(tsx).toContain('export default function Button({ className }: ButtonProps)');
     expect(tsx).toContain(`import styles from './Button.module.css';`);
     expect(css).toContain('.root');
   });
@@ -148,7 +148,7 @@ describe('componentOps — create / read / delete', () => {
     );
     expect(read).not.toBeNull();
     expect(read!.name).toBe('Button');
-    expect(read!.tsxContent).toContain('export default function Button()');
+    expect(read!.tsxContent).toContain('export default function Button({ className }: ButtonProps)');
   });
 
   it('readComponent returns null for a missing component', async () => {

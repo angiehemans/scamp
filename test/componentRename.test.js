@@ -80,7 +80,7 @@ describe('rewriteComponentForRename', () => {
         expect(original.tsx).toContain('type ButtonProps = {');
         const renamed = rewriteComponentForRename(original.tsx, original.css, 'Button', 'CallToAction');
         expect(renamed.tsx).toContain('type CallToActionProps = {');
-        expect(renamed.tsx).toContain('export default function CallToAction({ label = "Click me" }: CallToActionProps)');
+        expect(renamed.tsx).toContain('export default function CallToAction({ label = "Click me", className }: CallToActionProps)');
         expect(renamed.tsx).not.toContain('ButtonProps');
     });
     it('preserves the element tree and default values after rename', () => {

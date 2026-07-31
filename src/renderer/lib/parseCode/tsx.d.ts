@@ -78,4 +78,4 @@ export declare const parseSlotNames: (tsx: string) => Set<string>;
  * prop name.
  */
 export declare const parsePropsDestructure: (tsx: string) => Map<string, string>;
-export declare const parseTsxStructure: (tsx: string) => RawElement[];
+export declare const parseTsxStructure: (rawTsx: string) => RawElement[];

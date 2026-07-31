@@ -297,7 +297,7 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
           title={
             isWidthFixed
               ? 'Width — type a number, or any CSS length (100vh, calc(...)). Set the unit on the right.'
-              : 'Computed width (border-box). Type a number to make it fixed, or change the type on the right.'
+              : 'Width — computed (border-box). Type a number to make it fixed, or change the type on the right.'
           }
           value={widthFieldValue}
           placeholder={isWidthFixed ? undefined : sizeTypeLabel(widthType)}
@@ -323,7 +323,7 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
           title={
             isHeightFixed
               ? 'Height — type a number, or any CSS length (100vh, calc(...)). Set the unit on the right.'
-              : 'Computed height (border-box). Type a number to make it fixed, or change the type on the right.'
+              : 'Height — computed (border-box). Type a number to make it fixed, or change the type on the right.'
           }
           value={heightFieldValue}
           placeholder={isHeightFixed ? undefined : sizeTypeLabel(heightType)}

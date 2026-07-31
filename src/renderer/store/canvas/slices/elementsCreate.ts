@@ -215,11 +215,17 @@ export const createElementsCreateSlice: StateCreator<
       // `tagForListChildContext` here.
       const newInstance = makeComponentInstance(input, id);
       inserted = true;
+      const childIds = [...parent.childIds];
+      const at =
+        input.index === undefined
+          ? childIds.length
+          : Math.max(0, Math.min(input.index, childIds.length));
+      childIds.splice(at, 0, id);
       return {
         elements: {
           ...state.elements,
           [id]: newInstance,
-          [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
+          [input.parentId]: { ...parent, childIds },
         },
         selectedElementIds: [id],
       };

@@ -44,10 +44,27 @@ export const UiPanel = (): JSX.Element => {
   const isImage = element.type === 'image';
   const isInput = element.type === 'input';
   const isSvg = element.tag === 'svg';
+  const isInstance = element.type === 'component-instance';
   // Position is only meaningful when there's a non-flex parent to
   // anchor against. Root has no parent; flex children flow with the
   // layout engine.
   const showPosition = !isRoot && !parentIsFlex;
+
+  // A component instance's appearance belongs to the component
+  // definition, and the page can't override it — the only thing the
+  // page owns is the instance's size. Showing background / border /
+  // spacing here would offer edits that silently vanish on the next
+  // reload, because the generator has nowhere to write them.
+  // see docs/notes/components-data-model.md
+  if (isInstance) {
+    return (
+      <div className={styles.uiPanelBody}>
+        <ElementSection elementId={elementId} />
+        <SizeSection elementId={elementId} />
+        <ExportSection />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.uiPanelBody}>
