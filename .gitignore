@@ -9,3 +9,8 @@ playwright-report
 .env
 .env.local
 .env.*.local
+
+# Scamp's own per-project runtime folder — snapshots, component thumbnails,
+# and the live agent context file. Never committed, from anywhere in the
+# repo (the examples/ projects have one too).
+.scamp/

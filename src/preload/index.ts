@@ -30,6 +30,7 @@ import type {
   ComponentReadThumbnailArgs,
   ComponentReadThumbnailResult,
   ComponentWriteThumbnailArgs,
+  ContextWriteArgs,
   ComponentWriteThumbnailResult,
   PageCreateArgs,
   PageDeleteArgs,
@@ -140,6 +141,10 @@ const api = {
 
   readComponent: (args: ComponentReadArgs): Promise<ComponentFile | null> =>
     ipcRenderer.invoke(IPC.ComponentRead, args),
+
+  /** Fire-and-forget: resolves once written, rejects never. */
+  writeContext: (args: ContextWriteArgs): Promise<void> =>
+    ipcRenderer.invoke(IPC.ContextWrite, args),
 
   writeComponentThumbnail: (
     args: ComponentWriteThumbnailArgs

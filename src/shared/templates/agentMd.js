@@ -110,6 +110,21 @@ What this means for the agent: write naturally, save when you're
 done with a logical change, and don't worry about Scamp's canvas
 state. Scamp will catch up.
 
+## Active context
+
+Scamp maintains a live context file at \`.scamp/context.md\`.
+It always reflects the currently open page (or component) and the
+selected element — its class, tag, current styles, children, and
+ancestor chain.
+
+Read it at the start of every session, and re-read it whenever the
+user refers to "this element", "the selected one", or asks why
+something looks the way it does. It saves the user describing what
+they just clicked.
+
+It is written by Scamp and regenerated on every selection. Never
+edit it, and never commit it — \`.scamp/\` is gitignored.
+
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
@@ -1111,6 +1126,21 @@ Concretely:
 What this means for the agent: write naturally, save when you're
 done with a logical change, and don't worry about Scamp's canvas
 state. Scamp will catch up.
+
+## Active context
+
+Scamp maintains a live context file at \`.scamp/context.md\`.
+It always reflects the currently open page (or component) and the
+selected element — its class, tag, current styles, children, and
+ancestor chain.
+
+Read it at the start of every session, and re-read it whenever the
+user refers to "this element", "the selected one", or asks why
+something looks the way it does. It saves the user describing what
+they just clicked.
+
+It is written by Scamp and regenerated on every selection. Never
+edit it, and never commit it — \`.scamp/\` is gitignored.
 
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element.

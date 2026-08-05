@@ -39,6 +39,8 @@ const api = {
     createComponent: (args) => ipcRenderer.invoke(IPC.ComponentCreate, args),
     deleteComponent: (args) => ipcRenderer.invoke(IPC.ComponentDelete, args),
     readComponent: (args) => ipcRenderer.invoke(IPC.ComponentRead, args),
+    /** Fire-and-forget: resolves once written, rejects never. */
+    writeContext: (args) => ipcRenderer.invoke(IPC.ContextWrite, args),
     writeComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentWriteThumbnail, args),
     readComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
     // Project snapshots (persistent `.scamp/` point-in-time copies).

@@ -478,6 +478,11 @@ export type ComponentReadArgs = {
  * don't propagate to the save indicator since the underlying
  * component save already succeeded.
  */
+export type ContextWriteArgs = {
+    projectPath: string;
+    /** The whole file, already rendered by `buildContextMarkdown`. */
+    content: string;
+};
 export type ComponentWriteThumbnailArgs = {
     projectPath: string;
     componentName: string;

@@ -44,6 +44,11 @@ import {
 } from './syncBridge/storeSubscription';
 import { makeFileChangedHandler } from './syncBridge/externalEdit';
 import { makeThemeChangedHandler } from './syncBridge/themeListener';
+import {
+  cancelContextWrite,
+  flushContextWrite,
+  makeContextFileHandler,
+} from './syncBridge/contextFile';
 
 // savePatch / retryLastSave moved to writeDispatch; re-exported so
 // CssPanel + the save-status retry button keep importing from here.
@@ -153,6 +158,13 @@ export const initSyncBridge = (): (() => void) => {
   const unsubStore = useCanvasStore.subscribe(
     makeStoreSubscriptionHandler(ctx)
   );
+  // Second, independent consumer of the same store: the agent context file.
+  // Kept separate from the save path so a context write can never delay or
+  // interfere with a disk write. see docs/plans/live-context-file-plan.md
+  const unsubContext = useCanvasStore.subscribe(makeContextFileHandler());
+  // Seed the file for whatever is already open, so an agent reading it
+  // before the user's first click still gets the page.
+  flushContextWrite();
 
   const offAck = window.scamp.onFileWriteAck((payload) => {
     handleAck(payload.writeId, payload.path);
@@ -166,12 +178,15 @@ export const initSyncBridge = (): (() => void) => {
   const handleBeforeUnload = (): void => {
     ctx.cancelWriteTimer();
     ctx.flushDebouncedWrite();
+    flushContextWrite();
   };
   window.addEventListener('beforeunload', handleBeforeUnload);
 
   const offTheme = window.scamp.onThemeChanged(makeThemeChangedHandler());
 
   return () => {
+    cancelContextWrite();
+    unsubContext();
     ctx.cancelWriteTimer();
     pendingFlush = null;
     if (ctx.quietResumeTimer !== null) {

@@ -39,6 +39,13 @@ export const IPC = {
   ComponentWriteThumbnail: 'component:writeThumbnail',
   ComponentReadThumbnail: 'component:readThumbnail',
 
+  // Live agent context — a markdown snapshot of the open target and the
+  // selected element, written to `.scamp/context.md` on every selection so
+  // an agent in the terminal can read it instead of asking the user what
+  // they clicked. Fire-and-forget: never blocks a canvas update.
+  // see docs/plans/live-context-file-plan.md
+  ContextWrite: 'context:write',
+
   // Start Screen project list — the union of the recent-opens store and
   // a scan of the default projects folder (deduped, sorted recent-first),
   // so every project in the folder shows, not just the last few opened.
