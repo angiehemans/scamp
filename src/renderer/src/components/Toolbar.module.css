@@ -35,3 +35,10 @@
 .active:hover {
   background: var(--accent);
 }
+
+/* Pushes the trailing actions (copy context) to the right of the strip,
+   away from the tool cluster — it doesn't change the active tool, so
+   grouping it with V/R/T/I/F would misread. */
+.spacer {
+  flex: 1;
+}

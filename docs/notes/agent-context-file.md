@@ -1,7 +1,9 @@
 ---
 title: Live agent context file
 related:
+  - src/renderer/lib/contextModel.ts
   - src/renderer/lib/contextMarkdown.ts
+  - src/renderer/lib/contextInline.ts
   - src/renderer/src/syncBridge/contextFile.ts
   - src/main/ipc/contextOps.ts
   - src/shared/templates/agentMd.ts
@@ -51,6 +53,26 @@ Writes debounce 500ms and are fire-and-forget. `writeContextFile` swallows
 its own errors: a failed context write (disk full, folder unmounted
 mid-session) is never worth interrupting the user for, and the next
 selection retries.
+
+## One model, three renderers
+
+`lib/contextModel.ts` derives the facts — paths, class, tag, declarations,
+children, custom properties, element count. Everything agent-facing renders
+that model rather than the store:
+
+| Renderer | Output |
+|---|---|
+| `contextMarkdown.ts` | the `.scamp/context.md` file |
+| `contextInline.ts` | the one-line "Copy context" string |
+
+Two places independently deciding what "the element's styles" means would
+drift, and the drift would be silent because nothing compares the outputs.
+The MCP server (backlog story 3) is the third consumer.
+
+The inline renderer states `flex row` when a container has `display: flex`
+and no `flex-direction` declaration. That isn't invention: `row` is the CSS
+default, so the generator correctly omits it, and the direction is the most
+useful single fact about a flex container.
 
 ## Styles come from the generator
 

@@ -1,5 +1,7 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  IconAi,
+  IconCheck,
   IconPointer,
   IconSquare,
   IconLetterT,
@@ -8,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { useCanvasStore, type Tool } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
+import { copyContextToClipboard } from '../lib/copyContext';
 import styles from './Toolbar.module.css';
 
 const ICON_SIZE = 18;
@@ -68,6 +71,59 @@ export const Toolbar = (): JSX.Element => {
           </button>
         </Tooltip>
       ))}
+      <div className={styles.spacer} />
+      <CopyContextButton />
     </div>
+  );
+};
+
+/** How long the check mark replaces the icon after a successful copy. */
+const COPIED_FEEDBACK_MS = 1200;
+
+/**
+ * Copies a one-line description of the selection for pasting in front of a
+ * terminal question. Deliberately NOT disabled without a selection — the
+ * page-level string is useful on its own, and dimming it would hide the
+ * feature exactly when someone is asking a whole-page question.
+ * see docs/plans/copy-context-button-plan.md
+ */
+const CopyContextButton = (): JSX.Element => {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current !== null) clearTimeout(timer.current);
+    },
+    []
+  );
+
+  const handleClick = (): void => {
+    void copyContextToClipboard().then((ok) => {
+      // Only claim success when the write actually landed.
+      if (!ok) return;
+      setCopied(true);
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
+    });
+  };
+
+  return (
+    <Tooltip label={copied ? 'Copied' : 'Copy context for agent (⇧⌘C)'}>
+      <button
+        className={styles.button}
+        onClick={handleClick}
+        type="button"
+        aria-label="Copy context for agent"
+        data-copied={copied ? 'true' : undefined}
+        data-action="copy-context"
+      >
+        {copied ? (
+          <IconCheck size={ICON_SIZE} />
+        ) : (
+          <IconAi size={ICON_SIZE} />
+        )}
+      </button>
+    </Tooltip>
   );
 };

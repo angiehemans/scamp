@@ -2,6 +2,7 @@ import { clipboard, ipcMain } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import type {
   ClipboardReadResult,
+  ClipboardWriteArgs,
   ClipboardSaveImageArgs,
   CopyImageResult,
 } from '@shared/types';
@@ -21,6 +22,13 @@ const looksLikeSvg = (text: string): boolean =>
  * see docs/plans/svg-improvements-plan.md
  */
 export const registerClipboardIpc = (): void => {
+  // Goes through the main process rather than `navigator.clipboard`: the
+  // renderer loads from `file://` in the packaged app, which is not a
+  // secure context, so the web API isn't reliably available there.
+  ipcMain.handle(IPC.ClipboardWrite, async (_e, args: ClipboardWriteArgs) => {
+    clipboard.writeText(args.text);
+  });
+
   ipcMain.handle(IPC.ClipboardRead, async (): Promise<ClipboardReadResult> => {
     const text = clipboard.readText();
     if (text.length > 0 && looksLikeSvg(text)) {

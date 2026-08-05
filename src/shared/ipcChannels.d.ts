@@ -37,6 +37,7 @@ export declare const IPC: {
     readonly FileReadText: "file:readText";
     readonly SvgAssetChanged: "svg:assetChanged";
     readonly ClipboardRead: "clipboard:read";
+    readonly ClipboardWrite: "clipboard:write";
     readonly ClipboardSaveImage: "clipboard:saveImage";
     readonly ThemeRead: "theme:read";
     readonly ThemeChanged: "theme:changed";

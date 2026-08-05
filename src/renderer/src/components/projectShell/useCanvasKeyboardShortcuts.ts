@@ -1,3 +1,4 @@
+import { copyContextToClipboard } from '../../lib/copyContext';
 import { useEffect } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
@@ -118,6 +119,25 @@ export const useCanvasKeyboardShortcuts = (
         if (target === state.rootElementId) return;
         e.preventDefault();
         state.ungroupElement(target);
+        return;
+      }
+
+      // Cmd/Ctrl+Shift+C — copy an agent-ready description of the
+      // selection to the OS clipboard. Checked BEFORE the plain Cmd+C
+      // branch (which guards `!e.shiftKey`) so the modifier wins.
+      // Works with nothing selected too: the page-level string is useful.
+      // see docs/plans/copy-context-button-plan.md
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        e.shiftKey &&
+        (e.key === 'c' || e.key === 'C')
+      ) {
+        // `isEditableTarget` covers CodeMirror as well as panel inputs —
+        // its editor is contentEditable, so the CSS panel keeps the normal
+        // copy behaviour.
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        void copyContextToClipboard();
         return;
       }
 

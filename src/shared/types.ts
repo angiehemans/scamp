@@ -528,6 +528,10 @@ export type ComponentReadArgs = {
  * don't propagate to the save indicator since the underlying
  * component save already succeeded.
  */
+export type ClipboardWriteArgs = {
+  text: string;
+};
+
 export type ContextWriteArgs = {
   projectPath: string;
   /** The whole file, already rendered by `buildContextMarkdown`. */

@@ -88,6 +88,7 @@ const api = {
     },
     // Clipboard (paste from OS)
     readClipboard: () => ipcRenderer.invoke(IPC.ClipboardRead),
+    writeClipboard: (args) => ipcRenderer.invoke(IPC.ClipboardWrite, args),
     saveClipboardImage: (args) => ipcRenderer.invoke(IPC.ClipboardSaveImage, args),
     // Images
     copyImage: (args) => ipcRenderer.invoke(IPC.FileCopyImage, args),

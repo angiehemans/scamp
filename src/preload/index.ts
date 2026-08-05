@@ -6,6 +6,7 @@ import type {
   ChooseImageArgs,
   ChooseImageResult,
   ClipboardReadResult,
+  ClipboardWriteArgs,
   ClipboardSaveImageArgs,
   CopyImageArgs,
   CopyImageResult,
@@ -242,6 +243,9 @@ const api = {
   // Clipboard (paste from OS)
   readClipboard: (): Promise<ClipboardReadResult> =>
     ipcRenderer.invoke(IPC.ClipboardRead),
+
+  writeClipboard: (args: ClipboardWriteArgs): Promise<void> =>
+    ipcRenderer.invoke(IPC.ClipboardWrite, args),
   saveClipboardImage: (
     args: ClipboardSaveImageArgs
   ): Promise<CopyImageResult> =>

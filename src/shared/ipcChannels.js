@@ -68,6 +68,10 @@ export const IPC = {
     SvgAssetChanged: 'svg:assetChanged',
     // Clipboard (paste from OS)
     ClipboardRead: 'clipboard:read',
+    // Plain-text write. Used by "Copy context", which puts a one-line
+    // description of the selection on the clipboard for pasting in front of a
+    // terminal prompt. see docs/plans/copy-context-button-plan.md
+    ClipboardWrite: 'clipboard:write',
     ClipboardSaveImage: 'clipboard:saveImage',
     // Theme
     ThemeRead: 'theme:read',

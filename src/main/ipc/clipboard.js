@@ -13,6 +13,12 @@ const looksLikeSvg = (text) => /^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)
  * see docs/plans/svg-improvements-plan.md
  */
 export const registerClipboardIpc = () => {
+    // Goes through the main process rather than `navigator.clipboard`: the
+    // renderer loads from `file://` in the packaged app, which is not a
+    // secure context, so the web API isn't reliably available there.
+    ipcMain.handle(IPC.ClipboardWrite, async (_e, args) => {
+        clipboard.writeText(args.text);
+    });
     ipcMain.handle(IPC.ClipboardRead, async () => {
         const text = clipboard.readText();
         if (text.length > 0 && looksLikeSvg(text)) {

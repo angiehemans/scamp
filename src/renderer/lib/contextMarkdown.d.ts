@@ -1,27 +1,14 @@
-import type { ScampElement } from './element';
+import { type ContextInput } from './contextModel';
 /**
  * The live context file Scamp writes to `.scamp/context.md` — the open
  * target and the selected element, in markdown an agent can read at the
  * start of a turn instead of asking the user to describe what they clicked.
+ *
+ * A renderer over `contextModel`, nothing more. The facts live there so this
+ * and the copy-context one-liner can't disagree.
  * see docs/plans/live-context-file-plan.md
  */
-/** The page or component currently open on the canvas. */
-export type ContextTarget = {
-    kind: 'page' | 'component';
-    name: string;
-    /** Project-RELATIVE. Absolute paths would leak the user's home directory
-     *  into a file agents quote back verbatim. */
-    tsxPath: string;
-    cssPath: string;
-};
-export type ContextInput = {
-    target: ContextTarget | null;
-    elements: Record<string, ScampElement>;
-    /** Selection in panel order — index 0 is the primary. */
-    selectedIds: ReadonlyArray<string>;
-    canvasWidth: number;
-    breakpointLabel: string;
-};
+export type { ContextInput, ContextTarget } from './contextModel';
 /**
  * Render the whole file.
  *
