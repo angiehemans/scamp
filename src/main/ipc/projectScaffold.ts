@@ -191,6 +191,9 @@ out
 
 # Scamp local state (component thumbnails, etc.)
 .scamp/
+
+# Scamp MCP server registration (machine-local — do not commit)
+.mcp.json
 `;
 
 const LEGACY_GITIGNORE = `# Dependencies
@@ -201,6 +204,9 @@ node_modules
 
 # Scamp local state (component thumbnails, etc.)
 .scamp/
+
+# Scamp MCP server registration (machine-local — do not commit)
+.mcp.json
 `;
 
 /** Write `.gitignore` only when missing — don't clobber user customisations. */

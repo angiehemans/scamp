@@ -35,6 +35,7 @@ import {
 } from './previewWindow';
 import { stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher, getWatchedPath } from './watcher';
+import { initMcp, stopMcp } from './mcp/lifecycle';
 import { resolveInsideProject } from './ipc/pathContainment';
 import {
   initSentryIfOptedIn,
@@ -181,6 +182,9 @@ const createWindow = (): void => {
   }
 
   initWatcher(win);
+  // MCP reply listener. The server itself starts when a project opens
+  // (see ipc/project.ts). docs/plans/mcp-server-plan.md
+  initMcp(win);
 
   // Background auto-update: checks GitHub Releases on launch and every
   // 4 hours, downloads silently, and notifies the renderer's update
@@ -327,6 +331,7 @@ const snapshotOnShutdown = async (): Promise<void> => {
 
 const performShutdownCleanup = async (): Promise<void> => {
   await snapshotOnShutdown();
+  await stopMcp();
   disposeWatcher();
   setSentryProjectRoot(null);
   closeAllPreviewWindows();

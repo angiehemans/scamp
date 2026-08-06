@@ -45,6 +45,9 @@ export type ContextElement = {
   chain: string[];
   /** `prop: value;` lines, EXCLUDING custom properties. */
   declarations: string[];
+  /** The same declarations as a map — `{display: 'flex', gap: '16px'}`.
+   *  Derived, never a second source of truth. */
+  styles: Record<string, string>;
   customProperties: Array<[string, string]>;
   children: ContextChild[];
 };
@@ -78,6 +81,26 @@ export const previewText = (raw: string): string => {
   return flat.length > TEXT_PREVIEW_MAX
     ? `${flat.slice(0, TEXT_PREVIEW_MAX - 1)}…`
     : flat;
+};
+
+/**
+ * `prop: value;` → `[prop, value]`, skipping anything malformed.
+ *
+ * Lives here rather than in a renderer because two of them need it and a
+ * third (MCP) reports the map directly — the same reason the model exists.
+ */
+export const parseDeclarations = (
+  lines: ReadonlyArray<string>
+): Map<string, string> => {
+  const out = new Map<string, string>();
+  for (const line of lines) {
+    const colon = line.indexOf(':');
+    if (colon < 1) continue;
+    const prop = line.slice(0, colon).trim();
+    const value = line.slice(colon + 1).replace(/;$/, '').trim();
+    if (prop.length > 0 && value.length > 0) out.set(prop, value);
+  }
+  return out;
 };
 
 /** Ancestors, outermost first. */
@@ -141,6 +164,7 @@ const describeElement = (
     ...(parent ? { parentClassName: classNameFor(parent) } : {}),
     chain: parentChain(elements, el),
     declarations,
+    styles: Object.fromEntries(parseDeclarations(declarations)),
     customProperties: custom,
     children: el.childIds
       .map((id) => elements[id])

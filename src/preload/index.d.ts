@@ -1,5 +1,5 @@
 import type { TitleBarColors } from '@shared/titleBarColors';
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ContextWriteArgs, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -43,6 +43,14 @@ declare const api: {
     readComponent: (args: ComponentReadArgs) => Promise<ComponentFile | null>;
     /** Fire-and-forget: resolves once written, rejects never. */
     writeContext: (args: ContextWriteArgs) => Promise<void>;
+    /**
+     * MCP tool calls arriving from the main process. The renderer answers from
+     * live store state via `sendMcpQueryResult` — main is waiting on a timeout,
+     * so every query must get exactly one reply.
+     */
+    onMcpQuery: (handler: (args: McpQueryArgs) => void) => (() => void);
+    sendMcpQueryResult: (result: McpQueryResultArgs) => void;
+    getMcpStatus: () => Promise<McpStatusResult>;
     writeComponentThumbnail: (args: ComponentWriteThumbnailArgs) => Promise<ComponentWriteThumbnailResult>;
     readComponentThumbnail: (args: ComponentReadThumbnailArgs) => Promise<ComponentReadThumbnailResult>;
     createSnapshot: (args: SnapshotCreateArgs) => Promise<SnapshotCreateResult>;

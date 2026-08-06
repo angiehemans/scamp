@@ -128,6 +128,30 @@ they just clicked.
 It is written by Scamp and regenerated on every selection. Never
 edit it, and never commit it — \`.scamp/\` is gitignored.
 
+## MCP server (preferred over the context file)
+
+While Scamp is open it runs a local MCP server, already registered in
+this project's agent config — you should have \`scamp_*\` tools
+available with no setup. If this is the first time, your agent may ask
+you to approve the project's MCP server before the tools appear.
+
+Prefer these tools over \`.scamp/context.md\`: the file is a snapshot
+written on selection, the tools read the canvas at the moment you ask.
+
+- \`scamp_get_selected_element\` — what the user means by "this" or "it"
+- \`scamp_get_element_by_id\` — any element, selected or not
+- \`scamp_get_element_tree\` — structure only; cheap, start here
+- \`scamp_get_active_page\` — which page or component is open
+- \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
+  or typography value so you use a token instead of a literal
+- \`scamp_get_canvas_state\` — everything at once; large, and capped
+
+If the tools are missing, Scamp is closed or no project is open — fall
+back to \`.scamp/context.md\`, and read \`.scamp/mcp.json\` for the
+server's URL and token. Never commit that file: the token is local to
+this machine.
+
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element.
 - Never change the 4-char hex suffix of a class name (e.g. the \`a1b2\`
@@ -1146,6 +1170,30 @@ they just clicked.
 
 It is written by Scamp and regenerated on every selection. Never
 edit it, and never commit it — \`.scamp/\` is gitignored.
+
+## MCP server (preferred over the context file)
+
+While Scamp is open it runs a local MCP server, already registered in
+this project's agent config — you should have \`scamp_*\` tools
+available with no setup. If this is the first time, your agent may ask
+you to approve the project's MCP server before the tools appear.
+
+Prefer these tools over \`.scamp/context.md\`: the file is a snapshot
+written on selection, the tools read the canvas at the moment you ask.
+
+- \`scamp_get_selected_element\` — what the user means by "this" or "it"
+- \`scamp_get_element_by_id\` — any element, selected or not
+- \`scamp_get_element_tree\` — structure only; cheap, start here
+- \`scamp_get_active_page\` — which page or component is open
+- \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
+  or typography value so you use a token instead of a literal
+- \`scamp_get_canvas_state\` — everything at once; large, and capped
+
+If the tools are missing, Scamp is closed or no project is open — fall
+back to \`.scamp/context.md\`, and read \`.scamp/mcp.json\` for the
+server's URL and token. Never commit that file: the token is local to
+this machine.
 
 ## Critical rules
 - Never remove \`data-scamp-id\` attributes from any element.

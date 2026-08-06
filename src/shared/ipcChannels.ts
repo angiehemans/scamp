@@ -158,6 +158,15 @@ export const IPC = {
   UpdaterError: 'updater:error',
   UpdaterInstallNow: 'updater:install-now',
 
+  // MCP server (main) → renderer canvas query, and the reply back.
+  // Pull-through rather than a cached snapshot in main: an agent asking
+  // "what is selected" right after the user clicked must not be told about
+  // the previous selection. See docs/plans/mcp-server-plan.md.
+  McpQuery: 'mcp:query',
+  McpQueryResult: 'mcp:query-result',
+  // Renderer asks whether the server is up, for the terminal indicator.
+  McpStatus: 'mcp:status',
+
   // E2E test bootstrap (only live when SCAMP_E2E=1)
   TestGetBootstrap: 'test:getBootstrap',
 } as const;

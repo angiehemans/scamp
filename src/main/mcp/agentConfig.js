@@ -1,0 +1,214 @@
+import { promises as fs } from 'fs';
+import { dirname, join } from 'path';
+/**
+ * Registers the running MCP server in each installed agent's own config, so
+ * the user connects by doing nothing.
+ *
+ * The alternative was a command to copy-paste, which most people never run —
+ * a feature nobody connects to has shipped in name only. `claude mcp add
+ * --scope project` turned out to just write a plain `.mcp.json`, so we write
+ * it ourselves, and the same trick generalises to the other agents.
+ *
+ * ⚠️ This is the only code in the MCP feature that writes OUTSIDE `.scamp/`.
+ * Every write merges into whatever the user already had — clobbering someone's
+ * editor or agent config is the one bug here that damages something Scamp
+ * doesn't own. see docs/plans/mcp-server-plan.md
+ */
+/** The key we own inside each agent's server map. */
+export const SERVER_KEY = 'scamp';
+/**
+ * The agents we can configure, with every shape verified rather than assumed.
+ *
+ * The Gemini row is why "verify each one" is not pedantry: it takes
+ * `httpUrl`, NOT `url` — `url` there means an SSE endpoint. Writing `url`
+ * would have registered a streamable-HTTP server as SSE and failed at
+ * connect time, silently, only for Gemini users.
+ *
+ * Deliberately absent, pending verification:
+ *   - VS Code (`.vscode/mcp.json`, `servers` key) — the docs I could reach
+ *     describe the extension-provider API, which uses `uri`, not the user
+ *     `mcp.json` format. Guessing produces a file that is silently ignored.
+ *     `.vscode/mcp.json` also permits comments, which our merge cannot
+ *     preserve — another reason to hold.
+ *   - Codex (`~/.codex/config.toml`) — TOML, and project-level support is
+ *     unconfirmed. A TOML *writer* that preserves a user's existing file is
+ *     a different job from a JSON merge.
+ * Both are additive later; the copy button (Phase 6) covers them meanwhile.
+ */
+export const AGENT_TARGETS = [
+    {
+        id: 'claude-code',
+        label: 'Claude Code',
+        configPath: '.mcp.json',
+        serversKey: 'mcpServers',
+        entry: (url, token) => ({
+            type: 'http',
+            url,
+            headers: { 'X-Scamp-Token': token },
+        }),
+        // Always written: one file, no directory, and the primary target.
+        detect: [],
+    },
+    {
+        id: 'cursor',
+        label: 'Cursor',
+        configPath: '.cursor/mcp.json',
+        serversKey: 'mcpServers',
+        entry: (url, token) => ({ url, headers: { 'X-Scamp-Token': token } }),
+        detect: ['.cursor'],
+    },
+    {
+        id: 'gemini-cli',
+        label: 'Gemini CLI',
+        configPath: '.gemini/settings.json',
+        serversKey: 'mcpServers',
+        // `httpUrl`, not `url` — see the note above.
+        entry: (url, token) => ({ httpUrl: url, headers: { 'X-Scamp-Token': token } }),
+        detect: ['.gemini'],
+    },
+    {
+        id: 'kiro',
+        label: 'Kiro',
+        configPath: '.kiro/settings/mcp.json',
+        serversKey: 'mcpServers',
+        entry: (url, token) => ({ url, headers: { 'X-Scamp-Token': token } }),
+        detect: ['.kiro'],
+    },
+];
+const isRecord = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
+/**
+ * Splice our entry into an existing config, preserving everything else.
+ *
+ * Pure, so the case that matters — "the user already had servers here" — is
+ * testable without a filesystem.
+ *
+ * Refuses rather than overwrites when the existing file doesn't parse or has
+ * a server map of the wrong type. A user with hand-written JSONC, or a
+ * half-saved file, must not lose it because Scamp wanted to add a key.
+ */
+export const mergeServerEntry = (existing, target, url, token) => {
+    const entry = target.entry(url, token);
+    if (existing === null || existing.trim().length === 0) {
+        return {
+            ok: true,
+            content: `${JSON.stringify({ [target.serversKey]: { [SERVER_KEY]: entry } }, null, 2)}\n`,
+        };
+    }
+    let parsed;
+    try {
+        parsed = JSON.parse(existing);
+    }
+    catch {
+        return {
+            ok: false,
+            reason: `${target.configPath} is not valid JSON — leaving it untouched.`,
+        };
+    }
+    if (!isRecord(parsed)) {
+        return {
+            ok: false,
+            reason: `${target.configPath} is not a JSON object — leaving it untouched.`,
+        };
+    }
+    const current = parsed[target.serversKey];
+    if (current !== undefined && !isRecord(current)) {
+        return {
+            ok: false,
+            reason: `${target.configPath} has an unexpected "${target.serversKey}" value — leaving it untouched.`,
+        };
+    }
+    const merged = {
+        ...parsed,
+        // Spread the existing servers first so ours replaces only its own key.
+        [target.serversKey]: { ...(current ?? {}), [SERVER_KEY]: entry },
+    };
+    return { ok: true, content: `${JSON.stringify(merged, null, 2)}\n` };
+};
+/** True when any of the agent's home-relative markers exists. */
+export const isAgentInstalled = async (target, homeDir) => {
+    if (target.detect.length === 0)
+        return true;
+    for (const marker of target.detect) {
+        try {
+            await fs.access(join(homeDir, marker));
+            return true;
+        }
+        catch {
+            // Try the next marker.
+        }
+    }
+    return false;
+};
+/**
+ * Append paths to `.gitignore` that aren't already covered.
+ *
+ * These files hold a localhost URL and a token: committing one leaks the
+ * token and hands teammates a dead URL. `.mcp.json` is *conventionally*
+ * committed (it's how teams share MCP config), so this actively cuts against
+ * the norm — deliberately, because ours is machine-local.
+ *
+ * Matching is line-exact rather than gitignore-semantic: a pattern like
+ * `.cursor/` already covers `.cursor/mcp.json`, but re-listing the file is
+ * harmless while parsing gitignore semantics properly is not worth it here.
+ */
+export const ensureGitignoreEntries = async (projectPath, paths) => {
+    if (paths.length === 0)
+        return;
+    const gitignorePath = join(projectPath, '.gitignore');
+    let existing = '';
+    try {
+        existing = await fs.readFile(gitignorePath, 'utf-8');
+    }
+    catch {
+        // No .gitignore yet — create one rather than leave a token exposed.
+    }
+    const lines = new Set(existing.split(/\r?\n/).map((line) => line.trim()));
+    const missing = paths.filter((path) => !lines.has(path));
+    if (missing.length === 0)
+        return;
+    const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : '';
+    const block = `${prefix}\n# Scamp MCP server registration (machine-local — do not commit)\n${missing.join('\n')}\n`;
+    await fs.writeFile(gitignorePath, `${existing}${block}`, 'utf-8');
+};
+/**
+ * Write our entry into every installed agent's config.
+ *
+ * Best-effort per target: one unreadable or unparseable config must not stop
+ * the others being written, and none of it may stop the server running.
+ */
+export const writeAgentConfigs = async (args) => {
+    const report = { written: [], skipped: [] };
+    for (const target of AGENT_TARGETS) {
+        if (!(await isAgentInstalled(target, args.homeDir)))
+            continue;
+        const absolute = join(args.projectPath, target.configPath);
+        let existing = null;
+        try {
+            existing = await fs.readFile(absolute, 'utf-8');
+        }
+        catch {
+            // Absent is the normal first-run case.
+        }
+        const merged = mergeServerEntry(existing, target, args.url, args.token);
+        if (!merged.ok) {
+            report.skipped.push({ path: target.configPath, reason: merged.reason });
+            continue;
+        }
+        try {
+            await fs.mkdir(dirname(absolute), { recursive: true });
+            await fs.writeFile(absolute, merged.content, 'utf-8');
+            report.written.push(target.configPath);
+        }
+        catch (err) {
+            report.skipped.push({
+                path: target.configPath,
+                reason: err instanceof Error ? err.message : String(err),
+            });
+        }
+    }
+    await ensureGitignoreEntries(args.projectPath, report.written).catch(() => {
+        // A missing-token-in-git risk is worth logging, but never worth
+        // failing project open over.
+    });
+    return report;
+};

@@ -49,6 +49,7 @@ import {
   flushContextWrite,
   makeContextFileHandler,
 } from './syncBridge/contextFile';
+import { installMcpResponder } from './syncBridge/mcpResponder';
 
 // savePatch / retryLastSave moved to writeDispatch; re-exported so
 // CssPanel + the save-status retry button keep importing from here.
@@ -166,6 +167,11 @@ export const initSyncBridge = (): (() => void) => {
   // before the user's first click still gets the page.
   flushContextWrite();
 
+  // Third consumer of the same store, and the only one that reads on demand
+  // rather than on change: the MCP server asks, this answers.
+  // see docs/plans/mcp-server-plan.md
+  const offMcp = installMcpResponder();
+
   const offAck = window.scamp.onFileWriteAck((payload) => {
     handleAck(payload.writeId, payload.path);
   });
@@ -187,6 +193,7 @@ export const initSyncBridge = (): (() => void) => {
   return () => {
     cancelContextWrite();
     unsubContext();
+    offMcp();
     ctx.cancelWriteTimer();
     pendingFlush = null;
     if (ctx.quietResumeTimer !== null) {

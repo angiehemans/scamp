@@ -538,6 +538,37 @@ export type ContextWriteArgs = {
   content: string;
 };
 
+/**
+ * One MCP tool call, forwarded from the main process to the renderer so it
+ * can answer from live canvas state. See docs/plans/mcp-server-plan.md.
+ */
+export type McpQueryArgs = {
+  /** Correlates the reply — main may have several calls in flight. */
+  requestId: string;
+  tool: string;
+  args: Record<string, unknown>;
+};
+
+/**
+ * The renderer's answer. `ok: false` carries a message the agent can act on
+ * rather than a thrown error that would kill its turn.
+ */
+/** What the terminal indicator needs to describe the server. */
+export type McpStatusResult = {
+  running: boolean;
+  /** Null when the server isn't running. */
+  url: string | null;
+  /** Null when the server isn't running. Already on disk in
+   *  `.scamp/mcp.json`; surfaced so the UI can build a connect command. */
+  token: string | null;
+  /** Agent config files Scamp registered this session. */
+  registered: ReadonlyArray<string>;
+};
+
+export type McpQueryResultArgs = {
+  requestId: string;
+} & ({ ok: true; data: unknown } | { ok: false; error: string });
+
 export type ComponentWriteThumbnailArgs = {
   projectPath: string;
   componentName: string;

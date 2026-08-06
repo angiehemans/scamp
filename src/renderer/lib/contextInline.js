@@ -1,4 +1,4 @@
-import { buildContextModel, } from './contextModel';
+import { buildContextModel, parseDeclarations, } from './contextModel';
 /**
  * A one-line description of the selection, sized to paste in FRONT of a
  * terminal question rather than to stand alone:
@@ -16,20 +16,6 @@ const CHILD_LIMIT = 3;
  *  otherwise swamp the whole string. */
 const VALUE_MAX = 40;
 const truncate = (value) => value.length > VALUE_MAX ? `${value.slice(0, VALUE_MAX - 1)}…` : value;
-/** `prop: value;` → `[prop, value]`. */
-const parseDeclarations = (lines) => {
-    const out = new Map();
-    for (const line of lines) {
-        const colon = line.indexOf(':');
-        if (colon < 1)
-            continue;
-        const prop = line.slice(0, colon).trim();
-        const value = line.slice(colon + 1).replace(/;$/, '').trim();
-        if (prop.length > 0 && value.length > 0)
-            out.set(prop, value);
-    }
-    return out;
-};
 /**
  * Turn declarations into the compact prose the brief asks for — `flex row`
  * rather than `display: flex; flex-direction: row;`, `400×300px` rather than

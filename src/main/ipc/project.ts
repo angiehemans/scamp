@@ -19,6 +19,7 @@ import {
 } from './recentProjects';
 import { watchProject } from '../watcher';
 import { setSentryProjectRoot } from '../sentry';
+import { startMcpForProject } from '../mcp/lifecycle';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
@@ -115,6 +116,7 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
   await addRecentProject({ name, path: projectPath, format });
   await watchProject(projectPath);
   setSentryProjectRoot(projectPath);
+  await startMcpForProject(projectPath);
   return readProject(projectPath);
 };
 
@@ -176,6 +178,7 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   });
   await watchProject(args.folderPath);
   setSentryProjectRoot(args.folderPath);
+  await startMcpForProject(args.folderPath);
   return project;
 };
 

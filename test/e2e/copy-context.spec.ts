@@ -1,20 +1,48 @@
 import type { ElectronApplication } from '@playwright/test';
 
 import { test, expect } from './fixtures/app';
-import { dragInFrame, selectTool } from './fixtures/canvas';
-import { pageRoot } from './fixtures/selectors';
+import {
+  dragInFrame,
+  frameToClient,
+  measureFrame,
+  selectTool,
+} from './fixtures/canvas';
+import {
+  clickContextMenuItem,
+  openElementContextMenu,
+} from './fixtures/components';
+import { contextMenuItem, pageRoot } from './fixtures/selectors';
 
 /**
  * Copy context, end to end. The unit tests cover what the string says; this
- * is the only level that proves the button and the shortcut reach the real
- * OS clipboard — and that the panel inputs keep normal copy behaviour.
- * see docs/plans/copy-context-button-plan.md
+ * is the only level that proves the right-click item and the shortcut reach
+ * the real OS clipboard — and that the panel inputs keep normal copy
+ * behaviour.
+ *
+ * The action lives on the element right-click menu rather than the toolbar:
+ * it acts on a specific element, so it belongs with the other per-element
+ * actions. see docs/plans/copy-context-button-plan.md
  */
 
 test.use({ projectOptions: { format: 'nextjs' } });
 
-const copyButton = (window: Parameters<typeof selectTool>[0]) =>
-  window.locator('[data-action="copy-context"]');
+const COPY_ITEM = 'Copy context for agent';
+
+/**
+ * Right-click at a frame-local point.
+ *
+ * Coordinate-based rather than clicking the element locator: the canvas
+ * chrome overlay (`data-canvas-chrome`) sits above the elements and
+ * intercepts pointer events, so a locator click never reaches them.
+ */
+const rightClickInFrame = async (
+  window: Parameters<typeof selectTool>[0],
+  point: { x: number; y: number }
+): Promise<void> => {
+  const metrics = await measureFrame(window);
+  const client = frameToClient(metrics, point);
+  await window.mouse.click(client.x, client.y, { button: 'right' });
+};
 
 /**
  * The real clipboard, read from the MAIN process. The renderer's own
@@ -28,30 +56,17 @@ const seedClipboard = (app: ElectronApplication, text: string): Promise<void> =>
   app.evaluate(({ clipboard }, value) => clipboard.writeText(value), text);
 
 test.describe('copy context', () => {
-  test('the toolbar offers the button, enabled with nothing selected', async ({
+  test('the right-click menu offers the action on an element', async ({
     window,
   }) => {
-    // The page-level string is useful on its own; dimming it would hide the
-    // feature exactly when someone asks a whole-page question.
     await expect(pageRoot(window)).toBeVisible();
-    await expect(copyButton(window)).toBeVisible();
-    await expect(copyButton(window)).toBeEnabled();
+    await selectTool(window, 'r');
+    await dragInFrame(window, { x: 60, y: 60 }, { x: 240, y: 180 });
+    await rightClickInFrame(window, { x: 150, y: 120 });
+    await expect(contextMenuItem(window, COPY_ITEM)).toBeVisible();
   });
 
-  test('clicking copies the page context when nothing is selected', async ({
-    window,
-    app,
-  }) => {
-    await expect(pageRoot(window)).toBeVisible();
-    await seedClipboard(app, 'SENTINEL');
-    await copyButton(window).click();
-    await expect
-      .poll(async () => clipboardText(app), { timeout: 3000 })
-      .toContain('elements on canvas');
-    expect(await clipboardText(app)).toContain('Context: app/page.tsx');
-  });
-
-  test('clicking names the selected element and its styles', async ({
+  test('copies the element and its styles when chosen from the menu', async ({
     window,
     app,
   }) => {
@@ -59,7 +74,10 @@ test.describe('copy context', () => {
     await selectTool(window, 'r');
     await dragInFrame(window, { x: 60, y: 60 }, { x: 240, y: 180 });
     await seedClipboard(app, 'SENTINEL');
-    await copyButton(window).click();
+
+    await rightClickInFrame(window, { x: 150, y: 120 });
+    await clickContextMenuItem(window, COPY_ITEM);
+
     await expect
       .poll(async () => clipboardText(app), { timeout: 3000 })
       .toMatch(/Context: app\/page\.tsx → \.rect_[0-9a-f]{4} \(div/);
@@ -68,25 +86,61 @@ test.describe('copy context', () => {
     );
   });
 
+  test('copies the element the user right-clicked, not a stale selection', async ({
+    window,
+    app,
+  }) => {
+    // Right-click selects before opening the menu, so the copied text and the
+    // properties panel always agree — even when another element was selected.
+    await expect(pageRoot(window)).toBeVisible();
+    await selectTool(window, 'r');
+    await dragInFrame(window, { x: 60, y: 60 }, { x: 160, y: 140 });
+    await selectTool(window, 'r');
+    await dragInFrame(window, { x: 220, y: 60 }, { x: 340, y: 160 });
+
+    // Second rectangle is selected; right-click the FIRST one.
+    await seedClipboard(app, 'SENTINEL');
+    await rightClickInFrame(window, { x: 110, y: 100 });
+    await clickContextMenuItem(window, COPY_ITEM);
+
+    await expect
+      .poll(async () => clipboardText(app), { timeout: 3000 })
+      .toContain('Context:');
+    const copied = await clipboardText(app);
+    // Position is the reliable discriminator: the first rectangle sits at
+    // left 60px, the second at left 220px. (Width isn't fixed on a drawn
+    // rect, so a W×H check doesn't identify it.)
+    expect(copied).toContain('left 60px');
+    expect(copied).not.toContain('left 220px');
+  });
+
   test('the copied string is a single line', async ({ window, app }) => {
     // It gets pasted in front of a prompt; a newline would break the paste.
     await expect(pageRoot(window)).toBeVisible();
     await selectTool(window, 'r');
     await dragInFrame(window, { x: 60, y: 60 }, { x: 200, y: 160 });
-    await copyButton(window).click();
+    await rightClickInFrame(window, { x: 130, y: 110 });
+    await clickContextMenuItem(window, COPY_ITEM);
     await expect
       .poll(async () => clipboardText(app), { timeout: 3000 })
       .toContain('Context:');
     expect(await clipboardText(app)).not.toContain('\n');
   });
 
-  test('confirms with a check mark, then reverts', async ({ window }) => {
+  test('the shortcut still copies page context with nothing selected', async ({
+    window,
+    app,
+  }) => {
+    // The menu can only ever describe an element — right-click selects one.
+    // The page-level string is now reachable only this way, so it gets its
+    // own test rather than losing coverage with the toolbar button.
     await expect(pageRoot(window)).toBeVisible();
-    await copyButton(window).click();
-    await expect(copyButton(window)).toHaveAttribute('data-copied', 'true');
-    await expect(copyButton(window)).not.toHaveAttribute('data-copied', 'true', {
-      timeout: 4000,
-    });
+    await seedClipboard(app, 'SENTINEL');
+    await window.keyboard.press('ControlOrMeta+Shift+KeyC');
+    await expect
+      .poll(async () => clipboardText(app), { timeout: 3000 })
+      .toContain('elements on canvas');
+    expect(await clipboardText(app)).toContain('Context: app/page.tsx');
   });
 
   test('the shortcut copies too', async ({ window, app }) => {

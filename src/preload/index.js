@@ -41,6 +41,20 @@ const api = {
     readComponent: (args) => ipcRenderer.invoke(IPC.ComponentRead, args),
     /** Fire-and-forget: resolves once written, rejects never. */
     writeContext: (args) => ipcRenderer.invoke(IPC.ContextWrite, args),
+    /**
+     * MCP tool calls arriving from the main process. The renderer answers from
+     * live store state via `sendMcpQueryResult` — main is waiting on a timeout,
+     * so every query must get exactly one reply.
+     */
+    onMcpQuery: (handler) => {
+        const listener = (_e, args) => handler(args);
+        ipcRenderer.on(IPC.McpQuery, listener);
+        return () => ipcRenderer.removeListener(IPC.McpQuery, listener);
+    },
+    sendMcpQueryResult: (result) => {
+        ipcRenderer.send(IPC.McpQueryResult, result);
+    },
+    getMcpStatus: () => ipcRenderer.invoke(IPC.McpStatus),
     writeComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentWriteThumbnail, args),
     readComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
     // Project snapshots (persistent `.scamp/` point-in-time copies).

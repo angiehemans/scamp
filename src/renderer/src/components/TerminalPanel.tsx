@@ -3,6 +3,7 @@ import { useCanvasStore } from '@store/canvasSlice';
 import { useAppLogStore } from '@store/appLogSlice';
 import { TerminalView } from './TerminalView';
 import { AppLogView } from './AppLogView';
+import { McpStatusPill } from './McpStatusPill';
 import { Tooltip } from './controls/Tooltip';
 import styles from './TerminalPanel.module.css';
 
@@ -134,6 +135,7 @@ export const TerminalPanel = ({ cwd, hidden = false }: Props): JSX.Element => {
           )}
         </div>
         <span className={styles.spacer} />
+        <McpStatusPill />
         <Tooltip label="Hide terminal panel">
           <button
             className={styles.closePanel}

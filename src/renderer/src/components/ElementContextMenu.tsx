@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
+import { copyContextToClipboard } from '../lib/copyContext';
 import { PageContextMenu } from './PageContextMenu';
 import { EXPORT_SECTION_DOM_ID } from './sections/ExportSection';
 
@@ -73,9 +74,10 @@ const EVENT_NAME = 'scamp:open-element-context-menu';
  * dismisses on outside click / Escape (handled by the underlying
  * `PageContextMenu` primitive).
  *
- * Currently exposes a single "Export…" item that scrolls the
- * Export section into view. Future menu entries (Copy, Duplicate,
- * Delete, Bring to Front …) plug in here.
+ * Item visibility is computed per target — slot actions only inside the
+ * component editor, "Create component" not on the root or an instance, and
+ * so on. "Copy context for agent" and "Export…" always show, since both act
+ * on whatever is selected.
  */
 export const ElementContextMenu = (): JSX.Element | null => {
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -219,6 +221,16 @@ export const ElementContextMenu = (): JSX.Element | null => {
           },
         ]
       : []),
+    {
+      label: 'Copy context for agent',
+      // Reads the store's selection rather than `menu.elementId`, for the
+      // same reason Export does: `handleContextMenu` selects the element
+      // before opening the menu, so the two are already in lockstep, and
+      // the copied text then matches what the panel is showing.
+      onSelect: () => {
+        void copyContextToClipboard();
+      },
+    },
     {
       label: 'Export…',
       onSelect: () => {

@@ -32,6 +32,9 @@ import type {
   ComponentReadThumbnailResult,
   ComponentWriteThumbnailArgs,
   ContextWriteArgs,
+  McpQueryArgs,
+  McpQueryResultArgs,
+  McpStatusResult,
   ComponentWriteThumbnailResult,
   PageCreateArgs,
   PageDeleteArgs,
@@ -146,6 +149,25 @@ const api = {
   /** Fire-and-forget: resolves once written, rejects never. */
   writeContext: (args: ContextWriteArgs): Promise<void> =>
     ipcRenderer.invoke(IPC.ContextWrite, args),
+
+  /**
+   * MCP tool calls arriving from the main process. The renderer answers from
+   * live store state via `sendMcpQueryResult` — main is waiting on a timeout,
+   * so every query must get exactly one reply.
+   */
+  onMcpQuery: (handler: (args: McpQueryArgs) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, args: McpQueryArgs): void =>
+      handler(args);
+    ipcRenderer.on(IPC.McpQuery, listener);
+    return () => ipcRenderer.removeListener(IPC.McpQuery, listener);
+  },
+
+  sendMcpQueryResult: (result: McpQueryResultArgs): void => {
+    ipcRenderer.send(IPC.McpQueryResult, result);
+  },
+
+  getMcpStatus: (): Promise<McpStatusResult> =>
+    ipcRenderer.invoke(IPC.McpStatus),
 
   writeComponentThumbnail: (
     args: ComponentWriteThumbnailArgs

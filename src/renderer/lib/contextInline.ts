@@ -1,5 +1,6 @@
 import {
   buildContextModel,
+  parseDeclarations,
   type ContextChild,
   type ContextElement,
   type ContextInput,
@@ -26,19 +27,6 @@ const VALUE_MAX = 40;
 
 const truncate = (value: string): string =>
   value.length > VALUE_MAX ? `${value.slice(0, VALUE_MAX - 1)}…` : value;
-
-/** `prop: value;` → `[prop, value]`. */
-const parseDeclarations = (lines: ReadonlyArray<string>): Map<string, string> => {
-  const out = new Map<string, string>();
-  for (const line of lines) {
-    const colon = line.indexOf(':');
-    if (colon < 1) continue;
-    const prop = line.slice(0, colon).trim();
-    const value = line.slice(colon + 1).replace(/;$/, '').trim();
-    if (prop.length > 0 && value.length > 0) out.set(prop, value);
-  }
-  return out;
-};
 
 /**
  * Turn declarations into the compact prose the brief asks for — `flex row`

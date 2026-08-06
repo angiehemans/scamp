@@ -7,6 +7,12 @@ Builds on story 1 (`docs/plans/live-context-file-plan.md`), which shipped
 
 ## Goal
 
+**Superseded in part:** the toolbar button was moved to the element
+right-click menu, next to Export — it acts on a specific element, so it
+belongs with the other per-element actions. `Cmd/Ctrl+Shift+C` is unchanged
+and is now the only route to the page-level string (right-click always
+selects an element first). The rest of this plan still describes what ships.
+
 A toolbar button (and `Cmd/Ctrl+Shift+C`) that copies a compact one-liner
 describing the selected element to the system clipboard, so the user can
 paste it in front of a terminal question instead of describing the element.

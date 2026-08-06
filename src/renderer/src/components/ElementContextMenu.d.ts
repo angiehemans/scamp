@@ -43,8 +43,9 @@ export type RequestRemoveSlotEventDetail = {
  * dismisses on outside click / Escape (handled by the underlying
  * `PageContextMenu` primitive).
  *
- * Currently exposes a single "Export…" item that scrolls the
- * Export section into view. Future menu entries (Copy, Duplicate,
- * Delete, Bring to Front …) plug in here.
+ * Item visibility is computed per target — slot actions only inside the
+ * component editor, "Create component" not on the root or an instance, and
+ * so on. "Copy context for agent" and "Export…" always show, since both act
+ * on whatever is selected.
  */
 export declare const ElementContextMenu: () => JSX.Element | null;

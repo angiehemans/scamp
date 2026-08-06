@@ -40,6 +40,9 @@ export type ContextElement = {
     chain: string[];
     /** `prop: value;` lines, EXCLUDING custom properties. */
     declarations: string[];
+    /** The same declarations as a map — `{display: 'flex', gap: '16px'}`.
+     *  Derived, never a second source of truth. */
+    styles: Record<string, string>;
     customProperties: Array<[string, string]>;
     children: ContextChild[];
 };
@@ -65,4 +68,11 @@ export type ContextInput = {
 /** Longest text preview shown for a child, before an ellipsis. */
 export declare const TEXT_PREVIEW_MAX = 40;
 export declare const previewText: (raw: string) => string;
+/**
+ * `prop: value;` → `[prop, value]`, skipping anything malformed.
+ *
+ * Lives here rather than in a renderer because two of them need it and a
+ * third (MCP) reports the map directly — the same reason the model exists.
+ */
+export declare const parseDeclarations: (lines: ReadonlyArray<string>) => Map<string, string>;
 export declare const buildContextModel: (input: ContextInput) => ContextModel;

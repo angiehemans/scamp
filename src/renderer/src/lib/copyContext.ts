@@ -6,8 +6,11 @@ import type { ContextTarget } from '@lib/contextModel';
  * "Copy context" — puts a one-line description of the selection on the OS
  * clipboard, for pasting in front of a terminal question.
  *
- * Shared by the toolbar button and the `Cmd/Ctrl+Shift+C` shortcut so the
- * two can't diverge on what gets copied.
+ * Shared by the element right-click menu and the `Cmd/Ctrl+Shift+C` shortcut
+ * so the two can't diverge on what gets copied.
+ *
+ * The shortcut is the only route to the PAGE-level string: right-clicking
+ * always selects an element first, so the menu can only ever describe one.
  * see docs/plans/copy-context-button-plan.md
  */
 

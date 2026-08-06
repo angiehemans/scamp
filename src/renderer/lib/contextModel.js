@@ -7,6 +7,25 @@ export const previewText = (raw) => {
         ? `${flat.slice(0, TEXT_PREVIEW_MAX - 1)}…`
         : flat;
 };
+/**
+ * `prop: value;` → `[prop, value]`, skipping anything malformed.
+ *
+ * Lives here rather than in a renderer because two of them need it and a
+ * third (MCP) reports the map directly — the same reason the model exists.
+ */
+export const parseDeclarations = (lines) => {
+    const out = new Map();
+    for (const line of lines) {
+        const colon = line.indexOf(':');
+        if (colon < 1)
+            continue;
+        const prop = line.slice(0, colon).trim();
+        const value = line.slice(colon + 1).replace(/;$/, '').trim();
+        if (prop.length > 0 && value.length > 0)
+            out.set(prop, value);
+    }
+    return out;
+};
 /** Ancestors, outermost first. */
 const parentChain = (elements, el) => {
     const chain = [];
@@ -59,6 +78,7 @@ const describeElement = (elements, el) => {
         ...(parent ? { parentClassName: classNameFor(parent) } : {}),
         chain: parentChain(elements, el),
         declarations,
+        styles: Object.fromEntries(parseDeclarations(declarations)),
         customProperties: custom,
         children: el.childIds
             .map((id) => elements[id])

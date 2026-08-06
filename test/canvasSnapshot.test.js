@@ -1,0 +1,374 @@
+import { describe, expect, it } from 'vitest';
+import { answerSnapshotTool, CANVAS_STATE_ELEMENT_LIMIT, componentPathsRelative, getActiveTarget, getCanvasState, getElementById, getElementTree, getSelectedElement, getThemeTokens, listComponents, listPages, pagePathsRelative, } from '@lib/canvasSnapshot';
+import { DEFAULT_RECT_STYLES } from '@lib/defaults';
+import { ROOT_ELEMENT_ID } from '@lib/element';
+/**
+ * The MCP tool return shapes. An agent acts on these without a human
+ * checking them, so the unhappy paths matter as much as the happy ones —
+ * a wrong answer is worse than a missing one.
+ * see docs/plans/mcp-server-plan.md
+ */
+const el = (overrides) => ({
+    ...DEFAULT_RECT_STYLES,
+    type: 'rectangle',
+    parentId: ROOT_ELEMENT_ID,
+    childIds: [],
+    x: 0,
+    y: 0,
+    customProperties: {},
+    ...overrides,
+});
+const pageTarget = {
+    kind: 'page',
+    name: 'dashboard',
+    tsxPath: 'app/dashboard/page.tsx',
+    cssPath: 'app/dashboard/page.module.css',
+};
+const tree = () => ({
+    [ROOT_ELEMENT_ID]: el({ id: ROOT_ELEMENT_ID, parentId: null, childIds: ['a1b2'] }),
+    a1b2: el({
+        id: 'a1b2',
+        parentId: ROOT_ELEMENT_ID,
+        childIds: ['c3d4', 'e5f6'],
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 16,
+        backgroundColor: '#f0f0f0',
+        widthMode: 'fixed',
+        widthValue: 400,
+    }),
+    c3d4: el({ id: 'c3d4', parentId: 'a1b2' }),
+    e5f6: el({ id: 'e5f6', parentId: 'a1b2', type: 'text', text: 'Hello world' }),
+});
+const build = (over = {}) => ({
+    projectFormat: 'nextjs',
+    target: pageTarget,
+    elements: tree(),
+    rootElementId: ROOT_ELEMENT_ID,
+    selectedIds: [],
+    pageNames: ['home', 'dashboard'],
+    componentNames: ['Button'],
+    themeTokens: [{ name: '--color-primary', value: '#3b82f6' }],
+    themes: [{ id: 'light', label: 'Light', cssClass: '' }],
+    activeThemeId: 'light',
+    breakpointId: 'desktop',
+    breakpointLabel: 'desktop',
+    canvasWidth: 1440,
+    ...over,
+});
+describe('getActiveTarget', () => {
+    it('reports the open page with project-relative paths', () => {
+        expect(getActiveTarget(build())).toEqual({
+            kind: 'page',
+            name: 'dashboard',
+            tsx: 'app/dashboard/page.tsx',
+            css: 'app/dashboard/page.module.css',
+        });
+    });
+    it('distinguishes an open component from a page', () => {
+        // The brief only modelled pages. Reporting a component as a page would
+        // send the agent to edit the wrong file.
+        const out = getActiveTarget(build({
+            target: {
+                kind: 'component',
+                name: 'Button',
+                tsxPath: 'components/Button/Button.tsx',
+                cssPath: 'components/Button/Button.module.css',
+            },
+        }));
+        expect(out?.kind).toBe('component');
+        expect(out?.name).toBe('Button');
+    });
+    it('returns null when no project is open', () => {
+        expect(getActiveTarget(build({ target: null }))).toBeNull();
+    });
+});
+describe('getSelectedElement', () => {
+    it('returns the primary selection with class, tag, and parentage', () => {
+        const out = getSelectedElement(build({ selectedIds: ['a1b2'] }));
+        expect(out).toMatchObject({
+            id: 'a1b2',
+            class: 'rect_a1b2',
+            tag: 'div',
+            parentId: ROOT_ELEMENT_ID,
+            childIds: ['c3d4', 'e5f6'],
+        });
+    });
+    it('returns styles as a map, not as declaration lines', () => {
+        const out = getSelectedElement(build({ selectedIds: ['a1b2'] }));
+        expect(out?.styles).toMatchObject({
+            display: 'flex',
+            gap: '16px',
+            background: '#f0f0f0',
+            width: '400px',
+        });
+    });
+    it('separates custom properties from canvas-controlled styles', () => {
+        // The agent needs to know which of these Scamp's controls can change.
+        const elements = {
+            ...tree(),
+            a1b2: { ...tree()['a1b2'], customProperties: { 'box-shadow': '0 2px 8px red' } },
+        };
+        const out = getSelectedElement(build({ elements, selectedIds: ['a1b2'] }));
+        expect(out?.customProperties).toEqual({ 'box-shadow': '0 2px 8px red' });
+        expect(out?.styles['box-shadow']).toBeUndefined();
+    });
+    it('includes the user-set name only when there is one', () => {
+        const named = { ...tree(), a1b2: { ...tree()['a1b2'], name: 'sidebar' } };
+        expect(getSelectedElement(build({ elements: named, selectedIds: ['a1b2'] })))
+            .toMatchObject({ name: 'sidebar' });
+        expect(getSelectedElement(build({ selectedIds: ['a1b2'] }))).not.toHaveProperty('name');
+    });
+    it('returns null when nothing is selected', () => {
+        expect(getSelectedElement(build())).toBeNull();
+    });
+    it('returns null when the selection no longer exists', () => {
+        // An external edit can delete the selected element out from under us.
+        expect(getSelectedElement(build({ selectedIds: ['gone'] }))).toBeNull();
+    });
+    it('reports the root with a null parentId', () => {
+        expect(getSelectedElement(build({ selectedIds: [ROOT_ELEMENT_ID] }))).toMatchObject({ parentId: null });
+    });
+});
+describe('getElementById', () => {
+    it('describes any element, selected or not', () => {
+        expect(getElementById(build(), 'e5f6')).toMatchObject({
+            id: 'e5f6',
+            class: 'text_e5f6',
+            tag: 'p',
+        });
+    });
+    it('returns null for an unknown id rather than throwing', () => {
+        expect(getElementById(build(), 'nope')).toBeNull();
+    });
+    it('returns null for an empty id', () => {
+        expect(getElementById(build(), '')).toBeNull();
+    });
+});
+describe('getElementTree', () => {
+    it('nests children under the root', () => {
+        const out = getElementTree(build());
+        expect(out?.root.id).toBe(ROOT_ELEMENT_ID);
+        expect(out?.root.children[0]?.id).toBe('a1b2');
+        expect(out?.root.children[0]?.children.map((c) => c.id)).toEqual([
+            'c3d4',
+            'e5f6',
+        ]);
+    });
+    it('carries class and tag but no styles', () => {
+        // The cheap structural tool — styles would make it a second
+        // get_canvas_state.
+        const node = getElementTree(build())?.root.children[0];
+        expect(node).toMatchObject({ class: 'rect_a1b2', tag: 'div' });
+        expect(node).not.toHaveProperty('styles');
+    });
+    it('skips child ids that no longer resolve', () => {
+        const elements = {
+            ...tree(),
+            a1b2: { ...tree()['a1b2'], childIds: ['c3d4', 'ghost'] },
+        };
+        const kids = getElementTree(build({ elements }))?.root.children[0]?.children;
+        expect(kids?.map((c) => c.id)).toEqual(['c3d4']);
+    });
+    it('terminates on a parent/child cycle instead of overflowing the stack', () => {
+        const elements = {
+            [ROOT_ELEMENT_ID]: el({ id: ROOT_ELEMENT_ID, parentId: null, childIds: ['x'] }),
+            x: el({ id: 'x', childIds: ['y'] }),
+            y: el({ id: 'y', parentId: 'x', childIds: ['x'] }),
+        };
+        expect(() => getElementTree(build({ elements }))).not.toThrow();
+    });
+    it('returns null when the root is missing', () => {
+        expect(getElementTree(build({ elements: {} }))).toBeNull();
+    });
+});
+describe('listPages', () => {
+    it('derives nextjs paths, with home at the app root', () => {
+        expect(listPages(build())).toEqual([
+            { name: 'home', tsx: 'app/page.tsx', css: 'app/page.module.css' },
+            {
+                name: 'dashboard',
+                tsx: 'app/dashboard/page.tsx',
+                css: 'app/dashboard/page.module.css',
+            },
+        ]);
+    });
+    it('derives flat paths for legacy projects', () => {
+        expect(listPages(build({ projectFormat: 'legacy' }))).toEqual([
+            { name: 'home', tsx: 'home.tsx', css: 'home.module.css' },
+            { name: 'dashboard', tsx: 'dashboard.tsx', css: 'dashboard.module.css' },
+        ]);
+    });
+    it('returns an empty list when the project has no pages', () => {
+        expect(listPages(build({ pageNames: [] }))).toEqual([]);
+    });
+});
+describe('pagePathsRelative', () => {
+    // Mirrors main/ipc/pageOps.ts → pagePathsFor. If that moves, this breaks.
+    it('puts the nextjs home page at the app root, not app/home/', () => {
+        expect(pagePathsRelative('home', 'nextjs')).toEqual({
+            tsx: 'app/page.tsx',
+            css: 'app/page.module.css',
+        });
+    });
+    it('never emits an absolute path', () => {
+        // These land in text an agent quotes back; a leaked home directory
+        // would go with it.
+        for (const format of ['nextjs', 'legacy']) {
+            const { tsx, css } = pagePathsRelative('about', format);
+            expect(tsx.startsWith('/')).toBe(false);
+            expect(css.startsWith('/')).toBe(false);
+        }
+    });
+});
+describe('listComponents', () => {
+    it('gives each component its folder paths', () => {
+        expect(listComponents(build())).toEqual([
+            {
+                name: 'Button',
+                tsx: 'components/Button/Button.tsx',
+                css: 'components/Button/Button.module.css',
+            },
+        ]);
+    });
+    it('omits a variants field entirely rather than reporting an empty one', () => {
+        // Variants aren't on main. An agent told the field exists and finding it
+        // empty concludes the component has none.
+        expect(listComponents(build())[0]).not.toHaveProperty('variants');
+    });
+    it('returns an empty list for a project with no components', () => {
+        expect(listComponents(build({ componentNames: [] }))).toEqual([]);
+    });
+});
+describe('componentPathsRelative', () => {
+    it('nests the component in its own folder', () => {
+        expect(componentPathsRelative('Card')).toEqual({
+            tsx: 'components/Card/Card.tsx',
+            css: 'components/Card/Card.module.css',
+        });
+    });
+});
+describe('getThemeTokens', () => {
+    it('returns tokens flat, as they exist in theme.css', () => {
+        expect(getThemeTokens(build()).tokens).toEqual([
+            { name: '--color-primary', value: '#3b82f6' },
+        ]);
+    });
+    it('does not group tokens into invented categories', () => {
+        // The agent is about to edit theme.css — a structure that file doesn't
+        // have would leave it editing against the wrong shape.
+        const out = getThemeTokens(build());
+        expect(out).not.toHaveProperty('colors');
+        expect(out).not.toHaveProperty('typography');
+        expect(out).not.toHaveProperty('spacing');
+    });
+    it('lists the themes and which one is active', () => {
+        const out = getThemeTokens(build({
+            themes: [
+                { id: 'light', label: 'Light', cssClass: '' },
+                { id: 'dark', label: 'Dark', cssClass: 'dark' },
+            ],
+            activeThemeId: 'dark',
+        }));
+        expect(out.themes).toEqual([
+            { id: 'light', label: 'Light' },
+            { id: 'dark', label: 'Dark' },
+        ]);
+        expect(out.activeThemeId).toBe('dark');
+    });
+    it('survives a project with no tokens yet', () => {
+        expect(getThemeTokens(build({ themeTokens: [], themes: [] }))).toEqual({
+            tokens: [],
+            themes: [],
+            activeThemeId: 'light',
+        });
+    });
+});
+describe('getCanvasState', () => {
+    it('reports the active target, selection, and breakpoint together', () => {
+        const out = getCanvasState(build({ selectedIds: ['a1b2'] }));
+        expect(out.active?.name).toBe('dashboard');
+        expect(out.selectedElementId).toBe('a1b2');
+        expect(out.breakpoint).toEqual({
+            id: 'desktop',
+            label: 'desktop',
+            width: 1440,
+        });
+    });
+    it('includes every element when under the cap', () => {
+        const out = getCanvasState(build());
+        expect(Object.keys(out.elements)).toHaveLength(4);
+        expect(out.truncated).toBeUndefined();
+    });
+    it('reports a null selection rather than omitting the field', () => {
+        expect(getCanvasState(build()).selectedElementId).toBeNull();
+    });
+    it('caps the element map and says so', () => {
+        // Uncapped, this tool is the expensive default rather than a choice.
+        const many = {
+            [ROOT_ELEMENT_ID]: el({ id: ROOT_ELEMENT_ID, parentId: null, childIds: [] }),
+        };
+        for (let i = 0; i < CANVAS_STATE_ELEMENT_LIMIT + 50; i += 1) {
+            many[`n${i}`] = el({ id: `n${i}` });
+        }
+        const out = getCanvasState(build({ elements: many }));
+        expect(Object.keys(out.elements)).toHaveLength(CANVAS_STATE_ELEMENT_LIMIT);
+        expect(out.truncated?.returned).toBe(CANVAS_STATE_ELEMENT_LIMIT);
+        expect(out.truncated?.total).toBe(CANVAS_STATE_ELEMENT_LIMIT + 51);
+    });
+    it('tells the agent how to get the rest', () => {
+        // A truncation the agent can't recover from is just data loss.
+        const many = {};
+        for (let i = 0; i < CANVAS_STATE_ELEMENT_LIMIT + 1; i += 1) {
+            many[`n${i}`] = el({ id: `n${i}` });
+        }
+        const hint = getCanvasState(build({ elements: many })).truncated?.hint ?? '';
+        expect(hint).toContain('scamp_get_element_by_id');
+        expect(hint).toContain('scamp_get_element_tree');
+    });
+    it('survives an empty canvas with no project open', () => {
+        const out = getCanvasState(build({ target: null, elements: {}, selectedIds: [] }));
+        expect(out.active).toBeNull();
+        expect(out.elements).toEqual({});
+        expect(out.truncated).toBeUndefined();
+    });
+});
+describe('answerSnapshotTool', () => {
+    it('routes every advertised tool name to a function', () => {
+        // Pins the mapping against the tool list in main/mcp/tools.ts. If a tool
+        // is advertised but unrouted, the agent gets an error instead of data.
+        const names = [
+            'scamp_get_active_page',
+            'scamp_get_selected_element',
+            'scamp_get_element_by_id',
+            'scamp_get_element_tree',
+            'scamp_get_canvas_state',
+            'scamp_list_pages',
+            'scamp_list_components',
+            'scamp_get_theme_tokens',
+        ];
+        for (const name of names) {
+            expect(() => answerSnapshotTool(name, { id: 'a1b2' }, build())).not.toThrow();
+        }
+    });
+    it('passes the id argument through to get_element_by_id', () => {
+        expect(answerSnapshotTool('scamp_get_element_by_id', { id: 'a1b2' }, build()))
+            .toMatchObject({ id: 'a1b2' });
+    });
+    it('returns null for get_element_by_id with a missing id', () => {
+        expect(answerSnapshotTool('scamp_get_element_by_id', {}, build())).toBeNull();
+    });
+    it('throws on an unrouted tool rather than returning null', () => {
+        // Null would be indistinguishable from "nothing selected"; a throw
+        // surfaces the drift as an isError result naming the tool.
+        expect(() => answerSnapshotTool('scamp_made_up', {}, build())).toThrow(/Unknown snapshot tool/);
+    });
+});
+describe('agreement with the shared model', () => {
+    it('describes the selected element identically to get_element_by_id', () => {
+        // Both route through contextModel. If they ever diverge, the context
+        // file and the MCP answer can describe one element two ways.
+        const input = build({ selectedIds: ['a1b2'] });
+        expect(getSelectedElement(input)).toEqual(getElementById(input, 'a1b2'));
+    });
+});

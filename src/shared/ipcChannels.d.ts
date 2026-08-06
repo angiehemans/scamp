@@ -83,6 +83,9 @@ export declare const IPC: {
     readonly UpdaterDownloaded: "updater:downloaded";
     readonly UpdaterError: "updater:error";
     readonly UpdaterInstallNow: "updater:install-now";
+    readonly McpQuery: "mcp:query";
+    readonly McpQueryResult: "mcp:query-result";
+    readonly McpStatus: "mcp:status";
     readonly TestGetBootstrap: "test:getBootstrap";
 };
 export type IpcChannel = (typeof IPC)[keyof typeof IPC];
