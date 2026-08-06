@@ -9,6 +9,9 @@ type Props = {
  * Page content is sourced from `pageSource`; theme content from
  * `themeCssRaw`. Both are kept fresh by the sync bridge on canvas-driven
  * writes and external file changes, so what's on disk is what's shown.
+ *
+ * The selected element's lines are highlighted in both panes and scrolled
+ * into view — see `@lib/codeHighlight` for how they're located.
  */
 export declare const CodePanel: ({ showTheme }: Props) => JSX.Element;
 export {};

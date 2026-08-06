@@ -1,6 +1,6 @@
-import { jsx as _jsx } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect } from 'react';
-import { IconPointer, IconSquare, IconLetterT, IconPhoto, IconForms, } from '@tabler/icons-react';
+import { IconCode, IconPointer, IconSquare, IconLetterT, IconPhoto, IconForms, IconTerminal2, } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
 import styles from './Toolbar.module.css';
@@ -41,5 +41,18 @@ export const Toolbar = () => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [setTool]);
-    return (_jsx("div", { className: styles.toolbar, "data-testid": "element-toolbar", "data-active-tool": activeTool, children: TOOLS.map((t) => (_jsx(Tooltip, { label: `${t.label} (${t.shortcut})`, children: _jsx("button", { className: `${styles.button} ${activeTool === t.tool ? styles.active : ''}`, onClick: () => setTool(t.tool), type: "button", disabled: isPreviewing, "aria-pressed": activeTool === t.tool, "aria-label": t.label, "data-tool": t.tool, children: t.icon }) }, t.tool))) }));
+    return (_jsxs("div", { className: styles.toolbar, "data-testid": "element-toolbar", "data-active-tool": activeTool, children: [TOOLS.map((t) => (_jsx(Tooltip, { label: `${t.label} (${t.shortcut})`, children: _jsx("button", { className: `${styles.button} ${activeTool === t.tool ? styles.active : ''}`, onClick: () => setTool(t.tool), type: "button", disabled: isPreviewing, "aria-pressed": activeTool === t.tool, "aria-label": t.label, "data-tool": t.tool, children: t.icon }) }, t.tool))), _jsx("div", { className: styles.spacer }), _jsx(PanelToggles, {})] }));
+};
+/**
+ * Code and terminal toggles, right-aligned on the canvas toolbar.
+ *
+ * Icon-only: the strip is already dense, and both icons are unambiguous
+ * with a tooltip. Reads the store directly rather than taking props —
+ * `ProjectShell` → `CanvasArea` → `Toolbar` would be three levels of
+ * drilling for a toggle the store already owns.
+ */
+const PanelToggles = () => {
+    const bottomPanel = useCanvasStore((s) => s.bottomPanel);
+    const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
+    return (_jsxs(_Fragment, { children: [_jsx(Tooltip, { label: "Toggle code panel", children: _jsx("button", { className: `${styles.button} ${bottomPanel === 'code' ? styles.active : ''}`, onClick: () => toggleBottomPanel('code'), type: "button", "aria-label": "Toggle code panel", "aria-pressed": bottomPanel === 'code', "data-action": "toggle-code", children: _jsx(IconCode, { size: ICON_SIZE }) }) }), _jsx(Tooltip, { label: "Toggle terminal (Ctrl+`)", children: _jsx("button", { className: `${styles.button} ${bottomPanel === 'terminal' ? styles.active : ''}`, onClick: () => toggleBottomPanel('terminal'), type: "button", "aria-label": "Toggle terminal", "aria-pressed": bottomPanel === 'terminal', "data-action": "toggle-terminal", children: _jsx(IconTerminal2, { size: ICON_SIZE }) }) })] }));
 };

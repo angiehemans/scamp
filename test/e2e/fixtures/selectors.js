@@ -42,3 +42,11 @@ export const addComponentButton = (page) => page.getByRole('button', { name: /Ad
 export const contextMenu = (page) => page.getByRole('menu');
 /** A specific item inside the open context menu, by visible label. */
 export const contextMenuItem = (page, label) => contextMenu(page).getByRole('menuitem', { name: label });
+/**
+ * The canvas toolbar's terminal toggle. Selected by `data-action` rather
+ * than accessible name: the button is icon-only, so its name comes from an
+ * aria-label that could be reworded without changing behaviour.
+ */
+export const terminalToggle = (page) => page.locator('[data-action="toggle-terminal"]');
+/** The canvas toolbar's code-panel toggle. */
+export const codeToggle = (page) => page.locator('[data-action="toggle-code"]');

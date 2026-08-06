@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, codeToggle } from '../fixtures/selectors';
 
 test.use({ projectOptions: { format: 'nextjs' } });
 
@@ -10,7 +10,7 @@ test.describe('themes: Code panel follows the Design System view', () => {
     await expect(pageRoot(window)).toBeVisible();
 
     // On a page, the Code panel shows the page's TSX + CSS.
-    await window.getByRole('button', { name: /^Code$/ }).click();
+    await codeToggle(window).click();
     await expect(window.getByText('home.tsx', { exact: true })).toBeVisible();
 
     // Opening the Design System panel switches Code to the theme file.

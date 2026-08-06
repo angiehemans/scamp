@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, terminalToggle } from '../fixtures/selectors';
 
 test.describe('terminal: panel persistence', () => {
   test.skip(process.env['CI'] === 'true', 'node-pty native module is flaky on CI');
@@ -11,7 +11,7 @@ test.describe('terminal: panel persistence', () => {
     // Open via the toolbar button rather than Ctrl+`. The global
     // keydown listener registers in a useEffect, which can race with
     // a cold-start keystroke. Ctrl+` is covered by toggle-panel.spec.
-    const terminalButton = window.getByRole('button', { name: /^Terminal/ });
+    const terminalButton = terminalToggle(window);
     await terminalButton.click();
     const panel = window.getByTestId('terminal-panel');
     await expect(panel).toHaveAttribute('data-hidden', 'false');

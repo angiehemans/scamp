@@ -737,6 +737,8 @@ export type CanvasState = {
   ) => void;
   setPageSource: (source: PageSource) => void;
   setBottomPanel: (panel: BottomPanel) => void;
+  /** Open `panel`, or close it when it is already the open one. */
+  toggleBottomPanel: (panel: Exclude<BottomPanel, 'none'>) => void;
   setPanelMode: (mode: PanelMode) => void;
   setSidebarSection: (section: SidebarSection) => void;
   setActiveBreakpoint: (id: string) => void;

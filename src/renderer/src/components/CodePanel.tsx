@@ -1,14 +1,21 @@
+import { useMemo } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { css as cssLang } from '@codemirror/lang-css';
 import { EditorView } from '@codemirror/view';
 import { useCanvasStore } from '@store/canvasSlice';
+import { findCssBlocks, findTsxLines } from '@lib/codeHighlight';
+import { classNameFor } from '@lib/generateCode';
 import { editorThemeFor } from '../lib/editorTheme';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { HighlightedCode } from './HighlightedCode';
 import { Tooltip } from './controls/Tooltip';
 import styles from './CodePanel.module.css';
 
 const READ_ONLY = EditorView.editable.of(false);
+
+const JS_LANG = javascript({ jsx: true, typescript: true });
+const CSS_LANG = cssLang();
 
 type Props = {
   /** When true, show the project's theme.css instead of the active page. */
@@ -22,6 +29,9 @@ type Props = {
  * Page content is sourced from `pageSource`; theme content from
  * `themeCssRaw`. Both are kept fresh by the sync bridge on canvas-driven
  * writes and external file changes, so what's on disk is what's shown.
+ *
+ * The selected element's lines are highlighted in both panes and scrolled
+ * into view — see `@lib/codeHighlight` for how they're located.
  */
 export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
   const activePage = useCanvasStore((s) => s.activePage);
@@ -33,6 +43,23 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
 
   const tsx = pageSource?.tsx ?? '';
   const css = pageSource?.css ?? '';
+
+  // The primary selection only. Highlighting a multi-select would light up
+  // scattered regions with no way to tell which is which.
+  const selectedClass = useCanvasStore((s) => {
+    const id = s.selectedElementIds[0];
+    const el = id === undefined ? undefined : s.elements[id];
+    return el === undefined ? null : classNameFor(el);
+  });
+
+  const tsxRanges = useMemo(
+    () => (selectedClass === null ? [] : findTsxLines(tsx, selectedClass)),
+    [tsx, selectedClass]
+  );
+  const cssRanges = useMemo(
+    () => (selectedClass === null ? [] : findCssBlocks(css, selectedClass)),
+    [css, selectedClass]
+  );
 
   if (showTheme) {
     const themePath =
@@ -62,7 +89,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
                 value={themeCssRaw}
                 height="100%"
                 theme={editorTheme}
-                extensions={[cssLang(), READ_ONLY]}
+                extensions={[CSS_LANG, READ_ONLY]}
                 basicSetup={{
                   lineNumbers: true,
                   foldGutter: false,
@@ -92,39 +119,29 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
         </Tooltip>
       </div>
       <div className={styles.split}>
-        <div className={styles.pane}>
+        <div className={styles.pane} data-pane="tsx">
           <div className={styles.paneHeader}>
             <code>{activePage ? `${activePage.name}.tsx` : '— no page —'}</code>
           </div>
           <div className={styles.editorWrap}>
-            <CodeMirror
+            <HighlightedCode
               value={tsx}
-              height="100%"
+              language={JS_LANG}
+              ranges={tsxRanges}
               theme={editorTheme}
-              extensions={[javascript({ jsx: true, typescript: true }), READ_ONLY]}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: false,
-                highlightActiveLine: false,
-              }}
             />
           </div>
         </div>
-        <div className={styles.pane}>
+        <div className={styles.pane} data-pane="css">
           <div className={styles.paneHeader}>
             <code>{activePage ? `${activePage.name}.module.css` : '— no page —'}</code>
           </div>
           <div className={styles.editorWrap}>
-            <CodeMirror
+            <HighlightedCode
               value={css}
-              height="100%"
+              language={CSS_LANG}
+              ranges={cssRanges}
               theme={editorTheme}
-              extensions={[cssLang(), READ_ONLY]}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: false,
-                highlightActiveLine: false,
-              }}
             />
           </div>
         </div>

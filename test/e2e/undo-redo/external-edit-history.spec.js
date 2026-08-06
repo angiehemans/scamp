@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect } from '../fixtures/panel';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, codeToggle } from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
 /**
  * External CSS edits compose with history: each external write
@@ -22,7 +22,7 @@ test.describe('history: external edits become entries, not wipes', () => {
         await waitForSaved(window);
         // Open the code panel so we have an observable signal for when
         // the sync bridge finishes reparsing the external edit.
-        await window.getByRole('button', { name: /^Code$/ }).click();
+        await codeToggle(window).click();
         // Capture the original width emitted by Scamp.
         const cssPath = path.join(project.dir, 'home.module.css');
         const original = await fs.readFile(cssPath, 'utf-8');

@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, terminalToggle } from '../fixtures/selectors';
 /**
  * Terminal specs depend on node-pty rebuilding correctly for the test
  * Electron — skip on CI where native modules are flaky. Locally the
@@ -17,13 +17,13 @@ test.describe('terminal: toggle panel', () => {
         // is focused its hidden textarea captures the keystroke before
         // it can reach ProjectShell's window-level handler, so the
         // shortcut round-trip is only observable with a manual focus
-        // dance. The toolbar-button toggle covers the close path.
+        // dance. The canvas-toolbar toggle covers the close path.
     });
-    test('the "Terminal" toolbar button toggles the panel too', async ({ window, }) => {
+    test('the canvas-toolbar terminal button toggles the panel too', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();
-        await window.getByRole('button', { name: /^Terminal/ }).click();
+        await terminalToggle(window).click();
         await expect(window.getByTestId('terminal-panel')).toHaveAttribute('data-hidden', 'false');
-        await window.getByRole('button', { name: /^Terminal/ }).click();
+        await terminalToggle(window).click();
         await expect(window.getByTestId('terminal-panel')).toHaveAttribute('data-hidden', 'true');
     });
 });

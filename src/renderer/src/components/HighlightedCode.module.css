@@ -1,0 +1,11 @@
+/*
+ * The selected element's lines in the code panel.
+ *
+ * A left border plus a wash rather than a solid background: the panes are
+ * syntax-highlighted, and a strong fill fights the token colours. The border
+ * is what makes a multi-line rule block read as one region.
+ */
+.highlightLine {
+  background: var(--accent-muted);
+  box-shadow: inset 2px 0 0 var(--accent);
+}

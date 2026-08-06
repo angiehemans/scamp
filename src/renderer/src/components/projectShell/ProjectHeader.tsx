@@ -1,11 +1,6 @@
-import {
-  IconCode,
-  IconPlayerPlay,
-  IconTerminal2,
-} from '@tabler/icons-react';
+import { IconPlayerPlay } from '@tabler/icons-react';
 
 import type { ProjectFormat } from '@shared/types';
-import type { BottomPanel } from '@store/canvasSlice';
 
 import { ZoomControls } from '../ZoomControls';
 import { SaveStatusIndicator } from '../SaveStatusIndicator';
@@ -14,24 +9,23 @@ import styles from '../ProjectShell.module.css';
 
 type Props = {
   projectName: string;
-  bottomPanel: BottomPanel;
   canPreview: boolean;
   projectFormat: ProjectFormat;
   onClose: () => void;
-  onToggleCode: () => void;
-  onToggleTerminal: () => void;
   onOpenPreview: () => void;
 };
 
-/** Top toolbar: back-to-projects, zoom, code/terminal/preview toggles. */
+/**
+ * Top toolbar: back-to-projects, zoom, preview, save status, project name.
+ *
+ * The code and terminal toggles moved to the canvas toolbar (right-aligned,
+ * icon-only) — they act on the canvas, so they belong with it.
+ */
 export const ProjectHeader = ({
   projectName,
-  bottomPanel,
   canPreview,
   projectFormat,
   onClose,
-  onToggleCode,
-  onToggleTerminal,
   onOpenPreview,
 }: Props): JSX.Element => {
   return (
@@ -41,30 +35,6 @@ export const ProjectHeader = ({
       </button>
       <span className={styles.spacer} />
       <ZoomControls />
-      <Tooltip label="Toggle code panel">
-        <button
-          className={`${styles.toggleButton} ${
-            bottomPanel === 'code' ? styles.toggleActive : ''
-          }`}
-          onClick={onToggleCode}
-          type="button"
-        >
-          <IconCode size={14} className={styles.toggleButtonIcon} />
-          Code
-        </button>
-      </Tooltip>
-      <Tooltip label="Toggle terminal (Ctrl+`)">
-        <button
-          className={`${styles.toggleButton} ${
-            bottomPanel === 'terminal' ? styles.toggleActive : ''
-          }`}
-          onClick={onToggleTerminal}
-          type="button"
-        >
-          <IconTerminal2 size={14} className={styles.toggleButtonIcon} />
-          Terminal
-        </button>
-      </Tooltip>
       <Tooltip
         label={
           canPreview

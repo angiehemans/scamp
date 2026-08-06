@@ -74,6 +74,7 @@ export const createUiSlice: StateCreator<
   | 'exportSettings'
   | 'canvasMinHeight'
   | 'setBottomPanel'
+  | 'toggleBottomPanel'
   | 'setPanelMode'
   | 'setSidebarSection'
   | 'setExportFormat'
@@ -105,6 +106,13 @@ export const createUiSlice: StateCreator<
   // canvas reflects the per-component height.
   canvasMinHeight: 900,
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
+
+  // Open the panel, or close it if it's already the open one. Lives in the
+  // store because three call sites need it — the canvas toolbar buttons and
+  // the Ctrl+` shortcut — and prop-drilling a toggle from ProjectShell down
+  // to Toolbar would be three levels.
+  toggleBottomPanel: (panel) =>
+    set((state) => ({ bottomPanel: state.bottomPanel === panel ? 'none' : panel })),
 
   setPanelMode: (mode) => set({ panelMode: mode }),
 

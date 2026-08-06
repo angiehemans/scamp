@@ -1,10 +1,12 @@
 import { type ReactNode, useEffect } from 'react';
 import {
+  IconCode,
   IconPointer,
   IconSquare,
   IconLetterT,
   IconPhoto,
   IconForms,
+  IconTerminal2,
 } from '@tabler/icons-react';
 import { useCanvasStore, type Tool } from '@store/canvasSlice';
 import { Tooltip } from './controls/Tooltip';
@@ -68,6 +70,54 @@ export const Toolbar = (): JSX.Element => {
           </button>
         </Tooltip>
       ))}
+      <div className={styles.spacer} />
+      <PanelToggles />
     </div>
+  );
+};
+
+/**
+ * Code and terminal toggles, right-aligned on the canvas toolbar.
+ *
+ * Icon-only: the strip is already dense, and both icons are unambiguous
+ * with a tooltip. Reads the store directly rather than taking props —
+ * `ProjectShell` → `CanvasArea` → `Toolbar` would be three levels of
+ * drilling for a toggle the store already owns.
+ */
+const PanelToggles = (): JSX.Element => {
+  const bottomPanel = useCanvasStore((s) => s.bottomPanel);
+  const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
+
+  return (
+    <>
+      <Tooltip label="Toggle code panel">
+        <button
+          className={`${styles.button} ${
+            bottomPanel === 'code' ? styles.active : ''
+          }`}
+          onClick={() => toggleBottomPanel('code')}
+          type="button"
+          aria-label="Toggle code panel"
+          aria-pressed={bottomPanel === 'code'}
+          data-action="toggle-code"
+        >
+          <IconCode size={ICON_SIZE} />
+        </button>
+      </Tooltip>
+      <Tooltip label="Toggle terminal (Ctrl+`)">
+        <button
+          className={`${styles.button} ${
+            bottomPanel === 'terminal' ? styles.active : ''
+          }`}
+          onClick={() => toggleBottomPanel('terminal')}
+          type="button"
+          aria-label="Toggle terminal"
+          aria-pressed={bottomPanel === 'terminal'}
+          data-action="toggle-terminal"
+        >
+          <IconTerminal2 size={ICON_SIZE} />
+        </button>
+      </Tooltip>
+    </>
   );
 };

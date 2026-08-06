@@ -175,7 +175,7 @@ export const ProjectShell = ({
   });
 
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
-  const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+  const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
   const sidebarSection = useCanvasStore((s) => s.sidebarSection);
   const setSidebarSection = useCanvasStore((s) => s.setSidebarSection);
 
@@ -226,13 +226,10 @@ export const ProjectShell = ({
     return () => node.removeEventListener('mousedown', handler);
   }, []);
 
-  const toggleCodePanel = (): void => {
-    setBottomPanel(bottomPanel === 'code' ? 'none' : 'code');
-  };
-
-  const toggleTerminalPanel = (): void => {
-    setBottomPanel(bottomPanel === 'terminal' ? 'none' : 'terminal');
-  };
+  // Same store action the canvas-toolbar buttons call, so the keyboard
+  // shortcut and the buttons can't drift apart.
+  const toggleCodePanel = (): void => toggleBottomPanel('code');
+  const toggleTerminalPanel = (): void => toggleBottomPanel('terminal');
 
   // Preview is gated on the nextjs project format — legacy projects
   // don't have a `package.json` and can't run `next dev`. The button
@@ -304,12 +301,9 @@ export const ProjectShell = ({
     <div className={styles.shell}>
       <ProjectHeader
         projectName={project.name}
-        bottomPanel={bottomPanel}
         canPreview={canPreview}
         projectFormat={projectFormatForPreview}
         onClose={onClose}
-        onToggleCode={toggleCodePanel}
-        onToggleTerminal={toggleTerminalPanel}
         onOpenPreview={openPreview}
       />
       <SaveStatusToast />

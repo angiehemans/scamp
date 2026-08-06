@@ -8,7 +8,7 @@ import {
   drawAndSelectRect,
   panelInputByPrefix,
 } from '../fixtures/panel';
-import { canvasElement, pageRoot } from '../fixtures/selectors';
+import { canvasElement, pageRoot, codeToggle } from '../fixtures/selectors';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
 
 test.describe('breakpoints: CSS output', () => {
@@ -72,7 +72,7 @@ test.describe('breakpoints: CSS output', () => {
     // bridge updates on every external file change. Gives us an
     // observable signal that the external write has been parsed before
     // we kick off another canvas edit.
-    await window.getByRole('button', { name: /^Code$/ }).click();
+    await codeToggle(window).click();
     await expect(
       window.getByText('home.module.css', { exact: true })
     ).toBeVisible();

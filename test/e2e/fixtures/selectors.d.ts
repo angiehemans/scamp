@@ -36,3 +36,11 @@ export declare const addComponentButton: (page: Page) => Locator;
 export declare const contextMenu: (page: Page) => Locator;
 /** A specific item inside the open context menu, by visible label. */
 export declare const contextMenuItem: (page: Page, label: string) => Locator;
+/**
+ * The canvas toolbar's terminal toggle. Selected by `data-action` rather
+ * than accessible name: the button is icon-only, so its name comes from an
+ * aria-label that could be reworded without changing behaviour.
+ */
+export declare const terminalToggle: (page: Page) => Locator;
+/** The canvas toolbar's code-panel toggle. */
+export declare const codeToggle: (page: Page) => Locator;

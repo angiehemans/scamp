@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/app';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
-import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
+import { canvasElementsByPrefix, pageRoot, codeToggle } from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
 
 /**
@@ -15,7 +15,7 @@ test.describe('code output: live preview', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    await window.getByRole('button', { name: /^Code$/ }).click();
+    await codeToggle(window).click();
 
     // The panel's left pane is labelled `home.tsx` and contains the
     // default page skeleton.
@@ -27,7 +27,7 @@ test.describe('code output: live preview', () => {
     window,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
-    await window.getByRole('button', { name: /^Code$/ }).click();
+    await codeToggle(window).click();
 
     await selectTool(window, 'r');
     await dragInFrame(window, { x: 120, y: 120 }, { x: 300, y: 250 });

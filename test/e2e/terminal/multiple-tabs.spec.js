@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, terminalToggle } from '../fixtures/selectors';
 test.describe('terminal: multiple shell tabs', () => {
     test.skip(process.env['CI'] === 'true', 'node-pty native module is flaky on CI');
     test('up to 3 shell tabs; the + button is hidden after the 3rd', async ({ window, }) => {
@@ -7,7 +7,7 @@ test.describe('terminal: multiple shell tabs', () => {
         // Use the toolbar button rather than Ctrl+` — the global keydown
         // listener can race with mount on a cold start, dropping the
         // shortcut. The toolbar button is wired through the same toggle.
-        await window.getByRole('button', { name: /^Terminal/ }).click();
+        await terminalToggle(window).click();
         const panel = window.getByTestId('terminal-panel');
         await expect(panel).toHaveAttribute('data-hidden', 'false');
         // Starts with 1 shell (Shell 1) + App Log.

@@ -93,7 +93,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         persistActiveSource,
     });
     const bottomPanel = useCanvasStore((s) => s.bottomPanel);
-    const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+    const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
     const sidebarSection = useCanvasStore((s) => s.sidebarSection);
     const setSidebarSection = useCanvasStore((s) => s.setSidebarSection);
     // Once the user opens the terminal we keep TerminalPanel mounted for
@@ -141,12 +141,10 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         node.addEventListener('mousedown', handler);
         return () => node.removeEventListener('mousedown', handler);
     }, []);
-    const toggleCodePanel = () => {
-        setBottomPanel(bottomPanel === 'code' ? 'none' : 'code');
-    };
-    const toggleTerminalPanel = () => {
-        setBottomPanel(bottomPanel === 'terminal' ? 'none' : 'terminal');
-    };
+    // Same store action the canvas-toolbar buttons call, so the keyboard
+    // shortcut and the buttons can't drift apart.
+    const toggleCodePanel = () => toggleBottomPanel('code');
+    const toggleTerminalPanel = () => toggleBottomPanel('terminal');
     // Preview is gated on the nextjs project format — legacy projects
     // don't have a `package.json` and can't run `next dev`. The button
     // stays visible (so users discover the feature) but is disabled
@@ -208,7 +206,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // (after keyDeps/latestExit exist) rather than earlier in the body.
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
     useSvgAssetReload();
-    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, bottomPanel: bottomPanel, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onToggleCode: toggleCodePanel, onToggleTerminal: toggleTerminalPanel, onOpenPreview: openPreview }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.
