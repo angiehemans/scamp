@@ -9,11 +9,14 @@ type Props = {
     }) => void;
 };
 /**
- * A 3×3 alignment picker (Figma-style). Clicking a cell packs the
- * element to that corner/edge/center by setting both `alignItems` and
- * `justifyContent`. The preview bars mirror the element's ACTUAL values
- * — including `space-*` / `stretch`, which the grid can't pin to a
- * single cell (those are still editable via the dropdowns below it).
+ * A 3×3 alignment picker (Figma-style). Clicking a cell packs the element to
+ * that corner/edge/center by setting both `alignItems` and `justifyContent`.
+ *
+ * The bars render INSIDE the cell they describe, as grid items sharing that
+ * cell's tracks — not as an overlay stretched across the whole control. That
+ * is what makes them line up with the dots for free: the cell centres them,
+ * so there is no geometry to hand-tune.
+ * see docs/notes/alignment-grid.md
  */
 export declare const AlignmentGrid: ({ direction, alignItems, justifyContent, onChange, }: Props) => JSX.Element;
 export {};

@@ -1,22 +1,25 @@
-/* Figma-style 3×3 flex alignment picker. A square grid of nine
- * clickable cells with faint dots, plus a live preview of three bars
- * arranged by the element's actual align/justify (orientation flips
- * with flex-direction). */
+/* Figma-style 3×3 flex alignment picker: nine clickable cells with faint
+ * dots, where the cell(s) matching the current alignment show preview bars
+ * instead of their dot.
+ *
+ * The bars are grid ITEMS placed on the same tracks as the cells, so they
+ * land on a cell exactly and are centred by it. An earlier version overlaid
+ * the whole control and needed hand-tuned padding to line up — see
+ * docs/notes/alignment-grid.md. */
 
 .grid {
   position: relative;
-  /* Fills its half of the Layout row (the dropdowns take the other
-   * half); */
+  /* Fills its half of the Layout row (the dropdowns take the other half). */
   width: 100%;
   height: 100%;
+  padding: 1px;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  /* Clip the translated preview so bars never spill past the rounded
-   * border. */
+  /* Keeps a stretched bar inside the rounded border. */
   overflow: hidden;
 }
 
@@ -45,29 +48,31 @@
 .dot {
   width: 3px;
   height: 3px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
+  /* A rounded square, not a circle — matches the design. */
+  border-radius: 2px;
+  background: var(--border-strong);
 }
 
 .cell:hover .dot {
   background: var(--text-secondary);
 }
 
-.cellActive .dot {
-  background: var(--accent);
-}
-
-/* Live preview of the current alignment. Sits above the cells but
- * ignores pointer events so clicks land on the cells beneath. */
-.preview {
-  position: absolute;
-  /* Small inset from the border so the bars justify/align flush to this
-   * edge (real flex behaviour) with a ~6px gutter. */
-  inset: 6px;
+/* One per bar group. Shares a grid track with the cell beneath it and
+ * centres the band inside it — which is the whole alignment story. */
+.barGroup {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   z-index: 2;
+}
+
+/* The band the bars align inside. Its cross size is fixed to the longest bar
+ * (set inline) so the bars keep a shared baseline even when `space-between`
+ * splits them across three separate cells. */
+.band {
+  display: flex;
+  justify-content: center;
 }
 
 .bar {
