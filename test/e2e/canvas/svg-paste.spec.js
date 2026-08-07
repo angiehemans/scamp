@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { canvasElementsByPrefix, canvasFrame, pageRoot, } from '../fixtures/selectors';
+import { canvasElementsByPrefix, canvasFrame, pageRoot, tokenSwatch, } from '../fixtures/selectors';
 import { clickInFrame } from '../fixtures/canvas';
 import { layersRowByClass } from '../fixtures/layers';
 import { panelSection } from '../fixtures/panel';
@@ -152,7 +152,7 @@ test.describe('canvas: paste SVG from clipboard', () => {
             .first()
             .click();
         await window.getByRole('button', { name: 'Tokens', exact: true }).click();
-        await window.getByRole('button', { name: /^--color-primary/ }).click();
+        await tokenSwatch(window, '--color-primary').click();
         // The token resolves to its value on the canvas (elementToStyle reads
         // the same themeTokens), and the path inherits it.
         const path = canvasElementsByPrefix(window, 'img_')

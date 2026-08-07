@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { mappingOption, mappingTrigger, pageRoot, } from '../fixtures/selectors';
 test.use({ projectOptions: { format: 'nextjs' } });
 test.describe('themes: theme switcher', () => {
     test('adding a theme writes a .dark block and a stacked Dark block appears', async ({ window, project, }) => {
@@ -23,9 +23,10 @@ test.describe('themes: theme switcher', () => {
         const darkBlock = panel.locator('[data-theme-block="dark"]');
         await expect(darkBlock).toBeVisible();
         // Re-map --color-background for the Dark theme only.
-        await darkBlock
-            .locator('select[aria-label="Mapping for --color-background"]')
-            .selectOption('neutral:900');
+        // Trigger is scoped to the Dark block (that's the point of the test);
+        // the menu itself renders absolutely positioned outside it.
+        await mappingTrigger(darkBlock, '--color-background').click();
+        await mappingOption(window, 'neutral:900').click();
         await expect
             .poll(async () => project.readTheme(), { timeout: 5_000 })
             .toMatch(/\.dark\s*\{[^}]*--color-background:\s*var\(--color-neutral-900\)/);

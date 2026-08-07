@@ -563,6 +563,10 @@ export const ColorInput = ({
                     <button
                       key={t.name}
                       type="button"
+                      // The visible label is the stripped name (`primary`),
+                      // which is a display choice and free to change. Tests
+                      // and tooling target the full token name here instead.
+                      data-token={t.name}
                       className={`${styles.tokenListItem} ${value === `var(${t.name})` ? styles.tokenListItemActive : ''}`}
                       onClick={() => {
                         onChange(`var(${t.name})`);

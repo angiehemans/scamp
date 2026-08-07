@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { mappingOption, mappingTrigger, pageRoot, } from '../fixtures/selectors';
 test.use({ projectOptions: { format: 'nextjs' } });
 test.describe('themes: panel CRUD', () => {
     test('opening the panel lists the seeded tokens', async ({ window }) => {
@@ -57,8 +57,10 @@ test.describe('themes: panel CRUD', () => {
         await expect
             .poll(async () => project.readTheme(), { timeout: 5_000 })
             .toContain('--color-palette-500');
-        const select = panel.locator('select[aria-label="Mapping for --color-primary"]');
-        await select.selectOption('palette:500');
+        // The mapping control is a button that opens a menu — it used to be a
+        // <select>, so this is click-then-choose rather than selectOption.
+        await mappingTrigger(panel, '--color-primary').click();
+        await mappingOption(window, 'palette:500').click();
         await expect
             .poll(async () => project.readTheme(), { timeout: 5_000 })
             .toContain('--color-primary: var(--color-palette-500)');

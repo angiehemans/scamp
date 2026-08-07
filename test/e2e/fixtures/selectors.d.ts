@@ -44,3 +44,24 @@ export declare const contextMenuItem: (page: Page, label: string) => Locator;
 export declare const terminalToggle: (page: Page) => Locator;
 /** The canvas toolbar's code-panel toggle. */
 export declare const codeToggle: (page: Page) => Locator;
+/**
+ * A token swatch in the colour picker's Tokens tab, by FULL token name.
+ *
+ * The picker strips the `--color-` prefix for display (`--color-primary`
+ * reads as `primary`), so matching on accessible name binds a test to a
+ * label that is free to change. `data-token` carries the real name.
+ */
+export declare const tokenSwatch: (page: Page, tokenName: string) => Locator;
+/**
+ * The theme panel's mapping trigger for a semantic token. Scope it to a
+ * theme block when a spec cares which block it edits.
+ */
+export declare const mappingTrigger: (scope: Page | Locator, tokenName: string) => Locator;
+/**
+ * An option in the open mapping menu, keyed `palette:500` — the same value
+ * the control used when it was a `<select>`.
+ *
+ * Queried from the page, not from the trigger's block: the menu is
+ * positioned absolutely and does not render inside it.
+ */
+export declare const mappingOption: (page: Page, key: string) => Locator;

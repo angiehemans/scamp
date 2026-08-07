@@ -930,7 +930,7 @@ export const ThemePanel = ({ projectPath }) => {
                                 }, children: colorModel.palettes.flatMap((p) => p.shades.map((s) => {
                                     const key = `${p.name}:${s.shade}`;
                                     const active = key === semanticPickerFor.current;
-                                    return (_jsxs("button", { type: "button", role: "menuitem", className: `${styles.semanticMenuItem} ${active ? styles.semanticMenuItemActive : ''}`, onClick: () => {
+                                    return (_jsxs("button", { type: "button", role: "menuitem", "data-mapping": key, className: `${styles.semanticMenuItem} ${active ? styles.semanticMenuItemActive : ''}`, onClick: () => {
                                             handleSemanticMap(semanticPickerFor.semName, p.name, Number(s.shade), semanticPickerFor.cssClass);
                                             setSemanticPickerFor(null);
                                         }, children: [_jsx("span", { className: styles.semanticMenuSwatch, style: { background: s.value } }), _jsxs("span", { className: styles.semanticMenuName, children: [p.name, " / ", s.shade] }), _jsx("span", { className: styles.semanticMenuValue, children: s.value })] }, key));

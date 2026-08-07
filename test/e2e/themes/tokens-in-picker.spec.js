@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect, panelSection } from '../fixtures/panel';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, tokenSwatch } from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
 test.describe('themes: tokens surface in the color picker', () => {
     test('every seeded token appears in the Tokens tab of the color picker', async ({ window, }) => {
@@ -20,7 +20,7 @@ test.describe('themes: tokens surface in the color picker', () => {
             '--color-text',
             '--color-muted',
         ]) {
-            await expect(window.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
+            await expect(tokenSwatch(window, name)).toBeVisible();
         }
     });
 });

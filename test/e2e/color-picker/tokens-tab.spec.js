@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect, panelSection } from '../fixtures/panel';
-import { pageRoot } from '../fixtures/selectors';
+import { pageRoot, tokenSwatch } from '../fixtures/selectors';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
 /**
  * The seeded project's theme.css ships a starter palette
@@ -19,7 +19,7 @@ test.describe('color picker: tokens tab', () => {
             .click();
         // Switch to the Tokens tab and click the first swatch.
         await window.getByRole('button', { name: 'Tokens', exact: true }).click();
-        await window.getByRole('button', { name: /^--color-primary/ }).click();
+        await tokenSwatch(window, '--color-primary').click();
         await waitForSaved(window);
         const { css } = await readPageFiles(project.dir, project.pageName);
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*background:\\s*var\\(--color-primary\\)`, 's'));

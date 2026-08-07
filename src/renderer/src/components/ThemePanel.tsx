@@ -1701,6 +1701,10 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
                           key={key}
                           type="button"
                           role="menuitem"
+                          // Stable identity for tests: the visible label is
+                          // `palette / 500`, but this mirrors the value the
+                          // old <select> used, so intent survives restyling.
+                          data-mapping={key}
                           className={`${styles.semanticMenuItem} ${active ? styles.semanticMenuItemActive : ''}`}
                           onClick={() => {
                             handleSemanticMap(
