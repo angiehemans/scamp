@@ -21,6 +21,7 @@ Complete reference of keyboard shortcuts in Scamp.
 | **Cmd+G** | Group selected elements |
 | **Cmd+Shift+G** | Ungroup the selected group |
 | **Cmd+C** | Copy the selected element |
+| **Cmd+Shift+C** | Copy a one-line description of the selection for an [AI agent](ai-agents.md) |
 | **Cmd+V** | Paste |
 | **Cmd+Z** | Undo |
 | **Cmd+Shift+Z** | Redo |
@@ -48,9 +49,10 @@ Complete reference of keyboard shortcuts in Scamp.
 | Shortcut | Action |
 |---|---|
 | **Right-click a section override dot** | Reset every override in that section at the active [breakpoint](breakpoints.md) |
+| **Right-click an element → Copy context for agent** | Same as Cmd+Shift+C, for the element you clicked |
 
 ## Notes
 
 - On Windows/Linux, replace **Cmd** with **Ctrl**.
 - Tool shortcuts (V, R, T, I, F) only activate when you are not focused on a text input or the CSS editor.
-- See individual feature pages for context on each shortcut: [Canvas](canvas.md), [Undo/Redo](undo-redo.md), [Terminal](terminal.md), [Breakpoints](breakpoints.md).
+- See individual feature pages for context on each shortcut: [Canvas](canvas.md), [Undo/Redo](undo-redo.md), [Terminal](terminal.md), [Breakpoints](breakpoints.md), [AI Agents](ai-agents.md).

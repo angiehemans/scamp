@@ -24,7 +24,8 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Preview Mode](preview.md) — Open the project in a real Next.js dev server window
 - [Layers Panel](layers-panel.md) — The element tree, selection, reordering, and nesting
 - [Code Output](code-output.md) — What Scamp generates, save status, and the live code preview
-- [Bidirectional Sync](bidirectional-sync.md) — External editing and working with AI agents
+- [Bidirectional Sync](bidirectional-sync.md) — External editing and sharing files with AI agents
+- [Working with AI Agents](ai-agents.md) — The MCP server, the live context file, and Copy context
 - [Design System](design-system.md) — The Design System panel, tokens, `theme.css`, and using tokens in your designs
 - [Colors](colors.md) — Color palettes (primitives) and semantic color tokens
 - [Text Styles](text-styles.md) — Fonts, the type scale, and reusable text styles

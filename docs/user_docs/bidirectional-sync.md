@@ -106,6 +106,9 @@ project structure and conventions to AI coding agents — the
 which files Scamp manages and which are agent-editable, and the
 spacing-token conventions.
 
+It also tells the agent about the [live canvas tools](ai-agents.md)
+and when to prefer them over the context file.
+
 Scamp regenerates `agent.md` on every project open, so updates to
 the conventions roll out automatically as Scamp evolves. Don't
 hand-edit `agent.md` — your edits get overwritten.
@@ -126,6 +129,22 @@ Scamp guidance already loaded.
 If you and the agent end up touching the same file at the same
 time, the Paused / Diverged flow described above keeps you from
 clobbering each other.
+
+### Telling the agent what you're looking at
+
+The flow above is about *files*. Scamp also gives agents a live view
+of the **canvas** — what's selected, its styles, the page structure —
+so you can say "make this wider" instead of naming a class.
+
+That's a separate feature set with its own page:
+[Working with AI Agents](ai-agents.md). In short:
+
+- **MCP server** — an agent queries the canvas directly, always
+  current. Registered automatically; you approve it once.
+- **`.scamp/context.md`** — a snapshot of the current selection,
+  rewritten as you click. Works when Scamp is closed.
+- **Copy context** (Cmd/Ctrl+Shift+C) — one line describing the
+  selection, for pasting into a prompt.
 
 ## Limitations
 

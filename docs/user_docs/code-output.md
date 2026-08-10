@@ -73,6 +73,8 @@ Unknown `@media` queries (e.g. `min-width`, `prefers-color-scheme`) are preserve
 
 The bottom panel shows a read-only live preview of the generated TSX and CSS for the current page. It updates as you make changes on the canvas.
 
+Selecting an element highlights it in both panes and scrolls it into view — its JSX tag on the left, and every CSS rule that styles it on the right, including state variants like `:hover` and any `@media` overrides. Selecting a [component instance](components.md) highlights only the TSX, since instances have no CSS class of their own.
+
 ## Save Status
 
 A small indicator in the toolbar tracks whether the canvas is in sync with disk:
