@@ -223,6 +223,13 @@ export type CanvasState = {
      */
     ratioLocks: Record<string, number>;
     /**
+     * Ids the user has collapsed in the layers tree. Session-only UI state —
+     * never written to disk and never on the element model. Cleared when the
+     * canvas swaps page or component (ids are page-scoped and can repeat).
+     * see docs/plans/tree-collapse-plan.md
+     */
+    collapsedIds: Record<string, boolean>;
+    /**
      * The breakpoint the user is currently editing. `'desktop'` means
      * edits land on the element's base (top-level) style fields. Any
      * other id means edits land in `element.breakpointOverrides[id]`
@@ -566,6 +573,11 @@ export type CanvasState = {
     loadComponent: (component: ActiveComponent, elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
     reloadElements: (elements: Record<string, ScampElement>, source: PageSource, customMediaBlocks?: ReadonlyArray<string>, keyframesBlocks?: ReadonlyArray<KeyframesBlock>, cssDuplicates?: Record<string, ReadonlyArray<string>>) => void;
     setPageSource: (source: PageSource) => void;
+    /** Collapse an expanded element in the layers tree, or vice versa. */
+    toggleCollapsed: (id: string) => void;
+    /** Bulk set — used by Alt+click to fold a whole subtree at once. */
+    setCollapsed: (ids: ReadonlyArray<string>, collapsed: boolean) => void;
+    clearCollapsed: () => void;
     setBottomPanel: (panel: BottomPanel) => void;
     /** Open `panel`, or close it when it is already the open one. */
     toggleBottomPanel: (panel: Exclude<BottomPanel, 'none'>) => void;

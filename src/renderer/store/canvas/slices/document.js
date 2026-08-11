@@ -75,13 +75,20 @@ export const createDocumentSlice = (set) => ({
             snapshotPreview: null,
             // Data tab is component-only; fall back when leaving a component.
             panelMode: state.panelMode === 'data' ? 'ui' : state.panelMode,
+            // Collapse state is keyed by element id, and ids are scoped to their
+            // own page, so carrying it to a DIFFERENT page would collapse an
+            // unrelated element. Only clear on an actual target change —
+            // `loadPage` is also the reload path (external edits, a theme-panel
+            // round trip), and wiping the user's tree view on those would be a
+            // bug in itself. see docs/plans/tree-collapse-plan.md
+            collapsedIds: state.activePage?.tsxPath === page.tsxPath ? state.collapsedIds : {},
         }));
         useHistoryStore.getState().setActivePageId(page.tsxPath);
         // Seed the history bucket so Cmd+Z can return to this state.
         useHistoryStore.getState().commitInitialIfEmpty(elements);
     },
     loadComponent: (component, elements, source, customMediaBlocks, keyframesBlocks, cssDuplicates) => {
-        set({
+        set((state) => ({
             activeComponent: component,
             // Same mutual-exclusivity rule as loadPage. We don't carry
             // a "returnTo page" in store state for Phase 2 — the
@@ -98,7 +105,11 @@ export const createDocumentSlice = (set) => ({
             lastLoadKind: 'initial',
             // Entering a component voids any snapshot-preview lock (snapshots.md).
             snapshotPreview: null,
-        });
+            // Same reasoning as loadPage — only clear on a real target change.
+            collapsedIds: state.activeComponent?.tsxPath === component.tsxPath
+                ? state.collapsedIds
+                : {},
+        }));
         // Components get their own per-target history bucket keyed by
         // their tsxPath — same shape as pages so the history slice
         // doesn't need component-aware code.

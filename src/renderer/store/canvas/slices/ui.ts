@@ -71,6 +71,10 @@ export const createUiSlice: StateCreator<
   | 'userZoom'
   | 'fitScale'
   | 'ratioLocks'
+  | 'collapsedIds'
+  | 'toggleCollapsed'
+  | 'setCollapsed'
+  | 'clearCollapsed'
   | 'exportSettings'
   | 'canvasMinHeight'
   | 'setBottomPanel'
@@ -99,12 +103,36 @@ export const createUiSlice: StateCreator<
   userZoom: null,
   fitScale: 1,
   ratioLocks: {},
+  collapsedIds: {},
   pendingSvgReload: null,
   exportSettings: { lastFormat: 'png', lastPngScale: 2 },
   // Default matches the page-editor canvas. ProjectShell
   // overrides this when entering the component editor so the
   // canvas reflects the per-component height.
   canvasMinHeight: 900,
+  toggleCollapsed: (id) =>
+    set((state) => {
+      const next = { ...state.collapsedIds };
+      if (next[id] === true) delete next[id];
+      else next[id] = true;
+      return { collapsedIds: next };
+    }),
+
+  setCollapsed: (ids, collapsed) =>
+    set((state) => {
+      const next = { ...state.collapsedIds };
+      for (const id of ids) {
+        if (collapsed) next[id] = true;
+        else delete next[id];
+      }
+      return { collapsedIds: next };
+    }),
+
+  // Called when the canvas swaps target. Element ids are scoped to their
+  // own page and are short enough to repeat across pages, so carrying this
+  // over would collapse an unrelated element on the new page.
+  clearCollapsed: () => set({ collapsedIds: {} }),
+
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
 
   // Open the panel, or close it if it's already the open one. Lives in the

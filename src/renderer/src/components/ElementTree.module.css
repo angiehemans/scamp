@@ -118,3 +118,51 @@ font-size: 11px;
   background: transparent;
   color: var(--text-secondary);
 }
+
+/* Disclosure triangle for a row with children.
+ *
+ * Absolutely positioned against the row wrapper rather than nested inside
+ * the row button — a button within a button is invalid HTML and breaks
+ * keyboard semantics. see docs/plans/tree-collapse-plan.md */
+.disclosure {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.disclosure:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.disclosure:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* Marks a collapsed row whose subtree holds the current selection, so the
+ * user isn't left wondering where their selected element went. */
+.hiddenSelection {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  z-index: 1;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+}

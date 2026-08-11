@@ -1,7 +1,15 @@
 import { DragEvent, useEffect, useRef, useState } from 'react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode';
 import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from '@lib/element';
+import {
+  ancestorIds,
+  descendantIds,
+  flattenTree,
+  hasChildRows,
+  hasCollapsedAncestor,
+} from '@lib/treeRows';
 import { Tooltip } from './controls/Tooltip';
 import styles from './ElementTree.module.css';
 
@@ -22,6 +30,9 @@ import styles from './ElementTree.module.css';
 
 const DRAG_MIME = 'application/x-scamp-element-id';
 
+/** Matches the row's per-depth indent so the triangle sits with its row. */
+const INDENT_PX = 12;
+
 type DropPosition = 'before' | 'after' | 'inside';
 
 type DragOverState = {
@@ -30,6 +41,11 @@ type DragOverState = {
 };
 
 type RowProps = {
+  /** Rendered only when the element has child rows and isn't the root. */
+  showToggle: boolean;
+  collapsed: boolean;
+  /** True when the selection is hidden somewhere inside this collapsed row. */
+  hasSelectedInside: boolean;
   element: ScampElement;
   depth: number;
   dragOver: DragOverState | null;
@@ -86,7 +102,17 @@ const computeDropPosition = (
   return 'inside';
 };
 
-const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element => {
+const Row = ({
+  element,
+  depth,
+  dragOver,
+  setDragOver,
+  showToggle,
+  collapsed,
+  hasSelectedInside,
+}: RowProps): JSX.Element => {
+  const toggleCollapsed = useCanvasStore((s) => s.toggleCollapsed);
+  const setCollapsed = useCanvasStore((s) => s.setCollapsed);
   const isSelected = useCanvasStore((s) => s.selectedElementIds.includes(element.id));
   const selectElement = useCanvasStore((s) => s.selectElement);
   const toggleSelectElement = useCanvasStore((s) => s.toggleSelectElement);
@@ -183,11 +209,55 @@ const Row = ({ element, depth, dragOver, setDragOver }: RowProps): JSX.Element =
       data-element-class={classNameFor(element)}
     >
       {showBefore && <div className={styles.dropLine} />}
+      {showToggle && (
+        <button
+          type="button"
+          className={styles.disclosure}
+          // Positioned against the wrapper rather than nested in the row
+          // button — a button inside a button is invalid and breaks
+          // keyboard semantics.
+          style={{ left: 4 + depth * INDENT_PX }}
+          aria-label={collapsed ? 'Expand children' : 'Collapse children'}
+          aria-expanded={!collapsed}
+          data-action="toggle-collapse"
+          onClick={(e) => {
+            // Don't let the click fall through and select the row.
+            e.stopPropagation();
+            if (e.altKey) {
+              // Alt+click folds the whole subtree, Figma-style.
+              const subtree = descendantIds(
+                useCanvasStore.getState().elements,
+                element.id
+              );
+              setCollapsed([element.id, ...subtree], !collapsed);
+              return;
+            }
+            toggleCollapsed(element.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {collapsed ? (
+            <IconChevronRight size={12} />
+          ) : (
+            <IconChevronDown size={12} />
+          )}
+        </button>
+      )}
+      {collapsed && hasSelectedInside && (
+        <span
+          className={styles.hiddenSelection}
+          data-testid="hidden-selection-dot"
+          aria-hidden
+        />
+      )}
       <Tooltip label={`.${classNameFor(element)}`}>
       <button
         type="button"
         className={`${styles.row} ${isSelected ? styles.rowSelected : ''}`}
-        style={{ paddingLeft: 8 + depth * 12 }}
+        // Leaves room for the disclosure triangle at every depth, including
+        // on rows that don't have one — so labels stay on a single line
+        // down the tree instead of jogging left for childless rows.
+        style={{ paddingLeft: 22 + depth * INDENT_PX }}
         onClick={(e) => {
           if (renaming) return;
           if (e.shiftKey) toggleSelectElement(element.id);
@@ -292,41 +362,50 @@ const runDrop = (
   reorder(draggedId, target.parentId, insertAt);
 };
 
-type TreeRow =
-  | { kind: 'element'; element: ScampElement; depth: number }
-  | { kind: 'raw'; parentId: string; count: number; depth: number };
-
 export const ElementTree = (): JSX.Element => {
   const rootElementId = useCanvasStore((s) => s.rootElementId);
   const elements = useCanvasStore((s) => s.elements);
+  const collapsedIds = useCanvasStore((s) => s.collapsedIds);
+  const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
+  const setCollapsed = useCanvasStore((s) => s.setCollapsed);
   const [dragOver, setDragOver] = useState<DragOverState | null>(null);
 
-  // Walk the tree depth-first. Element rows are draggable and
-  // clickable; "raw" rows appear under any element that has
-  // inlineFragments (loose text or unclassed JSX captured by the
-  // parser) so the user can see the fragments exist even though
-  // they're not editable from the canvas.
-  const rows: TreeRow[] = [];
-  // Guard against a malformed tree that references the same id from more
-  // than one place (e.g. a duplicate `data-scamp-id`): render each
-  // element at most once and never recurse into a cycle.
-  const seen = new Set<string>();
-  const visit = (id: string, depth: number): void => {
-    const el = elements[id];
-    if (!el || seen.has(id)) return;
-    seen.add(id);
-    rows.push({ kind: 'element', element: el, depth });
-    for (const childId of el.childIds) visit(childId, depth + 1);
-    if (el.inlineFragments.length > 0) {
-      rows.push({
-        kind: 'raw',
-        parentId: el.id,
-        count: el.inlineFragments.length,
-        depth: depth + 1,
-      });
-    }
-  };
-  visit(rootElementId, 0);
+  // Reveal a selection that's hidden inside a collapsed branch.
+  //
+  // Two things keep this from fighting the user, and both are load-bearing:
+  //
+  // 1. It's keyed on the selected id, NOT on `collapsedIds`. Re-running on
+  //    collapse changes would spring a branch open the instant it was
+  //    folded over the selection.
+  // 2. It skips the run where the id merely came into view — mount included.
+  //    The tree unmounts whenever the Design System panel opens, so without
+  //    this a round trip through that panel would silently undo the user's
+  //    collapse. The `lastSelected` ref starts AT the current selection so
+  //    the mount pass is a no-op.
+  //
+  // The hidden-selection dot covers what this deliberately doesn't do.
+  const lastSelected = useRef<string | null>(selectedId);
+  useEffect(() => {
+    if (selectedId === null || lastSelected.current === selectedId) return;
+    lastSelected.current = selectedId;
+    const store = useCanvasStore.getState();
+    const hidden = ancestorIds(store.elements, selectedId).filter(
+      (id) => store.collapsedIds[id] === true
+    );
+    if (hidden.length > 0) setCollapsed(hidden, false);
+  }, [selectedId, setCollapsed]);
+
+  // Element rows are draggable and clickable; "raw" rows appear under any
+  // element with inlineFragments (loose text or unclassed JSX captured by
+  // the parser) so the user can see the fragments exist even though they're
+  // not editable from the canvas.
+  const rows = flattenTree(elements, rootElementId, collapsedIds);
+
+  const selectionHiddenUnder = (id: string): boolean =>
+    selectedId !== null &&
+    selectedId !== id &&
+    ancestorIds(elements, selectedId).includes(id) &&
+    hasCollapsedAncestor(elements, selectedId, collapsedIds);
 
   return (
     <div
@@ -346,6 +425,13 @@ export const ElementTree = (): JSX.Element => {
             depth={row.depth}
             dragOver={dragOver}
             setDragOver={setDragOver}
+            // No triangle on the root: collapsing it would hide the whole
+            // tree, which is easy to hit by accident and hard to read.
+            showToggle={
+              row.element.id !== rootElementId && hasChildRows(row.element)
+            }
+            collapsed={collapsedIds[row.element.id] === true}
+            hasSelectedInside={selectionHiddenUnder(row.element.id)}
           />
         ) : (
           <RawRow
@@ -394,7 +480,9 @@ const RawRow = ({ parentId, count, depth }: RawRowProps): JSX.Element => {
       >
         <div
           className={styles.row}
-          style={{ paddingLeft: 8 + depth * 12, cursor: 'default' }}
+          // Same indent basis as element rows so raw fragments line up
+          // with their siblings.
+          style={{ paddingLeft: 22 + depth * INDENT_PX, cursor: 'default' }}
         >
           <span className={styles.icon} aria-hidden="true">
             ¶
