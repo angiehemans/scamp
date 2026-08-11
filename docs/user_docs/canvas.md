@@ -29,8 +29,12 @@ Drags and resizes clamp to the visible page, so an element can't disappear off-s
 
 ## Duplicating and Deleting
 
-- **Cmd+D** — Duplicate the selected element.
+- **Cmd+D** — Duplicate the selected element. Right-click → **Duplicate**
+  does the same thing.
 - **Delete** or **Backspace** — Remove the selected element.
+
+A duplicate keeps the original's [name](element-naming.md) and gets a new
+ID suffix, so `menu_a1b2` duplicates to `menu_c3d4`.
 
 ## Canvas Size
 

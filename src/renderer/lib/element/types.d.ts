@@ -296,9 +296,9 @@ export type ScampElement = {
     /**
      * Optional human-readable name. When set, the slugified version
      * replaces the default `rect` / `text` prefix in the generated CSS
-     * class name (e.g. "Hero Card" → `hero-card_a1b2`). The name is
-     * stored as a `data-scamp-name` attribute in the TSX and round-trips
-     * through parseCode.
+     * class name (e.g. "Hero Card" → `hero_card_a1b2`). Stored already
+     * slugified — the class prefix IS the name, which is how parseCode
+     * recovers it. Duplicates keep it; only the id suffix changes.
      */
     name?: string;
     widthMode: WidthMode;

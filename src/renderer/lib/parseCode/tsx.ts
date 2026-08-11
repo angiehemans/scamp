@@ -37,7 +37,8 @@ export type RawElement = {
     | { kind: 'text'; value: string; afterChildIndex: number }
     | { kind: 'jsx'; source: string; afterChildIndex: number }
   >;
-  /** Human-readable name from `data-scamp-name`, if present. */
+  /** The element's name, recovered from the class prefix (`menu_a1b2`
+   *  → `menu`). Null when the prefix is a default type prefix. */
   name: string | null;
   /** Image src attribute, if present. */
   src: string | null;

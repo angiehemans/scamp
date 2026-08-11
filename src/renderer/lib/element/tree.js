@@ -499,9 +499,9 @@ export const cloneElementSubtree = (elements, rootCloneId, newParentId, existing
                     propOverrides: { ...(old.propOverrides ?? {}) },
                 }
                 : {}),
-            // Clear the name on clones so the duplicate gets a fresh default
-            // class name. The user can rename it from the layers panel.
-            name: undefined,
+            // `name` rides along on the spread above, deliberately: the clone
+            // keeps the user's name (and so its `menu_` class prefix) and only
+            // the id suffix changes. see docs/plans/duplicate-preserves-names-plan.md
         };
         return newId;
     };

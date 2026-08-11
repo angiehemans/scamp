@@ -4,7 +4,7 @@ import { ROOT_ELEMENT_ID, slugifyName } from "../element";
  * The CSS class name for an element. When the element has a custom name,
  * the slugified name replaces the type prefix:
  *   - unnamed rect → `rect_a1b2`
- *   - named "Hero Card" → `hero-card_a1b2`
+ *   - named "Hero Card" → `hero_card_a1b2`
  *   - root → `root` (always)
  */
 export const classNameFor = (el) => {

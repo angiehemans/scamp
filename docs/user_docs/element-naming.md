@@ -23,6 +23,18 @@ In the layers panel, names are shown in title case for readability (e.g. "Hero C
 
 Delete all text in the name field and press Enter. The element reverts to its default `rect_` or `text_` prefix.
 
+## Duplicating a Named Element
+
+Duplicating keeps the name and changes only the ID suffix, so `menu_a1b2`
+duplicates to `menu_c3d4`. Both elements show as "Menu" in the layers
+panel and get their own CSS class block with identical styles. This
+applies to **Cmd+D**, paste, and the right-click **Duplicate** item, and
+it works recursively — named children inside a duplicated element keep
+their names too.
+
+Elements without a name still duplicate to the default `rect_` / `text_`
+prefix.
+
 ## Round-Trip Behavior
 
 Element names are stored in the generated files and survive round-trips. If you rename an element, save, and reopen the project, the name persists. External edits to the class name in the CSS file are also reflected back on the canvas.

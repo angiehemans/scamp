@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
-import { ROOT_ELEMENT_ID } from '@lib/element';
+import { cloneElementSubtree, ROOT_ELEMENT_ID } from '@lib/element';
 import { DEFAULT_RECT_STYLES } from '@lib/defaults';
 const TSX_BASIC = `import styles from './home.module.css';
 
@@ -559,5 +559,39 @@ describe('parseCode — svg source', () => {
         const css = `.img_v001 {}`;
         const { elements } = parseCode(tsx, css);
         expect(elements['v001']?.svgSource).toBeUndefined();
+    });
+});
+/**
+ * Duplicating a named element has to survive the trip to disk, not just
+ * look right in the store — the class prefix IS the only place the name
+ * is written. see docs/plans/duplicate-preserves-names-plan.md
+ */
+describe('parseCode + generateCode — duplicated names survive a round trip', () => {
+    it('writes both duplicates as menu_* classes and parses both back as "menu"', () => {
+        const source = parseCode(`<div data-scamp-id="root" className={styles.root}>
+        <nav data-scamp-id="a1b2" className={styles.menu_a1b2} />
+      </div>`, `.menu_a1b2 { display: flex; gap: 16px; }`);
+        const original = source.elements['a1b2'];
+        expect(original?.name).toBe('menu');
+        // Duplicate it the way the store does.
+        const clone = cloneElementSubtree(source.elements, 'a1b2', ROOT_ELEMENT_ID, new Set(Object.keys(source.elements)), () => 'c3d4');
+        const root = source.elements[ROOT_ELEMENT_ID];
+        if (!root || !clone)
+            throw new Error('setup failed');
+        const elements = {
+            ...source.elements,
+            ...clone.cloned,
+            [ROOT_ELEMENT_ID]: { ...root, childIds: [...root.childIds, clone.newId] },
+        };
+        const { tsx, css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+        expect(css).toContain('.menu_a1b2');
+        expect(css).toContain('.menu_c3d4');
+        expect(css).not.toContain('.rect_c3d4');
+        const reparsed = parseCode(tsx, css);
+        expect(reparsed.elements['a1b2']?.name).toBe('menu');
+        expect(reparsed.elements['c3d4']?.name).toBe('menu');
+        // Same styles, distinct identities — the whole point of the story.
+        expect(reparsed.elements['c3d4']?.gap).toBe(reparsed.elements['a1b2']?.gap);
+        expect(reparsed.elements['c3d4']?.id).not.toBe(reparsed.elements['a1b2']?.id);
     });
 });

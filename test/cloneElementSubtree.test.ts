@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { cloneElementSubtree, ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 import { DEFAULT_RECT_STYLES } from '@lib/defaults';
+import { classNameFor } from '@lib/generateCode';
 
 const makeRect = (overrides: Partial<ScampElement> & { id: string }): ScampElement => ({
   ...DEFAULT_RECT_STYLES,
@@ -180,5 +181,147 @@ describe('cloneElementSubtree', () => {
       seq(['x'])
     );
     expect(result).toBeNull();
+  });
+});
+
+/**
+ * A duplicate keeps the user's name and only regenerates the id suffix,
+ * so `menu_a1b2` duplicates to `menu_c3d4` rather than reverting to
+ * `rect_c3d4`. see docs/plans/duplicate-preserves-names-plan.md
+ */
+describe('cloneElementSubtree: names', () => {
+  it('keeps the name on the clone while giving it a fresh id', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: 'menu' }),
+    };
+    const result = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2']),
+      seq(['c3d4'])
+    );
+    const clone = result!.cloned['c3d4']!;
+    expect(clone.name).toBe('menu');
+    expect(clone.id).toBe('c3d4');
+  });
+
+  it('gives the clone a menu_ class, not the default rect_ prefix', () => {
+    // The name only matters because it drives the class name — this is
+    // the assertion the story is actually about.
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: 'menu' }),
+    };
+    const result = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2']),
+      seq(['c3d4'])
+    );
+    expect(classNameFor(result!.cloned['c3d4']!)).toBe('menu_c3d4');
+    expect(classNameFor(result!.cloned['c3d4']!)).not.toBe(
+      classNameFor(elements['a1b2']!)
+    );
+  });
+
+  it('keeps names on named descendants, and leaves unnamed ones unnamed', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: 'menu', childIds: ['c3d4', 'e5f6'] }),
+      c3d4: makeRect({ id: 'c3d4', parentId: 'a1b2', name: 'menu_item' }),
+      e5f6: makeRect({ id: 'e5f6', parentId: 'a1b2' }),
+    };
+    const result = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2', 'c3d4', 'e5f6']),
+      seq(['n001', 'n002', 'n003'])
+    );
+    const { cloned } = result!;
+    expect(cloned['n001']?.name).toBe('menu');
+    expect(cloned['n002']?.name).toBe('menu_item');
+    expect(classNameFor(cloned['n002']!)).toBe('menu_item_n002');
+    // An unnamed child must not inherit or invent a name.
+    expect(cloned['n003']?.name).toBeUndefined();
+    expect(classNameFor(cloned['n003']!)).toBe('rect_n003');
+  });
+
+  it('leaves an unnamed element unnamed', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2' }),
+    };
+    const result = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2']),
+      seq(['c3d4'])
+    );
+    expect(result!.cloned['c3d4']?.name).toBeUndefined();
+    expect(classNameFor(result!.cloned['c3d4']!)).toBe('rect_c3d4');
+  });
+
+  it('gives every repeated duplicate the same name and a distinct class', () => {
+    // Duplicating the same original twice, as Cmd+D twice would: both
+    // clones are "menu", and all three classes are distinct.
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', name: 'menu' }),
+    };
+    const first = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2']),
+      seq(['c3d4'])
+    );
+    const second = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2', 'c3d4']),
+      seq(['e5f6'])
+    );
+    expect(first!.cloned['c3d4']?.name).toBe('menu');
+    expect(second!.cloned['e5f6']?.name).toBe('menu');
+    const classes = [
+      classNameFor(elements['a1b2']!),
+      classNameFor(first!.cloned['c3d4']!),
+      classNameFor(second!.cloned['e5f6']!),
+    ];
+    expect(classes).toEqual(['menu_a1b2', 'menu_c3d4', 'menu_e5f6']);
+    expect(new Set(classes).size).toBe(3);
+  });
+
+  it('keeps the name on a component instance while still refreshing its instanceId', () => {
+    // An instance's class comes from instanceId, not the name — so this
+    // guards that keeping the name didn't disturb the instance branch.
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({
+        id: 'a1b2',
+        type: 'component-instance',
+        name: 'menu',
+        componentName: 'Menu',
+        instanceId: 'inst_a1b2',
+        propOverrides: { label: 'Home' },
+      }),
+    };
+    const result = cloneElementSubtree(
+      elements,
+      'a1b2',
+      ROOT_ELEMENT_ID,
+      new Set(['root', 'a1b2']),
+      seq(['c3d4', 'e5f6'])
+    );
+    const clone = result!.cloned['c3d4']!;
+    expect(clone.name).toBe('menu');
+    expect(clone.instanceId).toBe('inst_e5f6');
+    expect(classNameFor(clone)).toBe('inst_e5f6');
   });
 });

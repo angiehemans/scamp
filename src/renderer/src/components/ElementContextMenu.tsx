@@ -115,6 +115,7 @@ export const ElementContextMenu = (): JSX.Element | null => {
   });
   const toggleSlotOnRect = useCanvasStore((s) => s.toggleSlotOnRect);
   const deleteElementContents = useCanvasStore((s) => s.deleteElementContents);
+  const duplicateElement = useCanvasStore((s) => s.duplicateElement);
 
   useEffect(() => {
     const handler = (e: Event): void => {
@@ -142,7 +143,19 @@ export const ElementContextMenu = (): JSX.Element | null => {
   const canMakeSlot = inComponent && isRect && !isSlot && !targetHasChildren;
   const canRemoveSlot = inComponent && isRect && isSlot;
 
+  // The page root is the one thing that can't be duplicated (the store
+  // action rejects it), so it gets no item rather than a dead one.
+  const canDuplicate = menu.elementId !== ROOT_ELEMENT_ID;
+
   const items = [
+    ...(canDuplicate
+      ? [
+          {
+            label: 'Duplicate',
+            onSelect: () => duplicateElement(menu.elementId),
+          },
+        ]
+      : []),
     ...(canMakeSlot
       ? [
           {
