@@ -11,6 +11,9 @@ export default defineConfig({
     },
   },
   test: {
+    // Rooted at the project root, so `test:unit` / `test:integration` must
+    // narrow with --exclude or a path filter rather than `--dir` — `--dir`
+    // re-roots this glob and it then matches nothing at all, silently.
     environment: 'node',
     include: ['test/**/*.test.ts'],
   },
