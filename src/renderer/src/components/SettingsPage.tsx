@@ -141,10 +141,11 @@ export const SettingsPage = ({ onBack }: Props): JSX.Element => {
           <h2 className={styles.sectionTitle}>Privacy</h2>
           <div className={styles.row}>
             <div className={styles.rowLabel}>
-              <div>Send anonymous crash reports</div>
+              <div>Send anonymous crash reports and usage counts</div>
               <div className={styles.rowHint}>
-                Helps fix bugs faster. No personal data or project
-                files are ever shared.
+                Helps fix bugs faster and shows how many people use
+                Scamp. No personal data or project files are ever
+                shared — just a random ID for this install.
               </div>
             </div>
             <div className={styles.rowControl}>

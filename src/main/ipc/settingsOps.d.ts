@@ -1,4 +1,5 @@
 import type { Settings } from '@shared/types';
+export { CONSENT_VERSION, hasCurrentConsent, isOptedIn } from '@shared/consent';
 export declare const DEFAULT_SETTINGS: Settings;
 /**
  * Parse a Settings JSON blob with migration / defaulting. Pure so the

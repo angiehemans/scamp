@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { SentryOptInPrompt } from './components/SentryOptInPrompt';
 import { initSyncBridge, flushPendingPageWrite } from './syncBridge';
 import { applyAppTheme } from './lib/applyAppTheme';
+import { CONSENT_VERSION, hasCurrentConsent } from '@shared/consent';
 import { useFontsStore } from '@store/fontsSlice';
 import { useTerminalActivityStore } from '@store/terminalActivitySlice';
 import type { ProjectData } from '@shared/types';
@@ -38,7 +39,10 @@ export const App = (): JSX.Element => {
         // localStorage mirror the boot script painted from (they only
         // differ on a fresh install or an edit from another machine).
         applyAppTheme(settings.theme);
-        setOptInState(settings.sentryOptIn === null ? 'pending' : 'resolved');
+        // A choice recorded against older consent wording counts as
+        // undecided — carrying it forward would claim consent for
+        // something the user was never shown. See CONSENT_VERSION.
+        setOptInState(hasCurrentConsent(settings) ? 'resolved' : 'pending');
       } catch {
         // Settings read failed — fall through to the prompt so the
         // user can still make a choice this session.
@@ -49,7 +53,10 @@ export const App = (): JSX.Element => {
 
   const handleOptInDecision = async (optedIn: boolean): Promise<void> => {
     try {
-      await window.scamp.updateSettings({ sentryOptIn: optedIn });
+      await window.scamp.updateSettings({
+        sentryOptIn: optedIn,
+        consentVersion: CONSENT_VERSION,
+      });
       await window.scamp.reinitSentry(optedIn);
     } catch (err) {
       // eslint-disable-next-line no-console

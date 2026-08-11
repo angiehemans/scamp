@@ -10,5 +10,11 @@ import type { Settings } from '@shared/types';
  */
 export declare const readSettingsSync: () => Settings;
 declare const getSettings: () => Promise<Settings>;
+/**
+ * Persist a freshly-generated install id. Separate from `updateSettings` so
+ * the Sentry init path can save an id it just minted without racing a
+ * renderer-driven settings write.
+ */
+export declare const persistInstallId: (installId: string) => Promise<void>;
 export declare const registerSettingsIpc: () => void;
 export { getSettings };

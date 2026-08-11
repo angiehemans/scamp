@@ -1,7 +1,11 @@
+// Re-exported so main-side callers have one import for settings concerns.
+export { CONSENT_VERSION, hasCurrentConsent, isOptedIn } from '@shared/consent';
 export const DEFAULT_SETTINGS = {
     defaultProjectsFolder: null,
     artboardBackground: '#0f0f0f',
     sentryOptIn: null,
+    consentVersion: 0,
+    installId: null,
     theme: 'dark',
 };
 /** Keep only the two themes we ship; anything else falls back to dark. */
@@ -27,10 +31,17 @@ export const parseSettingsBlob = (raw) => {
             ? legacy
             : DEFAULT_SETTINGS.artboardBackground;
     const optIn = obj['sentryOptIn'];
+    const version = obj['consentVersion'];
+    const installId = obj['installId'];
     return {
         defaultProjectsFolder: typeof folder === 'string' ? folder : null,
         artboardBackground: artboardValue,
         sentryOptIn: typeof optIn === 'boolean' ? optIn : null,
+        // Missing = an install that predates versioning, so version 0.
+        consentVersion: typeof version === 'number' ? version : 0,
+        installId: typeof installId === 'string' && installId.length > 0
+            ? installId
+            : null,
         theme: parseTheme(obj['theme']),
     };
 };

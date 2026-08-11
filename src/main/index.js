@@ -11,7 +11,7 @@ import { registerSnapshotIpc } from './ipc/snapshot';
 import { createSnapshot } from './ipc/snapshotOps';
 import { getProjectFormat } from './ipc/projectFormatCache';
 import { registerRecentProjectsIpc } from './ipc/recentProjects';
-import { registerSettingsIpc, readSettingsSync } from './ipc/settings';
+import { registerSettingsIpc, readSettingsSync, persistInstallId, } from './ipc/settings';
 import { registerProjectConfigIpc } from './ipc/projectConfig';
 import { registerTerminalIpc, disposeAllTerminals } from './ipc/terminal';
 import { registerThemeIpc } from './ipc/theme';
@@ -28,6 +28,8 @@ import { initWatcher, disposeWatcher, getWatchedPath } from './watcher';
 import { initMcp, stopMcp } from './mcp/lifecycle';
 import { resolveInsideProject } from './ipc/pathContainment';
 import { initSentryIfOptedIn, setSentryEnabled, setSentryProjectRoot, } from './sentry';
+import { installIdForConsent } from './installId';
+import { isOptedIn } from './ipc/settingsOps';
 import { buildApplicationMenu } from './menu';
 import { fixPathFromLoginShell } from './fixPath';
 const TEST_BOOTSTRAP = {
@@ -50,7 +52,16 @@ const TEST_BOOTSTRAP = {
 // — at which point the renderer fires the `app:reinitSentry` IPC
 // (registered later inside `whenReady`) and the SDK comes up live.
 const initialSettings = readSettingsSync();
-initSentryIfOptedIn(initialSettings.sentryOptIn === true);
+// `isOptedIn` also checks the consent version — a `true` recorded against
+// older wording doesn't count until the user answers the new prompt.
+const initialOptIn = isOptedIn(initialSettings);
+const initialInstall = installIdForConsent(initialSettings, initialOptIn);
+initSentryIfOptedIn(initialOptIn, initialInstall?.installId ?? null);
+// Persist a newly-minted id. Fire-and-forget: `app.getPath('userData')` is
+// available pre-ready, and failing to save only means a new id next launch.
+if (initialInstall?.created === true) {
+    void persistInstallId(initialInstall.installId).catch(() => undefined);
+}
 // GUI-launched packaged apps inherit a minimal PATH that omits
 // Homebrew/nvm/etc, so spawning npm/node throws ENOENT. Resolve the
 // login shell's real PATH once, before any child_process spawn.
@@ -239,8 +250,16 @@ app.whenReady().then(() => {
     // is already running from the module-load init; this just
     // toggles transmission, so no re-init is needed (and no
     // pre-ready check is hit).
-    ipcMain.handle(IPC.AppReinitSentry, (_e, optedIn) => {
-        setSentryEnabled(optedIn);
+    ipcMain.handle(IPC.AppReinitSentry, async (_e, optedIn) => {
+        // The renderer has already written the new choice (and, on opt-out,
+        // cleared the install id) via `updateSettings`, so re-read rather than
+        // trusting an in-memory copy.
+        const settings = readSettingsSync();
+        const install = installIdForConsent(settings, optedIn);
+        setSentryEnabled(optedIn, install?.installId ?? null);
+        if (install?.created === true) {
+            await persistInstallId(install.installId).catch(() => undefined);
+        }
     });
     // Expose the app version to the renderer for diagnostic UI.
     // Reads from `package.json` via Electron at the main side; the

@@ -47,7 +47,7 @@ export declare const scrubPaths: (s: string | undefined) => string | undefined;
  * toggle both still work; toggle changes just have no
  * transmission target.
  */
-export declare const initSentryIfOptedIn: (optedIn: boolean) => void;
+export declare const initSentryIfOptedIn: (optedIn: boolean, installId?: string | null) => void;
 /**
  * Flip the transmission gate at runtime — used when the user
  * toggles the Privacy switch in Settings or answers the
@@ -58,7 +58,7 @@ export declare const initSentryIfOptedIn: (optedIn: boolean) => void;
  * No-op when the SDK never initialised (missing DSN, init
  * exception). Safe to call any number of times.
  */
-export declare const setSentryEnabled: (enabled: boolean) => void;
+export declare const setSentryEnabled: (enabled: boolean, installId?: string | null) => void;
 /**
  * Tear down Sentry. Used by the test suite — production paths
  * use `setSentryEnabled(false)` to gate transmission instead.

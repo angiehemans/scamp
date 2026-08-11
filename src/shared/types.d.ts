@@ -119,6 +119,28 @@ export type Settings = {
      */
     sentryOptIn: boolean | null;
     /**
+     * Which version of the consent wording the stored `sentryOptIn`
+     * answers.
+     *
+     * Bumped whenever what we send materially changes, so a stored
+     * choice made against older wording is treated as undecided and the
+     * prompt fires once more. Carrying an old opt-in forward would mean
+     * claiming consent for something the user was never shown.
+     *
+     * `0` (or missing) = pre-versioning, i.e. the crash-reports-only
+     * wording. See CONSENT_VERSION in `settingsOps.ts`.
+     */
+    consentVersion: number;
+    /**
+     * Anonymous, randomly-generated id for this install, used only to
+     * count active users. Never derived from anything about the machine
+     * or the person — see `src/main/installId.ts`.
+     *
+     * `null` until first needed, and reset to `null` on opt-out so
+     * opting back in mints a fresh one.
+     */
+    installId: string | null;
+    /**
      * App-chrome theme. Dark is the default; light is opt-in via
      * Settings → Appearance. Only the Scamp UI flips — the user's
      * project canvas renders with their own CSS regardless.

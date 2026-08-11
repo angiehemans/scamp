@@ -31,6 +31,11 @@ describe('parseSettingsBlob', () => {
       defaultProjectsFolder: '/work',
       artboardBackground: '#fff',
       sentryOptIn: true,
+      // Absent from the blob above, so they default — an opt-in recorded
+      // without a version predates the usage-count wording and is treated
+      // as undecided. See test/consent.test.ts.
+      consentVersion: 0,
+      installId: null,
       theme: 'light',
     });
   });

@@ -46,9 +46,11 @@ export const SentryOptInPrompt = ({ onDecision }: Props): JSX.Element => {
           Help improve Scamp
         </h2>
         <p className={styles.message}>
-          Send anonymous crash reports when something goes wrong. No
-          personal data, no project files, no file contents — only
-          error details and your OS and app version.
+          Send anonymous crash reports, plus a count of app launches so
+          we know how many people use Scamp. No personal data, no project
+          files, no file contents — only error details, your OS and app
+          version, and a random ID that identifies this install and
+          nothing else.
         </p>
         <p className={styles.messageSecondary}>
           You can change this at any time in Settings.
@@ -62,7 +64,7 @@ export const SentryOptInPrompt = ({ onDecision }: Props): JSX.Element => {
             onClick={() => onDecision(true)}
             autoFocus
           >
-            Send crash reports
+            Send anonymous data
           </Button>
         </div>
       </div>

@@ -52,6 +52,15 @@ export const scrubPaths = (s) => {
         .replace(/C:\\Users\\[^\\]+/g, 'C:\\Users\\[redacted]');
 };
 /**
+ * Set (or clear, with `null`) the anonymous install id on the Sentry scope.
+ *
+ * ONLY `id` is set — never `username`, `email`, or `ip_address`. Those are
+ * the fields that would turn a counter into an identity.
+ */
+const applyInstallId = (installId) => {
+    Sentry.setUser(installId === null ? null : { id: installId });
+};
+/**
  * Tracks whether Sentry.init has been called this session. The SDK
  * itself enforces "before-ready" timing — we can only call init
  * once and only before Electron's 'ready' event fires. After that
@@ -78,11 +87,11 @@ let isInitialised = false;
  * toggle both still work; toggle changes just have no
  * transmission target.
  */
-export const initSentryIfOptedIn = (optedIn) => {
+export const initSentryIfOptedIn = (optedIn, installId = null) => {
     if (isInitialised) {
         // Subsequent calls can't re-init, but they CAN flip the
         // transmission gate — that's the live-toggle path.
-        setSentryEnabled(optedIn);
+        setSentryEnabled(optedIn, installId);
         return;
     }
     // Dot notation — matches the `define` substitution pattern in
@@ -156,6 +165,12 @@ export const initSentryIfOptedIn = (optedIn) => {
             },
         });
         isInitialised = true;
+        // Attach the anonymous install id so Release Health can resolve
+        // sessions into unique users. Safe AFTER init even though the
+        // session already started during it: `Scope.setUser` calls
+        // `updateSession(session, { user })`, which back-fills the session's
+        // distinct id. See docs/plans/dau-tracking-plan.md.
+        applyInstallId(optedIn ? installId : null);
         // eslint-disable-next-line no-console
         console.log(`[sentry] initialised — release scamp@${app.getVersion()}, env ${app.isPackaged ? 'production' : 'development'}, enabled=${optedIn}`);
     }
@@ -177,9 +192,13 @@ export const initSentryIfOptedIn = (optedIn) => {
  * No-op when the SDK never initialised (missing DSN, init
  * exception). Safe to call any number of times.
  */
-export const setSentryEnabled = (enabled) => {
+export const setSentryEnabled = (enabled, installId = null) => {
     if (!isInitialised)
         return;
+    // Clearing the user on opt-out is what makes the choice real: the id
+    // stops riding on sessions immediately, and the caller drops the stored
+    // value so opting back in mints a new one.
+    applyInstallId(enabled ? installId : null);
     const client = Sentry.getClient();
     if (!client)
         return;

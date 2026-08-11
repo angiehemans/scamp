@@ -63,8 +63,23 @@ const setDefaultFolder = async (path: string | null): Promise<Settings> => {
 const updateSettings = async (patch: Partial<Settings>): Promise<Settings> => {
   const current = await readStore();
   const next: Settings = { ...current, ...patch };
+  // Opting out drops the install id, so opting back in later mints a fresh
+  // one rather than silently rejoining the old identity. Handled here rather
+  // than at the call site so every path that flips the toggle gets it.
+  if (patch.sentryOptIn === false) next.installId = null;
   await writeStore(next);
   return next;
+};
+
+/**
+ * Persist a freshly-generated install id. Separate from `updateSettings` so
+ * the Sentry init path can save an id it just minted without racing a
+ * renderer-driven settings write.
+ */
+export const persistInstallId = async (installId: string): Promise<void> => {
+  const current = await readStore();
+  if (current.installId === installId) return;
+  await writeStore({ ...current, installId });
 };
 
 export const registerSettingsIpc = (): void => {

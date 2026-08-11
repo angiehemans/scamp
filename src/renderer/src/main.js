@@ -2,6 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import * as Sentry from '@sentry/electron/renderer';
+import { isOptedIn } from '@shared/consent';
 import { App } from './App';
 import { TitleBar } from './components/TitleBar';
 import { UpdateBanner } from './components/UpdateBanner';
@@ -30,7 +31,9 @@ applyAppTheme(readInitialAppTheme());
 void (async () => {
     try {
         const settings = await window.scamp.getSettings();
-        if (settings.sentryOptIn !== true)
+        // Same consent rule as main — a `true` from older wording doesn't
+        // count until the user answers the new prompt.
+        if (!isOptedIn(settings))
             return;
         Sentry.init({
         // The DSN comes from the main process — the renderer doesn't
