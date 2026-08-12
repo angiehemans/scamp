@@ -71,12 +71,21 @@ export const ElementContextMenu = () => {
     const toggleSlotOnRect = useCanvasStore((s) => s.toggleSlotOnRect);
     const deleteElementContents = useCanvasStore((s) => s.deleteElementContents);
     const duplicateElement = useCanvasStore((s) => s.duplicateElement);
+    const copyElements = useCanvasStore((s) => s.copyElements);
+    const cutElements = useCanvasStore((s) => s.cutElements);
+    const pasteElement = useCanvasStore((s) => s.pasteElement);
+    const hasClipboard = useCanvasStore((s) => s.clipboard !== null);
     useEffect(() => {
         const handler = (e) => {
             const detail = e.detail;
             if (!detail)
                 return;
-            setMenu({ x: detail.x, y: detail.y, elementId: detail.elementId });
+            setMenu({
+                x: detail.x,
+                y: detail.y,
+                elementId: detail.elementId,
+                ...(detail.canvasPoint ? { canvasPoint: detail.canvasPoint } : {}),
+            });
         };
         window.addEventListener(EVENT_NAME, handler);
         return () => window.removeEventListener(EVENT_NAME, handler);
@@ -105,6 +114,25 @@ export const ElementContextMenu = () => {
                 },
             ]
             : []),
+        // Right-click selects the element it hit before opening the menu, so
+        // these act on that one element — same as Duplicate above. Cmd+C /
+        // Cmd+X are the multi-select path. Both are offered on the page root
+        // too: the store expands it to its children.
+        {
+            label: 'Copy',
+            onSelect: () => copyElements([menu.elementId]),
+        },
+        {
+            label: 'Cut',
+            onSelect: () => cutElements([menu.elementId]),
+        },
+        {
+            label: 'Paste',
+            disabled: !hasClipboard,
+            // Right-clicking the canvas pastes where you clicked; from the
+            // layers tree there's no point to paste at, so it offsets.
+            onSelect: () => pasteElement(menu.canvasPoint ? { at: menu.canvasPoint } : undefined),
+        },
         ...(canMakeSlot
             ? [
                 {

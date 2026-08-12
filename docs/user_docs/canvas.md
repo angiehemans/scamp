@@ -36,6 +36,26 @@ Drags and resizes clamp to the visible page, so an element can't disappear off-s
 A duplicate keeps the original's [name](element-naming.md) and gets a new
 ID suffix, so `menu_a1b2` duplicates to `menu_c3d4`.
 
+## Copying and Pasting
+
+- **Cmd+C** copies the selection; **Cmd+X** cuts it. Both are also on the
+  right-click menu.
+- **Cmd+V** pastes into the selected element, or alongside it when that
+  element can't hold children (text, images, inputs). With nothing
+  selected, the paste goes into the page.
+- **Cmd+Shift+V** pastes *in place*, at the position the elements were
+  copied from, rather than offset from it.
+- Right-click the canvas and choose **Paste** to drop the elements where
+  you clicked.
+
+The clipboard lasts for the whole session and survives switching pages —
+copy a nav on one page and paste it onto another. Pasted elements get new
+IDs but keep their names.
+
+Copying with the **page** selected — right-click empty canvas, or select
+the page row in the layers panel — takes everything on it, which is the
+quickest way to clone a whole page's contents onto a new one.
+
 ## Canvas Size
 
 The canvas-size control sits just above the canvas, to the right of the page-name badge. It shows the current width (e.g. `Desktop · 1440`) and opens a popover with:

@@ -25,7 +25,7 @@ Primary files: `src/renderer/store/historyTypes.ts` (kinds),
 `add-component-instance`, `convert-to-component`, `detach-instance`,
 `delete`, `move`, `resize`, `patch` (generic style/layout catch-all),
 `raw-css`, `rename` (name-only patch, special-cased label),
-`rename-page`, `add-page`, `delete-page`, `paste`, `duplicate`, `group`,
+`rename-page`, `add-page`, `delete-page`, `paste`, `cut`, `duplicate`, `group`,
 `ungroup`, `wrap-link`, `reorder`, `toggle-group`, `external-edit`,
 `load` (initial bucket seed on page/component open).
 
@@ -46,6 +46,7 @@ Element-level, all in `canvasSlice.ts` via `commitElementsToHistory`:
 | rename component references | `patch` (`propertyKeys: ['componentName']`) |
 | delete / duplicate | `delete` / `duplicate` |
 | paste | `paste` |
+| cut | `cut` (one entry covering copy + removal) |
 | group / ungroup | `group` / `ungroup` |
 | wrap in link | `wrap-link` |
 | reorder | `reorder` |
@@ -72,6 +73,10 @@ Page/document-level:
   result (e.g. final text via `setElementText`, final override via
   `setPropOverride`) pushes.
 - **Copy** — clipboard only; `paste` is the design decision, not copy.
+  **Cut** does push, as a single entry: it removes elements, so undoing it
+  has to bring them back in one press.
+  **Cut** does push, as one entry: it removes elements, so undoing it has
+  to bring them back in a single press.
 - **Load page / component / reloadElements** — `loadPage`/`loadComponent`
   seed a `load` entry via `commitInitialIfEmpty` (not a user action);
   external reloads push `external-edit` from the bridge instead.

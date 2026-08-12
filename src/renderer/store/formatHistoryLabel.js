@@ -106,6 +106,12 @@ export const formatHistoryLabel = (entry, elements) => {
             return `Added page ${entry.pageName ?? '?'}`;
         case 'delete-page':
             return `Deleted page ${entry.pageName ?? '?'}`;
+        case 'cut': {
+            // Like 'delete', the elements are gone by the time this renders.
+            const live = firstId !== undefined && elements[firstId] !== undefined;
+            const name = live ? firstName : entry.previousName ?? '[cut]';
+            return `Cut ${name}`;
+        }
         case 'paste':
             return `Pasted ${firstName}`;
         case 'duplicate':

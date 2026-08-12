@@ -40,8 +40,14 @@ export const componentSidebarItem = (page, name) => componentsList(page).getByRo
 export const addComponentButton = (page) => page.getByRole('button', { name: /Add Component/i });
 /** Currently-open context menu surface (PageContextMenu / ElementContextMenu). */
 export const contextMenu = (page) => page.getByRole('menu');
-/** A specific item inside the open context menu, by visible label. */
-export const contextMenuItem = (page, label) => contextMenu(page).getByRole('menuitem', { name: label });
+/**
+ * A specific item inside the open context menu, by visible label.
+ *
+ * Pass `exact` when the label is a prefix of another item's — "Copy"
+ * also matches "Copy context for agent", which reads as a menu bug
+ * rather than a locator one when the click fails.
+ */
+export const contextMenuItem = (page, label, exact = false) => contextMenu(page).getByRole('menuitem', { name: label, exact });
 /**
  * The canvas toolbar's terminal toggle. Selected by `data-action` rather
  * than accessible name: the button is icon-only, so its name comes from an

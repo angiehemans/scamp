@@ -20,9 +20,11 @@ Complete reference of keyboard shortcuts in Scamp.
 | **Delete** / **Backspace** | Delete selected element |
 | **Cmd+G** | Group selected elements |
 | **Cmd+Shift+G** | Ungroup the selected group |
-| **Cmd+C** | Copy the selected element |
+| **Cmd+C** | Copy the selection |
+| **Cmd+X** | Cut the selection (one undo step) |
 | **Cmd+Shift+C** | Copy a one-line description of the selection for an [AI agent](ai-agents.md) |
-| **Cmd+V** | Paste |
+| **Cmd+V** | Paste, offset slightly from where it was copied |
+| **Cmd+Shift+V** | Paste in place, at the copied position |
 | **Cmd+Z** | Undo |
 | **Cmd+Shift+Z** | Redo |
 | **Cmd+S** | Save (commits CSS editor changes) |

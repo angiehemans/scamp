@@ -532,7 +532,10 @@ export type CanvasState = {
    *  subtree at copy time, not a live reference. */
   clipboard: {
     elements: Record<string, ScampElement>;
-    rootId: string;
+    /** Subtree roots, in document order. Several when the user copied a
+     *  multi-selection, or copied the page root (which takes its
+     *  children). */
+    rootIds: string[];
   } | null;
 
   setTool: (tool: Tool) => void;
@@ -575,10 +578,25 @@ export type CanvasState = {
   /** Rewrite componentName on every matching instance in the active map. */
   renameComponentReferences: (oldName: string, newName: string) => void;
   duplicateElement: (id: string) => string | null;
-  /** Snapshot the selected element subtree into the internal clipboard. */
-  copyElement: (id: string) => void;
-  /** Clone from the clipboard and insert at the current selection point. */
-  pasteElement: () => string | null;
+  /**
+   * Snapshot one or more element subtrees into the internal clipboard.
+   * The page root expands to its children, and elements already covered
+   * by a selected ancestor are skipped — see `normalizeCopySelection`.
+   * A selection with nothing copyable leaves the clipboard untouched.
+   */
+  copyElements: (ids: readonly string[]) => void;
+  /** Copy, then remove — in a single history entry, so one undo restores. */
+  cutElements: (ids: readonly string[]) => void;
+  /**
+   * Clone from the clipboard and insert at the current selection point.
+   * `inPlace` keeps each element's copied x/y instead of offsetting it.
+   * Returns the new top-level ids, empty when nothing was pasted.
+   */
+  pasteElement: (options?: {
+    inPlace?: boolean;
+    /** Canvas point to drop at, in the insert parent's local space. */
+    at?: { x: number; y: number };
+  }) => string[];
   deleteElement: (id: string) => void;
   /**
    * Empty an element without removing it: recursively deletes every

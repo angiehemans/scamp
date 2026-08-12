@@ -71,9 +71,10 @@ export const openElementContextMenu = async (
 /** Click a menu item by label inside the currently-open context menu. */
 export const clickContextMenuItem = async (
   page: Page,
-  label: string
+  label: string,
+  exact = false
 ): Promise<void> => {
-  await contextMenuItem(page, label).click();
+  await contextMenuItem(page, label, exact).click();
 };
 
 /**

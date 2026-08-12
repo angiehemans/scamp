@@ -112,7 +112,7 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                 void copyContextToClipboard();
                 return;
             }
-            // Cmd/Ctrl+C — copy selected element to internal clipboard.
+            // Cmd/Ctrl+C — copy the selection to the internal clipboard.
             if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C') && !e.shiftKey) {
                 if (isEditableTarget(e.target))
                     return;
@@ -122,7 +122,34 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                 if (state.editingElementId)
                     return;
                 e.preventDefault();
-                state.copyElement(state.selectedElementIds[0]);
+                state.copyElements(state.selectedElementIds);
+                return;
+            }
+            // Cmd/Ctrl+X — cut: copy, then remove, as one undo step.
+            if ((e.metaKey || e.ctrlKey) && (e.key === 'x' || e.key === 'X')) {
+                if (isEditableTarget(e.target))
+                    return;
+                const state = useCanvasStore.getState();
+                if (state.selectedElementIds.length === 0)
+                    return;
+                if (state.editingElementId)
+                    return;
+                e.preventDefault();
+                state.cutElements(state.selectedElementIds);
+                return;
+            }
+            // Cmd/Ctrl+Shift+V — paste in place, at the coordinates the
+            // elements were copied from rather than offset from them.
+            if ((e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V') && e.shiftKey) {
+                if (isEditableTarget(e.target))
+                    return;
+                const state = useCanvasStore.getState();
+                if (state.editingElementId)
+                    return;
+                if (!state.clipboard)
+                    return;
+                e.preventDefault();
+                state.pasteElement({ inPlace: true });
                 return;
             }
             // Cmd/Ctrl+V — paste. Internal element clipboard wins; otherwise

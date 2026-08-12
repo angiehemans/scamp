@@ -25,7 +25,7 @@ export declare const openComponentContextMenu: (page: Page, componentName: strin
 /** Right-click an element on the canvas (frame-local coords). */
 export declare const openElementContextMenu: (page: Page, clientX: number, clientY: number) => Promise<void>;
 /** Click a menu item by label inside the currently-open context menu. */
-export declare const clickContextMenuItem: (page: Page, label: string) => Promise<void>;
+export declare const clickContextMenuItem: (page: Page, label: string, exact?: boolean) => Promise<void>;
 /**
  * Drag a component from the sidebar onto the canvas. Uses the HTML5
  * DnD evaluate pattern because pointer events alone don't fire

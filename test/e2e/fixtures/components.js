@@ -46,8 +46,8 @@ export const openElementContextMenu = async (page, clientX, clientY) => {
     await page.mouse.click(clientX, clientY, { button: 'right' });
 };
 /** Click a menu item by label inside the currently-open context menu. */
-export const clickContextMenuItem = async (page, label) => {
-    await contextMenuItem(page, label).click();
+export const clickContextMenuItem = async (page, label, exact = false) => {
+    await contextMenuItem(page, label, exact).click();
 };
 /**
  * Drag a component from the sidebar onto the canvas. Uses the HTML5

@@ -8,11 +8,13 @@ import { EXPORT_SECTION_DOM_ID } from './sections/ExportSection';
 type MenuState = {
   x: number;
   y: number;
-  /** Element id the menu is attached to. Stored for future menu items
-   *  (Copy, Duplicate, …) — Export uses the current selection rather
-   *  than this id so the section's scope and the menu's intent stay
-   *  in lockstep. */
+  /** Element id the menu is attached to. Duplicate / Copy / Cut act on
+   *  it; Export and "Copy context" use the current selection instead, so
+   *  the section's scope and the menu's intent stay in lockstep. (Right-
+   *  click selects the hit element first, so the two agree anyway.) */
   elementId: string;
+  /** See `EventDetail.canvasPoint`. */
+  canvasPoint?: { x: number; y: number };
 };
 
 /**
@@ -63,6 +65,10 @@ type EventDetail = {
   x: number;
   y: number;
   elementId: string;
+  /** Where the right-click landed, in the insert parent's local space.
+   *  Only the canvas sends it — a layers-tree right-click has no
+   *  meaningful point, and Paste falls back to its usual offset. */
+  canvasPoint?: { x: number; y: number };
 };
 
 const EVENT_NAME = 'scamp:open-element-context-menu';
@@ -116,12 +122,21 @@ export const ElementContextMenu = (): JSX.Element | null => {
   const toggleSlotOnRect = useCanvasStore((s) => s.toggleSlotOnRect);
   const deleteElementContents = useCanvasStore((s) => s.deleteElementContents);
   const duplicateElement = useCanvasStore((s) => s.duplicateElement);
+  const copyElements = useCanvasStore((s) => s.copyElements);
+  const cutElements = useCanvasStore((s) => s.cutElements);
+  const pasteElement = useCanvasStore((s) => s.pasteElement);
+  const hasClipboard = useCanvasStore((s) => s.clipboard !== null);
 
   useEffect(() => {
     const handler = (e: Event): void => {
       const detail = (e as CustomEvent<EventDetail>).detail;
       if (!detail) return;
-      setMenu({ x: detail.x, y: detail.y, elementId: detail.elementId });
+      setMenu({
+        x: detail.x,
+        y: detail.y,
+        elementId: detail.elementId,
+        ...(detail.canvasPoint ? { canvasPoint: detail.canvasPoint } : {}),
+      });
     };
     window.addEventListener(EVENT_NAME, handler);
     return () => window.removeEventListener(EVENT_NAME, handler);
@@ -156,6 +171,26 @@ export const ElementContextMenu = (): JSX.Element | null => {
           },
         ]
       : []),
+    // Right-click selects the element it hit before opening the menu, so
+    // these act on that one element — same as Duplicate above. Cmd+C /
+    // Cmd+X are the multi-select path. Both are offered on the page root
+    // too: the store expands it to its children.
+    {
+      label: 'Copy',
+      onSelect: () => copyElements([menu.elementId]),
+    },
+    {
+      label: 'Cut',
+      onSelect: () => cutElements([menu.elementId]),
+    },
+    {
+      label: 'Paste',
+      disabled: !hasClipboard,
+      // Right-clicking the canvas pastes where you clicked; from the
+      // layers tree there's no point to paste at, so it offsets.
+      onSelect: () =>
+        pasteElement(menu.canvasPoint ? { at: menu.canvasPoint } : undefined),
+    },
     ...(canMakeSlot
       ? [
           {

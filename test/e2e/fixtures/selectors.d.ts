@@ -34,8 +34,14 @@ export declare const componentSidebarItem: (page: Page, name: string) => Locator
 export declare const addComponentButton: (page: Page) => Locator;
 /** Currently-open context menu surface (PageContextMenu / ElementContextMenu). */
 export declare const contextMenu: (page: Page) => Locator;
-/** A specific item inside the open context menu, by visible label. */
-export declare const contextMenuItem: (page: Page, label: string) => Locator;
+/**
+ * A specific item inside the open context menu, by visible label.
+ *
+ * Pass `exact` when the label is a prefix of another item's — "Copy"
+ * also matches "Copy context for agent", which reads as a menu bug
+ * rather than a locator one when the click fails.
+ */
+export declare const contextMenuItem: (page: Page, label: string, exact?: boolean) => Locator;
 /**
  * The canvas toolbar's terminal toggle. Selected by `data-action` rather
  * than accessible name: the button is icon-only, so its name comes from an

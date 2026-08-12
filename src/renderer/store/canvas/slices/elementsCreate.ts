@@ -21,6 +21,8 @@ import { useHistoryStore, type HistoryCommitInput } from '../../historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
 import { classNameFor } from '@lib/generateCode';
 import { resolveElementAtState } from '@lib/stateCascade';
+import { resolveInsertParent } from '@lib/insertParent';
+import { normalizeCopySelection } from '@lib/clipboardSelection';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
 import {
@@ -61,6 +63,10 @@ import {
   type NewComponentInstanceInput,
 } from '../../canvasSlice';
 
+/** How far a paste lands from where it was copied, matching the offset
+ *  `duplicateElement` uses. Cmd+Shift+V skips it. */
+const PASTE_OFFSET = 20;
+
 export const createElementsCreateSlice: StateCreator<
   CanvasState,
   [],
@@ -82,7 +88,8 @@ export const createElementsCreateSlice: StateCreator<
   | 'deleteElement'
   | 'deleteElementContents'
   | 'duplicateElement'
-  | 'copyElement'
+  | 'copyElements'
+  | 'cutElements'
   | 'pasteElement'
   | 'groupElements'
   | 'ungroupElement'
@@ -661,18 +668,24 @@ export const createElementsCreateSlice: StateCreator<
     return createdId;
   },
 
-  copyElement: (id) => {
+  copyElements: (ids) => {
     set((state) => {
-      if (id === ROOT_ELEMENT_ID) return state;
-      const el = state.elements[id];
-      if (!el) return state;
+      const rootIds = normalizeCopySelection(
+        state.elements,
+        ids,
+        ROOT_ELEMENT_ID
+      );
+      // Nothing copyable (an empty page, or only the root selected with
+      // no children). Leave the existing clipboard alone — silently
+      // emptying it would lose whatever the user copied before.
+      if (rootIds.length === 0) return state;
 
-      // Deep-copy the subtree into the clipboard. Walk depth-first and
-      // collect every element in the subtree keyed by its original id.
+      // Deep-copy the subtrees into the clipboard. Walk depth-first and
+      // collect every element in each subtree keyed by its original id.
       const snapshot: Record<string, ScampElement> = {};
       const visit = (visitId: string): void => {
         const node = state.elements[visitId];
-        if (!node) return;
+        if (!node || snapshot[visitId]) return;
         snapshot[visitId] = {
           ...node,
           customProperties: { ...node.customProperties },
@@ -683,54 +696,144 @@ export const createElementsCreateSlice: StateCreator<
         };
         for (const childId of node.childIds) visit(childId);
       };
-      visit(id);
-      return { clipboard: { elements: snapshot, rootId: id } };
+      for (const id of rootIds) visit(id);
+      return { clipboard: { elements: snapshot, rootIds } };
     });
   },
 
-  pasteElement: () => {
-    let createdId: string | null = null;
+  cutElements: (ids) => {
+    // Copy first, so a cut that can't remove anything still leaves the
+    // clipboard in the state the user expects.
+    useCanvasStore.getState().copyElements(ids);
+
+    const before = useCanvasStore.getState();
+    const targets = normalizeCopySelection(
+      before.elements,
+      ids,
+      ROOT_ELEMENT_ID
+    );
+    if (targets.length === 0) return;
+    const firstEl = before.elements[targets[0]!];
+    const previousName = firstEl ? classNameFor(firstEl) : undefined;
+
+    set((state) => {
+      // Collect every target and its descendants in one pass, so the
+      // whole cut is a single state update and a single history entry.
+      const toRemove = new Set<string>();
+      const visit = (visitId: string): void => {
+        if (toRemove.has(visitId)) return;
+        toRemove.add(visitId);
+        const el = state.elements[visitId];
+        if (!el) return;
+        for (const childId of el.childIds) visit(childId);
+      };
+      for (const id of targets) visit(id);
+
+      const nextElements: Record<string, ScampElement> = {};
+      for (const [key, value] of Object.entries(state.elements)) {
+        if (toRemove.has(key)) continue;
+        // Detach removed children from whichever parents survive.
+        nextElements[key] = value.childIds.some((c) => toRemove.has(c))
+          ? { ...value, childIds: value.childIds.filter((c) => !toRemove.has(c)) }
+          : value;
+      }
+
+      return {
+        elements: nextElements,
+        selectedElementIds: state.selectedElementIds.filter(
+          (s) => !toRemove.has(s)
+        ),
+        editingElementId:
+          state.editingElementId && toRemove.has(state.editingElementId)
+            ? null
+            : state.editingElementId,
+      };
+    });
+    commitElementsToHistory({ kind: 'cut', elementIds: targets, previousName });
+  },
+
+  pasteElement: (options) => {
+    let createdIds: string[] = [];
     set((state) => {
       if (!state.clipboard) return state;
 
-      // Paste INTO the selected element as its last child. If nothing
-      // is selected, paste into the root.
-      const selectedId = state.selectedElementIds[0];
-      const parentId = selectedId ?? ROOT_ELEMENT_ID;
+      // Paste INTO the selected element as its last child — or, when the
+      // selection is a leaf that can't hold children (text / image /
+      // input / instance), alongside it in its nearest container
+      // ancestor. Pasting into a leaf would emit invalid nesting.
+      // Nothing selected pastes into the root.
+      const parentId = resolveInsertParent(
+        state.elements,
+        state.selectedElementIds[0] ?? null,
+        ROOT_ELEMENT_ID
+      );
       const parent = state.elements[parentId];
       if (!parent) return state;
-      const insertIdx = parent.childIds.length;
+      const isFlexParent = parent.display === 'flex';
 
-      // Clone the clipboard subtree with fresh IDs.
-      const result = cloneElementSubtree(
-        state.clipboard.elements,
-        state.clipboard.rootId,
-        parentId,
-        new Set(Object.keys(state.elements))
-      );
-      if (!result) return state;
+      // Clone each clipboard subtree with fresh IDs. `taken` accumulates
+      // across the loop so two pasted subtrees can't be handed the same
+      // id — cloneElementSubtree only knows about the ids it's told.
+      const taken = new Set(Object.keys(state.elements));
+      const cloned: Record<string, ScampElement> = {};
+      const newRootIds: string[] = [];
+      for (const rootId of state.clipboard.rootIds) {
+        const result = cloneElementSubtree(
+          state.clipboard.elements,
+          rootId,
+          parentId,
+          taken
+        );
+        if (!result) continue;
+        for (const id of Object.keys(result.cloned)) taken.add(id);
+        Object.assign(cloned, result.cloned);
+        newRootIds.push(result.newId);
+      }
+      if (newRootIds.length === 0) return state;
 
-      const newChildIds = [...parent.childIds];
-      newChildIds.splice(insertIdx, 0, result.newId);
-      const updatedParent: ScampElement = { ...parent, childIds: newChildIds };
+      // Position the top-level pastes. Flex parents lay their children
+      // out, so x/y is meaningless there and always left alone.
+      // `at` drops them at a point (right-click paste); `inPlace` keeps
+      // the copied coordinates; otherwise offset so the paste doesn't
+      // land exactly on top of whatever is already there.
+      if (!isFlexParent) {
+        for (const [i, id] of newRootIds.entries()) {
+          const el = cloned[id];
+          if (!el) continue;
+          const at = options?.at;
+          if (at) {
+            // Several elements dropped at one point would stack
+            // invisibly, so fan them out from it.
+            const step = i * PASTE_OFFSET;
+            cloned[id] = { ...el, x: at.x + step, y: at.y + step };
+          } else if (options?.inPlace !== true) {
+            cloned[id] = { ...el, x: el.x + PASTE_OFFSET, y: el.y + PASTE_OFFSET };
+          }
+        }
+      }
 
-      createdId = result.newId;
+      const updatedParent: ScampElement = {
+        ...parent,
+        childIds: [...parent.childIds, ...newRootIds],
+      };
+
+      createdIds = newRootIds;
       return {
         elements: {
           ...state.elements,
-          ...result.cloned,
+          ...cloned,
           [updatedParent.id]: updatedParent,
         },
-        selectedElementIds: [result.newId],
+        selectedElementIds: newRootIds,
       };
     });
-    if (createdId !== null) {
+    if (createdIds.length > 0) {
       commitElementsToHistory({
         kind: 'paste',
-        elementIds: [createdId],
+        elementIds: createdIds,
       });
     }
-    return createdId;
+    return createdIds;
   },
 
   groupElements: (ids) => {

@@ -14,6 +14,7 @@ import { DrawPreview } from './DrawPreview';
 import { GridOverlay } from './GridOverlay';
 import { LinkIndicators } from './LinkIndicators';
 import { hitTest, propTextHitTest } from './interactions/canvasHitTest';
+import { resolveInsertParent } from '@lib/insertParent';
 import { useCanvasGeometry } from './interactions/useCanvasGeometry';
 import { useDrawInteraction } from './interactions/useDrawInteraction';
 import { useMoveInteraction } from './interactions/useMoveInteraction';
@@ -193,9 +194,26 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     e.preventDefault();
     const hitId = hitTest(e.clientX, e.clientY) ?? ROOT_ELEMENT_ID;
     selectElement(hitId);
+    // Carry the click point so "Paste" can drop the elements where the
+    // user right-clicked. It has to be in the *insert parent's* local
+    // space, which is where the paste will actually land — the same
+    // parent-relative math the text tool does. Only the canvas sends
+    // this; a layers-tree right-click has no meaningful point, and
+    // paste falls back to its usual offset there.
+    const parentId = resolveInsertParent(elements, hitId, ROOT_ELEMENT_ID);
+    const parentRect = measureElementInFrame(parentId) ?? { x: 0, y: 0, w: 0, h: 0 };
+    const point = geometry.toFrame(e.clientX, e.clientY);
     window.dispatchEvent(
       new CustomEvent('scamp:open-element-context-menu', {
-        detail: { x: e.clientX, y: e.clientY, elementId: hitId },
+        detail: {
+          x: e.clientX,
+          y: e.clientY,
+          elementId: hitId,
+          canvasPoint: {
+            x: Math.max(0, Math.round(point.x - parentRect.x)),
+            y: Math.max(0, Math.round(point.y - parentRect.y)),
+          },
+        },
       })
     );
   };

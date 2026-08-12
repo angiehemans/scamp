@@ -16,6 +16,7 @@ export type HistoryActionKind =
   | 'load'
   | 'delete'
   | 'delete-contents'
+  | 'cut'
   | 'move'
   | 'resize'
   | 'patch'
