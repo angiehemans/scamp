@@ -46,7 +46,11 @@ export const registerImageIpc = () => {
         const result = await copyImage(args, format);
         // Suppress the watcher event for our own asset write so importing an
         // SVG doesn't immediately fire a "changed externally" reload prompt.
-        suppressNextChange(join(assetsDirFor(args.projectPath, format), result.fileName));
+        // Only when we actually wrote: a suppression with no write to match
+        // stays armed and swallows the next REAL edit to that file instead.
+        if (!result.reused) {
+            suppressNextChange(join(assetsDirFor(args.projectPath, format), result.fileName));
+        }
         return result;
     });
     ipcMain.handle(IPC.FileChooseImage, async (_e, args) => chooseImage(args));

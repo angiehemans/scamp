@@ -330,6 +330,14 @@ export type CopyImageArgs = {
 export type CopyImageResult = {
     relativePath: string;
     fileName: string;
+    /**
+     * True when the chosen file was ALREADY the asset at that path, so
+     * nothing was written. The IPC handler uses this to skip its watcher
+     * suppression — suppressing a write that never happened would swallow
+     * the next real external edit to that file.
+     * see docs/plans/reuse-existing-assets-plan.md
+     */
+    reused: boolean;
 };
 export type ChooseImageArgs = {
     /** Optional directory to open the dialog in (e.g. project assets folder). */

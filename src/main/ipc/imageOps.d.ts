@@ -12,6 +12,13 @@ export declare const assetsDirFor: (projectPath: string, format: ProjectFormat) 
  * filename if it collides. Pure with respect to `format` — the caller
  * (`registerImageIpc`) reads it from the project format cache.
  *
+ * **May not copy at all.** When the chosen file already IS the asset at
+ * the destination path, it's returned as-is (`reused: true`). Without
+ * that check the dedupe loop below doesn't just fail to notice — it
+ * guarantees a duplicate, since the destination is occupied by the very
+ * file being imported. All three image pickers open in the assets
+ * folder, so re-choosing an existing asset is a common action.
+ *
  * Returns the runtime reference path as `relativePath` (the field name
  * predates the nextjs format, where the path is actually absolute
  * server-root; kept for compatibility with existing call sites).
