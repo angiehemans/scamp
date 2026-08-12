@@ -106,7 +106,7 @@ test.describe('layers panel: drag-and-drop reorder', () => {
     expect(initialOrder).toEqual(['root', firstClass, secondClass]);
 
     // Drag the second row above the first.
-    const diag = await reorderInTree(
+    await reorderInTree(
       window,
       `[data-testid="layers-panel"] [data-element-class="${secondClass}"]`,
       `[data-testid="layers-panel"] [data-element-class="${firstClass}"]`,
@@ -117,18 +117,6 @@ test.describe('layers panel: drag-and-drop reorder', () => {
     const nextOrder = await layersRows(window).evaluateAll((rows) =>
       rows.map((r) => (r as HTMLElement).dataset.elementClass ?? '')
     );
-    if (JSON.stringify(nextOrder) !== JSON.stringify(['root', secondClass, firstClass])) {
-
-      console.log('REORDER_DIAG:', JSON.stringify(diag));
-
-      console.log('REORDER_NEXT_ORDER:', JSON.stringify(nextOrder));
-
-      const dropDiag = await window.evaluate(
-        () => (window as unknown as { __scampDropDiag?: unknown }).__scampDropDiag
-      );
-
-      console.log('REORDER_DROP_DIAG:', JSON.stringify(dropDiag));
-    }
     expect(nextOrder).toEqual(['root', secondClass, firstClass]);
   });
 

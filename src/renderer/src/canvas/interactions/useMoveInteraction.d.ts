@@ -11,6 +11,8 @@ export type MoveInteraction = {
     onMove: (e: PointerEvent<HTMLDivElement>) => boolean;
     /** Commit the move (or reparent) transaction and clear state on release. */
     onEnd: () => void;
+    /** Abandon the drag: restore the start position, commit nothing. */
+    cancel: () => void;
 };
 /**
  * Move state machine for absolutely-positioned elements. A history

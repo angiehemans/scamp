@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode';
+import { canContainChildren } from '@lib/insertParent';
+import { resolveDropZone } from '@lib/dropZones';
 import { ROOT_ELEMENT_ID, slugifyName } from '@lib/element';
 import { ancestorIds, descendantIds, flattenTree, hasChildRows, hasCollapsedAncestor, } from '@lib/treeRows';
 import { Tooltip } from './controls/Tooltip';
@@ -54,25 +56,23 @@ const labelFor = (el) => {
 const truncate = (s, n) => (s.length > n ? `${s.slice(0, n)}…` : s);
 /**
  * Decide whether the cursor's vertical position over a row means
- * "before", "after", or "inside" — only rectangles can be a drop target
- * for "inside" since text elements can't have children.
+ * "before", "after", or "inside".
+ *
+ * Delegates the split to `resolveDropZone` so the tree and the canvas
+ * agree — including which elements can hold children at all, which the
+ * tree used to answer for itself (and got wrong for images and inputs).
  */
 const computeDropPosition = (e, el) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const h = rect.height;
     // Root: only "inside" is meaningful — you can't put a sibling next to
     // the page itself.
     if (el.id === ROOT_ELEMENT_ID)
         return 'inside';
-    // Text elements can't have children — only before/after.
-    if (el.type === 'text')
-        return y < h / 2 ? 'before' : 'after';
-    if (y < h * 0.25)
-        return 'before';
-    if (y > h * 0.75)
-        return 'after';
-    return 'inside';
+    const rect = e.currentTarget.getBoundingClientRect();
+    return resolveDropZone({
+        rect: { start: rect.top, size: rect.height },
+        cursor: e.clientY,
+        canHoldChildren: canContainChildren(el),
+    });
 };
 const Row = ({ element, depth, dragOver, setDragOver, showToggle, collapsed, hasSelectedInside, }) => {
     const toggleCollapsed = useCanvasStore((s) => s.toggleCollapsed);
@@ -129,32 +129,12 @@ const Row = ({ element, depth, dragOver, setDragOver, showToggle, collapsed, has
     const handleDrop = (e) => {
         const draggedId = e.dataTransfer.getData(DRAG_MIME);
         setDragOver(null);
-        const w = window;
-        if (!w.__scampDropDiag)
-            w.__scampDropDiag = [];
-        w.__scampDropDiag.push({
-            stage: 'enter',
-            draggedId,
-            targetId: element.id,
-            targetParent: element.parentId,
-        });
-        if (!draggedId || draggedId === element.id) {
-            w.__scampDropDiag.push({ stage: 'early-return' });
+        if (!draggedId || draggedId === element.id)
             return;
-        }
         e.preventDefault();
-        const position = computeDropPosition(e, element);
-        w.__scampDropDiag.push({ stage: 'pre-runDrop', position });
-        const beforeChildIds = element.parentId
-            ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
-            : [];
-        runDrop(draggedId, element, position, reorderElement);
-        const afterChildIds = element.parentId
-            ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
-            : [];
-        w.__scampDropDiag.push({ stage: 'post-runDrop', beforeChildIds, afterChildIds });
+        runDrop(draggedId, element, computeDropPosition(e, element), reorderElement);
     };
-    return (_jsxs("div", { ref: ref, className: `${styles.rowWrap} ${showInside ? styles.rowDropInside : ''}`, draggable: element.id !== ROOT_ELEMENT_ID, onDragStart: handleDragStart, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, "data-testid": "layers-row", "data-element-id": element.id, "data-element-class": classNameFor(element), children: [showBefore && _jsx("div", { className: styles.dropLine }), showToggle && (_jsx("button", { type: "button", className: styles.disclosure, 
+    return (_jsxs("div", { ref: ref, className: `${styles.rowWrap} ${showInside ? styles.rowDropInside : ''}`, draggable: element.id !== ROOT_ELEMENT_ID, onDragStart: handleDragStart, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, "data-testid": "layers-row", "data-element-id": element.id, "data-element-class": classNameFor(element), children: [showBefore && (_jsx("div", { className: styles.dropLine, style: { left: 8 + depth * INDENT_PX } })), showToggle && (_jsx("button", { type: "button", className: styles.disclosure, 
                 // Positioned against the wrapper rather than nested in the row
                 // button — a button inside a button is invalid and breaks
                 // keyboard semantics.
@@ -223,7 +203,7 @@ const Row = ({ element, depth, dragOver, setDragOver, showToggle, collapsed, has
                                 }
                                 // Stop propagation so typing doesn't trigger tool shortcuts.
                                 e.stopPropagation();
-                            }, onClick: (e) => e.stopPropagation(), onPointerDown: (e) => e.stopPropagation() })) : (_jsx("span", { className: styles.label, children: labelFor(element) }))] }) }), showAfter && _jsx("div", { className: styles.dropLine })] }));
+                            }, onClick: (e) => e.stopPropagation(), onPointerDown: (e) => e.stopPropagation() })) : (_jsx("span", { className: styles.label, children: labelFor(element) }))] }) }), showAfter && (_jsx("div", { className: styles.dropLine, style: { left: 8 + depth * INDENT_PX } }))] }));
 };
 /**
  * Apply a tree-row drop to the store. Resolves the (target, position)

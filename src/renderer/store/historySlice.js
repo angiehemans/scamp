@@ -230,6 +230,26 @@ export const useHistoryStore = create((set, get) => ({
             get().commitHistory({ kind: 'external-edit' }, pending.snapshot);
         }
     },
+    cancelHistoryTransaction: () => {
+        const state = get();
+        if (state.transactionDepth === 0)
+            return;
+        const nextDepth = state.transactionDepth - 1;
+        set({ transactionDepth: nextDepth });
+        if (nextDepth > 0)
+            return;
+        // No entry: the caller has already put the canvas back where it
+        // started, so committing would leave an undo step that does nothing.
+        // An external edit that arrived mid-transaction still has to be
+        // drained, though — dropping it would silently lose a file change.
+        const pending = get().pendingExternalEdit;
+        if (pending) {
+            set({ pendingExternalEdit: null });
+            const restore = get().restoreSnapshot;
+            restore?.(pending.snapshot);
+            get().commitHistory({ kind: 'external-edit' }, pending.snapshot);
+        }
+    },
     enqueueExternalEdit: (snapshot) => {
         const state = get();
         if (state.transactionDepth > 0) {

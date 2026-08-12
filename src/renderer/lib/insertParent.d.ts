@@ -1,5 +1,14 @@
 import type { ScampElement } from './element';
 /**
+ * Rectangles hold children; text / image / svg / input / component-instance
+ * are leaves. Mirrors the drop-container rule in `useCanvasGeometry`.
+ *
+ * Exported so the drag surfaces share one definition — the layers tree
+ * used to test `type !== 'text'` on its own and so offered "drop inside"
+ * an image. see docs/plans/drop-placement-helpers-plan.md
+ */
+export declare const canContainChildren: (el: ScampElement) => boolean;
+/**
  * Resolve the parent for a newly-inserted element (pasted / imported image
  * or SVG) so it lands inside the user's current focus. Prefers the selected
  * element; when that's a leaf (can't hold children) it walks up to the

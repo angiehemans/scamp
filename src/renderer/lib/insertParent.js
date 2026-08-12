@@ -1,8 +1,12 @@
 /**
  * Rectangles hold children; text / image / svg / input / component-instance
  * are leaves. Mirrors the drop-container rule in `useCanvasGeometry`.
+ *
+ * Exported so the drag surfaces share one definition — the layers tree
+ * used to test `type !== 'text'` on its own and so offered "drop inside"
+ * an image. see docs/plans/drop-placement-helpers-plan.md
  */
-const canContainChildren = (el) => el.type === 'rectangle';
+export const canContainChildren = (el) => el.type === 'rectangle';
 /**
  * Resolve the parent for a newly-inserted element (pasted / imported image
  * or SVG) so it lands inside the user's current focus. Prefers the selected

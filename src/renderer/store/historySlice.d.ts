@@ -100,6 +100,13 @@ type HistoryState = {
      */
     endHistoryTransaction: (input: HistoryCommitInput, snapshot: Record<string, ScampElement>) => void;
     /**
+     * Close the outermost transaction WITHOUT committing an entry — for a
+     * gesture the user abandoned (Escape mid-drag). The caller is
+     * responsible for restoring the pre-gesture state first.
+     * see docs/plans/drop-placement-helpers-plan.md
+     */
+    cancelHistoryTransaction: () => void;
+    /**
      * Queue an external edit for application after the current
      * transaction ends. Called by syncBridge when a file-watcher
      * event arrives during a drag. The snapshot is the parsed

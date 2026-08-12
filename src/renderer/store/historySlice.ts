@@ -119,6 +119,13 @@ type HistoryState = {
     snapshot: Record<string, ScampElement>
   ) => void;
   /**
+   * Close the outermost transaction WITHOUT committing an entry — for a
+   * gesture the user abandoned (Escape mid-drag). The caller is
+   * responsible for restoring the pre-gesture state first.
+   * see docs/plans/drop-placement-helpers-plan.md
+   */
+  cancelHistoryTransaction: () => void;
+  /**
    * Queue an external edit for application after the current
    * transaction ends. Called by syncBridge when a file-watcher
    * event arrives during a drag. The snapshot is the parsed
@@ -366,6 +373,25 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
         { kind: 'external-edit' },
         pending.snapshot
       );
+    }
+  },
+
+  cancelHistoryTransaction: () => {
+    const state = get();
+    if (state.transactionDepth === 0) return;
+    const nextDepth = state.transactionDepth - 1;
+    set({ transactionDepth: nextDepth });
+    if (nextDepth > 0) return;
+    // No entry: the caller has already put the canvas back where it
+    // started, so committing would leave an undo step that does nothing.
+    // An external edit that arrived mid-transaction still has to be
+    // drained, though — dropping it would silently lose a file change.
+    const pending = get().pendingExternalEdit;
+    if (pending) {
+      set({ pendingExternalEdit: null });
+      const restore = get().restoreSnapshot;
+      restore?.(pending.snapshot);
+      get().commitHistory({ kind: 'external-edit' }, pending.snapshot);
     }
   },
 

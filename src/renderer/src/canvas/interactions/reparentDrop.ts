@@ -7,6 +7,7 @@
 import type { ScampElement } from '@lib/element';
 import { wouldCreateComponentCycle } from '@lib/componentUsage';
 
+import { resolveDropZone } from '@lib/dropZones';
 import { elementIdOf } from './canvasHitTest';
 import type { CanvasGeometry, DropIndicator, ReparentDrop } from './types';
 
@@ -125,6 +126,48 @@ export const flowIndicator = (
 };
 
 /**
+ * When the cursor sits in a container's leading or trailing edge band,
+ * the user means "beside this", not "inside it" — so the drop retargets
+ * to that container's parent, and `flowIndicator` then resolves which
+ * side.
+ *
+ * Only inside a **flex** parent. In an absolute parent, sibling order
+ * doesn't move anything (position is x/y), so offering "between" would
+ * promise something the user can't see; and a grid parent's indicator
+ * appends at the end rather than inserting, so retargeting there would
+ * turn a precise drop into an append.
+ *
+ * Returns the parent id to retarget to, or null to leave the drop alone.
+ * see docs/plans/drop-placement-helpers-plan.md
+ */
+const besideTargetFor = (
+  hit: { parentId: string; isFlow: boolean; slotName?: string },
+  clientX: number,
+  clientY: number,
+  geometry: CanvasGeometry,
+  elements: Record<string, ScampElement>
+): string | null => {
+  // A slot zone is a routing target, not a box with edges to be beside.
+  if (hit.slotName !== undefined) return null;
+  const el = elements[hit.parentId];
+  const parentId = el?.parentId;
+  const parent = parentId ? elements[parentId] : undefined;
+  if (!el || !parentId || !parent) return null;
+  if (parent.display !== 'flex') return null;
+
+  const r = geometry.measureElementInFrame(hit.parentId);
+  if (!r) return null;
+  const cursor = geometry.toFrame(clientX, clientY);
+  const isRow = parent.flexDirection === 'row';
+  const zone = resolveDropZone({
+    rect: isRow ? { start: r.x, size: r.w } : { start: r.y, size: r.h },
+    cursor: isRow ? cursor.x : cursor.y,
+    canHoldChildren: true,
+  });
+  return zone === 'inside' ? null : parentId;
+};
+
+/**
  * Resolve a pending reparent for the dragged element under the cursor, or
  * null when there's no valid DIFFERENT container (decision (b): reparent
  * only when the target differs from the current parent). `grab` is the
@@ -144,8 +187,16 @@ export const resolveReparentDrop = (
   // GAP between siblings targets the shared PARENT (rejected below as
   // "same parent"), so it falls through to the reorder path; only dropping
   // onto a sibling's body nests into it. see docs/plans/component-slots-plan.md
-  const drop = geometry.resolveDropContainer(clientX, clientY, draggedEl.id);
-  if (!drop || drop.parentId === draggedEl.parentId) return null;
+  const hit = geometry.resolveDropContainer(clientX, clientY, draggedEl.id);
+  if (!hit) return null;
+
+  // …except near its edges. Without this the only way to drop BESIDE a
+  // container inside a flex parent is to hit the gap between siblings;
+  // anywhere on its body nests you inside it, which is the "I meant
+  // between" problem. see docs/plans/drop-placement-helpers-plan.md
+  const beside = besideTargetFor(hit, clientX, clientY, geometry, elements);
+  const drop = beside ? { parentId: beside, isFlow: true } : hit;
+  if (drop.parentId === draggedEl.parentId) return null;
 
   if (drop.isFlow) {
     const parent = elements[drop.parentId];

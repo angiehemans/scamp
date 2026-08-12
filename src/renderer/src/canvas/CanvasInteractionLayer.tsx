@@ -3,6 +3,7 @@ import {
   MouseEvent,
   PointerEvent,
   RefObject,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -99,6 +100,26 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     // (move, resize, panel edit, file reload) re-measures the selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedElementId, elements, scale]);
+
+  // Escape abandons a drag in flight: the element goes back where it
+  // started and nothing is committed. Listening on window rather than the
+  // layer because the pointer is captured during a drag, so the layer
+  // never has keyboard focus. see docs/plans/drop-placement-helpers-plan.md
+  const dragActive = move.move !== null || reorder.active;
+  useEffect(() => {
+    if (!dragActive) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      move.cancel();
+      reorder.cancel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // `move` / `reorder` are recreated each render; the effect only needs
+    // to re-attach when a drag starts or stops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragActive]);
 
   const handlePointerDown = (e: PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0) return;

@@ -107,5 +107,16 @@ export const useMoveInteraction = (geometry, scale) => {
         setMove(null);
         setCrossDrop(null);
     };
-    return { move, crossDrop, start, onMove, onEnd };
+    const cancel = () => {
+        if (move) {
+            // Put the element back where the drag started, then close the
+            // transaction without an entry — an abandoned gesture shouldn't
+            // leave an undo step behind.
+            moveElement(move.id, move.originX, move.originY);
+            useHistoryStore.getState().cancelHistoryTransaction();
+        }
+        setMove(null);
+        setCrossDrop(null);
+    };
+    return { move, crossDrop, start, onMove, onEnd, cancel };
 };

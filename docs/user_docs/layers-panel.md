@@ -13,7 +13,14 @@ Elements are listed top-to-bottom matching their order in the generated code. Ne
 
 ## Reordering
 
-Drag and drop elements within the layers panel to change their order or nesting. Dropping an element onto another makes it a child of that element.
+Drag and drop elements within the layers panel to change their order or nesting. Where you release decides what happens:
+
+- **Over the middle of a row** — the row highlights, and the element becomes a child of it.
+- **Near the top or bottom edge of a row** — an indented line appears, and the element drops beside it as a sibling. The line's indent shows which level it will join.
+
+Rows that can't hold children — text, images, inputs, and component instances — never highlight; dropping on them always places the element beside them.
+
+The canvas follows the same rule: the middle of a container nests inside it, its edges drop alongside it. Press **Escape** during a drag to cancel it — the element returns to where it started.
 
 ## Renaming
 

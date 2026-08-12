@@ -29,6 +29,11 @@ export type ReorderInteraction = {
   onMove: (e: PointerEvent<HTMLDivElement>) => boolean;
   /** Commit the reorder / reparent (if a target is set) and clear state. */
   onEnd: () => void;
+  /** Abandon the drag without applying anything. */
+  cancel: () => void;
+  /** True from pointer-down until release — set before any drop target
+   *  resolves, so Escape works from the very start of the gesture. */
+  active: boolean;
 };
 
 /**
@@ -206,5 +211,21 @@ export const useReorderInteraction = (
     }
   };
 
-  return { dropIndicator, crossDrop, start, onMove, onEnd };
+  const cancel = (): void => {
+    // Nothing to undo: a reorder drag only tracks an indicator and
+    // applies the move on release, so abandoning it is just forgetting.
+    setReorder(null);
+    setDropIndicator(null);
+    setCrossDrop(null);
+  };
+
+  return {
+    dropIndicator,
+    crossDrop,
+    start,
+    onMove,
+    onEnd,
+    cancel,
+    active: reorder !== null,
+  };
 };

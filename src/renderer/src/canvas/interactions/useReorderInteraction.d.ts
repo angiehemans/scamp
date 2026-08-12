@@ -10,6 +10,11 @@ export type ReorderInteraction = {
     onMove: (e: PointerEvent<HTMLDivElement>) => boolean;
     /** Commit the reorder / reparent (if a target is set) and clear state. */
     onEnd: () => void;
+    /** Abandon the drag without applying anything. */
+    cancel: () => void;
+    /** True from pointer-down until release — set before any drop target
+     *  resolves, so Escape works from the very start of the gesture. */
+    active: boolean;
 };
 /**
  * Reorder state machine for flex children. Flex layout owns the child's

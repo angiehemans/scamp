@@ -75,8 +75,6 @@ Page/document-level:
 - **Copy** — clipboard only; `paste` is the design decision, not copy.
   **Cut** does push, as a single entry: it removes elements, so undoing it
   has to bring them back in one press.
-  **Cut** does push, as one entry: it removes elements, so undoing it has
-  to bring them back in a single press.
 - **Load page / component / reloadElements** — `loadPage`/`loadComponent`
   seed a `load` entry via `commitInitialIfEmpty` (not a user action);
   external reloads push `external-edit` from the bridge instead.
@@ -152,9 +150,14 @@ missing from it; the real gaps want a project-level history feature.
   drag, resize drag, and color-picker drag (the per-tick `move`/`resize`
   calls in `canvasSlice` are no-ops until the outermost transaction ends
   in `CanvasInteractionLayer`).
+- **Cancelling a transaction:** `cancelHistoryTransaction` closes the
+  outermost transaction WITHOUT committing — for Escape mid-drag, where
+  the caller has already restored the pre-drag state and an entry would
+  be an undo step that does nothing. It still drains a queued external
+  edit, which must not be lost just because the gesture was abandoned.
 - **External edits during a drag** are queued (`pendingExternalEdit`,
-  latest-wins) and drained when the transaction ends, so a drag stays
-  atomic.
+  latest-wins) and drained when the transaction ends (or is cancelled),
+  so a drag stays atomic.
 - **`commitInitialIfEmpty`** seeds a `load` entry at cursor 0 on open
   (idempotent — revisiting a page keeps its existing stack), so the first
   `Cmd+Z` returns to the loaded state rather than no-opping.

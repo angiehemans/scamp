@@ -22,6 +22,8 @@ export type MoveInteraction = {
   onMove: (e: PointerEvent<HTMLDivElement>) => boolean;
   /** Commit the move (or reparent) transaction and clear state on release. */
   onEnd: () => void;
+  /** Abandon the drag: restore the start position, commit nothing. */
+  cancel: () => void;
 };
 
 /**
@@ -165,5 +167,17 @@ export const useMoveInteraction = (
     setCrossDrop(null);
   };
 
-  return { move, crossDrop, start, onMove, onEnd };
+  const cancel = (): void => {
+    if (move) {
+      // Put the element back where the drag started, then close the
+      // transaction without an entry — an abandoned gesture shouldn't
+      // leave an undo step behind.
+      moveElement(move.id, move.originX, move.originY);
+      useHistoryStore.getState().cancelHistoryTransaction();
+    }
+    setMove(null);
+    setCrossDrop(null);
+  };
+
+  return { move, crossDrop, start, onMove, onEnd, cancel };
 };

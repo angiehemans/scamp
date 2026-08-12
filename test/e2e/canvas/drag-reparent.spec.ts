@@ -199,3 +199,130 @@ test.describe('canvas: drag to reparent', () => {
     expect(outerStart).toBeLessThan(innerStart);
   });
 });
+
+/**
+ * The edge bands added by the placement-helpers work. Without them the
+ * only way to drop BESIDE a container inside a flex parent was to hit the
+ * gap between siblings — anywhere on its body nested you inside it, which
+ * is the ambiguity the story is about.
+ * see docs/plans/drop-placement-helpers-plan.md
+ */
+test.describe('canvas: drop beside vs inside', () => {
+  /** Drag an element's centre to a viewport point. */
+  const dragElementToClient = async (
+    window: Parameters<typeof measureFrame>[0],
+    className: string,
+    to: { x: number; y: number }
+  ): Promise<void> => {
+    const box = await canvasElement(window, className).boundingBox();
+    if (!box) throw new Error(`no bounding box for ${className}`);
+    await window.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await window.mouse.down();
+    await window.mouse.move(to.x, to.y, { steps: 12 });
+    await window.mouse.up();
+  };
+
+  /**
+   * A flex-row container holding one child rect, plus a loose rect
+   * outside it. Returns all three classes.
+   */
+  const seedFlexWithChild = async (
+    window: Parameters<typeof measureFrame>[0]
+  ): Promise<{ flex: string; child: string; loose: string }> => {
+    await expect(pageRoot(window)).toBeVisible();
+    const flex = await drawAndSelectRect(window, { x: 300, y: 100 }, { x: 660, y: 420 });
+    await panelSection(window, 'Layout')
+      .getByRole('radio', { name: 'Flex row' })
+      .click();
+    await waitForSaved(window);
+
+    // Drawn inside the flex box, so it lands as its child.
+    await selectTool(window, 'r');
+    await dragInFrame(window, { x: 340, y: 160 }, { x: 520, y: 340 });
+    await waitForSaved(window);
+    const child = (
+      await canvasElementsByPrefix(window, 'rect_').evaluateAll((nodes) =>
+        nodes.map((n) => n.getAttribute('data-scamp-id') ?? '')
+      )
+    ).find((c) => c !== flex);
+    if (!child) throw new Error('expected a child rect inside the flex box');
+
+    const loose = await drawAndSelectRect(window, { x: 60, y: 60 }, { x: 160, y: 160 });
+    await waitForSaved(window);
+    return { flex, child, loose };
+  };
+
+  test('dropping on a container\'s edge lands beside it, not inside it', async ({
+    window,
+    project,
+  }) => {
+    const { flex, child, loose } = await seedFlexWithChild(window);
+    const box = await canvasElement(window, child).boundingBox();
+    if (!box) throw new Error('no box for the child');
+
+    // A few px inside the child's left edge — its "before" band.
+    await selectTool(window, 'v');
+    await dragElementToClient(window, loose, {
+      x: box.x + 4,
+      y: box.y + box.height / 2,
+    });
+    await waitForSaved(window);
+
+    const { tsx } = await readPageFiles(project.dir, project.pageName);
+    // It joined the flex row alongside the child, rather than nesting in it.
+    expectNestedInTsx(tsx, flex, loose);
+    const childStart = tsx.indexOf(`data-scamp-id="${child}"`);
+    const looseStart = tsx.indexOf(`data-scamp-id="${loose}"`);
+    const childEnd = tsx.indexOf('</div>', childStart);
+    expect(looseStart < childStart || looseStart > childEnd).toBe(true);
+  });
+
+  test('dropping on the same container\'s middle still lands inside it', async ({
+    window,
+    project,
+  }) => {
+    // The contrast case — the middle must keep meaning "inside", or the
+    // edge bands would just have broken nesting.
+    const { child, loose } = await seedFlexWithChild(window);
+    const box = await canvasElement(window, child).boundingBox();
+    if (!box) throw new Error('no box for the child');
+
+    await selectTool(window, 'v');
+    await dragElementToClient(window, loose, {
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2,
+    });
+    await waitForSaved(window);
+
+    const { tsx } = await readPageFiles(project.dir, project.pageName);
+    expectNestedInTsx(tsx, child, loose);
+  });
+
+  test('Escape mid-drag puts the element back and commits nothing', async ({
+    window,
+    project,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    const moved = await drawAndSelectRect(window, { x: 60, y: 60 }, { x: 160, y: 160 });
+    await waitForSaved(window);
+    const before = await canvasElement(window, moved).boundingBox();
+    if (!before) throw new Error('no box before the drag');
+
+    await selectTool(window, 'v');
+    await window.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+    await window.mouse.down();
+    await window.mouse.move(before.x + 260, before.y + 180, { steps: 10 });
+    await window.keyboard.press('Escape');
+    await window.mouse.up();
+    await waitForSaved(window);
+
+    const after = await canvasElement(window, moved).boundingBox();
+    expect(after?.x).toBeCloseTo(before.x, 0);
+    expect(after?.y).toBeCloseTo(before.y, 0);
+
+    // And one undo returns to before the rect was DRAWN — the abandoned
+    // drag left no entry of its own to step through first.
+    await window.keyboard.press('ControlOrMeta+z');
+    await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0);
+  });
+});

@@ -77,15 +77,9 @@ test.describe('layers panel: drag-and-drop reorder', () => {
         const initialOrder = await layersRows(window).evaluateAll((rows) => rows.map((r) => r.dataset.elementClass ?? ''));
         expect(initialOrder).toEqual(['root', firstClass, secondClass]);
         // Drag the second row above the first.
-        const diag = await reorderInTree(window, `[data-testid="layers-panel"] [data-element-class="${secondClass}"]`, `[data-testid="layers-panel"] [data-element-class="${firstClass}"]`, 'before');
+        await reorderInTree(window, `[data-testid="layers-panel"] [data-element-class="${secondClass}"]`, `[data-testid="layers-panel"] [data-element-class="${firstClass}"]`, 'before');
         await waitForSaved(window);
         const nextOrder = await layersRows(window).evaluateAll((rows) => rows.map((r) => r.dataset.elementClass ?? ''));
-        if (JSON.stringify(nextOrder) !== JSON.stringify(['root', secondClass, firstClass])) {
-            console.log('REORDER_DIAG:', JSON.stringify(diag));
-            console.log('REORDER_NEXT_ORDER:', JSON.stringify(nextOrder));
-            const dropDiag = await window.evaluate(() => window.__scampDropDiag);
-            console.log('REORDER_DROP_DIAG:', JSON.stringify(dropDiag));
-        }
         expect(nextOrder).toEqual(['root', secondClass, firstClass]);
     });
     test('dropping onto a rectangle row (middle) re-parents as its last child', async ({ window, project, }) => {

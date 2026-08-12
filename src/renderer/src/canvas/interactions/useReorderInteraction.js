@@ -137,5 +137,20 @@ export const useReorderInteraction = (geometry) => {
             setCrossDrop(null);
         }
     };
-    return { dropIndicator, crossDrop, start, onMove, onEnd };
+    const cancel = () => {
+        // Nothing to undo: a reorder drag only tracks an indicator and
+        // applies the move on release, so abandoning it is just forgetting.
+        setReorder(null);
+        setDropIndicator(null);
+        setCrossDrop(null);
+    };
+    return {
+        dropIndicator,
+        crossDrop,
+        start,
+        onMove,
+        onEnd,
+        cancel,
+        active: reorder !== null,
+    };
 };

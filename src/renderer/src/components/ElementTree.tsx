@@ -2,6 +2,8 @@ import { DragEvent, useEffect, useRef, useState } from 'react';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode';
+import { canContainChildren } from '@lib/insertParent';
+import { resolveDropZone } from '@lib/dropZones';
 import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from '@lib/element';
 import {
   ancestorIds,
@@ -82,24 +84,25 @@ const truncate = (s: string, n: number): string => (s.length > n ? `${s.slice(0,
 
 /**
  * Decide whether the cursor's vertical position over a row means
- * "before", "after", or "inside" — only rectangles can be a drop target
- * for "inside" since text elements can't have children.
+ * "before", "after", or "inside".
+ *
+ * Delegates the split to `resolveDropZone` so the tree and the canvas
+ * agree — including which elements can hold children at all, which the
+ * tree used to answer for itself (and got wrong for images and inputs).
  */
 const computeDropPosition = (
   e: DragEvent<HTMLElement>,
   el: ScampElement
 ): DropPosition => {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const y = e.clientY - rect.top;
-  const h = rect.height;
   // Root: only "inside" is meaningful — you can't put a sibling next to
   // the page itself.
   if (el.id === ROOT_ELEMENT_ID) return 'inside';
-  // Text elements can't have children — only before/after.
-  if (el.type === 'text') return y < h / 2 ? 'before' : 'after';
-  if (y < h * 0.25) return 'before';
-  if (y > h * 0.75) return 'after';
-  return 'inside';
+  const rect = e.currentTarget.getBoundingClientRect();
+  return resolveDropZone({
+    rect: { start: rect.top, size: rect.height },
+    cursor: e.clientY,
+    canHoldChildren: canContainChildren(el),
+  });
 };
 
 const Row = ({
@@ -170,29 +173,9 @@ const Row = ({
   const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     const draggedId = e.dataTransfer.getData(DRAG_MIME);
     setDragOver(null);
-    const w = window as unknown as { __scampDropDiag?: unknown[] };
-    if (!w.__scampDropDiag) w.__scampDropDiag = [];
-    w.__scampDropDiag.push({
-      stage: 'enter',
-      draggedId,
-      targetId: element.id,
-      targetParent: element.parentId,
-    });
-    if (!draggedId || draggedId === element.id) {
-      w.__scampDropDiag.push({ stage: 'early-return' });
-      return;
-    }
+    if (!draggedId || draggedId === element.id) return;
     e.preventDefault();
-    const position = computeDropPosition(e, element);
-    w.__scampDropDiag.push({ stage: 'pre-runDrop', position });
-    const beforeChildIds = element.parentId
-      ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
-      : [];
-    runDrop(draggedId, element, position, reorderElement);
-    const afterChildIds = element.parentId
-      ? [...(useCanvasStore.getState().elements[element.parentId]?.childIds ?? [])]
-      : [];
-    w.__scampDropDiag.push({ stage: 'post-runDrop', beforeChildIds, afterChildIds });
+    runDrop(draggedId, element, computeDropPosition(e, element), reorderElement);
   };
 
   return (
@@ -208,7 +191,14 @@ const Row = ({
       data-element-id={element.id}
       data-element-class={classNameFor(element)}
     >
-      {showBefore && <div className={styles.dropLine} />}
+      {/* Indented to the depth the drop lands at, so the line says which
+          level it will join — a full-width line reads as "somewhere here". */}
+      {showBefore && (
+        <div
+          className={styles.dropLine}
+          style={{ left: 8 + depth * INDENT_PX }}
+        />
+      )}
       {showToggle && (
         <button
           type="button"
@@ -330,7 +320,12 @@ const Row = ({
         )}
       </button>
       </Tooltip>
-      {showAfter && <div className={styles.dropLine} />}
+      {showAfter && (
+        <div
+          className={styles.dropLine}
+          style={{ left: 8 + depth * INDENT_PX }}
+        />
+      )}
     </div>
   );
 };
