@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
 import { panelSection } from '../fixtures/panel';
 import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
@@ -13,7 +13,7 @@ import { readPageFiles, waitForSaved } from '../fixtures/assertions';
 test.describe('elements: svg source', () => {
     test('switching an image to <svg> and typing source writes source verbatim', async ({ window, app, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
-        const pngPath = await writeFixtureImage(project.dir);
+        const pngPath = await writeFixtureImageOutside();
         await stubOpenDialog(app, pngPath);
         await selectTool(window, 'i');
         // File-dialog stub returns immediately; draw the frame now.

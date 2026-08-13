@@ -1,4 +1,4 @@
-import { test, expect, stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { test, expect, stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { drawAndSelectRect, panelSection } from '../fixtures/panel';
 import { pageRoot } from '../fixtures/selectors';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
@@ -24,13 +24,20 @@ test.describe('properties panel: background image', () => {
     );
     await waitForSaved(window);
 
-    const fixturePath = await writeFixtureImage(project.dir, 'bg.png');
+    const fixturePath = await writeFixtureImageOutside('bg.png');
     await stubOpenDialog(app, fixturePath);
 
     const background = panelSection(window, 'Background');
     await background
       .getByRole('button', { name: 'Set background image' })
       .click();
+    // Wait for the import to have LANDED before waiting for the save.
+    // Picking the file is async (dialog → copy → re-encode), so at the
+    // moment of the click nothing is dirty yet and `waitForSaved` would
+    // return immediately, against the previous save.
+    await expect(
+      background.getByRole('button', { name: 'Replace image' })
+    ).toBeVisible();
     await waitForSaved(window);
 
     const { css } = await readPageFiles(project.dir, project.pageName);
@@ -57,13 +64,20 @@ test.describe('properties panel: background image', () => {
     );
     await waitForSaved(window);
 
-    const fixturePath = await writeFixtureImage(project.dir, 'bg.png');
+    const fixturePath = await writeFixtureImageOutside('bg.png');
     await stubOpenDialog(app, fixturePath);
 
     const background = panelSection(window, 'Background');
     await background
       .getByRole('button', { name: 'Set background image' })
       .click();
+    // Wait for the import to have LANDED before waiting for the save.
+    // Picking the file is async (dialog → copy → re-encode), so at the
+    // moment of the click nothing is dirty yet and `waitForSaved` would
+    // return immediately, against the previous save.
+    await expect(
+      background.getByRole('button', { name: 'Replace image' })
+    ).toBeVisible();
     await waitForSaved(window);
 
     await background

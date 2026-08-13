@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/app';
-import { stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
 import { panelSection } from '../fixtures/panel';
 import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
@@ -19,7 +19,7 @@ test.describe('elements: svg source', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    const pngPath = await writeFixtureImage(project.dir);
+    const pngPath = await writeFixtureImageOutside();
     await stubOpenDialog(app, pngPath);
 
     await selectTool(window, 'i');

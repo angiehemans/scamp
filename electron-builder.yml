@@ -21,15 +21,6 @@ extraResources:
 # Native modules (node-pty) need to be rebuilt for the target platform.
 npmRebuild: true
 
-# `sharp` loads its libvips binary from a SEPARATE package
-# (`@img/sharp-<platform>`), which the automatic native-module detection
-# doesn't follow — inside the asar the .node file can't be dlopen'd, so
-# image import would throw only in the packaged build, never in dev.
-# Unpack both explicitly. see docs/plans/image-optimization-plan.md
-asarUnpack:
-  - "**/node_modules/sharp/**"
-  - "**/node_modules/@img/**"
-
 # Auto-update feed. electron-builder writes an `app-update.yml` into the
 # package pointing at these GitHub Releases; electron-updater reads it at
 # runtime to discover new versions. The repo is public, so no token is

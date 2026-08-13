@@ -1,4 +1,13 @@
 export declare const isConvertible: (sourcePath: string) => boolean;
+/**
+ * Encode `sourcePath` as WebP and return the bytes, or null to keep the
+ * original.
+ *
+ * Null whenever converting isn't a clear win — an unconvertible type, a
+ * file that isn't a decodable image, or a WebP that came out no smaller
+ * than the source. That last case is the point: this runs silently on
+ * every import, so it has to be incapable of making a file worse.
+ */
 export declare const toWebpIfSmaller: (sourcePath: string) => Promise<{
     data: Buffer;
     ext: ".webp";

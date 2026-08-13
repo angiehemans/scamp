@@ -143,16 +143,19 @@ export default defineConfig(({ mode }) => {
           // electron-updater / electron-log are CJS with dynamic
           // requires that don't survive Rollup bundling — keep them
           // external so they load from node_modules in the asar.
-          // `sharp` is a native module (libvips): it resolves a
-          // platform-specific binary at require time, which Rollup can't
-          // follow. see docs/plans/image-optimization-plan.md
+          // The `@jsquash/*` codecs stay external so their `.wasm`
+          // files can be located on disk at runtime (they're handed to
+          // the codecs as bytes, since the default loader fetches by
+          // URL). see docs/plans/image-optimization-plan.md
           external: [
             'chokidar',
             'postcss',
             'node-pty',
             'electron-updater',
             'electron-log',
-            'sharp',
+            '@jsquash/png',
+            '@jsquash/jpeg',
+            '@jsquash/webp',
           ],
         },
       },

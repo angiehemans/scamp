@@ -1,4 +1,4 @@
-import { test, expect, stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { test, expect, stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { clickInFrame, dragInFrame, selectTool } from '../fixtures/canvas';
 import {
   canvasElementsByPrefix,
@@ -19,7 +19,7 @@ test.describe('canvas: draw image', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    const fixturePath = await writeFixtureImage(project.dir, 'pixel.png');
+    const fixturePath = await writeFixtureImageOutside('pixel.png');
     await stubOpenDialog(app, fixturePath);
 
     // Activate the image tool, then click on the canvas. The image
@@ -47,7 +47,7 @@ test.describe('canvas: draw image', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    const fixturePath = await writeFixtureImage(project.dir, 'pixel.png');
+    const fixturePath = await writeFixtureImageOutside('pixel.png');
     await stubOpenDialog(app, fixturePath);
 
     await selectTool(window, 'i');

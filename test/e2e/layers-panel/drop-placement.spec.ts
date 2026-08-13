@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-import { test, expect, stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { test, expect, stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
 import { layersRowByClass } from '../fixtures/layers';
 import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
@@ -112,7 +112,7 @@ test.describe('layers panel: drop placement feedback', () => {
     // wasn't text, so an image could be given children.
     const [rect] = await drawRects(window, 1);
 
-    const fixture = await writeFixtureImage(project.dir, 'pixel.png');
+    const fixture = await writeFixtureImageOutside('pixel.png');
     await stubOpenDialog(app, fixture);
     await selectTool(window, 'i');
     await dragInFrame(window, { x: 300, y: 260 }, { x: 400, y: 360 });

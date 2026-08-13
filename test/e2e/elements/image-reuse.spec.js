@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { test, expect, stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { test, expect, stubOpenDialog, writeFixtureImage, writeFixtureImageOutside } from '../fixtures/app';
 import { drawAndSelectRect, panelSection } from '../fixtures/panel';
 import { pageRoot } from '../fixtures/selectors';
 import { waitForSaved } from '../fixtures/assertions';
@@ -30,6 +30,9 @@ test.describe('images: choosing one already in the project', () => {
         await stubOpenDialog(app, existing);
         const background = panelSection(window, 'Background');
         await background.getByRole('button', { name: 'Set background image' }).click();
+        // The import is async (dialog → copy → re-encode); wait for it to
+        // have landed, or `waitForSaved` just sees the previous save.
+        await expect(background.getByRole('button', { name: 'Replace image' })).toBeVisible();
         await waitForSaved(window);
         // No hero-1.png: the folder is untouched and the CSS points at the
         // file that was already there.
@@ -52,7 +55,9 @@ test.describe('images: choosing one already in the project', () => {
             await waitForSaved(window);
         }
         // The reported symptom was hero-1.png, then hero-2.png, and on.
-        expect(await assetNames(project.dir)).toEqual(['hero.png']);
+        await expect
+            .poll(() => assetNames(project.dir))
+            .toEqual(['hero.png']);
     });
     test('still imports an image chosen from outside the project', async ({ window, app, project, }) => {
         // The behaviour that must not regress — an external file is still
@@ -62,10 +67,13 @@ test.describe('images: choosing one already in the project', () => {
         await expect(pageRoot(window)).toBeVisible();
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const outside = await writeFixtureImage(project.dir, 'outside.png');
+        const outside = await writeFixtureImageOutside('outside.png');
         await stubOpenDialog(app, outside);
         const background = panelSection(window, 'Background');
         await background.getByRole('button', { name: 'Set background image' }).click();
+        // Wait for the import to have landed — the button relabels once the
+        // element has a background — before reading the folder.
+        await expect(background.getByRole('button', { name: 'Replace image' })).toBeVisible();
         await waitForSaved(window);
         expect(await assetNames(project.dir)).toEqual(['outside.webp']);
     });

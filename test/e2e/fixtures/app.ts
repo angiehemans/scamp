@@ -62,6 +62,28 @@ export const writeFixtureImage = async (dir: string, name = 'pixel.png'): Promis
 };
 
 /**
+ * The same PNG, but in its own temp dir OUTSIDE the project — which is
+ * where a user's source image actually lives.
+ *
+ * Writing it inside the project makes the watcher fire an unsuppressed
+ * change for a file the app never wrote, and the resulting reload can
+ * land in the middle of the import and discard the edit under test. That
+ * made the import specs flaky the moment importing got slower. Mirrors
+ * `writeFixtureSvg`, which already avoids this for the same reason.
+ *
+ * Use `writeFixtureImage` only when the point IS to place a file inside
+ * the project (e.g. seeding the assets folder to test reuse).
+ */
+export const writeFixtureImageOutside = async (
+  name = 'pixel.png'
+): Promise<string> => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-e2e-img-'));
+  const filePath = path.join(dir, name);
+  await fs.writeFile(filePath, PNG_BYTES);
+  return filePath;
+};
+
+/**
  * A two-colour SVG with an explicit viewBox — for the import / colour /
  * viewBox-scaling specs. Written OUTSIDE the project (its own temp dir) so
  * the project watcher never sees the source (which would otherwise collide

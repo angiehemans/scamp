@@ -1,26 +1,48 @@
 # Compress images on import — Plan
 
-Status: **implemented** — phases 1 and 2. Phase 3 (converting existing
-projects) dropped on review: new imports only, existing assets left alone.
+Status: **implemented** — phases 1 and 2, using the **WebAssembly**
+codecs. Phase 3 (converting existing projects) dropped on review: new
+imports only.
 
-Measured on representative images:
+## The encoder choice was reversed after testing
 
-| Source | Before | After | Saving |
-|---|---|---|---|
-| Photo, JPEG q92 (1600×1000) | 484 KB | 275 KB | −43% |
-| Same photo as PNG | 1758 KB | 14 KB | −99% |
-| Flat UI screenshot PNG (1440×900) | 35 KB | 2 KB | −93% |
+The plan below recommends `sharp`, and that recommendation was wrong.
+sharp shipped, crashed, and was replaced by `@jsquash/*`.
 
-Two packaging details the plan didn't list, both of which would have
-failed only in a packaged build:
+libvips (sharp's engine) is a GObject library, and Chromium on Linux uses
+GLib too. In a real Electron main process they corrupt each other's
+GObject state: a stress loop produced 358 `g_object_ref: assertion
+'G_IS_OBJECT (object)' failed` errors and never completed a single
+encode. The same loop is clean in plain Node, and merely noisy under
+`ELECTRON_RUN_AS_NODE` — so it's specifically Electron's bundled GLib.
+sharp's install docs warn about exactly this; the warning is emitted
+unconditionally on Linux *after* the binary loads, which is why it read
+as spurious.
 
-- `sharp` had to join the main build's Rollup `external` list
-  (`electron.vite.config.ts`) — it resolves a platform-specific binary at
-  require time, which Rollup can't follow.
-- `asarUnpack` entries for `sharp` and `@img` were needed in
-  `electron-builder.yml`: sharp loads libvips from a *separate* package,
-  which the automatic native-module detection doesn't follow, and a
-  `.node` file inside the asar can't be dlopen'd.
+It was breaking the app, not just the tests: the e2e failures were the
+main process dying (`Target page, context or browser has been closed`).
+The same batch of six image specs passes 13/13 at the pre-WebP commit,
+failed 1–2 every run with sharp, and passes 13/13 again on WASM.
+
+WASM shares nothing with the host, so the conflict can't arise. It also
+removes ~18MB per installer, the `asarUnpack` entries, and the
+per-platform binary story entirely.
+
+**Measured** (800×600 synthetic gradient-plus-grain fixtures):
+
+| Source | Before | After | Saving | Time |
+|---|---|---|---|---|
+| Photo, JPEG q92 | 204 KB | 26 KB | −87% | 555ms |
+| Same photo as PNG | 1128 KB | 41 KB | −96% | 427ms |
+| Flat UI PNG | 18 KB | <1 KB | −99% | 62ms |
+
+Encode cost scales as expected — a 1600×1000 image is ~650ms for both
+encodes — which is fine for a user-initiated import and is why the
+dropped bulk-convert phase was the only real argument for native speed.
+
+Lesson recorded deliberately: a vendor's platform warning is a
+hypothesis to disprove under load, not noise to explain away. One
+successful encode proved nothing; the crash only appears on repeat.
 
 ## Context
 

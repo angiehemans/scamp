@@ -2,17 +2,25 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import sharp from 'sharp';
 
 import {
   bufferToWebpIfSmaller,
   isConvertible,
   toWebpIfSmaller,
 } from '../../src/main/ipc/imageOptimize';
+import {
+  decodeWebp,
+  flatImage,
+  jpegBytes,
+  noisyImage,
+  pngBytes,
+  writeJpeg,
+  writePng,
+} from './rasterFixtures';
 
 /**
- * Real encoding against real files in a temp dir — no mocking, because
- * "is the WebP actually smaller" is the entire question and a stub can't
+ * Real encoding of real files in a temp dir — no mocking, because "is
+ * the WebP actually smaller" is the whole question and a stub can't
  * answer it. see docs/plans/image-optimization-plan.md
  */
 
@@ -25,38 +33,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
-
-/**
- * A noisy image — random per-pixel colour. Photographic in the way that
- * matters here: it doesn't compress to nothing, so the size comparisons
- * are meaningful rather than an artefact of a solid-colour test image.
- */
-const noisyPixels = (w: number, h: number): Buffer => {
-  const buf = Buffer.alloc(w * h * 3);
-  // Deterministic pseudo-random so the test can't flake on a lucky seed.
-  let seed = 12345;
-  for (let i = 0; i < buf.length; i += 1) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    buf[i] = seed % 256;
-  }
-  return buf;
-};
-
-const writePng = async (name: string, w = 200, h = 200): Promise<string> => {
-  const p = path.join(dir, name);
-  await sharp(noisyPixels(w, h), { raw: { width: w, height: h, channels: 3 } })
-    .png()
-    .toFile(p);
-  return p;
-};
-
-const writeJpeg = async (name: string, w = 200, h = 200): Promise<string> => {
-  const p = path.join(dir, name);
-  await sharp(noisyPixels(w, h), { raw: { width: w, height: h, channels: 3 } })
-    .jpeg({ quality: 100 })
-    .toFile(p);
-  return p;
-};
 
 describe('isConvertible', () => {
   it('accepts the raster formats worth re-encoding', () => {
@@ -80,7 +56,7 @@ describe('isConvertible', () => {
 
 describe('toWebpIfSmaller', () => {
   it('converts a PNG to smaller WebP bytes', async () => {
-    const src = await writePng('hero.png');
+    const src = await writePng(path.join(dir, 'hero.png'), noisyImage(200, 200));
     const before = (await fs.stat(src)).size;
 
     const result = await toWebpIfSmaller(src);
@@ -90,7 +66,7 @@ describe('toWebpIfSmaller', () => {
   });
 
   it('converts a JPEG to smaller WebP bytes', async () => {
-    const src = await writeJpeg('photo.jpg');
+    const src = await writeJpeg(path.join(dir, 'photo.jpg'), noisyImage(200, 200));
     const before = (await fs.stat(src)).size;
 
     const result = await toWebpIfSmaller(src);
@@ -98,35 +74,23 @@ describe('toWebpIfSmaller', () => {
     expect(result!.data.length).toBeLessThan(before);
   });
 
-  it('keeps the pixel dimensions — this compresses, it does not resize', async () => {
-    const src = await writePng('hero.png', 320, 180);
+  it('emits real WebP, not just renamed bytes', async () => {
+    // RIFF....WEBP is the container's magic number.
+    const src = await writePng(path.join(dir, 'hero.png'), noisyImage(120, 90));
     const result = await toWebpIfSmaller(src);
-    const meta = await sharp(result!.data).metadata();
-    expect(meta.width).toBe(320);
-    expect(meta.height).toBe(180);
-    expect(meta.format).toBe('webp');
+    const head = result!.data;
+    expect(head.subarray(0, 4).toString('ascii')).toBe('RIFF');
+    expect(head.subarray(8, 12).toString('ascii')).toBe('WEBP');
   });
 
-  it('preserves transparency', async () => {
-    const src = path.join(dir, 'alpha.png');
-    await sharp({
-      create: {
-        width: 64,
-        height: 64,
-        channels: 4,
-        background: { r: 255, g: 0, b: 0, alpha: 0.5 },
-      },
-    })
-      .png()
-      .toFile(src);
-
+  it('keeps the pixel dimensions — this compresses, it does not resize', async () => {
+    const src = await writePng(path.join(dir, 'hero.png'), noisyImage(320, 180));
     const result = await toWebpIfSmaller(src);
-    if (result) {
-      const meta = await sharp(result.data).metadata();
-      expect(meta.hasAlpha).toBe(true);
-    }
-    // A 64px flat square may legitimately not shrink; the assertion that
-    // matters is that IF we convert, the alpha channel survives.
+
+    // Decode the result back and compare, rather than trusting the encoder.
+    const decoded = await decodeWebp(result!.data);
+    expect(decoded.width).toBe(320);
+    expect(decoded.height).toBe(180);
   });
 
   it('returns null for a format we do not convert', async () => {
@@ -147,25 +111,37 @@ describe('toWebpIfSmaller', () => {
     expect(await toWebpIfSmaller(path.join(dir, 'missing.png'))).toBeNull();
   });
 
+  it('decodes a JPEG that has been given a .png extension', async () => {
+    // The extension picks which decoder to try FIRST, not the only one —
+    // a mislabelled file should still import rather than silently skip
+    // compression.
+    const src = path.join(dir, 'actually-jpeg.png');
+    await fs.writeFile(src, await jpegBytes(noisyImage(160, 160)));
+    const result = await toWebpIfSmaller(src);
+    expect(result).not.toBeNull();
+  });
+
   it('never returns bytes that are bigger than the source', async () => {
-    // The whole safety property: this runs silently, so it has to be
-    // incapable of making a file worse. A tiny already-tight PNG is the
-    // case where WebP tends to lose.
-    const src = path.join(dir, 'tiny.png');
-    await sharp({
-      create: {
-        width: 1,
-        height: 1,
-        channels: 3,
-        background: { r: 0, g: 0, b: 0 },
-      },
-    })
-      .png()
-      .toFile(src);
+    // The safety property: this runs silently, so it has to be incapable
+    // of making a file worse. A tiny flat PNG is where WebP tends to lose.
+    const src = await writePng(path.join(dir, 'tiny.png'), flatImage(1, 1));
     const before = (await fs.stat(src)).size;
 
     const result = await toWebpIfSmaller(src);
     if (result) expect(result.data.length).toBeLessThan(before);
+  });
+
+  it('preserves transparency when it does convert', async () => {
+    const src = await writePng(
+      path.join(dir, 'alpha.png'),
+      flatImage(64, 64, 128)
+    );
+    const result = await toWebpIfSmaller(src);
+    if (result) {
+      const decoded = await decodeWebp(result.data);
+      // Alpha survived the round trip rather than being flattened to 255.
+      expect(decoded.data[3]).toBeLessThan(255);
+    }
   });
 });
 
@@ -173,12 +149,7 @@ describe('bufferToWebpIfSmaller', () => {
   it('shrinks a PNG buffer — the clipboard-paste case', async () => {
     // Electron's `toDataURL()` always hands back PNG, so a pasted photo
     // arrives re-encoded as PNG and can be far larger than its source.
-    const png = await sharp(noisyPixels(200, 200), {
-      raw: { width: 200, height: 200, channels: 3 },
-    })
-      .png()
-      .toBuffer();
-
+    const png = await pngBytes(noisyImage(200, 200));
     const result = await bufferToWebpIfSmaller(png);
     expect(result).not.toBeNull();
     expect(result!.data.length).toBeLessThan(png.length);

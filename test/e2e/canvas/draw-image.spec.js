@@ -1,4 +1,4 @@
-import { test, expect, stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { test, expect, stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { clickInFrame, dragInFrame, selectTool } from '../fixtures/canvas';
 import { canvasElementsByPrefix, pageRoot, } from '../fixtures/selectors';
 import { readPageFiles, waitForSaved } from '../fixtures/assertions';
@@ -10,7 +10,7 @@ import { readPageFiles, waitForSaved } from '../fixtures/assertions';
 test.describe('canvas: draw image', () => {
     test('I + click drops a default-sized <img> with the picked file', async ({ window, app, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
-        const fixturePath = await writeFixtureImage(project.dir, 'pixel.png');
+        const fixturePath = await writeFixtureImageOutside('pixel.png');
         await stubOpenDialog(app, fixturePath);
         // Activate the image tool, then click on the canvas. The image
         // tool resolves the file picker before placing — wait for the
@@ -27,7 +27,7 @@ test.describe('canvas: draw image', () => {
     });
     test('I + drag draws an <img> sized to the dragged box', async ({ window, app, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
-        const fixturePath = await writeFixtureImage(project.dir, 'pixel.png');
+        const fixturePath = await writeFixtureImageOutside('pixel.png');
         await stubOpenDialog(app, fixturePath);
         await selectTool(window, 'i');
         await dragInFrame(window, { x: 100, y: 100 }, { x: 300, y: 250 });

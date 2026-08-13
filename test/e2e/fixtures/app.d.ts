@@ -15,6 +15,20 @@ export declare const stubOpenDialog: (app: ElectronApplication, filePath: string
  */
 export declare const stubSaveDialog: (app: ElectronApplication, filePath: string) => Promise<void>;
 export declare const writeFixtureImage: (dir: string, name?: string) => Promise<string>;
+/**
+ * The same PNG, but in its own temp dir OUTSIDE the project — which is
+ * where a user's source image actually lives.
+ *
+ * Writing it inside the project makes the watcher fire an unsuppressed
+ * change for a file the app never wrote, and the resulting reload can
+ * land in the middle of the import and discard the edit under test. That
+ * made the import specs flaky the moment importing got slower. Mirrors
+ * `writeFixtureSvg`, which already avoids this for the same reason.
+ *
+ * Use `writeFixtureImage` only when the point IS to place a file inside
+ * the project (e.g. seeding the assets folder to test reuse).
+ */
+export declare const writeFixtureImageOutside: (name?: string) => Promise<string>;
 export declare const writeFixtureSvg: (name?: string, content?: string) => Promise<string>;
 /**
  * Dismiss the first-launch Sentry crash-reporting prompt if it's

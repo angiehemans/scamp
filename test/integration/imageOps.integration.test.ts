@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import sharp from 'sharp';
-
 import { copyImage, assetsDirFor } from '../../src/main/ipc/imageOps';
+import { flatImage, noisyImage, writePng } from './rasterFixtures';
 
 describe('copyImage', () => {
   let projectDir: string;
@@ -262,21 +261,8 @@ describe('copyImage: WebP conversion', () => {
   });
 
   /** A noisy PNG — compresses like a photo rather than to nothing. */
-  const writeNoisyPng = async (name: string): Promise<string> => {
-    const w = 200;
-    const h = 200;
-    const raw = Buffer.alloc(w * h * 3);
-    let seed = 987654321;
-    for (let i = 0; i < raw.length; i += 1) {
-      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-      raw[i] = seed % 256;
-    }
-    const p = path.join(sourceDir, name);
-    await sharp(raw, { raw: { width: w, height: h, channels: 3 } })
-      .png()
-      .toFile(p);
-    return p;
-  };
+  const writeNoisyPng = (name: string): Promise<string> =>
+    writePng(path.join(sourceDir, name), noisyImage(200, 200));
 
   const assetNames = async (): Promise<string[]> =>
     (await fs.readdir(assetsDirFor(projectDir, 'legacy'))).sort();
@@ -313,11 +299,15 @@ describe('copyImage: WebP conversion', () => {
 
   it('leaves an existing .webp alone rather than re-encoding it', async () => {
     const src = path.join(sourceDir, 'already.webp');
-    await sharp({
-      create: { width: 32, height: 32, channels: 3, background: '#336699' },
-    })
-      .webp()
-      .toFile(src);
+    const webpEnc = await import('@jsquash/webp/encode');
+    await fs.writeFile(
+      src,
+      Buffer.from(
+        await webpEnc.default(flatImage(32, 32) as unknown as ImageData, {
+          quality: 80,
+        })
+      )
+    );
     const before = await fs.readFile(src);
 
     const result = await copyImage(

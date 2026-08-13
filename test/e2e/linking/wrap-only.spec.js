@@ -1,4 +1,4 @@
-import { test, expect, stubOpenDialog, writeFixtureImage } from '../fixtures/app';
+import { test, expect, stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { clickInFrame, selectTool } from '../fixtures/canvas';
 import { panelSection } from '../fixtures/panel';
 import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
@@ -13,7 +13,7 @@ test.describe('linking: wrap-only routing', () => {
     test('linking an <img> wraps it in a new <a> parent', async ({ window, app, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         // Place an image so the selected element has tag `img`.
-        const fixturePath = await writeFixtureImage(project.dir, 'pixel.png');
+        const fixturePath = await writeFixtureImageOutside('pixel.png');
         await stubOpenDialog(app, fixturePath);
         await selectTool(window, 'i');
         await clickInFrame(window, { x: 200, y: 200 });
