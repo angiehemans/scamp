@@ -239,10 +239,16 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     // thing being placed is new or already on the canvas.
     const crossDrop = move.crossDrop ?? reorder.crossDrop ?? componentDrop.drop;
     // Gap line: same-parent flex reorder, or a flow (flex/grid) reparent.
-    const gapRect = reorder.dropIndicator?.rect ??
-        (crossDrop?.kind === 'flow' ? crossDrop.indicator.rect : null);
-    // Outline: an absolute-container reparent target.
-    const containerRect = crossDrop?.kind === 'absolute' ? crossDrop.rect : null;
+    const flowIndicatorForDrop = reorder.dropIndicator ??
+        (crossDrop?.kind === 'flow' ? crossDrop.indicator : null);
+    const gapRect = flowIndicatorForDrop?.rect ?? null;
+    // Outline: whichever container the element will end up in — the
+    // absolute one it nests into, or the flow one whose sibling list the
+    // gap line is pointing into. The line alone says where among the
+    // siblings but not whose siblings they are.
+    const containerRect = crossDrop?.kind === 'absolute'
+        ? crossDrop.rect
+        : (flowIndicatorForDrop?.containerRect ?? null);
     return (_jsxs("div", { ref: layerRef, className: styles.layer, "data-canvas-chrome": "true", style: { pointerEvents: isEditing ? 'none' : 'auto' }, onPointerDown: handlePointerDown, onPointerMove: handlePointerMove, onPointerUp: handlePointerUp, onPointerCancel: handlePointerUp, onDoubleClick: handleDoubleClick, onContextMenu: handleContextMenu, onDragOver: handleDragOver, onDragLeave: componentDrop.handleDragLeave, onDrop: handleDrop, children: [drawState && (_jsx(DrawPreview, { x: Math.min(drawState.startX, drawState.currentX) + drawState.parentOffsetX, y: Math.min(drawState.startY, drawState.currentY) + drawState.parentOffsetY, width: Math.abs(drawState.currentX - drawState.startX), height: Math.abs(drawState.currentY - drawState.startY) })), gapRect && (_jsx("div", { className: styles.dropIndicator, style: {
                     left: gapRect.x,
                     top: gapRect.y,

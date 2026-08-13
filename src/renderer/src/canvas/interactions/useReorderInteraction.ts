@@ -5,6 +5,7 @@ import { useAppLogStore } from '@store/appLogSlice';
 
 import {
   commitReparentDrop,
+  flowIndicator,
   resolveReparentDrop,
   slotDropCreatesCycle,
 } from './reparentDrop';
@@ -103,63 +104,14 @@ export const useReorderInteraction = (
     }
     setCrossDrop(null);
 
-    // Same-parent reorder: drop indicator + index from the sibling under
-    // the cursor and which side of its centre.
+    // Same-parent reorder: the same sibling/edge math the cross-parent
+    // path uses, so a reorder and a reparent can't disagree about where
+    // the line goes — and so grid parents behave like flex ones.
     const parent = elements[reorder.parentId];
     if (!parent) return true;
-    const siblingIds = parent.childIds.filter((id) => id !== reorder.id);
-
-    let hitSiblingId: string | null = null;
-    const candidates = document.elementsFromPoint(e.clientX, e.clientY);
-    for (const node of candidates) {
-      if (!(node instanceof HTMLElement)) continue;
-      const id = node.dataset['elementId'];
-      if (id && siblingIds.includes(id)) {
-        hitSiblingId = id;
-        break;
-      }
-    }
-
-    if (!hitSiblingId) {
-      setDropIndicator(null);
-      return true;
-    }
-
-    const siblingRect = geometry.measureElementInFrame(hitSiblingId);
-    if (!siblingRect) {
-      setDropIndicator(null);
-      return true;
-    }
-
-    const isRow = parent.flexDirection === 'row';
-    const { x: cursorX, y: cursorY } = geometry.toFrame(e.clientX, e.clientY);
-    const before = isRow
-      ? cursorX < siblingRect.x + siblingRect.w / 2
-      : cursorY < siblingRect.y + siblingRect.h / 2;
-
-    const siblingIdx = parent.childIds.indexOf(hitSiblingId);
-    const newIndex = before ? siblingIdx : siblingIdx + 1;
-
-    const LINE = 2;
-    const indicatorRect = isRow
-      ? {
-          x: before
-            ? siblingRect.x - LINE / 2
-            : siblingRect.x + siblingRect.w - LINE / 2,
-          y: siblingRect.y,
-          w: LINE,
-          h: siblingRect.h,
-        }
-      : {
-          x: siblingRect.x,
-          y: before
-            ? siblingRect.y - LINE / 2
-            : siblingRect.y + siblingRect.h - LINE / 2,
-          w: siblingRect.w,
-          h: LINE,
-        };
-
-    setDropIndicator({ rect: indicatorRect, newIndex });
+    setDropIndicator(
+      flowIndicator(parent, reorder.id, e.clientX, e.clientY, geometry)
+    );
     return true;
   };
 

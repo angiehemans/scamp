@@ -93,7 +93,11 @@ describe('slotDropCreatesCycle', () => {
         const flowDrop = {
             kind: 'flow',
             targetId: 'inst_card',
-            indicator: { rect: { x: 0, y: 0, w: 2, h: 10 }, newIndex: 0 },
+            indicator: {
+                rect: { x: 0, y: 0, w: 2, h: 10 },
+                newIndex: 0,
+                containerRect: null,
+            },
         };
         expect(slotDropCreatesCycle(flowDrop, 'inst_banner', pageElements, componentTrees, 'Card')).toBe(false);
     });

@@ -20,7 +20,7 @@ Drag and drop elements within the layers panel to change their order or nesting.
 
 Rows that can't hold children — text, images, inputs, and component instances — never highlight; dropping on them always places the element beside them.
 
-The canvas follows the same rule: the middle of a container nests inside it, its edges drop alongside it. Press **Escape** during a drag to cancel it — the element returns to where it started.
+The canvas follows the same rule: the middle of a container nests inside it, its edges drop alongside it. While you drag, the container the element will end up in is outlined, so you can see where it will live before you let go — this works the same in flex and grid layouts. Press **Escape** during a drag to cancel it — the element returns to where it started.
 
 ## Renaming
 

@@ -41,57 +41,79 @@ export const NO_DRAGGED_ID = '';
  * (empty container, padding, between rows), falls back to appending at the
  * container's trailing edge so any drop inside the container is valid.
  */
+/**
+ * Which axis "before / after this sibling" is measured along.
+ *
+ * Flex says so directly (`flexDirection`). A grid doesn't have one main
+ * axis — items flow across columns AND down rows — so the axis comes
+ * from the gesture instead: whichever edge of the item the cursor is
+ * proportionally nearer. Dragging toward a cell's left edge in a
+ * multi-column grid and toward its top edge in a single-column one both
+ * mean "before this one" in reading order, which is exactly the childIds
+ * order the drop resolves to.
+ *
+ * Ties (dead centre) resolve to the block axis, so the answer is
+ * deterministic rather than flickering.
+ */
+const flowAxisIsHorizontal = (parent, sibling, cursor) => {
+    if (parent.display !== 'grid')
+        return parent.flexDirection === 'row';
+    if (sibling.w <= 0 || sibling.h <= 0)
+        return false;
+    const dx = Math.abs(cursor.x - (sibling.x + sibling.w / 2)) / sibling.w;
+    const dy = Math.abs(cursor.y - (sibling.y + sibling.h / 2)) / sibling.h;
+    return dx > dy;
+};
 export const flowIndicator = (parent, 
 /** Excluded from sibling scanning. Pass `NO_DRAGGED_ID` when the drag
  *  isn't moving an existing element (a new instance from the sidebar). */
 draggedId, clientX, clientY, geometry) => {
-    const isRow = parent.flexDirection === 'row';
-    const isGrid = parent.display === 'grid';
-    if (!isGrid) {
-        const siblingIds = parent.childIds.filter((id) => id !== draggedId);
-        let hitSiblingId = null;
-        for (const node of document.elementsFromPoint(clientX, clientY)) {
-            const id = elementIdOf(node);
-            if (id && siblingIds.includes(id)) {
-                hitSiblingId = id;
-                break;
-            }
-        }
-        if (hitSiblingId) {
-            const r = geometry.measureElementInFrame(hitSiblingId);
-            if (r) {
-                const cursor = geometry.toFrame(clientX, clientY);
-                const before = isRow
-                    ? cursor.x < r.x + r.w / 2
-                    : cursor.y < r.y + r.h / 2;
-                const siblingIdx = parent.childIds.indexOf(hitSiblingId);
-                const newIndex = before ? siblingIdx : siblingIdx + 1;
-                const rect = isRow
-                    ? {
-                        x: before ? r.x - LINE / 2 : r.x + r.w - LINE / 2,
-                        y: r.y,
-                        w: LINE,
-                        h: r.h,
-                    }
-                    : {
-                        x: r.x,
-                        y: before ? r.y - LINE / 2 : r.y + r.h - LINE / 2,
-                        w: r.w,
-                        h: LINE,
-                    };
-                return { rect, newIndex };
-            }
+    const containerRect = geometry.measureElementInFrame(parent.id);
+    const siblingIds = parent.childIds.filter((id) => id !== draggedId);
+    let hitSiblingId = null;
+    for (const node of document.elementsFromPoint(clientX, clientY)) {
+        const id = elementIdOf(node);
+        if (id && siblingIds.includes(id)) {
+            hitSiblingId = id;
+            break;
         }
     }
-    // Append fallback (also the whole grid path): a line at the container's
+    if (hitSiblingId) {
+        const r = geometry.measureElementInFrame(hitSiblingId);
+        if (r) {
+            const cursor = geometry.toFrame(clientX, clientY);
+            const isRow = flowAxisIsHorizontal(parent, r, cursor);
+            const before = isRow
+                ? cursor.x < r.x + r.w / 2
+                : cursor.y < r.y + r.h / 2;
+            const siblingIdx = parent.childIds.indexOf(hitSiblingId);
+            const newIndex = before ? siblingIdx : siblingIdx + 1;
+            const rect = isRow
+                ? {
+                    x: before ? r.x - LINE / 2 : r.x + r.w - LINE / 2,
+                    y: r.y,
+                    w: LINE,
+                    h: r.h,
+                }
+                : {
+                    x: r.x,
+                    y: before ? r.y - LINE / 2 : r.y + r.h - LINE / 2,
+                    w: r.w,
+                    h: LINE,
+                };
+            return { rect, newIndex, containerRect };
+        }
+    }
+    // Append fallback: no sibling under the cursor (empty container, its
+    // padding, the space past the last row) — a line at the container's
     // trailing inner edge, dropping at the end of the child list.
-    const cr = geometry.measureElementInFrame(parent.id);
-    if (!cr)
+    if (!containerRect)
         return null;
-    const rect = isRow
+    const cr = containerRect;
+    const rect = parent.display === 'flex' && parent.flexDirection === 'row'
         ? { x: cr.x + cr.w - LINE, y: cr.y, w: LINE, h: cr.h }
         : { x: cr.x, y: cr.y + cr.h - LINE, w: cr.w, h: LINE };
-    return { rect, newIndex: parent.childIds.length };
+    return { rect, newIndex: parent.childIds.length, containerRect };
 };
 /**
  * When the cursor sits in a container's leading or trailing edge band,
@@ -99,11 +121,9 @@ draggedId, clientX, clientY, geometry) => {
  * to that container's parent, and `flowIndicator` then resolves which
  * side.
  *
- * Only inside a **flex** parent. In an absolute parent, sibling order
- * doesn't move anything (position is x/y), so offering "between" would
- * promise something the user can't see; and a grid parent's indicator
- * appends at the end rather than inserting, so retargeting there would
- * turn a precise drop into an append.
+ * Only inside a **flow** parent (flex or grid). In an absolute parent
+ * sibling order doesn't move anything — position is x/y — so offering
+ * "between" would promise something the user can't see.
  *
  * Returns the parent id to retarget to, or null to leave the drop alone.
  * see docs/plans/drop-placement-helpers-plan.md
@@ -117,13 +137,13 @@ const besideTargetFor = (hit, clientX, clientY, geometry, elements) => {
     const parent = parentId ? elements[parentId] : undefined;
     if (!el || !parentId || !parent)
         return null;
-    if (parent.display !== 'flex')
+    if (parent.display !== 'flex' && parent.display !== 'grid')
         return null;
     const r = geometry.measureElementInFrame(hit.parentId);
     if (!r)
         return null;
     const cursor = geometry.toFrame(clientX, clientY);
-    const isRow = parent.flexDirection === 'row';
+    const isRow = flowAxisIsHorizontal(parent, r, cursor);
     const zone = resolveDropZone({
         rect: isRow ? { start: r.x, size: r.w } : { start: r.y, size: r.h },
         cursor: isRow ? cursor.x : cursor.y,

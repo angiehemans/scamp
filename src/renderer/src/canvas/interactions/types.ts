@@ -72,6 +72,14 @@ export type DropIndicator = {
   rect: { x: number; y: number; w: number; h: number };
   /** The childIds index the drop will resolve to on release. */
   newIndex: number;
+  /**
+   * Frame-local rect of the container the drop lands IN. Drawn as an
+   * outline alongside the line: the line says where among the siblings,
+   * and this says whose siblings they are — without it a line floating
+   * between two boxes doesn't tell you which container you just joined.
+   * see docs/plans/drop-placement-helpers-plan.md
+   */
+  containerRect: { x: number; y: number; w: number; h: number } | null;
 };
 
 /**

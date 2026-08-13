@@ -22,14 +22,6 @@ export declare const slotDropCreatesCycle: (drop: ReparentDrop, draggedId: strin
  * (`isSelfOrDescendant`, sibling filtering) become no-ops.
  */
 export declare const NO_DRAGGED_ID = "";
-/**
- * Gap-line indicator + insert index for dropping into a flow (flex/grid)
- * container. Generalised from the same-parent reorder math to any parent.
- * Grid containers append to the end (Q3); flex uses the sibling under the
- * cursor and which side of its centre. When no sibling is under the cursor
- * (empty container, padding, between rows), falls back to appending at the
- * container's trailing edge so any drop inside the container is valid.
- */
 export declare const flowIndicator: (parent: ScampElement, 
 /** Excluded from sibling scanning. Pass `NO_DRAGGED_ID` when the drag
  *  isn't moving an existing element (a new instance from the sidebar). */

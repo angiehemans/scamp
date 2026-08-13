@@ -232,3 +232,94 @@ test.describe('canvas: drop beside vs inside', () => {
         await expect(canvasElementsByPrefix(window, 'rect_')).toHaveCount(0);
     });
 });
+/**
+ * Two things the first pass got wrong, reported from manual testing:
+ * a flow drop drew a line but never said WHICH container the element
+ * would join, and grid parents didn't get the edge-band treatment flex
+ * parents did. see docs/plans/drop-placement-helpers-plan.md
+ */
+test.describe('canvas: which container am I dropping into', () => {
+    /** The mid-drag container outline. */
+    const dropOutline = (window) => window.locator('[class*="dropContainer"]');
+    /** A flow container (flex row or grid) holding one child rect. */
+    const seedFlowWithChild = async (window, layout) => {
+        await expect(pageRoot(window)).toBeVisible();
+        const container = await drawAndSelectRect(window, { x: 300, y: 100 }, { x: 680, y: 440 });
+        await panelSection(window, 'Layout')
+            .getByRole('radio', { name: layout })
+            .click();
+        await waitForSaved(window);
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 340, y: 160 }, { x: 540, y: 360 });
+        await waitForSaved(window);
+        const child = (await canvasElementsByPrefix(window, 'rect_').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-scamp-id') ?? ''))).find((c) => c !== container);
+        if (!child)
+            throw new Error('expected a child inside the container');
+        const loose = await drawAndSelectRect(window, { x: 60, y: 60 }, { x: 160, y: 160 });
+        await waitForSaved(window);
+        return { container, child, loose };
+    };
+    test('highlights the container the element will land in, mid-drag', async ({ window, }) => {
+        const { container, child, loose } = await seedFlowWithChild(window, 'Flex row');
+        const childBox = await canvasElement(window, child).boundingBox();
+        const containerBox = await canvasElement(window, container).boundingBox();
+        if (!childBox || !containerBox)
+            throw new Error('missing boxes');
+        const looseBox = await canvasElement(window, loose).boundingBox();
+        if (!looseBox)
+            throw new Error('missing box for the dragged element');
+        // Hold the drag over the child's leading edge — a "beside" drop, which
+        // used to show a bare line with no clue which container it joined.
+        await selectTool(window, 'v');
+        await window.mouse.move(looseBox.x + looseBox.width / 2, looseBox.y + looseBox.height / 2);
+        await window.mouse.down();
+        await window.mouse.move(childBox.x + 4, childBox.y + childBox.height / 2, {
+            steps: 10,
+        });
+        await expect(dropOutline(window)).toBeVisible();
+        const outlineBox = await dropOutline(window).boundingBox();
+        // The outline is over the flex container, not the child.
+        expect(outlineBox?.width).toBeCloseTo(containerBox.width, 0);
+        expect(outlineBox?.height).toBeCloseTo(containerBox.height, 0);
+        await window.mouse.up();
+    });
+    test('a grid container gets the same edge bands as a flex one', async ({ window, project, }) => {
+        const { container, child, loose } = await seedFlowWithChild(window, 'Grid');
+        const childBox = await canvasElement(window, child).boundingBox();
+        const looseBox = await canvasElement(window, loose).boundingBox();
+        if (!childBox || !looseBox)
+            throw new Error('missing boxes');
+        // The child's leading edge: "beside it", inside the grid.
+        await selectTool(window, 'v');
+        await window.mouse.move(looseBox.x + looseBox.width / 2, looseBox.y + looseBox.height / 2);
+        await window.mouse.down();
+        await window.mouse.move(childBox.x + 4, childBox.y + childBox.height / 2, {
+            steps: 10,
+        });
+        await expect(dropOutline(window)).toBeVisible();
+        await window.mouse.up();
+        await waitForSaved(window);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        expectNestedInTsx(tsx, container, loose);
+        // Beside the child, not nested inside it.
+        const childStart = tsx.indexOf(`data-scamp-id="${child}"`);
+        const looseStart = tsx.indexOf(`data-scamp-id="${loose}"`);
+        const childEnd = tsx.indexOf('</div>', childStart);
+        expect(looseStart < childStart || looseStart > childEnd).toBe(true);
+    });
+    test('a grid container still nests when dropped dead centre', async ({ window, project, }) => {
+        const { child, loose } = await seedFlowWithChild(window, 'Grid');
+        const childBox = await canvasElement(window, child).boundingBox();
+        const looseBox = await canvasElement(window, loose).boundingBox();
+        if (!childBox || !looseBox)
+            throw new Error('missing boxes');
+        await selectTool(window, 'v');
+        await window.mouse.move(looseBox.x + looseBox.width / 2, looseBox.y + looseBox.height / 2);
+        await window.mouse.down();
+        await window.mouse.move(childBox.x + childBox.width / 2, childBox.y + childBox.height / 2, { steps: 10 });
+        await window.mouse.up();
+        await waitForSaved(window);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        expectNestedInTsx(tsx, child, loose);
+    });
+});

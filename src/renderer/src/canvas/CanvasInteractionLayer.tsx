@@ -265,11 +265,18 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   // thing being placed is new or already on the canvas.
   const crossDrop = move.crossDrop ?? reorder.crossDrop ?? componentDrop.drop;
   // Gap line: same-parent flex reorder, or a flow (flex/grid) reparent.
-  const gapRect =
-    reorder.dropIndicator?.rect ??
-    (crossDrop?.kind === 'flow' ? crossDrop.indicator.rect : null);
-  // Outline: an absolute-container reparent target.
-  const containerRect = crossDrop?.kind === 'absolute' ? crossDrop.rect : null;
+  const flowIndicatorForDrop =
+    reorder.dropIndicator ??
+    (crossDrop?.kind === 'flow' ? crossDrop.indicator : null);
+  const gapRect = flowIndicatorForDrop?.rect ?? null;
+  // Outline: whichever container the element will end up in — the
+  // absolute one it nests into, or the flow one whose sibling list the
+  // gap line is pointing into. The line alone says where among the
+  // siblings but not whose siblings they are.
+  const containerRect =
+    crossDrop?.kind === 'absolute'
+      ? crossDrop.rect
+      : (flowIndicatorForDrop?.containerRect ?? null);
 
   return (
     <div

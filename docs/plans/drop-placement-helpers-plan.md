@@ -160,6 +160,16 @@ third time.
 
 ### 4. Edge bands apply in flow parents; absolute parents keep today's rule
 
+> **Revised after manual testing.** The first pass restricted edge bands to
+> **flex** parents, on the reasoning that a grid's indicator appended at
+> the end rather than inserting. That was fixing the symptom backwards:
+> the right move was to make grid resolve a sibling like flex does, which
+> it now does. Grid and flex behave identically.
+>
+> Also added: a flow drop now outlines the container it lands in. The gap
+> line alone says where among the siblings but not *whose* siblings, which
+> is the question the user actually has mid-drag.
+
 In an absolutely-positioned parent, sibling *order* doesn't affect where
 anything appears — only paint order. "Drop between these two" has no
 visual meaning there, so offering it would be feedback that promises
