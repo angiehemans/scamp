@@ -323,3 +323,84 @@ test.describe('canvas: which container am I dropping into', () => {
         expectNestedInTsx(tsx, child, loose);
     });
 });
+/**
+ * Reordering WITHIN a grid — reported from manual testing on a
+ * `grid-template-columns: 1fr 1fr 1fr` container whose children are small
+ * cells. Grid children never entered the reorder path at all, because the
+ * drag/reorder decision asked `isFlexChild`; they fell through to the
+ * absolute-move machine, where dragging did nothing visible and the only
+ * feedback came from whichever sibling happened to be under the cursor.
+ * see docs/plans/drop-placement-helpers-plan.md
+ */
+test.describe('canvas: reordering inside a grid', () => {
+    const dropOutline = (window) => window.locator('[class*="dropContainer"]');
+    const dropLine = (window) => window.locator('[class*="dropIndicator"]');
+    /** A 3-column grid holding three cells, returned in childIds order. */
+    const seedGrid = async (window) => {
+        await expect(pageRoot(window)).toBeVisible();
+        const grid = await drawAndSelectRect(window, { x: 200, y: 100 }, { x: 620, y: 340 });
+        const layout = panelSection(window, 'Layout');
+        await layout.getByRole('radio', { name: 'Grid' }).click();
+        await waitForSaved(window);
+        for (let i = 0; i < 3; i += 1) {
+            await selectTool(window, 'r');
+            await dragInFrame(window, { x: 230 + i * 60, y: 130 }, { x: 280 + i * 60, y: 180 });
+            await waitForSaved(window);
+        }
+        const cells = (await canvasElementsByPrefix(window, 'rect_').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-scamp-id') ?? ''))).filter((c) => c !== grid);
+        if (cells.length !== 3) {
+            throw new Error(`expected 3 grid cells, got ${cells.join()}`);
+        }
+        return { grid, cells };
+    };
+    /** childIds order of the grid, read back from the saved TSX. */
+    const orderInTsx = (tsx, cells) => [...cells].sort((a, b) => tsx.indexOf(`data-scamp-id="${a}"`) - tsx.indexOf(`data-scamp-id="${b}"`));
+    test('shows a line BETWEEN cells and outlines the grid, not the cell', async ({ window, }) => {
+        const { grid, cells } = await seedGrid(window);
+        const target = await canvasElement(window, cells[1]).boundingBox();
+        const gridBox = await canvasElement(window, grid).boundingBox();
+        const dragged = await canvasElement(window, cells[2]).boundingBox();
+        if (!target || !gridBox || !dragged)
+            throw new Error('missing boxes');
+        await selectTool(window, 'v');
+        await window.mouse.move(dragged.x + dragged.width / 2, dragged.y + dragged.height / 2);
+        await window.mouse.down();
+        // The middle cell's leading edge — "put it before this one".
+        await window.mouse.move(target.x + 2, target.y + target.height / 2, {
+            steps: 10,
+        });
+        await expect(dropLine(window)).toBeVisible();
+        await expect(dropOutline(window)).toBeVisible();
+        // The outline covers the GRID, not the small cell under the cursor.
+        const outline = await dropOutline(window).boundingBox();
+        expect(outline?.width).toBeCloseTo(gridBox.width, 0);
+        await window.mouse.up();
+    });
+    test('actually reorders the cells rather than nesting one inside another', async ({ window, project, }) => {
+        const { grid, cells } = await seedGrid(window);
+        const before = orderInTsx((await readPageFiles(project.dir, project.pageName)).tsx, cells);
+        const target = await canvasElement(window, before[0]).boundingBox();
+        const dragged = await canvasElement(window, before[2]).boundingBox();
+        if (!target || !dragged)
+            throw new Error('missing boxes');
+        // Drag the last cell to the leading edge of the first.
+        await selectTool(window, 'v');
+        await window.mouse.move(dragged.x + dragged.width / 2, dragged.y + dragged.height / 2);
+        await window.mouse.down();
+        await window.mouse.move(target.x + 2, target.y + target.height / 2, {
+            steps: 12,
+        });
+        await window.mouse.up();
+        await waitForSaved(window);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        // It moved to the front of the grid's children...
+        expect(orderInTsx(tsx, cells)[0]).toBe(before[2]);
+        // ...and every cell is still a direct child of the grid, not nested
+        // inside a sibling.
+        for (const cell of cells)
+            expectNestedInTsx(tsx, grid, cell);
+        const firstEnd = tsx.indexOf('</div>', tsx.indexOf(`data-scamp-id="${before[0]}"`));
+        const movedStart = tsx.indexOf(`data-scamp-id="${before[2]}"`);
+        expect(movedStart).toBeLessThan(firstEnd);
+    });
+});

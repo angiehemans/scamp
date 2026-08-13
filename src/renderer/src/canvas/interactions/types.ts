@@ -122,6 +122,8 @@ export type CanvasGeometry = {
   parentMoveBoundsOf: (parentId: string | null) => { w: number; h: number };
   /** True if `el`'s parent is a flex container. */
   isFlexChild: (el: ScampElement | undefined) => boolean;
+  /** Flex OR grid child — the parent owns placement, so a drag reorders. */
+  isFlowChild: (el: ScampElement | undefined) => boolean;
   /**
    * Resolve the deepest container under the cursor that `draggedId`
    * could reparent into. Skips the dragged element + its subtree and

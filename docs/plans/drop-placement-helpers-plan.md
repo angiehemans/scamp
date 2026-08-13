@@ -169,6 +169,14 @@ third time.
 > Also added: a flow drop now outlines the container it lands in. The gap
 > line alone says where among the siblings but not *whose* siblings, which
 > is the question the user actually has mid-drag.
+>
+> **Second revision.** Grid children never entered the reorder path at
+> all: the drag decision in `handlePointerDown` asked `isFlexChild`, so
+> they fell through to the absolute-move machine — dragging them did
+> nothing visible (grid owns placement) and the only feedback came from
+> whichever sibling was under the cursor. `isFlowChild` (flex OR grid)
+> gates the reorder now. `isFlexChild` stays flex-only for the
+> resize-handle rule, where a grid item genuinely can carry its own size.
 
 In an absolutely-positioned parent, sibling *order* doesn't affect where
 anything appears — only paint order. "Drop between these two" has no

@@ -53,7 +53,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     // Frame-local geometry helpers (coord conversion, DOM measurement,
     // parent-bounds lookups) shared by every pointer handler.
     const geometry = useCanvasGeometry(frameRef, scale);
-    const { measureElementInFrame, isFlexChild } = geometry;
+    const { measureElementInFrame, isFlexChild, isFlowChild } = geometry;
     // Per-tool pointer state machines.
     const draw = useDrawInteraction(geometry);
     const move = useMoveInteraction(geometry, scale);
@@ -127,11 +127,11 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
         if (hitId === ROOT_ELEMENT_ID) {
             return;
         }
-        // Flex children can't be moved by x/y, but they CAN be reordered
-        // within their parent's flex flow. Enter the reorder drag state and
-        // let pointermove figure out where in the sibling list the drop will
-        // land.
-        if (isFlexChild(el) && el.parentId) {
+        // Flow children (flex AND grid) can't be moved by x/y — the parent
+        // lays them out — but they CAN be reordered within it. Enter the
+        // reorder drag state and let pointermove figure out where in the
+        // sibling list the drop will land.
+        if (isFlowChild(el) && el.parentId) {
             reorder.start(e, hitId, el.parentId);
             return;
         }

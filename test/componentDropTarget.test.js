@@ -49,6 +49,7 @@ const makeGeometry = (rects, drop) => ({
     parentSizeOf: () => ({ w: 0, h: 0 }),
     parentMoveBoundsOf: () => ({ w: 0, h: 0 }),
     isFlexChild: () => false,
+    isFlowChild: () => false,
     resolveDropContainer: () => drop,
 });
 describe('resolveComponentDrop — target container', () => {

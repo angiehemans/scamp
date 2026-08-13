@@ -164,6 +164,25 @@ export const useCanvasGeometry = (
     return elements[el.parentId]?.display === 'flex';
   };
 
+  /**
+   * Is this element laid out by its parent's flow — flex OR grid?
+   *
+   * Distinct from `isFlexChild`, which stays flex-only for the
+   * resize-handle rule (a grid item can still be given its own size).
+   * This one decides whether a drag is a *reorder*: in both flex and grid
+   * the parent owns placement, so dragging a child means changing its
+   * position in the sibling order, not its x/y. Grid children used to
+   * fall through to the absolute-move path, where dragging them did
+   * nothing visible and the only drop feedback came from whichever
+   * sibling happened to be under the cursor.
+   * see docs/plans/drop-placement-helpers-plan.md
+   */
+  const isFlowChild = (el: ScampElement | undefined): boolean => {
+    if (!el || !el.parentId) return false;
+    const display = elements[el.parentId]?.display;
+    return display === 'flex' || display === 'grid';
+  };
+
   /** True if `id` is `ancestorId` or anywhere below it in the tree. */
   const isSelfOrDescendant = (id: string, ancestorId: string): boolean => {
     let cursor: string | null = id;
@@ -224,6 +243,7 @@ export const useCanvasGeometry = (
     parentSizeOf,
     parentMoveBoundsOf,
     isFlexChild,
+    isFlowChild,
     resolveDropContainer,
   };
 };
