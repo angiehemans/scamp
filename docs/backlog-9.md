@@ -310,3 +310,9 @@ position relative to the target element:
 - This is the most complex story in this backlog because it touches
   drag state management, hit-testing against the element tree, and
   real-time visual feedback on both the canvas and the tree
+
+  ## 5. Images already in project folder are duplicating.
+
+ -when a user chooses an image that is already in their project image folder scamp re-imports that image as if the user is pulling it in from another folder, hence duplicating the image.
+ - Scamp needs to be aware when a user chooses an image that is already in its projects image folder and simply place it on the canvas without duplicating it.
+ - Scamp also needs to compress images to be web ready, so we can serve images faster and more efficiently, maybe convert to webp?
