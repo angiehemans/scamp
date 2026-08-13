@@ -39,6 +39,7 @@
     "src/main/ipc/snapshotOps.ts",
     "src/main/ipc/fileConflict.ts",
     "src/main/ipc/imageOps.ts",
+    "src/main/ipc/imageOptimize.ts",
     "src/main/ipc/pathContainment.ts",
     "src/main/watcher.ts",
     "src/main/ipc/pageOps.ts",

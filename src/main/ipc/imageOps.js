@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { basename, extname, join, resolve } from 'path';
+import { bufferToWebpIfSmaller, toWebpIfSmaller } from './imageOptimize';
 /**
  * Where image assets live on disk for a given project format.
  *
@@ -88,21 +89,28 @@ const canonicalAssetName = async (assetsDir, fileName) => {
 export const copyImage = async (args, format) => {
     const assetsDir = assetsDirFor(args.projectPath, format);
     await fs.mkdir(assetsDir, { recursive: true });
-    const ext = extname(args.sourcePath);
-    const base = basename(args.sourcePath, ext);
-    let fileName = `${base}${ext}`;
-    let destPath = join(assetsDir, fileName);
-    // Already the asset at this path — reference it, don't clone it. The
-    // reference uses the name as stored on disk, not as the user typed it.
-    if (await isSameFile(args.sourcePath, destPath)) {
-        const actualName = await canonicalAssetName(assetsDir, fileName);
+    const sourceExt = extname(args.sourcePath);
+    const base = basename(args.sourcePath, sourceExt);
+    // Already the asset at this path — reference it, don't clone it, and
+    // above all don't re-encode it. The reference uses the name as stored
+    // on disk, not as the user typed it.
+    if (await isSameFile(args.sourcePath, join(assetsDir, `${base}${sourceExt}`))) {
+        const actualName = await canonicalAssetName(assetsDir, `${base}${sourceExt}`);
         return {
             relativePath: referencePathFor(actualName, format),
             fileName: actualName,
             reused: true,
         };
     }
-    // Deduplicate: hero.png → hero-1.png → hero-2.png
+    // Only a file coming from OUTSIDE the assets folder is re-encoded: the
+    // check above has already claimed everything that's merely being
+    // re-linked. `null` means keeping the original is the better outcome.
+    const converted = await toWebpIfSmaller(args.sourcePath);
+    const ext = converted?.ext ?? sourceExt;
+    // Deduplicate against the name we'll actually write: hero.png →
+    // hero.webp → hero-1.webp.
+    let fileName = `${base}${ext}`;
+    let destPath = join(assetsDir, fileName);
     let counter = 1;
     while (true) {
         try {
@@ -115,7 +123,12 @@ export const copyImage = async (args, format) => {
             break; // File doesn't exist — safe to use this name.
         }
     }
-    await fs.copyFile(args.sourcePath, destPath);
+    if (converted) {
+        await fs.writeFile(destPath, converted.data);
+    }
+    else {
+        await fs.copyFile(args.sourcePath, destPath);
+    }
     return {
         relativePath: referencePathFor(fileName, format),
         fileName,
@@ -127,9 +140,12 @@ export const copyImage = async (args, format) => {
  * (deduplicating the filename), returning the runtime reference. Used by
  * the clipboard-paste path, where there's no source file to copy.
  */
-export const saveImageBuffer = async (projectPath, data, baseName, ext, format) => {
+export const saveImageBuffer = async (projectPath, data, baseName, sourceExt, format) => {
     const assetsDir = assetsDirFor(projectPath, format);
     await fs.mkdir(assetsDir, { recursive: true });
+    const converted = await bufferToWebpIfSmaller(data);
+    const bytes = converted?.data ?? data;
+    const ext = converted?.ext ?? sourceExt;
     let fileName = `${baseName}${ext}`;
     let destPath = join(assetsDir, fileName);
     let counter = 1;
@@ -144,7 +160,7 @@ export const saveImageBuffer = async (projectPath, data, baseName, ext, format) 
             break;
         }
     }
-    await fs.writeFile(destPath, data);
+    await fs.writeFile(destPath, bytes);
     return {
         relativePath: referencePathFor(fileName, format),
         fileName,

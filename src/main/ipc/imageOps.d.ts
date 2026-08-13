@@ -29,4 +29,4 @@ export declare const copyImage: (args: CopyImageArgs, format: ProjectFormat) => 
  * (deduplicating the filename), returning the runtime reference. Used by
  * the clipboard-paste path, where there's no source file to copy.
  */
-export declare const saveImageBuffer: (projectPath: string, data: Buffer, baseName: string, ext: string, format: ProjectFormat) => Promise<CopyImageResult>;
+export declare const saveImageBuffer: (projectPath: string, data: Buffer, baseName: string, sourceExt: string, format: ProjectFormat) => Promise<CopyImageResult>;

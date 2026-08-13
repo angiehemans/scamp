@@ -143,7 +143,17 @@ export default defineConfig(({ mode }) => {
           // electron-updater / electron-log are CJS with dynamic
           // requires that don't survive Rollup bundling — keep them
           // external so they load from node_modules in the asar.
-          external: ['chokidar', 'postcss', 'node-pty', 'electron-updater', 'electron-log'],
+          // `sharp` is a native module (libvips): it resolves a
+          // platform-specific binary at require time, which Rollup can't
+          // follow. see docs/plans/image-optimization-plan.md
+          external: [
+            'chokidar',
+            'postcss',
+            'node-pty',
+            'electron-updater',
+            'electron-log',
+            'sharp',
+          ],
         },
       },
       // String-substitute references to `process.env.SENTRY_DSN`

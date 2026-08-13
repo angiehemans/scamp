@@ -67,6 +67,25 @@ Any attribute you add manually in the CSS editor or externally round-trips clean
 
 Options live as a typed list on the select element — they're not drawable canvas elements. Editing them through the panel is the only way to change them.
 
+## Images and File Size
+
+When you bring a PNG or JPEG into a project, Scamp re-encodes it as
+**WebP** on the way in — same pixels and same dimensions, fewer bytes.
+Nothing is resized, so the image stays exactly as sharp as you supplied
+it; it just downloads faster and takes less room when your project is
+backed up. A 1.7MB PNG screenshot typically lands under 20KB.
+
+- `hero.png` becomes `hero.webp`, and the page references the new name.
+- **SVGs and existing WebP files are left alone** — SVG is already vector,
+  and re-encoding a WebP would only lose quality.
+- If the WebP would be *larger* than what you supplied (which happens with
+  very small or already-tightly-compressed files), Scamp keeps your
+  original untouched.
+- Choosing an image that's **already in your project's assets folder**
+  just links it — no copy, no re-encode.
+
+WebP is supported by every current browser.
+
 ## SVG
 
 SVGs render as real artwork on the canvas — not a placeholder — and the exported TSX contains your source. There are three ways to get one onto the canvas:

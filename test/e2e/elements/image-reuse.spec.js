@@ -54,9 +54,11 @@ test.describe('images: choosing one already in the project', () => {
         // The reported symptom was hero-1.png, then hero-2.png, and on.
         expect(await assetNames(project.dir)).toEqual(['hero.png']);
     });
-    test('still copies an image chosen from outside the project', async ({ window, app, project, }) => {
+    test('still imports an image chosen from outside the project', async ({ window, app, project, }) => {
         // The behaviour that must not regress — an external file is still
-        // imported, and lands in the assets folder.
+        // imported into the assets folder. It arrives as `.webp`: imports are
+        // re-encoded on the way in.
+        // see docs/plans/image-optimization-plan.md
         await expect(pageRoot(window)).toBeVisible();
         await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
@@ -65,6 +67,6 @@ test.describe('images: choosing one already in the project', () => {
         const background = panelSection(window, 'Background');
         await background.getByRole('button', { name: 'Set background image' }).click();
         await waitForSaved(window);
-        expect(await assetNames(project.dir)).toEqual(['outside.png']);
+        expect(await assetNames(project.dir)).toEqual(['outside.webp']);
     });
 });

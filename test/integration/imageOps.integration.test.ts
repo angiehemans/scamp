@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
+import sharp from 'sharp';
+
 import { copyImage, assetsDirFor } from '../../src/main/ipc/imageOps';
 
 describe('copyImage', () => {
@@ -236,6 +238,136 @@ describe('copyImage: a file already in the assets folder', () => {
     // machine and 404 on a case-sensitive host.
     expect(result.fileName).toBe('hero.png');
     expect(result.relativePath).toBe('./assets/hero.png');
+  });
+});
+
+/**
+ * Imports are re-encoded to WebP on the way in — same pixels, fewer
+ * bytes. see docs/plans/image-optimization-plan.md
+ */
+describe('copyImage: WebP conversion', () => {
+  let projectDir: string;
+  let sourceDir: string;
+
+  beforeEach(async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-img-webp-'));
+    projectDir = path.join(root, 'my-project');
+    sourceDir = path.join(root, 'sources');
+    await fs.mkdir(projectDir);
+    await fs.mkdir(sourceDir);
+  });
+
+  afterEach(async () => {
+    await fs.rm(path.dirname(projectDir), { recursive: true, force: true });
+  });
+
+  /** A noisy PNG — compresses like a photo rather than to nothing. */
+  const writeNoisyPng = async (name: string): Promise<string> => {
+    const w = 200;
+    const h = 200;
+    const raw = Buffer.alloc(w * h * 3);
+    let seed = 987654321;
+    for (let i = 0; i < raw.length; i += 1) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      raw[i] = seed % 256;
+    }
+    const p = path.join(sourceDir, name);
+    await sharp(raw, { raw: { width: w, height: h, channels: 3 } })
+      .png()
+      .toFile(p);
+    return p;
+  };
+
+  const assetNames = async (): Promise<string[]> =>
+    (await fs.readdir(assetsDirFor(projectDir, 'legacy'))).sort();
+
+  it('imports a PNG as a smaller .webp', async () => {
+    const src = await writeNoisyPng('hero.png');
+    const before = (await fs.stat(src)).size;
+
+    const result = await copyImage(
+      { sourcePath: src, projectPath: projectDir },
+      'legacy'
+    );
+
+    expect(result.fileName).toBe('hero.webp');
+    expect(result.relativePath).toBe('./assets/hero.webp');
+    expect(await assetNames()).toEqual(['hero.webp']);
+    const written = await fs.stat(
+      path.join(assetsDirFor(projectDir, 'legacy'), 'hero.webp')
+    );
+    expect(written.size).toBeLessThan(before);
+  });
+
+  it('leaves an SVG alone', async () => {
+    const svg = path.join(sourceDir, 'icon.svg');
+    await fs.writeFile(svg, '<svg xmlns="http://www.w3.org/2000/svg"/>');
+
+    const result = await copyImage(
+      { sourcePath: svg, projectPath: projectDir },
+      'legacy'
+    );
+    expect(result.fileName).toBe('icon.svg');
+    expect(await assetNames()).toEqual(['icon.svg']);
+  });
+
+  it('leaves an existing .webp alone rather than re-encoding it', async () => {
+    const src = path.join(sourceDir, 'already.webp');
+    await sharp({
+      create: { width: 32, height: 32, channels: 3, background: '#336699' },
+    })
+      .webp()
+      .toFile(src);
+    const before = await fs.readFile(src);
+
+    const result = await copyImage(
+      { sourcePath: src, projectPath: projectDir },
+      'legacy'
+    );
+    expect(result.fileName).toBe('already.webp');
+    // Byte-identical: a second lossy pass would only degrade it.
+    const after = await fs.readFile(
+      path.join(assetsDirFor(projectDir, 'legacy'), 'already.webp')
+    );
+    expect(after.equals(before)).toBe(true);
+  });
+
+  it('keeps the original when it is not a decodable image', async () => {
+    // Must degrade to a plain copy, never fail the import.
+    const fake = path.join(sourceDir, 'broken.png');
+    await fs.writeFile(fake, 'not actually a png');
+
+    const result = await copyImage(
+      { sourcePath: fake, projectPath: projectDir },
+      'legacy'
+    );
+    expect(result.fileName).toBe('broken.png');
+    expect(await assetNames()).toEqual(['broken.png']);
+  });
+
+  it('still reuses an asset already in the folder, without re-encoding it', async () => {
+    // The story-5 guarantee, now that conversion changes the extension
+    // under it: re-picking the produced .webp must stay a no-op.
+    const src = await writeNoisyPng('hero.png');
+    const first = await copyImage(
+      { sourcePath: src, projectPath: projectDir },
+      'legacy'
+    );
+    const assetPath = path.join(
+      assetsDirFor(projectDir, 'legacy'),
+      first.fileName
+    );
+    const bytesBefore = await fs.readFile(assetPath);
+
+    const second = await copyImage(
+      { sourcePath: assetPath, projectPath: projectDir },
+      'legacy'
+    );
+
+    expect(second.reused).toBe(true);
+    expect(second.fileName).toBe('hero.webp');
+    expect(await assetNames()).toEqual(['hero.webp']);
+    expect((await fs.readFile(assetPath)).equals(bytesBefore)).toBe(true);
   });
 });
 
