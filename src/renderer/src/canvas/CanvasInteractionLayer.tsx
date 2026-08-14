@@ -74,20 +74,6 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
     selectIsRatioLocked(s, selectedElementId)
   );
   const imageImportBusy = useCanvasStore((s) => s.imageImportBusy);
-  // Placeholder geometry: roughly the size a placed image gets, shrunk to
-  // fit if the target element is smaller, centred on that element (or on
-  // the canvas when there isn't one yet).
-  const IMPORT_FRAME_MAX = 140;
-  const importFrame = selectedRect
-    ? {
-        size: Math.max(
-          40,
-          Math.min(IMPORT_FRAME_MAX, selectedRect.w, selectedRect.h)
-        ),
-        x: selectedRect.x + selectedRect.w / 2,
-        y: selectedRect.y + selectedRect.h / 2,
-      }
-    : { size: IMPORT_FRAME_MAX, x: '50%' as const, y: '40%' as const };
 
   // Frame-local geometry helpers (coord conversion, DOM measurement,
   // parent-bounds lookups) shared by every pointer handler.
@@ -329,26 +315,31 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
         />
       )}
       {imageImportBusy && (
-        // An image-shaped placeholder for the image that's coming.
-        // Sized independently of the target and centred on it: matching
-        // the element's size instead blacks out the whole canvas when
-        // that element is the page. Falls back to the canvas centre for
-        // the image tool, which opens its file dialog before any element
-        // exists to attach to.
+        // Over the element the image is going into when there is one,
+        // otherwise centred — the image tool picks a file before any
+        // element exists.
         <div
           className={styles.importOverlay}
           data-testid="image-import-busy"
           role="status"
-          aria-label="Optimising image"
-          style={{
-            width: importFrame.size,
-            height: importFrame.size,
-            left: importFrame.x,
-            top: importFrame.y,
-            transform: 'translate(-50%, -50%)',
-          }}
+          style={
+            selectedRect
+              ? {
+                  left: selectedRect.x,
+                  top: selectedRect.y,
+                  width: selectedRect.w,
+                  height: selectedRect.h,
+                }
+              : {
+                  left: '50%',
+                  top: '40%',
+                  transform: 'translate(-50%, -50%)',
+                  padding: '20px 28px',
+                }
+          }
         >
           <span className={styles.importSpinner} aria-hidden="true" />
+          {(!selectedRect || selectedRect.w >= 180) && <span>Optimising image…</span>}
         </div>
       )}
       {containerRect && (
