@@ -68,4 +68,39 @@ test.describe('settings: app-level', () => {
             await fs.rm(folder, { recursive: true, force: true }).catch(() => { });
         }
     });
+    /**
+     * The privacy toggle, end to end.
+     *
+     * The install id is what makes users countable, so the promise made in
+     * the UI — "just a random ID for this install", removed if you opt out
+     * — has to hold on disk. The pure pieces are unit-tested; this is the
+     * only level that proves the button actually reaches them.
+     * see docs/plans/dau-tracking-plan.md
+     */
+    test('the privacy toggle mints an install id, and opting out removes it', async ({ window, userDataDir, }) => {
+        const settingsFile = path.join(userDataDir, 'settings.json');
+        const readSettings = async () => {
+            try {
+                return JSON.parse(await fs.readFile(settingsFile, 'utf-8'));
+            }
+            catch {
+                return {};
+            }
+        };
+        await window.getByRole('button', { name: /Settings/ }).click();
+        await expect(window.getByRole('heading', { name: 'Settings' })).toBeVisible();
+        await window.getByRole('button', { name: 'On', exact: true }).click();
+        await expect.poll(async () => (await readSettings())['sentryOptIn']).toBe(true);
+        // A v4 UUID, generated locally — not derived from anything about the
+        // machine or the person.
+        const optedIn = await readSettings();
+        expect(optedIn['installId']).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+        await window.getByRole('button', { name: 'Off', exact: true }).click();
+        await expect.poll(async () => (await readSettings())['sentryOptIn']).toBe(false);
+        // The identifier is GONE, not merely unused — opting out has to
+        // remove it, or the next opt-in would resurrect the same id.
+        await expect
+            .poll(async () => (await readSettings())['installId'])
+            .toBeNull();
+    });
 });

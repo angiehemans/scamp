@@ -1,3 +1,6 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+
 import { test, expect, stubOpenDialog, writeFixtureImageOutside } from '../fixtures/app';
 import { clickInFrame, dragInFrame, selectTool } from '../fixtures/canvas';
 import {
@@ -38,6 +41,16 @@ test.describe('canvas: draw image', () => {
     expect(tsx).toMatch(
       new RegExp(`<img [^>]*data-scamp-id="${className}"[^>]*src="[^"]+"`)
     );
+
+    // Imports are re-encoded to WebP on the way in. Asserting only that
+    // SOME src is emitted would pass unchanged if conversion silently
+    // stopped happening — and this is the only import path the picker
+    // drives directly. see docs/plans/image-import-speed-plan.md
+    expect(tsx).toMatch(
+      new RegExp(`data-scamp-id="${className}"[^>]*src="[^"]*\\.webp"`)
+    );
+    const assets = await fs.readdir(path.join(project.dir, 'assets'));
+    expect(assets).toEqual(['pixel.webp']);
   });
 
   test('I + drag draws an <img> sized to the dragged box', async ({
@@ -62,5 +75,9 @@ test.describe('canvas: draw image', () => {
     const box = await img.boundingBox();
     expect(box).not.toBeNull();
     expect(Math.abs(box!.width - 200)).toBeLessThan(20);
+
+    // Converted on the way in, same as the click-to-place path.
+    const { tsx } = await readPageFiles(project.dir, project.pageName);
+    expect(tsx).toMatch(/<img [^>]*src="[^"]*\.webp"/);
   });
 });
