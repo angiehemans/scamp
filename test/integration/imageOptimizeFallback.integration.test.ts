@@ -4,18 +4,29 @@ import os from 'os';
 import path from 'path';
 
 /**
- * What happens when the codecs can't load at all.
+ * What happens when the encoder can't run at all.
  *
- * `imageOptimize` is reached from `main/index.ts` via
- * `registerImageIpc`, so a throw at import time would stop the app
- * launching. Compression is a nice-to-have; launching is not.
- * see docs/plans/image-optimization-plan.md
+ * `imageOptimize` is reached from `main/index.ts` via `registerImageIpc`,
+ * so nothing here may throw into app startup. Compression is a
+ * nice-to-have; launching — and importing images at all — is not.
+ *
+ * The failure is simulated at the worker boundary because that's where
+ * it now lives: the codecs are loaded inside the worker thread, so a
+ * broken install, an unavailable wasm file, or a thread that won't start
+ * all surface the same way from the parent's side.
+ * see docs/plans/image-import-speed-plan.md
  */
 
-// Make the WebP encoder fail to load, as a corrupt or partial install
-// would. Any one codec failing takes the whole optimizer offline.
-vi.mock('@jsquash/webp/encode', () => {
-  throw new Error('failed to load wasm codec');
+vi.mock('worker_threads', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('worker_threads')>();
+  return {
+    ...actual,
+    Worker: class {
+      constructor() {
+        throw new Error('worker failed to start');
+      }
+    },
+  };
 });
 
 const PNG_1X1 = Buffer.from(
@@ -27,14 +38,14 @@ const PNG_1X1 = Buffer.from(
 let dir: string;
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-nocodec-'));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-noworker-'));
 });
 
 afterEach(async () => {
   await fs.rm(dir, { recursive: true, force: true });
 });
 
-describe('when the codecs are unavailable', () => {
+describe('when the encoder cannot run', () => {
   it('returns null from the optimizer instead of throwing', async () => {
     const { toWebpIfSmaller } = await import('../../src/main/ipc/imageOptimize');
     const src = path.join(dir, 'hero.png');

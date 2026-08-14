@@ -11,6 +11,7 @@ export type RawImage = {
 export declare const noisyImage: (width: number, height: number) => RawImage;
 /** A flat, semi-transparent square — for the alpha and no-gain cases. */
 export declare const flatImage: (width: number, height: number, alpha?: number) => RawImage;
+export declare const webpBytes: (image: RawImage, quality?: number) => Promise<Buffer>;
 export declare const pngBytes: (image: RawImage) => Promise<Buffer>;
 export declare const jpegBytes: (image: RawImage, quality?: number) => Promise<Buffer>;
 export declare const writePng: (filePath: string, image: RawImage) => Promise<string>;

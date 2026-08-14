@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { copyImage, assetsDirFor } from '../../src/main/ipc/imageOps';
-import { flatImage, noisyImage, writePng } from './rasterFixtures';
+import { flatImage, noisyImage, webpBytes, writePng } from './rasterFixtures';
 
 describe('copyImage', () => {
   let projectDir: string;
@@ -299,15 +299,7 @@ describe('copyImage: WebP conversion', () => {
 
   it('leaves an existing .webp alone rather than re-encoding it', async () => {
     const src = path.join(sourceDir, 'already.webp');
-    const webpEnc = await import('@jsquash/webp/encode');
-    await fs.writeFile(
-      src,
-      Buffer.from(
-        await webpEnc.default(flatImage(32, 32) as unknown as ImageData, {
-          quality: 80,
-        })
-      )
-    );
+    await fs.writeFile(src, await webpBytes(flatImage(32, 32)));
     const before = await fs.readFile(src);
 
     const result = await copyImage(

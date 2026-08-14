@@ -6,6 +6,7 @@ import path from 'path';
 import {
   bufferToWebpIfSmaller,
   isConvertible,
+  shouldTryLossless,
   toWebpIfSmaller,
 } from '../../src/main/ipc/imageOptimize';
 import {
@@ -51,6 +52,40 @@ describe('isConvertible', () => {
     expect(isConvertible('/a/hero.webp')).toBe(false);
     expect(isConvertible('/a/icon.svg')).toBe(false);
     expect(isConvertible('/a/loop.gif')).toBe(false);
+  });
+});
+
+/**
+ * Which encodes get attempted. Lossless is both the slowest and the one
+ * that loses hardest on photographs — a 12MP photo took 6.7s to produce
+ * 7.2MB against a 2.8MB source — so it's only worth trying where it can
+ * plausibly win. see docs/plans/image-import-speed-plan.md
+ */
+describe('shouldTryLossless', () => {
+  it('tries it for a small PNG — flat UI art is where it wins', () => {
+    expect(shouldTryLossless('png', 1440, 900)).toBe(true);
+  });
+
+  it('skips it for a large PNG', () => {
+    // A 12MP PNG is a photograph, whatever the extension suggests.
+    expect(shouldTryLossless('png', 4000, 3000)).toBe(false);
+  });
+
+  it('skips it for a JPEG at any size', () => {
+    // Already lossy: a lossless re-encode preserves compression
+    // artefacts at maximum cost.
+    expect(shouldTryLossless('jpeg', 64, 64)).toBe(false);
+    expect(shouldTryLossless('jpeg', 4000, 3000)).toBe(false);
+  });
+
+  it('keys off what actually decoded, not the extension', () => {
+    // A JPEG named .png decodes as jpeg, so it's still skipped.
+    expect(shouldTryLossless('jpeg', 800, 600)).toBe(false);
+  });
+
+  it('is inclusive at the boundary', () => {
+    expect(shouldTryLossless('png', 2000, 2000)).toBe(true);
+    expect(shouldTryLossless('png', 2001, 2000)).toBe(false);
   });
 });
 
@@ -143,6 +178,38 @@ describe('toWebpIfSmaller', () => {
       expect(decoded.data[3]).toBeLessThan(255);
     }
   });
+});
+
+/**
+ * The reason the encode moved to a worker thread at all.
+ *
+ * WASM runs synchronously on the calling thread. Run on the main thread,
+ * a 12MP import froze the entire app — no IPC, no saves, no redraw — for
+ * around nine seconds. see docs/plans/image-import-speed-plan.md
+ */
+describe('the encode does not block the event loop', () => {
+  it('keeps timers firing while a large image converts', async () => {
+    const src = await writePng(
+      path.join(dir, 'big.png'),
+      noisyImage(1200, 900)
+    );
+
+    let ticks = 0;
+    const timer = setInterval(() => {
+      ticks += 1;
+    }, 10);
+    const started = Date.now();
+    const result = await toWebpIfSmaller(src);
+    const elapsed = Date.now() - started;
+    clearInterval(timer);
+
+    expect(result).not.toBeNull();
+    // On the main thread this was exactly zero, however long the encode
+    // took. A conservative floor rather than a tight count, so the test
+    // doesn't turn into a timing assertion.
+    expect(elapsed).toBeGreaterThan(50);
+    expect(ticks).toBeGreaterThan(1);
+  }, 60000);
 });
 
 describe('bufferToWebpIfSmaller', () => {

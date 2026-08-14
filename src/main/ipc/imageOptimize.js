@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { createRequire } from 'module';
+import { Worker } from 'worker_threads';
 import { extname, join } from 'path';
 /**
  * Re-encode an imported image to WebP, when that actually helps.
@@ -17,6 +18,24 @@ import { extname, join } from 'path';
  */
 /** Quality for the lossy encode. 80 is the usual photographic sweet spot. */
 const WEBP_QUALITY = 80;
+/**
+ * Above this, only the lossy encode is attempted.
+ *
+ * Lossless is for flat graphic content — screenshots, logos, UI art —
+ * where it beats PNG and is pixel-identical. On a photograph it loses
+ * badly AND costs the most: a 12MP photo took 6.7s to produce 7.2MB,
+ * larger than its own 2.8MB source, so the result was always going to be
+ * discarded. Flat art that benefits is small; photographs are big.
+ */
+const LOSSLESS_MAX_PIXELS = 4_000_000;
+/**
+ * Is a lossless encode worth attempting for this image?
+ *
+ * A JPEG source is already lossy, so a lossless re-encode of one can only
+ * preserve compression artefacts at great expense — the decoded format
+ * decides this, not the file extension, since an extension can lie.
+ */
+export const shouldTryLossless = (decodedAs, width, height) => decodedAs === 'png' && width * height <= LOSSLESS_MAX_PIXELS;
 /**
  * Extensions worth re-encoding.
  *
@@ -40,97 +59,170 @@ export const isConvertible = (sourcePath) => CONVERTIBLE.has(extname(sourcePath)
  */
 const requireFrom = createRequire(join(typeof __dirname === 'string' ? __dirname : process.cwd(), 'index.js'));
 /**
- * `undefined` = not tried yet, `null` = tried and unavailable. Cached
- * either way: the wasm only needs compiling once, and a broken install
- * shouldn't be retried on every import.
- */
-let codecs;
-/**
- * Load and initialise the codecs, treating "can't" as "no compression".
+ * The encode runs in a worker thread, because WASM runs synchronously on
+ * whatever thread calls it: a timer ticking every 10ms during a 420ms
+ * encode got ZERO ticks. On the main thread that means a 12MP import
+ * freezes the whole app — no IPC, no saves, no redraw — for the duration.
+ * see docs/plans/image-import-speed-plan.md
  *
- * Reached from `main/index.ts` via `registerImageIpc`, so a throw at
- * module scope would stop the app launching — a hard failure in exchange
- * for a nice-to-have. Failing here instead degrades to "images import
- * uncompressed", which is the behaviour from before this feature.
+ * The worker body is a string rather than a second bundled entry point.
+ * electron-vite emits main as one bundle, so a separate worker file would
+ * have to be found on disk at runtime — inside the asar in a packaged
+ * build, which is exactly the kind of works-in-dev-fails-when-packaged
+ * trap this feature has already hit once. A string has no path to get
+ * wrong, and every module it needs is resolved by the parent and handed
+ * over as an absolute path.
  */
-const loadCodecs = async () => {
-    if (codecs !== undefined)
-        return codecs;
+const WORKER_SOURCE = `
+const { parentPort, workerData } = require('worker_threads');
+const { readFileSync } = require('fs');
+const { pathToFileURL } = require('url');
+
+let codecs = null;
+
+const bytesOf = (p) => {
+  const file = readFileSync(p);
+  const out = new Uint8Array(file.byteLength);
+  out.set(file);
+  return out;
+};
+
+const load = async () => {
+  if (codecs) return codecs;
+  const [png, jpeg, webp] = await Promise.all([
+    import(pathToFileURL(workerData.modules.png).href),
+    import(pathToFileURL(workerData.modules.jpeg).href),
+    import(pathToFileURL(workerData.modules.webp).href),
+  ]);
+  await Promise.all([
+    png.init(bytesOf(workerData.wasm.png)),
+    jpeg.init({ wasmBinary: bytesOf(workerData.wasm.jpeg) }),
+    webp.init({ wasmBinary: bytesOf(workerData.wasm.webp) }),
+  ]);
+  codecs = { png: png.default, jpeg: jpeg.default, webp: webp.default };
+  return codecs;
+};
+
+parentPort.on('message', async (job) => {
+  try {
+    const c = await load();
+    const view = job.bytes.buffer.slice(
+      job.bytes.byteOffset,
+      job.bytes.byteOffset + job.bytes.byteLength
+    );
+    const order = job.preferJpeg
+      ? [['jpeg', c.jpeg], ['png', c.png]]
+      : [['png', c.png], ['jpeg', c.jpeg]];
+    let image = null;
+    let decodedAs = null;
+    for (const [name, decoder] of order) {
+      try {
+        image = await decoder(view);
+        decodedAs = name;
+        break;
+      } catch (err) {
+        // Try the other codec before giving up — an extension can lie.
+      }
+    }
+    if (!image) {
+      parentPort.postMessage({ id: job.id, ok: true, result: null });
+      return;
+    }
+    // Mirrors shouldTryLossless() in the parent, which is where the rule
+    // is documented and tested; the threshold is passed in so the two
+    // can't drift on the number.
+    const tryLossless =
+      decodedAs === 'png' &&
+      image.width * image.height <= job.losslessMaxPixels;
+    const outs = [await c.webp(image, { quality: job.quality })];
+    if (tryLossless) outs.push(await c.webp(image, { lossless: 1 }));
+    const best = outs.reduce((a, b) => (b.byteLength < a.byteLength ? b : a));
+    parentPort.postMessage({ id: job.id, ok: true, result: best }, [best]);
+  } catch (err) {
+    parentPort.postMessage({ id: job.id, ok: false });
+  }
+});
+`;
+let worker;
+let nextJobId = 0;
+const pending = new Map();
+/** Resolve every in-flight job to "no compression" and drop the worker. */
+const abandonWorker = () => {
+    for (const resolve of pending.values())
+        resolve(null);
+    pending.clear();
+    worker = null;
+};
+/**
+ * Start the worker, or return null if it can't run.
+ *
+ * `imageOptimize` is reached from `main/index.ts` via `registerImageIpc`,
+ * so nothing here may throw into app startup — a failure degrades to
+ * "images import uncompressed", which is the behaviour from before this
+ * feature.
+ */
+const getWorker = () => {
+    if (worker !== undefined)
+        return worker;
     try {
-        // Copied into a plain ArrayBuffer-backed view: a Node Buffer may sit
-        // on a pooled (or shared) buffer, which isn't a `BufferSource`.
-        const wasm = async (spec) => {
-            const file = await fs.readFile(requireFrom.resolve(spec));
-            const bytes = new Uint8Array(file.byteLength);
-            bytes.set(file);
-            return bytes;
-        };
-        const [png, jpeg, webp] = await Promise.all([
-            import('@jsquash/png/decode'),
-            import('@jsquash/jpeg/decode'),
-            import('@jsquash/webp/encode'),
-        ]);
-        // Two wasm toolchains, two init signatures: png is wasm-bindgen and
-        // takes the bytes directly; jpeg and webp are Emscripten and want
-        // them as `wasmBinary`.
-        await Promise.all([
-            png.init(await wasm('@jsquash/png/codec/pkg/squoosh_png_bg.wasm')),
-            jpeg.init({
-                wasmBinary: await wasm('@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm'),
-            }),
-            webp.init({
-                wasmBinary: await wasm('@jsquash/webp/codec/enc/webp_enc.wasm'),
-            }),
-        ]);
-        codecs = {
-            png: png.default,
-            jpeg: jpeg.default,
-            webp: webp.default,
-        };
+        const spawned = new Worker(WORKER_SOURCE, {
+            eval: true,
+            workerData: {
+                modules: {
+                    png: requireFrom.resolve('@jsquash/png/decode'),
+                    jpeg: requireFrom.resolve('@jsquash/jpeg/decode'),
+                    webp: requireFrom.resolve('@jsquash/webp/encode'),
+                },
+                wasm: {
+                    png: requireFrom.resolve('@jsquash/png/codec/pkg/squoosh_png_bg.wasm'),
+                    jpeg: requireFrom.resolve('@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm'),
+                    // The SIMD build: 1.7x faster, byte-identical output.
+                    webp: requireFrom.resolve('@jsquash/webp/codec/enc/webp_enc_simd.wasm'),
+                },
+            },
+        });
+        spawned.on('message', (msg) => {
+            const resolve = pending.get(msg.id);
+            if (!resolve)
+                return;
+            pending.delete(msg.id);
+            resolve(msg.ok ? (msg.result ?? null) : null);
+        });
+        // A crashed or exited worker must not leave an import hanging.
+        spawned.on('error', abandonWorker);
+        spawned.on('exit', abandonWorker);
+        // Don't hold the process open for an idle worker.
+        spawned.unref();
+        worker = spawned;
     }
     catch {
-        codecs = null;
+        worker = null;
     }
-    return codecs;
-};
-/** Decode, trying the other codec too — a file extension can lie. */
-const decode = async (bytes, codec, preferJpeg) => {
-    const view = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    const order = preferJpeg ? [codec.jpeg, codec.png] : [codec.png, codec.jpeg];
-    for (const decoder of order) {
-        try {
-            return await decoder(view);
-        }
-        catch {
-            // Try the other one before giving up.
-        }
-    }
-    return null;
+    return worker;
 };
 const encodeSmaller = async (bytes, sourceSize, preferJpeg) => {
-    const codec = await loadCodecs();
-    if (!codec)
+    const active = getWorker();
+    if (!active)
         return null;
-    const image = await decode(bytes, codec, preferJpeg);
-    // Not a decodable image (a text file renamed .png, a truncated
-    // download). Leave the import alone rather than failing it.
-    if (!image)
+    const id = (nextJobId += 1);
+    const best = await new Promise((resolve) => {
+        pending.set(id, resolve);
+        try {
+            active.postMessage({
+                id,
+                bytes,
+                preferJpeg,
+                quality: WEBP_QUALITY,
+                losslessMaxPixels: LOSSLESS_MAX_PIXELS,
+            });
+        }
+        catch {
+            pending.delete(id);
+            resolve(null);
+        }
+    });
+    if (!best)
         return null;
-    let candidates;
-    try {
-        // Both encodes, keeping whichever is smaller, rather than guessing
-        // from the extension. A PNG might be a photograph (wants lossy) or
-        // flat UI art with text (wants lossless, where WebP still beats PNG
-        // and is pixel-identical) and `.png` doesn't say which.
-        candidates = await Promise.all([
-            codec.webp(image, { quality: WEBP_QUALITY }),
-            codec.webp(image, { lossless: 1 }),
-        ]);
-    }
-    catch {
-        return null;
-    }
-    const best = candidates.reduce((a, b) => (b.byteLength < a.byteLength ? b : a));
     if (best.byteLength >= sourceSize)
         return null;
     return { data: Buffer.from(best), ext: '.webp' };

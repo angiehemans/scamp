@@ -83,6 +83,29 @@ export const flatImage = (
   return { data, width, height };
 };
 
+/** WebP bytes, for fixtures that must already be in the target format. */
+let webpEncReady: Promise<
+  (img: RawImage, o?: { quality?: number }) => Promise<ArrayBuffer>
+> | null = null;
+
+export const webpBytes = async (
+  image: RawImage,
+  quality = 80
+): Promise<Buffer> => {
+  webpEncReady ??= (async () => {
+    const mod = await import('@jsquash/webp/encode');
+    await mod.init({
+      wasmBinary: await wasm('@jsquash/webp/codec/enc/webp_enc_simd.wasm'),
+    });
+    return mod.default as unknown as (
+      img: RawImage,
+      o?: { quality?: number }
+    ) => Promise<ArrayBuffer>;
+  })();
+  const encode = await webpEncReady;
+  return Buffer.from(await encode(image, { quality }));
+};
+
 export const pngBytes = async (image: RawImage): Promise<Buffer> =>
   Buffer.from(await (await encoders()).png(image));
 

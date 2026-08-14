@@ -1,3 +1,11 @@
+/**
+ * Is a lossless encode worth attempting for this image?
+ *
+ * A JPEG source is already lossy, so a lossless re-encode of one can only
+ * preserve compression artefacts at great expense — the decoded format
+ * decides this, not the file extension, since an extension can lie.
+ */
+export declare const shouldTryLossless: (decodedAs: "png" | "jpeg", width: number, height: number) => boolean;
 export declare const isConvertible: (sourcePath: string) => boolean;
 /**
  * Encode `sourcePath` as WebP and return the bytes, or null to keep the
