@@ -10,9 +10,10 @@ import { pageRoot } from '../fixtures/selectors';
  * the conversion runs in a child process — but silence for that long
  * reads as a hang, so the wait is shown.
  *
- * Anchored on the element the image is going into, because that's where
- * the user is looking: the first version was a pill at the bottom edge
- * of the canvas and got missed entirely.
+ * An image-shaped placeholder centred on the element the image is going
+ * into: the first version was a pill at the bottom edge of the canvas
+ * and got missed entirely, and the second filled the target element,
+ * which blacked out the whole canvas when that element was the page.
  * see docs/plans/image-import-speed-plan.md
  */
 /** A photo big enough that the conversion window is observable. */
@@ -45,14 +46,19 @@ test.describe('images: import indicator', () => {
                 .getByRole('button', { name: 'Set background image' })
                 .click();
             await expect(indicator).toBeVisible({ timeout: 5000 });
-            // Sitting on the element, not off at the edge of the canvas.
             const target = window.locator(`[data-scamp-id="${className}"]`);
             const [box, over] = await Promise.all([
                 target.boundingBox(),
                 indicator.boundingBox(),
             ]);
-            expect(over?.x).toBeCloseTo(box.x, -1);
-            expect(over?.y).toBeCloseTo(box.y, -1);
+            // Centred on the element...
+            expect(over.x + over.width / 2).toBeCloseTo(box.x + box.width / 2, -1);
+            expect(over.y + over.height / 2).toBeCloseTo(box.y + box.height / 2, -1);
+            // ...and contained by it, rather than covering it. A placeholder
+            // sized to the target takes over the whole canvas when the target
+            // is the page.
+            expect(over.width).toBeLessThan(box.width);
+            expect(over.height).toBeLessThan(box.height);
             // And it goes away when the conversion finishes.
             await expect(indicator).toHaveCount(0, { timeout: 30000 });
         }

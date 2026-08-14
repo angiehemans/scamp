@@ -31,31 +31,29 @@
   z-index: 140;
 }
 
-/* "Optimising image…" while an import converts. Anchored over the element
-   the image is going into, because that's where the user is looking — a
-   pill at the edge of the canvas got missed entirely.
+/* An image-shaped placeholder while an import converts: a dashed frame
+   with a spinner, sized like the image that's coming and centred on the
+   element it's going into. Sized independently of the target so a
+   full-bleed element (or the page itself) doesn't black out the canvas.
    see docs/plans/image-import-speed-plan.md */
 .importOverlay {
   position: absolute;
   z-index: 210;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bg-raised) 82%, transparent);
-  border: 1px solid var(--accent);
-  color: var(--text-primary);
-  font-size: 12px;
+  border: 2px dashed var(--accent);
+  background: color-mix(in srgb, var(--bg-raised) 88%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   pointer-events: none;
 }
 
 .importSpinner {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
   border-top-color: var(--accent);
   animation: importSpin 0.7s linear infinite;
 }
