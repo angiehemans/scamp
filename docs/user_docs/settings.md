@@ -11,6 +11,27 @@ Scamp has two kinds of settings:
 
 Choose where Scamp creates new projects. All new projects are stored as subfolders inside this directory. You can change this at any time — existing projects are not moved.
 
+### Privacy
+
+**Send anonymous crash reports and usage counts** — Scamp asks once, on
+first launch, and nothing is sent unless you say yes. You can change your
+mind here at any time; the change takes effect immediately, with no
+restart.
+
+When it's on, Scamp sends crash reports and a once-per-session ping so we
+can see how many people use it. What that includes:
+
+- **A random ID generated on your machine**, stored in Scamp's own
+  settings. It identifies this installation, not you — it isn't derived
+  from your name, email, IP address, hostname, or anything else about
+  your computer.
+- **No project data.** Your files, page contents, image assets, and
+  project names are never sent.
+
+Turning it **Off** stops the sending and **deletes the random ID**. If you
+turn it back on later, a brand new ID is generated — there's no way to
+reconnect the two.
+
 ## Project Settings
 
 ### Artboard Background Color

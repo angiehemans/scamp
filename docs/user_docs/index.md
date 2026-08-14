@@ -22,7 +22,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Linking Between Pages](linking.md) — Internal and external links via the Element section
 - [Export](export.md) — Save the current page or selected element as PNG or SVG
 - [Preview Mode](preview.md) — Open the project in a real Next.js dev server window
-- [Layers Panel](layers-panel.md) — The element tree, selection, reordering, and nesting
+- [Layers Panel](layers-panel.md) — The element tree: selection, collapsing branches, reordering, and nesting
 - [Code Output](code-output.md) — What Scamp generates, save status, and the live code preview
 - [Bidirectional Sync](bidirectional-sync.md) — External editing and sharing files with AI agents
 - [Working with AI Agents](ai-agents.md) — The MCP server, the live context file, and Copy context
@@ -33,7 +33,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Themes](themes.md) — Light, dark, and custom theme switching
 - [DESIGN.md](design-md.md) — The auto-generated design document for AI agents
 - [Terminal](terminal.md) — The built-in terminal panel
-- [Settings](settings.md) — App and per-project configuration (breakpoints, artboard, fonts)
+- [Settings](settings.md) — App and per-project configuration (projects folder, privacy, breakpoints, artboard, fonts)
 - [Undo, Redo, and History](undo-redo.md) — Keyboard shortcuts plus the visual History panel for per-page history navigation
 - [Snapshots](snapshots.md) — Durable point-in-time project backups, previewing, and restoring from the History panel
 - [Keyboard Shortcuts](keyboard-shortcuts.md) — Complete shortcut reference

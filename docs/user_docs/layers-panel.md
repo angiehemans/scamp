@@ -11,6 +11,23 @@ Elements are listed top-to-bottom matching their order in the generated code. Ne
 - **Click** an element to select it. The element highlights on the canvas and its properties appear in the [Properties Panel](properties-panel.md).
 - **Shift-click** to select multiple elements.
 
+## Collapsing Branches
+
+Any element with children shows a small triangle to the left of its name.
+(The **Page** row doesn't — collapsing it would hide the entire tree.)
+
+- **Click the triangle** to hide that element's children, and again to
+  show them. The triangle points down when open, right when collapsed.
+- **Alt+click** collapses or expands the whole branch beneath it at once.
+- Collapsing only affects the tree — nothing on the canvas changes.
+- A collapsed row shows a **dot** when the selected element is hidden
+  somewhere inside it, so you can always tell where your selection went.
+- Selecting an element on the canvas opens whatever it's nested in, so
+  the selected element is never hidden from you.
+
+Collapse state lasts for the session and is never written to your project
+files. It resets when you switch to a different page or component.
+
 ## Reordering
 
 Drag and drop elements within the layers panel to change their order or nesting. Where you release decides what happens:
