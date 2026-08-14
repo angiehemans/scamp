@@ -1,19 +1,40 @@
 # Large image imports are too slow — Plan
 
-Status: **implemented** — A, B and C. D (optimistic placement) not built;
-try the result first and decide whether it's still wanted.
+Status: **implemented** — A, B, C, plus a dimension cap (D not built).
 
-**After** (same 12MP fixture, plus a 24MP one — your 7MB file is roughly
-the latter):
+## The cap was the missing piece
 
-| Image | Before | After | Time | Event-loop ticks during |
-|---|---|---|---|---|
-| 12MP photo | 3.1MB | 1.71MB | 1453ms | 143 |
-| 24MP photo | 6.2MB | 3.42MB | 2580ms | 255 |
+A + B + C left a real 96MP import (12000x8002, 7.28MB) at ~32s and
+2.94MB. Both numbers had the same cause: keeping 96 megapixels that can
+never be displayed. A 12000px-wide photo renders at maybe 1200-2000 CSS
+pixels.
 
-The 12MP case went from ~9.2s to ~1.45s — 6.3x — and the app now stays
-responsive throughout: the event loop ticked 143 times during an encode
-that previously produced exactly zero ticks.
+Capping the long edge at **3000px** — only ever shrinking, never
+upscaling — plus two things found while measuring it:
+
+- **The wasm resampler scales with OUTPUT pixels**, not input: ~3.4s for
+  any 3000px result whether the source was 12MP or 96MP. Replaced with a
+  separable area-average resample in plain JS, which is the correct
+  filter for downscaling and roughly 10x faster. `@jsquash/resize` was
+  removed again as a result.
+- **An integer box pre-pass** handles the bulk of a large reduction at
+  ~0.34s for a 4x cut on 96MP, leaving at most a sub-2x remainder.
+
+**Final, on the real file and typical sizes:**
+
+| Image | Before | After | Time |
+|---|---|---|---|
+| 96MP real photo (7.28MB) | 2.94MB / ~32s | **0.41MB** | **3.4s** (2.9s warm) |
+| 24MP | — | 1.24MB | 2.0s |
+| 12MP | — | 1.65MB | 2.1s |
+| 2MP (within cap) | — | 0.70MB | 0.5s |
+
+The app stays responsive throughout — 337 event-loop ticks during the
+96MP conversion, against zero before any of this work.
+
+Remaining lever, not taken: mozjpeg can decode at 1/2, 1/4, 1/8 scale in
+the DCT domain, which would remove both the 1.8s full decode of a 96MP
+JPEG and the box pass. `@jsquash/jpeg` doesn't expose it.
 
 ## What's actually happening
 

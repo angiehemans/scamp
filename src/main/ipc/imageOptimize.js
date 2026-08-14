@@ -29,6 +29,36 @@ const WEBP_QUALITY = 80;
  */
 const LOSSLESS_MAX_PIXELS = 4_000_000;
 /**
+ * Longest edge we keep. A 12000px-wide photo renders at maybe 1200-2000
+ * CSS pixels — roughly 2400-4000 device pixels on a retina screen at full
+ * bleed — so everything above this is bytes and encode time spent on
+ * detail nobody can see. 3000 covers 2x retina at a 1440 canvas with
+ * headroom.
+ *
+ * Measured on a 96MP (12000x8002) source: 2.94MB in 30.7s at native
+ * resolution, 0.45MB in 0.67s capped. Quality alone fixes neither — q70
+ * at native is still 2.18MB and 28s.
+ * see docs/plans/image-import-speed-plan.md
+ */
+const MAX_LONG_EDGE = 3000;
+/**
+ * The size to encode at, or null to leave the image alone.
+ *
+ * Only ever shrinks: an image already within the cap is untouched, and
+ * nothing is upscaled. Aspect ratio is preserved, so the short edge is
+ * rounded rather than forced.
+ */
+export const targetDimensions = (width, height) => {
+    const longest = Math.max(width, height);
+    if (!(longest > MAX_LONG_EDGE))
+        return null;
+    const scale = MAX_LONG_EDGE / longest;
+    return {
+        width: Math.max(1, Math.round(width * scale)),
+        height: Math.max(1, Math.round(height * scale)),
+    };
+};
+/**
  * Is a lossless encode worth attempting for this image?
  *
  * A JPEG source is already lossy, so a lossless re-encode of one can only
@@ -87,6 +117,89 @@ const bytesOf = (p) => {
   return out;
 };
 
+/** Exact area average by an integer factor. See the call site for why. */
+const boxDownscale = (img, factor) => {
+  const W = Math.floor(img.width / factor);
+  const H = Math.floor(img.height / factor);
+  const out = new Uint8ClampedArray(W * H * 4);
+  const src = img.data;
+  const sw = img.width;
+  const n = factor * factor;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      const sy0 = y * factor;
+      const sx0 = x * factor;
+      for (let dy = 0; dy < factor; dy++) {
+        let i = ((sy0 + dy) * sw + sx0) * 4;
+        for (let dx = 0; dx < factor; dx++) {
+          r += src[i]; g += src[i + 1]; b += src[i + 2]; a += src[i + 3];
+          i += 4;
+        }
+      }
+      const o = (y * W + x) * 4;
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = a / n;
+    }
+  }
+  return { data: out, width: W, height: H };
+};
+
+/**
+ * Area-average resample to an arbitrary smaller size.
+ *
+ * Separable (horizontal then vertical) with fractional coverage at the
+ * edges, which is the correct filter for downscaling — each output pixel
+ * is the true average of the source region it covers.
+ *
+ * This replaced the wasm resampler because that one's cost scales with
+ * OUTPUT pixels and its filter support: ~3.4s for any 3000px result,
+ * whether the source was 12MP or 96MP. This does the same work in a
+ * fraction of that. Only ever used to shrink; targetDimensions() never
+ * returns anything larger.
+ */
+const areaResample = (img, dstW, dstH) => {
+  const { data: src, width: sw, height: sh } = img;
+  const tmp = new Float32Array(dstW * sh * 4);
+  const sx = sw / dstW;
+  for (let y = 0; y < sh; y++) {
+    const row = y * sw;
+    for (let x = 0; x < dstW; x++) {
+      const x0 = x * sx;
+      const x1 = x0 + sx;
+      const i1 = Math.min(sw, Math.ceil(x1));
+      let r = 0, g = 0, b = 0, a = 0, wsum = 0;
+      for (let i = Math.floor(x0); i < i1; i++) {
+        const w = Math.min(x1, i + 1) - Math.max(x0, i);
+        const s = (row + i) * 4;
+        r += src[s] * w; g += src[s + 1] * w; b += src[s + 2] * w; a += src[s + 3] * w;
+        wsum += w;
+      }
+      const o = (y * dstW + x) * 4;
+      tmp[o] = r / wsum; tmp[o + 1] = g / wsum; tmp[o + 2] = b / wsum; tmp[o + 3] = a / wsum;
+    }
+  }
+
+  const out = new Uint8ClampedArray(dstW * dstH * 4);
+  const sy = sh / dstH;
+  for (let y = 0; y < dstH; y++) {
+    const y0 = y * sy;
+    const y1 = y0 + sy;
+    const j1 = Math.min(sh, Math.ceil(y1));
+    for (let x = 0; x < dstW; x++) {
+      let r = 0, g = 0, b = 0, a = 0, wsum = 0;
+      for (let j = Math.floor(y0); j < j1; j++) {
+        const w = Math.min(y1, j + 1) - Math.max(y0, j);
+        const s = (j * dstW + x) * 4;
+        r += tmp[s] * w; g += tmp[s + 1] * w; b += tmp[s + 2] * w; a += tmp[s + 3] * w;
+        wsum += w;
+      }
+      const o = (y * dstW + x) * 4;
+      out[o] = r / wsum; out[o + 1] = g / wsum; out[o + 2] = b / wsum; out[o + 3] = a / wsum;
+    }
+  }
+  return { data: out, width: dstW, height: dstH };
+};
+
 const load = async () => {
   if (codecs) return codecs;
   const [png, jpeg, webp] = await Promise.all([
@@ -127,6 +240,35 @@ parentPort.on('message', async (job) => {
     if (!image) {
       parentPort.postMessage({ id: job.id, ok: true, result: null });
       return;
+    }
+    // Mirrors targetDimensions() in the parent — the tested statement of
+    // this rule — with the cap passed in so the two can't drift.
+    const longest = Math.max(image.width, image.height);
+    const target =
+      longest > job.maxLongEdge
+        ? {
+            width: Math.max(1, Math.round(image.width * (job.maxLongEdge / longest))),
+            height: Math.max(1, Math.round(image.height * (job.maxLongEdge / longest))),
+          }
+        : null;
+    // Downscale when the source is bigger than anything that will be
+    // displayed.
+    //
+    // Two stages, because the wasm resampler's cost scales with SOURCE
+    // pixels: on a 96MP photo it takes ~3.4s, while an integer box
+    // average in plain JS does the same 4x reduction in ~0.34s. Box
+    // averaging IS the correct filter for an integer downscale — it's
+    // exact area averaging, so no aliasing — and it leaves at most a
+    // sub-2x remainder for the resampler to finish on a much smaller
+    // image.
+    if (target) {
+      const factor = Math.floor(
+        Math.min(image.width / target.width, image.height / target.height)
+      );
+      if (factor >= 2) image = boxDownscale(image, factor);
+      if (image.width !== target.width || image.height !== target.height) {
+        image = areaResample(image, target.width, target.height);
+      }
     }
     // Mirrors shouldTryLossless() in the parent, which is where the rule
     // is documented and tested; the threshold is passed in so the two
@@ -214,6 +356,7 @@ const encodeSmaller = async (bytes, sourceSize, preferJpeg) => {
                 preferJpeg,
                 quality: WEBP_QUALITY,
                 losslessMaxPixels: LOSSLESS_MAX_PIXELS,
+                maxLongEdge: MAX_LONG_EDGE,
             });
         }
         catch {

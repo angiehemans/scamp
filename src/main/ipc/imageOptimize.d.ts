@@ -1,4 +1,15 @@
 /**
+ * The size to encode at, or null to leave the image alone.
+ *
+ * Only ever shrinks: an image already within the cap is untouched, and
+ * nothing is upscaled. Aspect ratio is preserved, so the short edge is
+ * rounded rather than forced.
+ */
+export declare const targetDimensions: (width: number, height: number) => {
+    width: number;
+    height: number;
+} | null;
+/**
  * Is a lossless encode worth attempting for this image?
  *
  * A JPEG source is already lossy, so a lossless re-encode of one can only

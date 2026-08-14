@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { bufferToWebpIfSmaller, isConvertible, shouldTryLossless, toWebpIfSmaller, } from '../../src/main/ipc/imageOptimize';
+import { bufferToWebpIfSmaller, isConvertible, shouldTryLossless, targetDimensions, toWebpIfSmaller, } from '../../src/main/ipc/imageOptimize';
 import { decodeWebp, flatImage, jpegBytes, noisyImage, pngBytes, writeJpeg, writePng, } from './rasterFixtures';
 /**
  * Real encoding of real files in a temp dir — no mocking, because "is
@@ -62,6 +62,33 @@ describe('shouldTryLossless', () => {
         expect(shouldTryLossless('png', 2001, 2000)).toBe(false);
     });
 });
+/**
+ * The dimension cap. A 12000px source renders at ~1200-2000 CSS pixels,
+ * so keeping 96 megapixels costs bytes and encode time for detail nobody
+ * can see: that image was 2.94MB in 30.7s at native resolution and
+ * 0.45MB in 0.67s capped. see docs/plans/image-import-speed-plan.md
+ */
+describe('targetDimensions', () => {
+    it('leaves an image already within the cap alone', () => {
+        expect(targetDimensions(1440, 900)).toBeNull();
+        expect(targetDimensions(3000, 2000)).toBeNull();
+    });
+    it('never upscales a small image', () => {
+        expect(targetDimensions(320, 240)).toBeNull();
+    });
+    it('caps the long edge and keeps the aspect ratio', () => {
+        // The real case: 12000x8002 -> 3000x2001.
+        expect(targetDimensions(12000, 8002)).toEqual({ width: 3000, height: 2001 });
+    });
+    it('caps by whichever edge is longer, not by width', () => {
+        expect(targetDimensions(2000, 8000)).toEqual({ width: 750, height: 3000 });
+    });
+    it('keeps a very thin image at least one pixel tall', () => {
+        const t = targetDimensions(12000, 2);
+        expect(t?.width).toBe(3000);
+        expect(t?.height).toBeGreaterThanOrEqual(1);
+    });
+});
 describe('toWebpIfSmaller', () => {
     it('converts a PNG to smaller WebP bytes', async () => {
         const src = await writePng(path.join(dir, 'hero.png'), noisyImage(200, 200));
@@ -86,7 +113,7 @@ describe('toWebpIfSmaller', () => {
         expect(head.subarray(0, 4).toString('ascii')).toBe('RIFF');
         expect(head.subarray(8, 12).toString('ascii')).toBe('WEBP');
     });
-    it('keeps the pixel dimensions — this compresses, it does not resize', async () => {
+    it('keeps the pixel dimensions of an image within the cap', async () => {
         const src = await writePng(path.join(dir, 'hero.png'), noisyImage(320, 180));
         const result = await toWebpIfSmaller(src);
         // Decode the result back and compare, rather than trusting the encoder.
@@ -94,6 +121,38 @@ describe('toWebpIfSmaller', () => {
         expect(decoded.width).toBe(320);
         expect(decoded.height).toBe(180);
     });
+    it('preserves colour through the downscale', async () => {
+        // A flat image must come back the same colour: the resampler
+        // normalises by accumulated coverage, and getting that wrong shows
+        // up as a darkened or washed-out result rather than a crash.
+        const solid = flatImage(4000, 2000);
+        for (let i = 0; i < solid.data.length; i += 4) {
+            solid.data[i] = 200;
+            solid.data[i + 1] = 100;
+            solid.data[i + 2] = 50;
+            solid.data[i + 3] = 255;
+        }
+        const src = await writePng(path.join(dir, 'solid.png'), solid);
+        const result = await toWebpIfSmaller(src);
+        const decoded = await decodeWebp(result.data);
+        // Sampled away from the edges; lossy WebP moves values slightly.
+        const mid = ((decoded.height >> 1) * decoded.width + (decoded.width >> 1)) * 4;
+        expect(decoded.data[mid]).toBeGreaterThan(190);
+        expect(decoded.data[mid]).toBeLessThan(210);
+        expect(decoded.data[mid + 1]).toBeGreaterThan(90);
+        expect(decoded.data[mid + 1]).toBeLessThan(110);
+        expect(decoded.data[mid + 2]).toBeGreaterThan(40);
+        expect(decoded.data[mid + 2]).toBeLessThan(60);
+    }, 120000);
+    it('caps an oversized image to the long-edge limit', async () => {
+        // 4000px wide is past the 3000 cap, so it comes back scaled with the
+        // aspect ratio intact.
+        const src = await writePng(path.join(dir, 'huge.png'), noisyImage(4000, 2000));
+        const result = await toWebpIfSmaller(src);
+        const decoded = await decodeWebp(result.data);
+        expect(decoded.width).toBe(3000);
+        expect(decoded.height).toBe(1500);
+    }, 120000);
     it('returns null for a format we do not convert', async () => {
         const svg = path.join(dir, 'icon.svg');
         await fs.writeFile(svg, '<svg xmlns="http://www.w3.org/2000/svg"/>');

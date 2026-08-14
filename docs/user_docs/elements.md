@@ -70,12 +70,17 @@ Options live as a typed list on the select element — they're not drawable canv
 ## Images and File Size
 
 When you bring a PNG or JPEG into a project, Scamp re-encodes it as
-**WebP** on the way in — same pixels and same dimensions, fewer bytes.
-Nothing is resized, so the image stays exactly as sharp as you supplied
-it; it just downloads faster and takes less room when your project is
-backed up. A 1.7MB PNG screenshot typically lands under 20KB.
+**WebP** on the way in — fewer bytes for the same picture. It downloads
+faster and takes less room when your project is backed up: a 1.7MB PNG
+screenshot typically lands under 20KB, and a 7MB camera photo under
+500KB.
 
 - `hero.png` becomes `hero.webp`, and the page references the new name.
+- **Very large images are scaled down to 3000px on their longest edge.**
+  A 12000px-wide photo is around 25x more pixels than a browser will ever
+  show, so the extra detail is invisible while costing megabytes. Images
+  already smaller than that are left at their original size, and nothing
+  is ever scaled up.
 - **SVGs and existing WebP files are left alone** — SVG is already vector,
   and re-encoding a WebP would only lose quality.
 - If the WebP would be *larger* than what you supplied (which happens with
