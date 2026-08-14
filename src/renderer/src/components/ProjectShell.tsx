@@ -31,7 +31,6 @@ import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
-import { ImageImportIndicator } from './ImageImportIndicator';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import { ProjectHeader } from './projectShell/ProjectHeader';
 import { CanvasArea } from './projectShell/CanvasArea';
@@ -308,7 +307,6 @@ export const ProjectShell = ({
         onOpenPreview={openPreview}
       />
       <SaveStatusToast />
-      <ImageImportIndicator />
       {showMigrationBanner && (
         <MigrationBanner onDismiss={handleDismissMigrationBanner} />
       )}

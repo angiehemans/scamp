@@ -50,6 +50,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
     const setEditingElement = useCanvasStore((s) => s.setEditingElement);
     const toggleRatioLock = useCanvasStore((s) => s.toggleRatioLock);
     const ratioLocked = useCanvasStore((s) => selectIsRatioLocked(s, selectedElementId));
+    const imageImportBusy = useCanvasStore((s) => s.imageImportBusy);
     // Frame-local geometry helpers (coord conversion, DOM measurement,
     // parent-bounds lookups) shared by every pointer handler.
     const geometry = useCanvasGeometry(frameRef, scale);
@@ -254,7 +255,23 @@ export const CanvasInteractionLayer = ({ frameRef, scale }) => {
                     top: gapRect.y,
                     width: gapRect.w,
                     height: gapRect.h,
-                } })), containerRect && (_jsx("div", { className: styles.dropContainer, style: {
+                } })), imageImportBusy && (
+            // Over the element the image is going into when there is one,
+            // otherwise centred — the image tool picks a file before any
+            // element exists.
+            _jsxs("div", { className: styles.importOverlay, "data-testid": "image-import-busy", role: "status", style: selectedRect
+                    ? {
+                        left: selectedRect.x,
+                        top: selectedRect.y,
+                        width: selectedRect.w,
+                        height: selectedRect.h,
+                    }
+                    : {
+                        left: '50%',
+                        top: '40%',
+                        transform: 'translate(-50%, -50%)',
+                        padding: '20px 28px',
+                    }, children: [_jsx("span", { className: styles.importSpinner, "aria-hidden": "true" }), (!selectedRect || selectedRect.w >= 180) && _jsx("span", { children: "Optimising image\u2026" })] })), containerRect && (_jsx("div", { className: styles.dropContainer, style: {
                     left: containerRect.x,
                     top: containerRect.y,
                     width: containerRect.w,

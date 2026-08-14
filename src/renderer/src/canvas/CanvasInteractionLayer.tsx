@@ -73,6 +73,7 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
   const ratioLocked = useCanvasStore((s) =>
     selectIsRatioLocked(s, selectedElementId)
   );
+  const imageImportBusy = useCanvasStore((s) => s.imageImportBusy);
 
   // Frame-local geometry helpers (coord conversion, DOM measurement,
   // parent-bounds lookups) shared by every pointer handler.
@@ -312,6 +313,34 @@ export const CanvasInteractionLayer = ({ frameRef, scale }: Props): JSX.Element 
             height: gapRect.h,
           }}
         />
+      )}
+      {imageImportBusy && (
+        // Over the element the image is going into when there is one,
+        // otherwise centred — the image tool picks a file before any
+        // element exists.
+        <div
+          className={styles.importOverlay}
+          data-testid="image-import-busy"
+          role="status"
+          style={
+            selectedRect
+              ? {
+                  left: selectedRect.x,
+                  top: selectedRect.y,
+                  width: selectedRect.w,
+                  height: selectedRect.h,
+                }
+              : {
+                  left: '50%',
+                  top: '40%',
+                  transform: 'translate(-50%, -50%)',
+                  padding: '20px 28px',
+                }
+          }
+        >
+          <span className={styles.importSpinner} aria-hidden="true" />
+          {(!selectedRect || selectedRect.w >= 180) && <span>Optimising image…</span>}
+        </div>
       )}
       {containerRect && (
         <div
