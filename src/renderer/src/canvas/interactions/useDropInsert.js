@@ -3,6 +3,7 @@ import { ROOT_ELEMENT_ID } from '@lib/element';
 import { prepareSvgForInsert } from '../../lib/svg';
 import { hitTest } from './canvasHitTest';
 import { DEFAULT_IMAGE_SIZE, INLINE_SVG_MAX_BYTES } from './constants';
+import { importImage } from '@renderer/src/lib/importImage';
 /**
  * Accepts image files dropped onto the canvas from the OS file manager.
  * Raster images are copied into the project's assets dir and inserted as
@@ -48,10 +49,7 @@ export const useDropInsert = (geometry) => {
         const insertRaster = async () => {
             if (!filePath || !projectPath)
                 return;
-            const copied = await window.scamp.copyImage({
-                sourcePath: filePath,
-                projectPath,
-            });
+            const copied = await importImage(filePath, projectPath);
             const pos = placement(DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE);
             createImage({
                 parentId: hitId,

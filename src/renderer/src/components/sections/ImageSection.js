@@ -6,6 +6,7 @@ import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
 import styles from './ImageSection.module.css';
+import { importImage } from '@renderer/src/lib/importImage';
 const OBJ_FIT_OPTIONS = [
     { value: 'cover', label: 'Cover', tooltip: 'Fill the element, cropping the image if needed' },
     { value: 'contain', label: 'Contain', tooltip: 'Fit the whole image inside, leaving empty space if needed' },
@@ -36,10 +37,7 @@ export const ImageSection = ({ elementId }) => {
         });
         if (chosen.canceled || !chosen.path)
             return;
-        const copied = await window.scamp.copyImage({
-            sourcePath: chosen.path,
-            projectPath,
-        });
+        const copied = await importImage(chosen.path, projectPath);
         patchElement(elementId, { src: copied.relativePath, alt: copied.fileName });
     };
     const updateCustomProp = (prop, value) => {

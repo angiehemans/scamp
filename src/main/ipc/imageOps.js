@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { basename, extname, join, resolve } from 'path';
-import { bufferToWebpIfSmaller, isConvertible, toWebpIfSmaller, } from './imageOptimize';
+import { bufferToWebpIfSmaller, toWebpIfSmaller } from './imageOptimize';
 /**
  * Where image assets live on disk for a given project format.
  *
@@ -86,7 +86,7 @@ const canonicalAssetName = async (assetsDir, fileName) => {
  * predates the nextjs format, where the path is actually absolute
  * server-root; kept for compatibility with existing call sites).
  */
-export const copyImage = async (args, format, defer = false) => {
+export const copyImage = async (args, format) => {
     const assetsDir = assetsDirFor(args.projectPath, format);
     await fs.mkdir(assetsDir, { recursive: true });
     const sourceExt = extname(args.sourcePath);
@@ -105,11 +105,7 @@ export const copyImage = async (args, format, defer = false) => {
     // Only a file coming from OUTSIDE the assets folder is re-encoded: the
     // check above has already claimed everything that's merely being
     // re-linked. `null` means keeping the original is the better outcome.
-    //
-    // `defer` copies the original as-is and leaves the conversion to the
-    // caller, so an element can be placed immediately instead of waiting
-    // seconds on a large photo. see docs/plans/image-import-speed-plan.md
-    const converted = defer ? null : await toWebpIfSmaller(args.sourcePath);
+    const converted = await toWebpIfSmaller(args.sourcePath);
     const ext = converted?.ext ?? sourceExt;
     // Deduplicate against the name we'll actually write: hero.png →
     // hero.webp → hero-1.webp.
@@ -137,45 +133,7 @@ export const copyImage = async (args, format, defer = false) => {
         relativePath: referencePathFor(fileName, format),
         fileName,
         reused: false,
-        // Only worth converting later if it's a type we'd convert at all.
-        ...(defer && isConvertible(args.sourcePath)
-            ? { pendingOptimization: true }
-            : {}),
     };
-};
-/**
- * Finish a deferred import: convert the already-copied original and
- * write the WebP beside it.
- *
- * Returns the new reference, or null when converting didn't help (or
- * wasn't possible) — in which case the original stands and nothing more
- * happens. The original is NOT deleted here: until we know something
- * actually switched to the new file, removing it would leave a broken
- * image in the user's project.
- */
-export const finishDeferredImport = async (projectPath, fileName, format) => {
-    const assetsDir = assetsDirFor(projectPath, format);
-    const sourcePath = join(assetsDir, fileName);
-    const converted = await toWebpIfSmaller(sourcePath);
-    if (!converted)
-        return null;
-    const base = basename(fileName, extname(fileName));
-    let webpName = `${base}${converted.ext}`;
-    let destPath = join(assetsDir, webpName);
-    let counter = 1;
-    while (true) {
-        try {
-            await fs.access(destPath);
-            webpName = `${base}-${counter}${converted.ext}`;
-            destPath = join(assetsDir, webpName);
-            counter += 1;
-        }
-        catch {
-            break;
-        }
-    }
-    await fs.writeFile(destPath, converted.data);
-    return { relativePath: referencePathFor(webpName, format), fileName: webpName };
 };
 /**
  * Write an in-memory image buffer into the project's assets folder

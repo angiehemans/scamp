@@ -538,6 +538,15 @@ export type CanvasState = {
     rootIds: string[];
   } | null;
 
+  /**
+   * True while an image import is converting. Purely a UI signal — the
+   * conversion happens in a child process, so nothing is blocked; this
+   * just stops the second or two of silence reading as a hang.
+   * see docs/plans/image-import-speed-plan.md
+   */
+  imageImportBusy: boolean;
+  setImageImportBusy: (busy: boolean) => void;
+
   setTool: (tool: Tool) => void;
   /** Replace the selection with a single element (or clear it). */
   selectElement: (id: string | null) => void;
@@ -597,12 +606,6 @@ export type CanvasState = {
     /** Canvas point to drop at, in the insert parent's local space. */
     at?: { x: number; y: number };
   }) => string[];
-  /**
-   * Point every reference to a just-optimized image at its new path.
-   * Returns true when something actually referenced the old one.
-   * see docs/plans/image-import-speed-plan.md
-   */
-  applyOptimizedImage: (from: string, to: string) => boolean;
   deleteElement: (id: string) => void;
   /**
    * Empty an element without removing it: recursively deletes every

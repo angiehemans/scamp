@@ -9,6 +9,7 @@ export const createUiSlice = (set) => ({
     userZoom: null,
     fitScale: 1,
     ratioLocks: {},
+    imageImportBusy: false,
     collapsedIds: {},
     pendingSvgReload: null,
     exportSettings: { lastFormat: 'png', lastPngScale: 2 },
@@ -38,6 +39,7 @@ export const createUiSlice = (set) => ({
     // own page and are short enough to repeat across pages, so carrying this
     // over would collapse an unrelated element on the new page.
     clearCollapsed: () => set({ collapsedIds: {} }),
+    setImageImportBusy: (imageImportBusy) => set({ imageImportBusy }),
     setBottomPanel: (panel) => set({ bottomPanel: panel }),
     // Open the panel, or close it if it's already the open one. Lives in the
     // store because three call sites need it — the canvas toolbar buttons and

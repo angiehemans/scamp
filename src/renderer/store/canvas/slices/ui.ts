@@ -71,6 +71,8 @@ export const createUiSlice: StateCreator<
   | 'userZoom'
   | 'fitScale'
   | 'ratioLocks'
+  | 'imageImportBusy'
+  | 'setImageImportBusy'
   | 'collapsedIds'
   | 'toggleCollapsed'
   | 'setCollapsed'
@@ -103,6 +105,7 @@ export const createUiSlice: StateCreator<
   userZoom: null,
   fitScale: 1,
   ratioLocks: {},
+  imageImportBusy: false,
   collapsedIds: {},
   pendingSvgReload: null,
   exportSettings: { lastFormat: 'png', lastPngScale: 2 },
@@ -132,6 +135,8 @@ export const createUiSlice: StateCreator<
   // own page and are short enough to repeat across pages, so carrying this
   // over would collapse an unrelated element on the new page.
   clearCollapsed: () => set({ collapsedIds: {} }),
+
+  setImageImportBusy: (imageImportBusy) => set({ imageImportBusy }),
 
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
 

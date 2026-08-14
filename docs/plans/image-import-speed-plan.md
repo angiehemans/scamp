@@ -1,33 +1,37 @@
 # Large image imports are too slow — Plan
 
-Status: **implemented** — A, B, C, the dimension cap, and D.
+Status: **implemented** — A, B, C, plus a dimension cap (D not built).
 
-## D: the image is placed immediately
+## Encoder swapped back to sharp, in a child process
 
-Even at 3.4s the wait read as broken, so the import no longer blocks on
-the encode. The original is copied into assets (a few ms), the element is
-placed, and the conversion runs in the background; when it lands, every
-reference swaps to the `.webp`.
+The WASM pipeline left a 96MP import at ~3.6s, which still read as
+broken. sharp does the same job in ~1.9s.
 
-**Image on the canvas after 5ms; conversion finishes 3.6s later.**
+The crash that ruled sharp out earlier was specific to **Electron's main
+process**: Chromium uses GLib there, and libvips' GObject collides with
+it. In a forked child process libvips is the only user — 25 sequential
+conversions of the 96MP file, no failure. (Electron still prints GLib
+warnings on startup in the child; they're noise, not a symptom.) Web
+servers run sharp under plain Node, which is why "sharp works fine on
+Linux" and "sharp crashed our app on Linux" were both true.
 
-The edges called out below, and what they became:
+libvips also shrinks JPEGs on load via libjpeg's DCT scaling, so an
+oversized photo is never fully decoded — the thing `@jsquash/jpeg`
+couldn't expose.
 
-- **The swap is not undoable.** The user didn't perform it, and an undo
-  step restoring a path we're about to delete would leave a broken image.
-  `applyOptimizedImage` updates state without a history entry.
-- **Nothing is deleted on a guess.** Main writes the `.webp` and waits for
-  the renderer to report whether anything actually moved to it, then
-  deletes the loser. No answer — window closed, project switched — means
-  both files stay: wasteful, never broken.
-- **Both reference shapes are handled**: `el.src` and the
-  `background-image: url(...)` custom property.
+The deferred placement from the previous round was reverted. At ~1.9s the
+import is short enough to just do, and doing it up front avoids showing
+the 96MP original on the canvas (Chromium decoding 96MP is its own
+stutter) and avoids the visible swap when the reference changed. An
+"Optimising image…" indicator covers the wait.
 
-Not handled, deliberately: if the page is switched before the conversion
-lands, the swap finds nothing on the active page, the original stays
-referenced, and the `.webp` is deleted. That import keeps its
-uncompressed file. Rare (a few seconds' window), and it fails toward
-"correct but larger" rather than a broken reference.
+**Packaging** — three entries needed unpacking from the asar, all of
+which fail only in a packaged build: sharp itself, its `@img/*` binary
+package, and **sharp's own dependencies** (`detect-libc`, `semver`),
+since resolution from the unpacked copy walks up
+`app.asar.unpacked/node_modules` and cannot fall back into the asar. The
+forked child script needs unpacking for the same reason. Verified by
+packaging a Linux build and converting the real 96MP file inside it.
 
 ## The cap was the missing piece
 

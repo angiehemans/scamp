@@ -1,5 +1,5 @@
 import type { TitleBarColors } from '@shared/titleBarColors';
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, ImageOptimizedAppliedArgs, ImageOptimizedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -108,14 +108,6 @@ declare const api: {
         content: string;
     }) => Promise<void>;
     onDesignMdChanged: (handler: (content: string) => void) => (() => void);
-    /**
-     * A deferred image import finished converting. The handler swaps any
-     * reference to `from` over to `to`, then reports back so main knows
-     * which file is now unreferenced and safe to delete.
-     * see docs/plans/image-import-speed-plan.md
-     */
-    onImageOptimized: (handler: (payload: ImageOptimizedPayload) => void) => (() => void);
-    reportImageOptimizedApplied: (args: ImageOptimizedAppliedArgs) => Promise<void>;
     onSvgAssetChanged: (handler: (payload: SvgAssetChangedPayload) => void) => (() => void);
     createTerminal: (args: TerminalCreateArgs) => Promise<TerminalCreateResult>;
     writeTerminal: (args: TerminalWriteArgs) => Promise<void>;

@@ -368,12 +368,6 @@ export type CopyImageResult = {
   relativePath: string;
   fileName: string;
   /**
-   * True when the import was copied as-is and a WebP conversion is still
-   * running: the caller can place the element immediately, and an
-   * `ImageOptimized` event follows with the path to switch to.
-   */
-  pendingOptimization?: boolean;
-  /**
    * True when the chosen file was ALREADY the asset at that path, so
    * nothing was written. The IPC handler uses this to skip its watcher
    * suppression — suppressing a write that never happened would swallow
@@ -381,24 +375,6 @@ export type CopyImageResult = {
    * see docs/plans/reuse-existing-assets-plan.md
    */
   reused: boolean;
-};
-
-/**
- * An import finished converting after the element was already placed.
- * Both paths are runtime references (`/assets/x.webp`), matching what
- * lands on `el.src` and in `background-image: url(...)`.
- */
-export type ImageOptimizedPayload = {
-  from: string;
-  to: string;
-};
-
-export type ImageOptimizedAppliedArgs = {
-  projectPath: string;
-  from: string;
-  to: string;
-  /** False when nothing referenced `from` — the .webp is dropped instead. */
-  applied: boolean;
 };
 
 export type ChooseImageArgs = {

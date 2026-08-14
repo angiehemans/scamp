@@ -10,21 +10,19 @@ import path from 'path';
  * so nothing here may throw into app startup. Compression is a
  * nice-to-have; launching — and importing images at all — is not.
  *
- * The failure is simulated at the worker boundary because that's where
- * it now lives: the codecs are loaded inside the worker thread, so a
- * broken install, an unavailable wasm file, or a thread that won't start
- * all surface the same way from the parent's side.
+ * The failure is simulated at the process boundary because that's where
+ * it lives: sharp is loaded inside the child, so a broken install, a
+ * missing binary for the platform, or a process that won't start all
+ * surface the same way from the parent's side.
  * see docs/plans/image-import-speed-plan.md
  */
 
-vi.mock('worker_threads', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('worker_threads')>();
+vi.mock('child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('child_process')>();
   return {
     ...actual,
-    Worker: class {
-      constructor() {
-        throw new Error('worker failed to start');
-      }
+    fork: () => {
+      throw new Error('child process failed to start');
     },
   };
 });
@@ -38,7 +36,7 @@ const PNG_1X1 = Buffer.from(
 let dir: string;
 
 beforeEach(async () => {
-  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-noworker-'));
+  dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-nochild-'));
 });
 
 afterEach(async () => {

@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { dialog, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
 import { IPC } from '@shared/ipcChannels';
 import type {
@@ -6,12 +6,9 @@ import type {
   CopyImageArgs,
   CopyImageResult,
   ChooseImageResult,
-  ImageOptimizedAppliedArgs,
-  ImageOptimizedPayload,
-  ProjectFormat,
 } from '@shared/types';
-import { basename, join } from 'path';
-import { copyImage, assetsDirFor, finishDeferredImport } from './imageOps';
+import { join } from 'path';
+import { copyImage, assetsDirFor } from './imageOps';
 import { getProjectFormat } from './projectFormatCache';
 import { assertInsideActiveProject } from './pathContainment';
 import { suppressNextChange } from '../watcher';
@@ -48,64 +45,7 @@ const chooseImage = async (args?: ChooseImageArgs): Promise<ChooseImageResult> =
   return { canceled: false, path: result.filePaths[0]! };
 };
 
-const findWindow = (): BrowserWindow | null =>
-  BrowserWindow.getAllWindows()[0] ?? null;
-
-/**
- * Convert a deferred import and tell the renderer to switch to the
- * result.
- *
- * The original is only deleted once the renderer confirms something
- * actually moved to the new file — deleting on a guess would leave a
- * broken image in the user's project. No confirmation (window closed,
- * user navigated away) means both files stay: wasteful, never broken.
- */
-const runDeferredOptimization = async (
-  projectPath: string,
-  copied: CopyImageResult,
-  format: ProjectFormat
-): Promise<void> => {
-  let optimized: { relativePath: string; fileName: string } | null = null;
-  try {
-    optimized = await finishDeferredImport(projectPath, copied.fileName, format);
-  } catch {
-    optimized = null;
-  }
-  if (!optimized) return;
-
-  suppressNextChange(
-    join(assetsDirFor(projectPath, format), optimized.fileName)
-  );
-  const win = findWindow();
-  if (!win || win.isDestroyed()) return;
-  const payload: ImageOptimizedPayload = {
-    from: copied.relativePath,
-    to: optimized.relativePath,
-  };
-  win.webContents.send(IPC.ImageOptimized, payload);
-};
-
 export const registerImageIpc = (): void => {
-  // The renderer reports whether the swap landed; only then is the
-  // now-unreferenced file removed.
-  ipcMain.handle(
-    IPC.ImageOptimizedApplied,
-    async (_e, args: ImageOptimizedAppliedArgs): Promise<void> => {
-      assertInsideActiveProject(args.projectPath);
-      const format = await getProjectFormat(args.projectPath);
-      const assetsDir = assetsDirFor(args.projectPath, format);
-      const loser = args.applied ? args.from : args.to;
-      const target = join(assetsDir, basename(loser));
-      try {
-        assertInsideActiveProject(target);
-        suppressNextChange(target);
-        await fs.unlink(target);
-      } catch {
-        // Already gone, or outside the project — nothing to clean up.
-      }
-    }
-  );
-
   ipcMain.handle(
     IPC.FileCopyImage,
     async (_e, args: CopyImageArgs): Promise<CopyImageResult> => {
@@ -114,11 +54,7 @@ export const registerImageIpc = (): void => {
       // dialog) and may legitimately live anywhere, so it isn't contained.
       assertInsideActiveProject(args.projectPath);
       const format = await getProjectFormat(args.projectPath);
-      // Deferred: the original is copied now and converted in the
-      // background, so a large photo appears on the canvas immediately
-      // instead of after several seconds of encoding.
-      // see docs/plans/image-import-speed-plan.md
-      const result = await copyImage(args, format, true);
+      const result = await copyImage(args, format);
       // Suppress the watcher event for our own asset write so importing an
       // SVG doesn't immediately fire a "changed externally" reload prompt.
       // Only when we actually wrote: a suppression with no write to match
@@ -127,11 +63,6 @@ export const registerImageIpc = (): void => {
         suppressNextChange(
           join(assetsDirFor(args.projectPath, format), result.fileName)
         );
-      }
-      if (result.pendingOptimization) {
-        // Deliberately not awaited: the handler answers now, the encode
-        // finishes later and announces itself.
-        void runDeferredOptimization(args.projectPath, result, format);
       }
       return result;
     }

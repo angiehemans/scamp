@@ -17,6 +17,7 @@ import {
   INLINE_SVG_MAX_BYTES,
 } from './constants';
 import type { CanvasGeometry, DrawState } from './types';
+import { importImage } from '@renderer/src/lib/importImage';
 
 export type DrawInteraction = {
   draw: DrawState | null;
@@ -90,10 +91,7 @@ export const useDrawInteraction = (geometry: CanvasGeometry): DrawInteraction =>
       }
       // Copy to assets in every case — SVGs keep the on-disk reference for
       // reload; rasters are referenced by `<img src>`.
-      const copied = await window.scamp.copyImage({
-        sourcePath: chosen.path,
-        projectPath,
-      });
+      const copied = await importImage(chosen.path, projectPath);
       if (cancelled) return;
 
       // New images/SVGs land inside the currently-selected container (or

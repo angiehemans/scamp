@@ -7,6 +7,7 @@ import { assetsDirSegment } from '@renderer/src/lib/path';
 import { prepareSvgForInsert } from '@renderer/src/lib/svg';
 import { hitTest, slotZoneAt } from './canvasHitTest';
 import { CLICK_DRAG_THRESHOLD, DEFAULT_IMAGE_SIZE, DEFAULT_NEW_INPUT_HEIGHT, DEFAULT_NEW_INPUT_WIDTH, DEFAULT_NEW_RECT_SIZE, INLINE_SVG_MAX_BYTES, } from './constants';
+import { importImage } from '@renderer/src/lib/importImage';
 /**
  * Draw state machine for the rectangle / input / image tools, plus the
  * single-click text tool. Owns the `pendingImage` selection: activating
@@ -65,10 +66,7 @@ export const useDrawInteraction = (geometry) => {
             }
             // Copy to assets in every case — SVGs keep the on-disk reference for
             // reload; rasters are referenced by `<img src>`.
-            const copied = await window.scamp.copyImage({
-                sourcePath: chosen.path,
-                projectPath,
-            });
+            const copied = await importImage(chosen.path, projectPath);
             if (cancelled)
                 return;
             // New images/SVGs land inside the currently-selected container (or

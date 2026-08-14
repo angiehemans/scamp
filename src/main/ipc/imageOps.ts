@@ -1,10 +1,6 @@
 import { promises as fs, type Stats } from 'fs';
 import { basename, extname, join, resolve } from 'path';
-import {
-  bufferToWebpIfSmaller,
-  isConvertible,
-  toWebpIfSmaller,
-} from './imageOptimize';
+import { bufferToWebpIfSmaller, toWebpIfSmaller } from './imageOptimize';
 import type {
   CopyImageArgs,
   CopyImageResult,
@@ -111,8 +107,7 @@ const canonicalAssetName = async (
  */
 export const copyImage = async (
   args: CopyImageArgs,
-  format: ProjectFormat,
-  defer = false
+  format: ProjectFormat
 ): Promise<CopyImageResult> => {
   const assetsDir = assetsDirFor(args.projectPath, format);
   await fs.mkdir(assetsDir, { recursive: true });
@@ -135,11 +130,7 @@ export const copyImage = async (
   // Only a file coming from OUTSIDE the assets folder is re-encoded: the
   // check above has already claimed everything that's merely being
   // re-linked. `null` means keeping the original is the better outcome.
-  //
-  // `defer` copies the original as-is and leaves the conversion to the
-  // caller, so an element can be placed immediately instead of waiting
-  // seconds on a large photo. see docs/plans/image-import-speed-plan.md
-  const converted = defer ? null : await toWebpIfSmaller(args.sourcePath);
+  const converted = await toWebpIfSmaller(args.sourcePath);
   const ext = converted?.ext ?? sourceExt;
 
   // Deduplicate against the name we'll actually write: hero.png →
@@ -167,49 +158,7 @@ export const copyImage = async (
     relativePath: referencePathFor(fileName, format),
     fileName,
     reused: false,
-    // Only worth converting later if it's a type we'd convert at all.
-    ...(defer && isConvertible(args.sourcePath)
-      ? { pendingOptimization: true }
-      : {}),
   };
-};
-
-/**
- * Finish a deferred import: convert the already-copied original and
- * write the WebP beside it.
- *
- * Returns the new reference, or null when converting didn't help (or
- * wasn't possible) — in which case the original stands and nothing more
- * happens. The original is NOT deleted here: until we know something
- * actually switched to the new file, removing it would leave a broken
- * image in the user's project.
- */
-export const finishDeferredImport = async (
-  projectPath: string,
-  fileName: string,
-  format: ProjectFormat
-): Promise<{ relativePath: string; fileName: string } | null> => {
-  const assetsDir = assetsDirFor(projectPath, format);
-  const sourcePath = join(assetsDir, fileName);
-  const converted = await toWebpIfSmaller(sourcePath);
-  if (!converted) return null;
-
-  const base = basename(fileName, extname(fileName));
-  let webpName = `${base}${converted.ext}`;
-  let destPath = join(assetsDir, webpName);
-  let counter = 1;
-  while (true) {
-    try {
-      await fs.access(destPath);
-      webpName = `${base}-${counter}${converted.ext}`;
-      destPath = join(assetsDir, webpName);
-      counter += 1;
-    } catch {
-      break;
-    }
-  }
-  await fs.writeFile(destPath, converted.data);
-  return { relativePath: referencePathFor(webpName, format), fileName: webpName };
 };
 
 /**

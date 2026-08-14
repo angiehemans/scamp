@@ -31,6 +31,7 @@ import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
+import { ImageImportIndicator } from './ImageImportIndicator';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
 import { ProjectHeader } from './projectShell/ProjectHeader';
 import { CanvasArea } from './projectShell/CanvasArea';
@@ -42,7 +43,6 @@ import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
-import { useOptimizedImageSwap } from './projectShell/useOptimizedImageSwap';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import {
@@ -297,7 +297,6 @@ export const ProjectShell = ({
   // (after keyDeps/latestExit exist) rather than earlier in the body.
   useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
   useSvgAssetReload();
-  useOptimizedImageSwap();
 
   return (
     <div className={styles.shell}>
@@ -309,6 +308,7 @@ export const ProjectShell = ({
         onOpenPreview={openPreview}
       />
       <SaveStatusToast />
+      <ImageImportIndicator />
       {showMigrationBanner && (
         <MigrationBanner onDismiss={handleDismissMigrationBanner} />
       )}

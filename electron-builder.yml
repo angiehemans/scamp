@@ -21,6 +21,23 @@ extraResources:
 # Native modules (node-pty) need to be rebuilt for the target platform.
 npmRebuild: true
 
+# `sharp` loads libvips from a SEPARATE package (`@img/sharp-<platform>`),
+# which the automatic native-module detection doesn't follow — and a
+# `.node` inside the asar can't be dlopen'd. The image-conversion child
+# process is forked by path, which also can't come from inside the asar.
+# All three would work in dev and fail only once packaged.
+# see docs/plans/image-import-speed-plan.md
+asarUnpack:
+  - "**/node_modules/sharp/**"
+  - "**/node_modules/@img/**"
+  # sharp's own runtime dependencies. Resolution from the unpacked copy
+  # walks up `app.asar.unpacked/node_modules` and cannot fall back into
+  # the asar, so leaving these packed fails with "Cannot find module
+  # 'detect-libc'" — in the packaged build only.
+  - "**/node_modules/detect-libc/**"
+  - "**/node_modules/semver/**"
+  - "**/out/main/imageOptimizeChild.js"
+
 # Auto-update feed. electron-builder writes an `app-update.yml` into the
 # package pointing at these GitHub Releases; electron-updater reads it at
 # runtime to discover new versions. The repo is public, so no token is

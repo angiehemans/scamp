@@ -11,6 +11,7 @@ import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
 import styles from './BackgroundSection.module.css';
+import { importImage } from '@renderer/src/lib/importImage';
 
 type Props = {
   elementId: string;
@@ -68,10 +69,7 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
       defaultPath: `${projectPath}/${assetsDirSegment(projectFormat)}`,
     });
     if (chosen.canceled || !chosen.path) return;
-    const copied = await window.scamp.copyImage({
-      sourcePath: chosen.path,
-      projectPath,
-    });
+    const copied = await importImage(chosen.path, projectPath);
     patchCustomProperties(elementId, {
       'background-image': `url("${copied.relativePath}")`,
       'background-size': 'cover',
