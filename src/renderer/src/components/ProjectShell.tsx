@@ -42,6 +42,7 @@ import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
+import { useOptimizedImageSwap } from './projectShell/useOptimizedImageSwap';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import {
@@ -296,6 +297,7 @@ export const ProjectShell = ({
   // (after keyDeps/latestExit exist) rather than earlier in the body.
   useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
   useSvgAssetReload();
+  useOptimizedImageSwap();
 
   return (
     <div className={styles.shell}>

@@ -462,6 +462,12 @@ export type CanvasState = {
             y: number;
         };
     }) => string[];
+    /**
+     * Point every reference to a just-optimized image at its new path.
+     * Returns true when something actually referenced the old one.
+     * see docs/plans/image-import-speed-plan.md
+     */
+    applyOptimizedImage: (from: string, to: string) => boolean;
     deleteElement: (id: string) => void;
     /**
      * Empty an element without removing it: recursively deletes every

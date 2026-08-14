@@ -1,6 +1,33 @@
 # Large image imports are too slow — Plan
 
-Status: **implemented** — A, B, C, plus a dimension cap (D not built).
+Status: **implemented** — A, B, C, the dimension cap, and D.
+
+## D: the image is placed immediately
+
+Even at 3.4s the wait read as broken, so the import no longer blocks on
+the encode. The original is copied into assets (a few ms), the element is
+placed, and the conversion runs in the background; when it lands, every
+reference swaps to the `.webp`.
+
+**Image on the canvas after 5ms; conversion finishes 3.6s later.**
+
+The edges called out below, and what they became:
+
+- **The swap is not undoable.** The user didn't perform it, and an undo
+  step restoring a path we're about to delete would leave a broken image.
+  `applyOptimizedImage` updates state without a history entry.
+- **Nothing is deleted on a guess.** Main writes the `.webp` and waits for
+  the renderer to report whether anything actually moved to it, then
+  deletes the loser. No answer — window closed, project switched — means
+  both files stay: wasteful, never broken.
+- **Both reference shapes are handled**: `el.src` and the
+  `background-image: url(...)` custom property.
+
+Not handled, deliberately: if the page is switched before the conversion
+lands, the swap finds nothing on the active page, the original stays
+referenced, and the `.webp` is deleted. That import keeps its
+uncompressed file. Rare (a few seconds' window), and it fails toward
+"correct but larger" rather than a broken reference.
 
 ## The cap was the missing piece
 

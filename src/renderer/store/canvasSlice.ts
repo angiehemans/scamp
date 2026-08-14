@@ -597,6 +597,12 @@ export type CanvasState = {
     /** Canvas point to drop at, in the insert parent's local space. */
     at?: { x: number; y: number };
   }) => string[];
+  /**
+   * Point every reference to a just-optimized image at its new path.
+   * Returns true when something actually referenced the old one.
+   * see docs/plans/image-import-speed-plan.md
+   */
+  applyOptimizedImage: (from: string, to: string) => boolean;
   deleteElement: (id: string) => void;
   /**
    * Empty an element without removing it: recursively deletes every

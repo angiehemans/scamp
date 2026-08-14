@@ -76,6 +76,9 @@ screenshot typically lands under 20KB, and a 7MB camera photo under
 500KB.
 
 - `hero.png` becomes `hero.webp`, and the page references the new name.
+- **Large images appear on the canvas straight away.** The compression
+  runs in the background and the page switches to the smaller file when
+  it's ready — you can keep working meanwhile.
 - **Very large images are scaled down to 3000px on their longest edge.**
   A 12000px-wide photo is around 25x more pixels than a browser will ever
   show, so the extra detail is invisible while costing megabytes. Images

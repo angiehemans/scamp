@@ -129,6 +129,18 @@ const api = {
         ipcRenderer.on(IPC.DesignMdChanged, listener);
         return () => ipcRenderer.removeListener(IPC.DesignMdChanged, listener);
     },
+    /**
+     * A deferred image import finished converting. The handler swaps any
+     * reference to `from` over to `to`, then reports back so main knows
+     * which file is now unreferenced and safe to delete.
+     * see docs/plans/image-import-speed-plan.md
+     */
+    onImageOptimized: (handler) => {
+        const listener = (_e, payload) => handler(payload);
+        ipcRenderer.on(IPC.ImageOptimized, listener);
+        return () => ipcRenderer.removeListener(IPC.ImageOptimized, listener);
+    },
+    reportImageOptimizedApplied: (args) => ipcRenderer.invoke(IPC.ImageOptimizedApplied, args),
     onSvgAssetChanged: (handler) => {
         const listener = (_e, payload) => handler(payload);
         ipcRenderer.on(IPC.SvgAssetChanged, listener);

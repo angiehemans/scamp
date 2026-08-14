@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { copyImage, assetsDirFor } from '../../src/main/ipc/imageOps';
-import { flatImage, noisyImage, webpBytes, writePng } from './rasterFixtures';
+import { copyImage, assetsDirFor, finishDeferredImport, } from '../../src/main/ipc/imageOps';
+import { flatImage, noisyImage, pngBytes, webpBytes, writePng, } from './rasterFixtures';
 describe('copyImage', () => {
     let projectDir;
     let sourceDir;
@@ -235,6 +235,64 @@ describe('copyImage: WebP conversion', () => {
         expect(second.fileName).toBe('hero.webp');
         expect(await assetNames()).toEqual(['hero.webp']);
         expect((await fs.readFile(assetPath)).equals(bytesBefore)).toBe(true);
+    });
+});
+/**
+ * The deferred path: copy the original now so the element can be placed
+ * immediately, convert afterwards. Large photos took seconds to encode,
+ * which meant the canvas sat empty that whole time.
+ * see docs/plans/image-import-speed-plan.md
+ */
+describe('copyImage: deferred conversion', () => {
+    let projectDir;
+    let sourceDir;
+    beforeEach(async () => {
+        const root = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-img-defer-'));
+        projectDir = path.join(root, 'my-project');
+        sourceDir = path.join(root, 'sources');
+        await fs.mkdir(projectDir);
+        await fs.mkdir(sourceDir);
+    });
+    afterEach(async () => {
+        await fs.rm(path.dirname(projectDir), { recursive: true, force: true });
+    });
+    const assetNames = async () => (await fs.readdir(assetsDirFor(projectDir, 'legacy'))).sort();
+    it('copies the original untouched and flags the pending conversion', async () => {
+        const src = path.join(sourceDir, 'hero.png');
+        const bytes = await pngBytes(noisyImage(200, 200));
+        await fs.writeFile(src, bytes);
+        const result = await copyImage({ sourcePath: src, projectPath: projectDir }, 'legacy', true);
+        expect(result.fileName).toBe('hero.png');
+        expect(result.pendingOptimization).toBe(true);
+        // Byte-for-byte: nothing was re-encoded on this path.
+        const written = await fs.readFile(path.join(assetsDirFor(projectDir, 'legacy'), 'hero.png'));
+        expect(written.equals(bytes)).toBe(true);
+    });
+    it('does not flag a pending conversion for a type it would never convert', async () => {
+        const svg = path.join(sourceDir, 'icon.svg');
+        await fs.writeFile(svg, '<svg xmlns="http://www.w3.org/2000/svg"/>');
+        const result = await copyImage({ sourcePath: svg, projectPath: projectDir }, 'legacy', true);
+        expect(result.pendingOptimization).toBeUndefined();
+    });
+    it('finishes by writing the webp beside the original, leaving it in place', async () => {
+        const src = path.join(sourceDir, 'hero.png');
+        await fs.writeFile(src, await pngBytes(noisyImage(200, 200)));
+        const copied = await copyImage({ sourcePath: src, projectPath: projectDir }, 'legacy', true);
+        const done = await finishDeferredImport(projectDir, copied.fileName, 'legacy');
+        expect(done?.fileName).toBe('hero.webp');
+        expect(done?.relativePath).toBe('./assets/hero.webp');
+        // The original stays until the renderer confirms the swap — deleting
+        // it on a guess would leave a broken image in the project.
+        expect(await assetNames()).toEqual(['hero.png', 'hero.webp']);
+    });
+    it('returns null when it cannot convert, leaving the original alone', async () => {
+        // A text file someone renamed. The import already succeeded; the
+        // background step must not disturb it.
+        const src = path.join(sourceDir, 'broken.png');
+        await fs.writeFile(src, 'not actually a png');
+        const copied = await copyImage({ sourcePath: src, projectPath: projectDir }, 'legacy', true);
+        expect(await finishDeferredImport(projectDir, copied.fileName, 'legacy')).toBeNull();
+        expect(await assetNames()).toEqual(['broken.png']);
     });
 });
 describe('assetsDirFor', () => {

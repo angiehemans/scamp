@@ -23,7 +23,21 @@ export declare const assetsDirFor: (projectPath: string, format: ProjectFormat) 
  * predates the nextjs format, where the path is actually absolute
  * server-root; kept for compatibility with existing call sites).
  */
-export declare const copyImage: (args: CopyImageArgs, format: ProjectFormat) => Promise<CopyImageResult>;
+export declare const copyImage: (args: CopyImageArgs, format: ProjectFormat, defer?: boolean) => Promise<CopyImageResult>;
+/**
+ * Finish a deferred import: convert the already-copied original and
+ * write the WebP beside it.
+ *
+ * Returns the new reference, or null when converting didn't help (or
+ * wasn't possible) — in which case the original stands and nothing more
+ * happens. The original is NOT deleted here: until we know something
+ * actually switched to the new file, removing it would leave a broken
+ * image in the user's project.
+ */
+export declare const finishDeferredImport: (projectPath: string, fileName: string, format: ProjectFormat) => Promise<{
+    relativePath: string;
+    fileName: string;
+} | null>;
 /**
  * Write an in-memory image buffer into the project's assets folder
  * (deduplicating the filename), returning the runtime reference. Used by

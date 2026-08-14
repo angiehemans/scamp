@@ -33,6 +33,8 @@ export declare const IPC: {
     readonly ProjectConfigRead: "projectConfig:read";
     readonly ProjectConfigWrite: "projectConfig:write";
     readonly FileCopyImage: "file:copyImage";
+    readonly ImageOptimized: "image:optimized";
+    readonly ImageOptimizedApplied: "image:optimizedApplied";
     readonly FileChooseImage: "file:chooseImage";
     readonly FileReadText: "file:readText";
     readonly SvgAssetChanged: "svg:assetChanged";

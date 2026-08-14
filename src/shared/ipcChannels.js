@@ -61,6 +61,14 @@ export const IPC = {
     ProjectConfigWrite: 'projectConfig:write',
     // Images
     FileCopyImage: 'file:copyImage',
+    // Main → renderer: an imported image finished converting in the
+    // background, so whatever referenced the original should now point at
+    // the .webp. see docs/plans/image-import-speed-plan.md
+    ImageOptimized: 'image:optimized',
+    // Renderer → main: whether that swap actually landed. Main only
+    // deletes the loser once it knows which file is referenced — a delete
+    // on a wrong guess leaves a broken image in the user's project.
+    ImageOptimizedApplied: 'image:optimizedApplied',
     FileChooseImage: 'file:chooseImage',
     // Read a file's UTF-8 text (used to inline imported SVGs + reload them).
     FileReadText: 'file:readText',

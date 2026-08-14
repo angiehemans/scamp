@@ -75,6 +75,7 @@ export const createElementsEditSlice: StateCreator<
   | 'setElementSlotName'
   | 'moveElement'
   | 'resizeElement'
+  | 'applyOptimizedImage'
   | 'patchElement'
   | 'patchCustomProperties'
   | 'resetElementFieldsAtBreakpoint'
@@ -341,6 +342,41 @@ export const createElementsEditSlice: StateCreator<
     // commits are suppressed; the wrapping endHistoryTransaction
     // records a single `resize` entry on pointerup.
     commitElementsToHistory({ kind: 'resize', elementIds: [id] });
+  },
+
+  applyOptimizedImage: (from, to) => {
+    // Deliberately NOT a history entry: the user didn't do this, and an
+    // undo step that restored a path we're about to delete would leave a
+    // broken image. Returns whether anything referenced the old path, so
+    // main knows which file is now unreferenced.
+    let changed = false;
+    set((state) => {
+      const next: Record<string, ScampElement> = {};
+      for (const [id, el] of Object.entries(state.elements)) {
+        const isSrc = el.src === from;
+        const bg = el.customProperties['background-image'];
+        const isBg = typeof bg === 'string' && bg.includes(from);
+        if (!isSrc && !isBg) {
+          next[id] = el;
+          continue;
+        }
+        changed = true;
+        next[id] = {
+          ...el,
+          ...(isSrc ? { src: to } : {}),
+          ...(isBg
+            ? {
+                customProperties: {
+                  ...el.customProperties,
+                  'background-image': bg.split(from).join(to),
+                },
+              }
+            : {}),
+        };
+      }
+      return changed ? { elements: next } : state;
+    });
+    return changed;
   },
 
   patchElement: (id, patch) => {

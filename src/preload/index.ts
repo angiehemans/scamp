@@ -17,6 +17,8 @@ import type {
   ExportResult,
   ExportSvgArgs,
   FileChangedPayload,
+  ImageOptimizedAppliedArgs,
+  ImageOptimizedPayload,
   SvgAssetChangedPayload,
   FilePatchArgs,
   FilePatchResult,
@@ -324,6 +326,25 @@ const api = {
     ipcRenderer.on(IPC.DesignMdChanged, listener);
     return () => ipcRenderer.removeListener(IPC.DesignMdChanged, listener);
   },
+
+  /**
+   * A deferred image import finished converting. The handler swaps any
+   * reference to `from` over to `to`, then reports back so main knows
+   * which file is now unreferenced and safe to delete.
+   * see docs/plans/image-import-speed-plan.md
+   */
+  onImageOptimized: (
+    handler: (payload: ImageOptimizedPayload) => void
+  ): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: ImageOptimizedPayload): void =>
+      handler(payload);
+    ipcRenderer.on(IPC.ImageOptimized, listener);
+    return () => ipcRenderer.removeListener(IPC.ImageOptimized, listener);
+  },
+
+  reportImageOptimizedApplied: (
+    args: ImageOptimizedAppliedArgs
+  ): Promise<void> => ipcRenderer.invoke(IPC.ImageOptimizedApplied, args),
 
   onSvgAssetChanged: (
     handler: (payload: SvgAssetChangedPayload) => void

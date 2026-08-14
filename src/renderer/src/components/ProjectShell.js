@@ -42,6 +42,7 @@ import { ProjectModals } from './projectShell/ProjectModals';
 import { useCanvasKeyboardShortcuts } from './projectShell/useCanvasKeyboardShortcuts';
 import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
+import { useOptimizedImageSwap } from './projectShell/useOptimizedImageSwap';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import { useFontLinkReconciler, useProjectTheme, } from './projectShell/useProjectFonts';
@@ -206,6 +207,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // (after keyDeps/latestExit exist) rather than earlier in the body.
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
     useSvgAssetReload();
+    useOptimizedImageSwap();
     return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
