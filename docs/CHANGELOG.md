@@ -24,7 +24,11 @@ release time.
 
 ### Unreleased
 
-The work sitting on `main` ahead of the last tag.
+Nothing yet.
+
+### 0.6.0 — 2026-08-19
+
+A batch of editing improvements, plus image compression on import.
 
 **Added**
 
