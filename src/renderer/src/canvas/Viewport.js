@@ -8,6 +8,8 @@ import { overflowExtent, settleExtent } from '@lib/canvasOverflow';
 import { ElementRenderer } from './ElementRenderer';
 import { buildCanvasStylesheet, CANVAS_SCOPE_ATTR } from '@lib/canvasStylesheet';
 import { generateCode } from '@lib/generateCode';
+import { collectExpandedInstances } from '@lib/generateHtml';
+import { assemblePageCss } from '@lib/htmlExportCss';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import { CanvasBoundaryOverlay } from './CanvasBoundaryOverlay';
 import styles from './Viewport.module.css';
@@ -411,6 +413,7 @@ const CanvasPageStylesheet = () => {
     const breakpoints = useCanvasStore((s) => s.breakpoints);
     const customMediaBlocks = useCanvasStore((s) => s.pageCustomMediaBlocks);
     const pageKeyframesBlocks = useCanvasStore((s) => s.pageKeyframesBlocks);
+    const componentTrees = useCanvasStore((s) => s.componentTrees);
     const sheet = useMemo(() => {
         // `pageName` only names the generated function and the CSS-module
         // import; neither reaches the CSS half, so a placeholder is fine.
@@ -422,8 +425,35 @@ const CanvasPageStylesheet = () => {
             customMediaBlocks,
             pageKeyframesBlocks,
         });
-        return buildCanvasStylesheet(css);
-    }, [elements, rootElementId, breakpoints, customMediaBlocks, pageKeyframesBlocks]);
+        // Each instance gets its own prefixed copy of its component's rules,
+        // which is what keeps a component's `.root` off the page's and off
+        // every other instance's — the job CSS Modules do on disk. Same
+        // transform the HTML exporter uses, so the two can't disagree about
+        // what a prefix looks like.
+        const instances = collectExpandedInstances(elements, rootElementId, componentTrees).map((instance) => {
+            const tree = componentTrees[instance.componentName];
+            if (!tree)
+                return { prefix: instance.prefix, css: '' };
+            return {
+                prefix: instance.prefix,
+                css: generateCode({
+                    elements: tree.elements,
+                    rootId: tree.rootId,
+                    pageName: instance.componentName,
+                    breakpoints,
+                    isComponent: true,
+                }).css,
+            };
+        });
+        return buildCanvasStylesheet(assemblePageCss(css, instances));
+    }, [
+        elements,
+        rootElementId,
+        breakpoints,
+        customMediaBlocks,
+        pageKeyframesBlocks,
+        componentTrees,
+    ]);
     if (sheet.length === 0)
         return null;
     return _jsx("style", { children: sheet });

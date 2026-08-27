@@ -24,7 +24,13 @@ const runParityCheck = async (fixture, window, themeCss) => {
     expect(rootWidth, 'canvas root has a measurable width').toBeGreaterThan(0);
     const browser = await launchTruthBrowser();
     try {
-        const truth = await measureInBrowser(browser, { html: fixture.html, css: fixture.css, themeCss }, { width: Math.round(rootWidth ?? 0), height: 900 });
+        const truth = await measureInBrowser(browser, {
+            html: fixture.html,
+            // Component rules join the page's, the way CSS Modules deliver them
+            // to the browser — under names that can't collide.
+            css: `${fixture.css}\n${fixture.truthCss ?? ''}`,
+            themeCss,
+        }, { width: Math.round(rootWidth ?? 0), height: 900 });
         const divergences = compareGeometry(canvas, truth, TOLERANCE_PX);
         expect(divergences, divergences.length === 0
             ? ''
@@ -45,6 +51,13 @@ const elementNames = (source, attribute) => [...source.matchAll(new RegExp(`${at
 test.describe('parity fixtures are internally consistent', () => {
     for (const fixture of PARITY_FIXTURES) {
         test(`${fixture.name}: tsx and html describe the same elements`, () => {
+            // A fixture with components can't be compared this way: the TSX names
+            // the instance, the HTML names the elements it expands into. Their
+            // `data-scamp-id`s are compared instead.
+            if (fixture.components) {
+                expect(elementNames(fixture.html, 'data-scamp-id').length).toBeGreaterThan(0);
+                return;
+            }
             expect(elementNames(fixture.html, 'class')).toEqual(elementNames(fixture.tsx, 'data-scamp-id'));
         });
     }
@@ -53,6 +66,16 @@ for (const fixture of PARITY_FIXTURES) {
     test.describe(`parity: ${fixture.name}`, () => {
         test.use({
             projectOptions: {
+                ...(fixture.components
+                    ? {
+                        format: 'nextjs',
+                        components: fixture.components.map((c) => ({
+                            name: c.name,
+                            tsxContent: c.tsx,
+                            cssContent: c.css,
+                        })),
+                    }
+                    : {}),
                 pageContent: { home: { tsx: fixture.tsx, css: fixture.css } },
             },
         });

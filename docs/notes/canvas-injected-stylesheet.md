@@ -53,29 +53,37 @@ outside this sheet targeting the same page classes, which nothing does.
 the entire scoped block and take every page rule with it. `stripKeyframes`
 removes them before wrapping.
 
-## Page elements carry their page class; instance internals do not
+## Page elements carry their page class; instance internals carry a prefixed one
 
 The page's `ElementRenderer` path appends `classNameFor(element)` to the
 node's class list alongside Scamp's own canvas classes, so the injected
 rules have something to match.
 
-The instance-inner path deliberately does **not**. Inside an instance
-those are the COMPONENT's class names, and the injected sheet is the
-PAGE's — both call their root `root`, so a page `.root` rule would reach
-into an instance and repaint it. Adding the class there was tried and
-measurably broke it: a 120x60 card rendered 120x813 with the page root's
-40px padding and its `min-height: 100vh`.
+Instance internals cannot use the bare name. Inside an instance those are
+the COMPONENT's class names, and both a component root and a page root
+are called `root` — so a page `.root` rule would reach in and repaint it.
+That was measured: a 120x60 card rendered 120x813, wearing the page
+root's 40px padding and its `min-height: 100vh`.
 
-CSS modules keep the two apart on disk, which is why the preview never
-had this problem. The canvas needs the same per-instance prefixing the
-HTML exporter already does (`prefixCss` + `collectExpandedInstances`,
-giving `inst_a024__root`) before instance internals can join the
-stylesheet. Until then they render from inline styles only, exactly as
-before — so instances keep the old translation gaps, including
-`::before`.
+So instance internals carry `inst_a024__root`, and the stylesheet carries
+a matching prefixed copy of the component's rules — the same
+`prefixCss` + `collectExpandedInstances` transform the HTML exporter
+uses, so the two can't disagree about what a prefix looks like. This is
+CSS Modules' job, done by hand for a canvas that has no module loader.
 
-`test/e2e/parity/instance-isolation.spec.ts` pins the outcome rather than
-the mechanism: whatever the implementation, a page rule must not style a
-component's internals.
+### `instanceId` is not the instance's class
+
+`renderComponentSubtree` already threaded an `instanceId` for prop-edit
+keying, and it is the raw canvas id (`a024`) — while `classNameFor` on an
+instance yields `inst_a024`. Prefixing with the former produced
+`a024__root` against a stylesheet saying `.inst_a024__root`, and nothing
+matched. The instance's class is now threaded separately and explicitly,
+because the two strings look similar enough to be confused again.
+
+### Nested instances
+
+They render as a placeholder on the canvas rather than being expanded, so
+prefixes are only ever one level deep. `collectExpandedInstances` still
+emits rules for nested ones; they simply go unused.
 
 see docs/plans/canvas-preview-parity-plan.md

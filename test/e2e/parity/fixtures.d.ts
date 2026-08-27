@@ -28,6 +28,21 @@ export type ParityFixture = {
      */
     html: string;
     /**
+     * Components to seed on disk, exactly as Scamp would write them.
+     */
+    components?: ReadonlyArray<{
+        name: string;
+        tsx: string;
+        css: string;
+    }>;
+    /**
+     * Extra CSS for the BROWSER side only, emulating what CSS Modules do for
+     * a component's stylesheet: the same rules under names that can't collide
+     * with the page's. Written by hand so the oracle still shares no code
+     * with the thing it checks.
+     */
+    truthCss?: string;
+    /**
      * Set when the canvas is known NOT to match yet. The spec asserts these
      * fail, so the gap is recorded and we're told when it closes.
      */

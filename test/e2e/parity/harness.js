@@ -12,7 +12,20 @@ import { chromium } from '@playwright/test';
  * Runs inside the page, so it must be self-contained.
  */
 export const MEASURE_SCRIPT = `(() => {
-  const read = (el) => el.getAttribute('data-scamp-id') || el.className;
+  // Inside a component instance the element names are the COMPONENT's, so
+  // a page root and a component root are both "root". Qualify by the
+  // owning instance so the two don't collide — and so both sides key the
+  // same way, since the browser document marks instances the same way.
+  const instanceOf = (el) => {
+    const host = el.closest('[data-scamp-instance-id]');
+    return host ? host.getAttribute('data-scamp-instance-id') : null;
+  };
+  const read = (el) => {
+    const own = el.getAttribute('data-scamp-id') || el.className;
+    if (typeof own !== 'string') return own;
+    const inst = instanceOf(el);
+    return inst ? inst + '/' + own : own;
+  };
   const nodes = Array.from(
     document.querySelectorAll('[data-scamp-id], [class]')
   ).filter((el) => {
@@ -31,7 +44,7 @@ export const MEASURE_SCRIPT = `(() => {
     const key = read(el);
     if (typeof key !== 'string') continue;
     // Only Scamp's own classes; ignore app chrome and helper wrappers.
-    if (!/^[a-z][a-z0-9_]*$/i.test(key)) continue;
+    if (!/^[a-z][a-z0-9_]*([/][a-z][a-z0-9_]*)?$/i.test(key)) continue;
     if (out[key]) continue;
     const r = el.getBoundingClientRect();
     out[key] = {

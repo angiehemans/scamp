@@ -29,6 +29,17 @@ export type ParityFixture = {
    */
   html: string;
   /**
+   * Components to seed on disk, exactly as Scamp would write them.
+   */
+  components?: ReadonlyArray<{ name: string; tsx: string; css: string }>;
+  /**
+   * Extra CSS for the BROWSER side only, emulating what CSS Modules do for
+   * a component's stylesheet: the same rules under names that can't collide
+   * with the page's. Written by hand so the oracle still shares no code
+   * with the thing it checks.
+   */
+  truthCss?: string;
+  /**
    * Set when the canvas is known NOT to match yet. The spec asserts these
    * fail, so the gap is recorded and we're told when it closes.
    */
@@ -294,6 +305,101 @@ export const PARITY_FIXTURES: ReadonlyArray<ParityFixture> = [
   width: 120px;
   height: 40px;
   background: #ff0000;
+}
+`,
+  },
+  {
+    name: 'component-instance-isolation',
+    why: "Two instances of one component beside a page that also names its root `root`. The page's rules must not reach inside an instance, and each instance must get its own copy of the component's rules — what CSS Modules do on disk. The component's `::before` is the part inline styles cannot express, so it only renders once the component's stylesheet reaches the canvas.",
+    components: [
+      {
+        name: 'Card',
+        tsx: `import styles from './Card.module.css';
+
+type CardProps = { className?: string };
+
+export default function Card({ className }: CardProps) {
+  return (
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`}>
+      <div data-scamp-id="fill_c001" className={styles.fill_c001} />
+    </div>
+  );
+}
+`,
+        css: `.root {
+  width: 200px;
+  height: 80px;
+  display: flex;
+  padding: 10px;
+  background: #445566;
+}
+
+.root::before {
+  content: "";
+  display: block;
+  width: 30px;
+  height: 30px;
+  background: #ff0000;
+}
+
+.fill_c001 {
+  width: 100%;
+  height: 100%;
+  background: #99aabb;
+}
+`,
+      },
+    ],
+    tsx: `import styles from './home.module.css';
+import Card from '@/components/Card/Card';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <Card data-scamp-instance-id="inst_a024" />
+      <Card data-scamp-instance-id="inst_b135" />
+    </div>
+  );
+}
+`,
+    html: `    <div data-scamp-id="root" class="root">
+      <div data-scamp-instance-id="inst_a024" data-scamp-id="root" class="Card_root">
+        <div data-scamp-id="fill_c001" class="Card_fill_c001"></div>
+      </div>
+      <div data-scamp-instance-id="inst_b135" data-scamp-id="root" class="Card_root">
+        <div data-scamp-id="fill_c001" class="Card_fill_c001"></div>
+      </div>
+    </div>`,
+    css: `.root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  gap: 24px;
+  padding: 40px;
+  position: relative;
+  background: #101014;
+}
+`,
+    truthCss: `.Card_root {
+  width: 200px;
+  height: 80px;
+  display: flex;
+  padding: 10px;
+  background: #445566;
+}
+
+.Card_root::before {
+  content: "";
+  display: block;
+  width: 30px;
+  height: 30px;
+  background: #ff0000;
+}
+
+.Card_fill_c001 {
+  width: 100%;
+  height: 100%;
+  background: #99aabb;
 }
 `,
   },
