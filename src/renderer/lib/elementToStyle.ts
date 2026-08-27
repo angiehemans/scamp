@@ -3,6 +3,7 @@
 // testable. `rootMinHeight` is now a required param (was defaulted to
 // the UI-side EMPTY_FRAME_MIN_HEIGHT) to keep this module free of canvas
 // component deps.
+import { classifyBackgroundValue } from "./backgroundValue";
 import { customPropsToStyle } from "./customProps";
 import { ROOT_ELEMENT_ID, type PropertyGroup, type ScampElement } from "./element";
 import { tagFor } from "./generateCode";
@@ -96,6 +97,28 @@ const TYPED_TEXT_CSS_PROPS: Record<string, (el: ScampElement) => boolean> = {
   'text-align': (el) => el.textAlign !== undefined,
   'line-height': (el) => el.lineHeight !== undefined,
   'letter-spacing': (el) => el.letterSpacing !== undefined,
+};
+
+
+/**
+ * Route a `background` value to the longhand that can actually hold it.
+ * Colours resolve through the colour token chain (unknown → `transparent`,
+ * the sentinel the panel relies on); gradients and images resolve through
+ * the non-colour chain, which keeps the raw value when a token is missing
+ * rather than blanking the whole gradient.
+ */
+const backgroundStyle = (
+  value: string,
+  off: boolean,
+  tokens: ReadonlyArray<ThemeToken>
+): CSSProperties => {
+  if (off) return {};
+  const kind = classifyBackgroundValue(value);
+  if (kind === 'color') {
+    return { backgroundColor: resolveTokenColor(value, tokens) };
+  }
+  const resolved = resolveTokenValue(value, tokens);
+  return kind === 'image' ? { backgroundImage: resolved } : { background: resolved };
 };
 
 
@@ -286,9 +309,13 @@ export const elementToStyle = (
     // with `background-image` / `background-size` longhands that arrive
     // via customProperties — mixing shorthand + longhand in one inline
     // style makes React warn and can wipe the image on the canvas.
-    backgroundColor: isOff('background')
-      ? undefined
-      : resolveTokenColor(el.backgroundColor, tokens),
+    //
+    // Which longhand depends on the value. The generator writes the
+    // shorthand, which takes a colour OR a gradient; putting a gradient on
+    // `background-color` is invalid CSS and the browser silently drops it,
+    // so gradients rendered in the preview and not here.
+    // see docs/notes/canvas-gradient-backgrounds.md
+    ...backgroundStyle(el.backgroundColor, isOff('background'), tokens),
     borderRadius: formatSpaceShorthand(el.borderRadius),
     boxSizing: 'border-box',
     // Reset browser-default margins on semantic text tags (h1, p, etc.)

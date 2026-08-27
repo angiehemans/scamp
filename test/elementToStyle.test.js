@@ -268,3 +268,33 @@ describe('elementToStyle — typed text property wins over customProperties echo
         expect(style(el).fontWeight).toBe('bold');
     });
 });
+describe('elementToStyle — background values', () => {
+    it('puts a plain colour on background-color', () => {
+        const s = style(makeEl({ backgroundColor: '#ff0000' }));
+        expect(s.backgroundColor).toBe('#ff0000');
+        expect(s.backgroundImage).toBeUndefined();
+    });
+    it('puts a gradient on background-image, where it is actually valid', () => {
+        // Regression: the canvas put every value on `background-color`, and
+        // `background-color: radial-gradient(…)` is invalid CSS — the browser
+        // drops it, so the glow rendered in the preview and not on the canvas.
+        // see docs/notes/canvas-gradient-backgrounds.md
+        const gradient = 'radial-gradient(circle, rgba(160,140,255,.2) 0%, rgba(7,6,15,0) 70%)';
+        const s = style(makeEl({ backgroundColor: gradient }));
+        expect(s.backgroundImage).toBe(gradient);
+        expect(s.backgroundColor).toBeUndefined();
+    });
+    it('keeps a positioned image value on the shorthand', () => {
+        const s = style(makeEl({ backgroundColor: 'url(/a.png) center / cover' }));
+        expect(s.background).toBe('url(/a.png) center / cover');
+    });
+    it('emits no background at all when the group is toggled off', () => {
+        const s = style(makeEl({
+            backgroundColor: 'linear-gradient(red, blue)',
+            toggledOffGroups: ['background'],
+        }));
+        expect(s.backgroundImage).toBeUndefined();
+        expect(s.backgroundColor).toBeUndefined();
+        expect(s.background).toBeUndefined();
+    });
+});
