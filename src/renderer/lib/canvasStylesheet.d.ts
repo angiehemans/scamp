@@ -19,18 +19,28 @@ export declare const CANVAS_SCOPE_ATTR = "data-scamp-canvas";
 /** The selector the page's rules are scoped to. */
 export declare const CANVAS_SCOPE_SELECTOR = "[data-scamp-canvas]";
 export declare const stripStrippedAtRules: (css: string) => string;
+/** True when every feature in a media prelude is width-based. */
+export declare const isWidthOnlyQuery: (prelude: string) => boolean;
 /**
- * Wrap a page's CSS so it applies only inside the canvas frame.
+ * Rewrite width-based `@media` blocks as `@container` queries.
  *
- * `@scope` rather than a descendant prefix (`#canvas .rect_a1b2`) because
- * a prefix changes specificity, and a rule that outranks its counterpart
- * in the preview is a new way to diverge. Note `@scope` is not entirely
- * cascade-neutral either — scope proximity is considered before source
- * order, so a scoped rule beats an unscoped one of equal specificity
- * regardless of position. That only matters for rules outside this sheet
- * targeting the same page classes, which nothing does.
+ * A media query is evaluated against the DOCUMENT viewport — the Electron
+ * window — while Scamp's breakpoints size the canvas frame. Left as-is,
+ * mobile rules fire on a desktop artboard whenever the app window happens
+ * to be narrow, and never fire on a mobile artboard in a maximised window.
  *
- * Returns an empty string when there's nothing to inject, so callers can
- * skip mounting a `<style>` at all.
+ * The frame declares `container-type: inline-size`, so the identical
+ * conditions evaluated as container queries resolve against the artboard
+ * — which is what the preview's viewport means for the design.
+ *
+ * This is a translation, and worth being honest about that. It is one
+ * lossless rewrite of a prelude across the whole sheet, not a re-derivation
+ * of each property, and the parity harness checks it at several artboard
+ * widths. That is a different kind of risk from the inline translation
+ * layer this work exists to remove.
+ *
+ * Non-width queries are untouched: `prefers-color-scheme` and friends
+ * describe the real device and should keep answering for it.
  */
+export declare const mediaToContainer: (css: string) => string;
 export declare const buildCanvasStylesheet: (css: string, scopeSelector?: string) => string;

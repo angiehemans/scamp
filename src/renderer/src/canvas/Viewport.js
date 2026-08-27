@@ -374,6 +374,11 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
                         ? { height: `${canvasHeight}px` }
                         : { minHeight: `${canvasHeight ?? EMPTY_FRAME_MIN_HEIGHT}px` }),
                     overflow: clipContent ? 'hidden' : undefined,
+                    // Makes the frame the container width-based `@media` blocks are
+                    // rewritten to query, so breakpoints resolve against the artboard
+                    // rather than the app window.
+                    // see docs/notes/canvas-injected-stylesheet.md
+                    containerType: 'inline-size',
                     transform: `scale(${scale})`,
                     transformOrigin: 'top left',
                     // Mirror the project's `body { font-family: var(--font-sans) }`

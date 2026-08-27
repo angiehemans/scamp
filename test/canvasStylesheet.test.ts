@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCanvasStylesheet,
   CANVAS_SCOPE_SELECTOR,
+  isWidthOnlyQuery,
+  mediaToContainer,
   stripStrippedAtRules,
 } from '@lib/canvasStylesheet';
 
@@ -42,26 +44,9 @@ describe('stripStrippedAtRules', () => {
     expect(out).not.toContain('@keyframes');
   });
 
-  it('removes a media query, which would follow the window not the frame', () => {
-    // A media query is evaluated against the document viewport — the
-    // Electron window — while Scamp's breakpoints size the canvas frame.
-    // Keeping them would fire mobile rules on a desktop artboard whenever
-    // the app window happened to be narrow.
-    const out = stripStrippedAtRules(
-      '.a { color: red; }\n@media (max-width: 700px) { .b { display: none; } }'
-    );
-    expect(out).toContain('.a { color: red; }');
-    expect(out).not.toContain('@media');
-    expect(out).not.toContain('.b');
-  });
-
-  it('removes a media query wrapping several rules', () => {
-    const out = stripStrippedAtRules(
-      '@media (min-width: 40em) { .a { color: red; } .b { color: blue; } }\n.c { color: green; }'
-    );
-    expect(out).toContain('.c');
-    expect(out).not.toContain('@media');
-    expect(out).not.toContain('.a');
+  it('leaves media queries alone — they are rewritten, not stripped', () => {
+    const css = '@media (max-width: 700px) { .b { display: none; } }';
+    expect(stripStrippedAtRules(css)).toBe(css);
   });
 
   it('handles css with no keyframes at all', () => {
@@ -93,11 +78,15 @@ describe('buildCanvasStylesheet', () => {
     expect(out).toContain('.list > .item:nth-child(2)');
   });
 
-  it('drops media queries, which the breakpoint cascade handles inline', () => {
+  it('rewrites a width media query to a container query', () => {
+    // The frame declares `container-type: inline-size`, so the same
+    // condition now resolves against the artboard instead of the app
+    // window — which is what a breakpoint means to a designer.
     const out = buildCanvasStylesheet(
       '.a { color: red; }\n@media (max-width: 700px) { .b { display: none; } }'
     );
-    expect(out).toContain('.a');
+    expect(out).toContain('@container (max-width: 700px)');
+    expect(out).toContain('.b { display: none; }');
     expect(out).not.toContain('@media');
   });
 
@@ -122,5 +111,61 @@ describe('buildCanvasStylesheet', () => {
     expect(buildCanvasStylesheet('.a { color: red; }', '#frame')).toContain(
       '@scope (#frame)'
     );
+  });
+});
+
+describe('isWidthOnlyQuery', () => {
+  it('accepts a max-width query', () => {
+    expect(isWidthOnlyQuery('(max-width: 700px)')).toBe(true);
+  });
+
+  it('accepts a compound width range', () => {
+    expect(isWidthOnlyQuery('(min-width: 400px) and (max-width: 700px)')).toBe(true);
+  });
+
+  it('rejects a query about the real device', () => {
+    // prefers-color-scheme describes the machine, not the artboard, so it
+    // must keep following the window.
+    expect(isWidthOnlyQuery('(prefers-color-scheme: dark)')).toBe(false);
+  });
+
+  it('rejects a mixed query rather than half-translating it', () => {
+    expect(
+      isWidthOnlyQuery('(max-width: 700px) and (prefers-color-scheme: dark)')
+    ).toBe(false);
+  });
+
+  it('rejects a bare media type with no features', () => {
+    expect(isWidthOnlyQuery('print')).toBe(false);
+    expect(isWidthOnlyQuery('screen')).toBe(false);
+  });
+});
+
+describe('mediaToContainer', () => {
+  it('rewrites the prelude and leaves the rules untouched', () => {
+    const out = mediaToContainer('@media (max-width: 700px) { .a { width: 10px; } }');
+    expect(out).toBe('@container (max-width: 700px) { .a { width: 10px; } }');
+  });
+
+  it('rewrites several blocks', () => {
+    const out = mediaToContainer(
+      '@media (max-width: 700px) { .a {} }\n@media (max-width: 400px) { .b {} }'
+    );
+    expect(out).not.toContain('@media');
+    expect((out.match(/@container/g) ?? []).length).toBe(2);
+  });
+
+  it('leaves a device query as @media', () => {
+    const css = '@media (prefers-color-scheme: dark) { .a { color: white; } }';
+    expect(mediaToContainer(css)).toBe(css);
+  });
+
+  it('leaves print alone', () => {
+    const css = '@media print { .a { display: none; } }';
+    expect(mediaToContainer(css)).toBe(css);
+  });
+
+  it('does not touch a stylesheet with no media queries', () => {
+    expect(mediaToContainer('.a { color: red; }')).toBe('.a { color: red; }');
   });
 });

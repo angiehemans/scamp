@@ -26,20 +26,10 @@ export const CANVAS_SCOPE_SELECTOR = `[${CANVAS_SCOPE_ATTR}]`;
  * browser that rejects it could drop the whole scoped block and take
  * every page rule with it.
  *
- * `@media` — a media query is evaluated against the DOCUMENT viewport,
- * which here is the Electron window, not the canvas frame. Scamp's
- * breakpoints size the frame (390, 768, …) while the window stays wide,
- * so these rules would fire on the wrong condition entirely: mobile rules
- * on a desktop artboard because the app window happens to be narrow, and
- * no mobile rules on a mobile artboard in a maximised window.
- *
- * The breakpoint cascade is resolved against the frame width and applied
- * inline, which is the correct semantics, so dropping these loses nothing
- * that works. Rendering them properly needs the frame to actually BE a
- * viewport — an iframe — or `@container` queries.
+ * `@media` is NOT stripped — it is rewritten to `@container`, see below.
  * see docs/notes/canvas-injected-stylesheet.md
  */
-const STRIPPED_AT_RULE = /@(?:-[a-z]+-)?(?:keyframes|media)\b/iy;
+const STRIPPED_AT_RULE = /@(?:-[a-z]+-)?keyframes\b/iy;
 export const stripStrippedAtRules = (css) => {
     let out = '';
     let i = 0;
@@ -86,8 +76,43 @@ export const stripStrippedAtRules = (css) => {
  * Returns an empty string when there's nothing to inject, so callers can
  * skip mounting a `<style>` at all.
  */
+/**
+ * Width features a container query can express. Everything else — colour
+ * scheme, resolution, print — is a property of the real device and should
+ * keep following the window, so those `@media` blocks are left alone.
+ */
+const WIDTH_FEATURES = new Set(['width', 'min-width', 'max-width']);
+/** True when every feature in a media prelude is width-based. */
+export const isWidthOnlyQuery = (prelude) => {
+    const features = [...prelude.matchAll(/\(\s*([a-z-]+)\s*:/gi)].map((m) => (m[1] ?? '').toLowerCase());
+    if (features.length === 0)
+        return false;
+    return features.every((f) => WIDTH_FEATURES.has(f));
+};
+/**
+ * Rewrite width-based `@media` blocks as `@container` queries.
+ *
+ * A media query is evaluated against the DOCUMENT viewport — the Electron
+ * window — while Scamp's breakpoints size the canvas frame. Left as-is,
+ * mobile rules fire on a desktop artboard whenever the app window happens
+ * to be narrow, and never fire on a mobile artboard in a maximised window.
+ *
+ * The frame declares `container-type: inline-size`, so the identical
+ * conditions evaluated as container queries resolve against the artboard
+ * — which is what the preview's viewport means for the design.
+ *
+ * This is a translation, and worth being honest about that. It is one
+ * lossless rewrite of a prelude across the whole sheet, not a re-derivation
+ * of each property, and the parity harness checks it at several artboard
+ * widths. That is a different kind of risk from the inline translation
+ * layer this work exists to remove.
+ *
+ * Non-width queries are untouched: `prefers-color-scheme` and friends
+ * describe the real device and should keep answering for it.
+ */
+export const mediaToContainer = (css) => css.replace(/@media\s*([^{]+)\{/gi, (full, prelude) => isWidthOnlyQuery(prelude) ? `@container ${prelude.trim()} {` : full);
 export const buildCanvasStylesheet = (css, scopeSelector = CANVAS_SCOPE_SELECTOR) => {
-    const body = stripStrippedAtRules(css).trim();
+    const body = mediaToContainer(stripStrippedAtRules(css)).trim();
     if (body.length === 0)
         return '';
     return `@scope (${scopeSelector}) {\n${body}\n}`;

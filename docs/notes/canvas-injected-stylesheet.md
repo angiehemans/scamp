@@ -46,7 +46,29 @@ of equal specificity regardless of position. Verified in Electron 31
 scoped rules don't leak outside the frame. It only matters for rules
 outside this sheet targeting the same page classes, which nothing does.
 
-## Media queries are excluded, and this is the interesting one
+## Media queries become container queries
+
+Width-based `@media` blocks are rewritten to `@container` before the sheet
+is injected, and the canvas frame declares `container-type: inline-size`.
+Verified in the running app: a 390px container inside a 1440px window
+fires `@container (max-width: 500px)`, and the injected sheet contains the
+rewritten rule.
+
+This is a translation, and worth naming as one. It is a single lossless
+rewrite of a prelude across the whole sheet, not a re-derivation of each
+property, and the parity harness checks it — a different kind of risk from
+the inline layer this work exists to remove.
+
+Non-width queries are left as `@media`: `prefers-color-scheme` and
+friends describe the real device and should keep answering for it.
+
+**The rules apply but are currently masked.** Inline styles beat any
+stylesheet rule, so a breakpoint's `width` loses to the `width`
+`elementToStyle` writes. The mechanism is correct and inert until the
+inline layer is peeled back — which is now safe to do, because the sheet
+finally carries breakpoint rules that resolve against the artboard.
+
+### Superseded: why they used to be stripped
 
 A media query is evaluated against the **document viewport** — here, the
 Electron window — while Scamp's breakpoints size the canvas *frame*. Set
@@ -60,14 +82,21 @@ nothing that worked. What it does cost is breakpoint-specific rules that
 inline styles cannot express — a `::before` inside a media query still
 won't render on the canvas.
 
-Fixing that properly needs the frame to actually BE a viewport, which
-means an iframe, or `@container` queries with the frame as the container
-(and the generated CSS is written with `@media`, not `@container`, so
-that would be a translation — the thing this whole effort is trying to
-stop doing).
+They were stripped because a media query is evaluated against the
+DOCUMENT viewport — the Electron window — while Scamp's breakpoints size
+the frame. An iframe was pursued to fix that, and it does, but the
+interaction surface proved much larger than the parity plan estimated:
+four cross-realm `instanceof` bugs, a measurement rewire, and a
+state-timing seam. Container queries reach the same result in the same
+document.
 
-This is the strongest argument yet for the iframe end-state the parity
-plan lists as option 3.
+The one thing the iframe still does better is viewport units: `100vh`
+here resolves against the app window, not the artboard. Container units
+(`cqh`) would fix it but need `container-type: size`, which requires a
+definite height the canvas frame does not have — measured, `100cqh`
+returned the window's height. Scamp already accommodates the page root's
+`min-height: 100vh` with a canvas-only floor, so this is an existing
+accommodation rather than a new gap.
 
 ## Keyframes are excluded
 
