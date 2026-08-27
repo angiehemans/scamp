@@ -40,6 +40,13 @@ sheet therefore never contains:
 - the component-instance wrapper's sizing
 - transient values applied during a drag or resize
 
+And one that looks peelable and is not: **`box-sizing: border-box` and the
+`margin: 0` reset**. Those mirror rules in `theme.css`, and the canvas
+injects only the PAGE's stylesheet — not the theme. Remove them and every
+bordered or padded box changes size. The iframe would have made them
+redundant, since it loaded the real theme; in the same document they have
+to stay.
+
 Each is a deliberate difference from the preview. The test for whether
 something belongs in the inline layer is simple: would the preview show
 it? If yes, the sheet already has it and the inline copy is redundant.

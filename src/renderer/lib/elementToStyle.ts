@@ -315,21 +315,18 @@ export const elementToStyle = (
     // so gradients rendered in the preview and not here.
     // see docs/notes/canvas-gradient-backgrounds.md
     ...backgroundStyle(el.backgroundColor, isOff('background'), tokens),
-    borderRadius: formatSpaceShorthand(el.borderRadius),
+    // `border-radius` and the border longhands are NOT written here — the
+    // stylesheet carries the generator's own text for them.
+    //
+    // `box-sizing` and the margin reset below ARE kept: they mirror
+    // theme.css's universal reset, and the canvas injects only the PAGE's
+    // stylesheet, not the theme. Remove them and every bordered or padded
+    // box changes size. see docs/notes/canvas-inline-layer-peel.md
     boxSizing: 'border-box',
     // Reset browser-default margins on semantic text tags (h1, p, etc.)
     // so the canvas position matches the stored coordinates.
     margin: 0,
   };
-  if (
-    !isOff('border') &&
-    el.borderStyle !== 'none' &&
-    !isZeroSpaceTuple(el.borderWidth)
-  ) {
-    base.borderWidth = formatSpaceShorthand(el.borderWidth);
-    base.borderStyle = el.borderStyle;
-    base.borderColor = resolveTokenColor(el.borderColor, tokens);
-  }
   // SVG paint — applied so the canvas reflects the SvgSection controls.
   // The fill/stroke property on the wrapper recolours the shapes inside
   // (inherits + overrides their attributes — the standard svg recolour

@@ -201,7 +201,7 @@ export const PARITY_FIXTURES: ReadonlyArray<ParityFixture> = [
   },
   {
     name: 'nested-flex-with-gap-and-padding',
-    why: 'Plain layout sanity: gap, padding and nesting all resolving the same on both sides.',
+    why: 'Plain layout sanity: gap, padding, borders and nesting all resolving the same on both sides. The border is here for its layout effect — it offsets children and, under border-box, reduces the content width.',
     tsx: page(`    <div data-scamp-id="root" className={styles.root}>
       <div data-scamp-id="outer_d001" className={styles.outer_d001}>
         <div data-scamp-id="a_d002" className={styles.a_d002} />
@@ -229,6 +229,13 @@ export const PARITY_FIXTURES: ReadonlyArray<ParityFixture> = [
   padding: 24px;
   align-items: flex-start;
   position: relative;
+  /* A border shifts every child inward and, under border-box, eats into
+     the content width — so it belongs in a geometry fixture, not only in
+     the painted one. */
+  border-width: 6px;
+  border-style: solid;
+  border-color: #778899;
+  border-radius: 12px;
 }
 
 .a_d002 {
