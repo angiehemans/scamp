@@ -7,7 +7,11 @@ import {
   describeDivergences,
   launchTruthBrowser,
   measure,
+  compareComputed,
+  computedInBrowser,
+  describeComputed,
   hideCanvasChrome,
+  measureComputed,
   measureInBrowser,
   screenshotInBrowser,
 } from './harness';
@@ -68,6 +72,24 @@ const runParityCheck = async (
         ? ''
         : `canvas and browser disagree for "${fixture.name}":\n${describeDivergences(divergences)}\n\n${fixture.why}`
     ).toEqual([]);
+
+    if (fixture.computed !== undefined) {
+      const props = fixture.computed;
+      const mine = await measureComputed(window, props);
+      const theirs = await computedInBrowser(
+        browser,
+        { html: fixture.html, css: `${fixture.css}\n${fixture.truthCss ?? ''}`, themeCss },
+        { width: Math.round(rootWidth ?? 0), height: 900 },
+        props
+      );
+      const diffs = compareComputed(mine, theirs);
+      expect(
+        diffs,
+        diffs.length === 0
+          ? ''
+          : `canvas and browser compute different values for "${fixture.name}":\n${describeComputed(diffs)}`
+      ).toEqual([]);
+    }
 
     if (fixture.pixels === true) {
       // The canvas root, not the frame: the frame carries canvas-only

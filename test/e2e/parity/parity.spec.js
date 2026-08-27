@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/app';
 import { pageRoot } from '../fixtures/selectors';
 import { PARITY_FIXTURES } from './fixtures';
-import { compareGeometry, comparePixels, describeDivergences, launchTruthBrowser, measure, hideCanvasChrome, measureInBrowser, screenshotInBrowser, } from './harness';
+import { compareGeometry, comparePixels, describeDivergences, launchTruthBrowser, measure, compareComputed, computedInBrowser, describeComputed, hideCanvasChrome, measureComputed, measureInBrowser, screenshotInBrowser, } from './harness';
 /**
  * The canvas and the preview must lay out identically. This renders each
  * fixture both ways from the same source files and compares the geometry
@@ -42,6 +42,15 @@ const runParityCheck = async (fixture, window, themeCss) => {
         expect(divergences, divergences.length === 0
             ? ''
             : `canvas and browser disagree for "${fixture.name}":\n${describeDivergences(divergences)}\n\n${fixture.why}`).toEqual([]);
+        if (fixture.computed !== undefined) {
+            const props = fixture.computed;
+            const mine = await measureComputed(window, props);
+            const theirs = await computedInBrowser(browser, { html: fixture.html, css: `${fixture.css}\n${fixture.truthCss ?? ''}`, themeCss }, { width: Math.round(rootWidth ?? 0), height: 900 }, props);
+            const diffs = compareComputed(mine, theirs);
+            expect(diffs, diffs.length === 0
+                ? ''
+                : `canvas and browser compute different values for "${fixture.name}":\n${describeComputed(diffs)}`).toEqual([]);
+        }
         if (fixture.pixels === true) {
             // The canvas root, not the frame: the frame carries canvas-only
             // affordances (the min-height floor) the browser has no counterpart

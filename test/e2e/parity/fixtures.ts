@@ -29,6 +29,12 @@ export type ParityFixture = {
    */
   html: string;
   /**
+   * CSS properties to compare via `getComputedStyle` on both sides. For
+   * anything that produces no geometry and cannot be pixel-compared —
+   * typography above all, since the two engines resolve fonts differently.
+   */
+  computed?: ReadonlyArray<string>;
+  /**
    * Compare painted pixels as well as geometry. Only worth setting on
    * fixtures whose point is what things look like rather than where they
    * are, and they must avoid text — Electron and the standalone Chromium
@@ -476,6 +482,68 @@ export default function Home() {
   height: 120px;
   background: #ff5f6d;
   mix-blend-mode: difference;
+}
+`,
+  },
+  {
+    name: 'typography',
+    why: 'Font, size, weight, colour, alignment, line height and letter spacing. Invisible to geometry, and unreliable in pixels because the two Chromium builds resolve fonts differently — so this fixture is checked on computed values instead.',
+    computed: [
+      'font-family',
+      'font-size',
+      'font-weight',
+      'color',
+      'text-align',
+      'line-height',
+      'letter-spacing',
+    ],
+    tsx: page(`    <div data-scamp-id="root" className={styles.root}>
+      <p data-scamp-id="head_t001" className={styles.head_t001}>Heading text</p>
+      <p data-scamp-id="body_t002" className={styles.body_t002}>Body copy here</p>
+      <p data-scamp-id="token_t003" className={styles.token_t003}>Token driven</p>
+    </div>`),
+    html: `    <div class="root">
+      <p class="head_t001">Heading text</p>
+      <p class="body_t002">Body copy here</p>
+      <p class="token_t003">Token driven</p>
+    </div>`,
+    css: `.root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.head_t001 {
+  width: 400px;
+  font-family: Georgia, serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #ff3366;
+  text-align: center;
+  line-height: 40px;
+  letter-spacing: 2px;
+}
+
+.body_t002 {
+  width: 400px;
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(20, 30, 40, 0.8);
+  text-align: right;
+  line-height: 1.6;
+}
+
+.token_t003 {
+  width: 400px;
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  color: var(--color-primary);
+  /* Explicit, because a normal line-height comes from the matched font and
+     the two engines resolve system-ui differently - a fixture artefact,
+     not a divergence. see docs/notes/parity-harness.md */
+  line-height: 24px;
 }
 `,
   },

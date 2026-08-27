@@ -28,6 +28,12 @@ export type ParityFixture = {
      */
     html: string;
     /**
+     * CSS properties to compare via `getComputedStyle` on both sides. For
+     * anything that produces no geometry and cannot be pixel-compared —
+     * typography above all, since the two engines resolve fonts differently.
+     */
+    computed?: ReadonlyArray<string>;
+    /**
      * Compare painted pixels as well as geometry. Only worth setting on
      * fixtures whose point is what things look like rather than where they
      * are, and they must avoid text — Electron and the standalone Chromium

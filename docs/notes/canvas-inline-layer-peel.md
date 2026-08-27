@@ -44,6 +44,28 @@ Each is a deliberate difference from the preview. The test for whether
 something belongs in the inline layer is simple: would the preview show
 it? If yes, the sheet already has it and the inline copy is redundant.
 
+## Typography needed a third comparison mode
+
+Type is invisible to geometry — it produces no box of its own — and
+unreliable in pixels, because the two Chromium builds resolve fonts
+differently. Neither existing mode could see it.
+
+So the harness gained a computed-style comparison: read
+`getComputedStyle` for a named set of properties on both sides and diff
+the values. `font-family` reports the specified stack rather than the
+matched font, sizes come back in px and colours in `rgb(...)`, so the
+question asked is "did the rule apply", which is exactly what a peel needs
+to know, and not "were the glyphs rasterised identically".
+
+The typography fixture was checked green BEFORE the peel, so the peel is
+measured against a known-good baseline rather than a hope.
+
+One fixture trap on the way: an element with no explicit `line-height`
+takes it from the matched font, so its height differed between engines by
+2.5px. That is the same font-resolution artefact as the earlier 3.2px
+width, wearing different clothes. Typography fixtures must pin
+`line-height` for the same reason they must not measure intrinsic width.
+
 ## Doing the next group
 
 Remove it, run the parity harness, and check both geometry and paint. If

@@ -109,3 +109,39 @@ export declare const screenshotInBrowser: (browser: Browser, source: {
  * and legitimately have no browser equivalent.
  */
 export declare const hideCanvasChrome: (page: Page) => Promise<void>;
+/**
+ * ---------------------------------------------------------------------------
+ * Computed-style comparison
+ * ---------------------------------------------------------------------------
+ *
+ * Typography is invisible to both other modes. It produces no geometry of
+ * its own, and pixel comparison is unreliable for text because the two
+ * Chromium builds resolve `system-ui` differently — an intrinsic text
+ * width already differed by 3.2px once and cost a false alarm.
+ *
+ * Computed values sidestep both. `getComputedStyle` reports `font-family`
+ * as the specified stack rather than the matched font, sizes in px, and
+ * colours as `rgb(...)`, so the comparison is about whether the rule
+ * applied — which is the actual question for a peel — and not about how
+ * glyphs were rasterised.
+ */
+export type ComputedStyles = Record<string, Record<string, string>>;
+export declare const COMPUTED_SCRIPT: (props: ReadonlyArray<string>) => string;
+export declare const measureComputed: (page: Page, props: ReadonlyArray<string>) => Promise<ComputedStyles>;
+export type ComputedDivergence = {
+    element: string;
+    property: string;
+    canvas: string;
+    browser: string;
+};
+export declare const compareComputed: (canvas: ComputedStyles, browser: ComputedStyles) => ComputedDivergence[];
+export declare const describeComputed: (divergences: ReadonlyArray<ComputedDivergence>) => string;
+/** Render a fixture in a browser and read its computed styles. */
+export declare const computedInBrowser: (browser: Browser, source: {
+    html: string;
+    css: string;
+    themeCss: string;
+}, viewport: {
+    width: number;
+    height: number;
+}, props: ReadonlyArray<string>) => Promise<ComputedStyles>;

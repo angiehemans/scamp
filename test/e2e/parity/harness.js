@@ -302,3 +302,49 @@ export const hideCanvasChrome = async (page) => {
     `,
     });
 };
+export const COMPUTED_SCRIPT = (props) => `(() => {
+  const props = ${JSON.stringify(props)};
+  const out = {};
+  for (const el of document.querySelectorAll('[data-scamp-id], [class]')) {
+    const key = el.getAttribute('data-scamp-id') || el.className;
+    if (typeof key !== 'string' || !/^[a-z][a-z0-9_]*$/i.test(key)) continue;
+    if (out[key]) continue;
+    const cs = getComputedStyle(el);
+    const entry = {};
+    for (const p of props) entry[p] = cs.getPropertyValue(p).trim();
+    out[key] = entry;
+  }
+  return out;
+})()`;
+export const measureComputed = async (page, props) => (await page.evaluate(COMPUTED_SCRIPT(props)));
+export const compareComputed = (canvas, browser) => {
+    const out = [];
+    for (const [element, expected] of Object.entries(browser)) {
+        const actual = canvas[element];
+        if (!actual)
+            continue;
+        for (const [property, value] of Object.entries(expected)) {
+            const mine = actual[property] ?? '';
+            if (mine !== value) {
+                out.push({ element, property, canvas: mine, browser: value });
+            }
+        }
+    }
+    return out;
+};
+export const describeComputed = (divergences) => divergences
+    .map((d) => `  ${d.element}.${d.property}: canvas "${d.canvas}" vs browser "${d.browser}"`)
+    .join('\n');
+/** Render a fixture in a browser and read its computed styles. */
+export const computedInBrowser = async (browser, source, viewport, props) => {
+    const page = await browser.newPage({ viewport });
+    try {
+        await page.setContent(`<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+            `<style>${source.themeCss}</style><style>${source.css}</style>` +
+            `</head><body style="margin:0;min-height:100vh">${source.html}</body></html>`, { waitUntil: 'load' });
+        return await measureComputed(page, props);
+    }
+    finally {
+        await page.close();
+    }
+};

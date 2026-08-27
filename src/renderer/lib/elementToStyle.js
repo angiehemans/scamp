@@ -367,22 +367,15 @@ inComponentEditor = false) => {
     if (!isZeroSpaceTuple(el.margin)) {
         base.margin = formatSpaceShorthand(el.margin);
     }
-    if (el.type === 'text' && !isOff('typography')) {
-        if (el.fontFamily !== undefined)
-            base.fontFamily = resolveTokenValue(el.fontFamily, tokens);
-        if (el.fontSize !== undefined)
-            base.fontSize = resolveTokenValue(el.fontSize, tokens);
-        if (el.fontWeight !== undefined)
-            base.fontWeight = el.fontWeight;
-        if (el.color !== undefined)
-            base.color = resolveTokenColor(el.color, tokens);
-        if (el.textAlign !== undefined)
-            base.textAlign = el.textAlign;
-        if (el.lineHeight !== undefined)
-            base.lineHeight = resolveTokenValue(el.lineHeight, tokens);
-        if (el.letterSpacing !== undefined)
-            base.letterSpacing = resolveTokenValue(el.letterSpacing, tokens);
-    }
+    // Typography is NOT written here. The generator emits every one of these
+    // and the injected stylesheet carries that text verbatim, so an inline
+    // copy could only agree or drift — and while it stayed inline it masked
+    // its own breakpoint override.
+    //
+    // Verified on computed values rather than geometry or pixels: type
+    // produces no geometry of its own, and the two Chromium builds resolve
+    // fonts differently, so neither of the other modes can see it.
+    // see docs/notes/canvas-inline-layer-peel.md
     if (el.type === 'image') {
         base.objectFit = 'cover';
         base.display = 'block';

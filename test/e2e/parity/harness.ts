@@ -381,3 +381,96 @@ export const hideCanvasChrome = async (page: Page): Promise<void> => {
     `,
   });
 };
+
+/**
+ * ---------------------------------------------------------------------------
+ * Computed-style comparison
+ * ---------------------------------------------------------------------------
+ *
+ * Typography is invisible to both other modes. It produces no geometry of
+ * its own, and pixel comparison is unreliable for text because the two
+ * Chromium builds resolve `system-ui` differently — an intrinsic text
+ * width already differed by 3.2px once and cost a false alarm.
+ *
+ * Computed values sidestep both. `getComputedStyle` reports `font-family`
+ * as the specified stack rather than the matched font, sizes in px, and
+ * colours as `rgb(...)`, so the comparison is about whether the rule
+ * applied — which is the actual question for a peel — and not about how
+ * glyphs were rasterised.
+ */
+
+export type ComputedStyles = Record<string, Record<string, string>>;
+
+export const COMPUTED_SCRIPT = (props: ReadonlyArray<string>): string => `(() => {
+  const props = ${JSON.stringify(props)};
+  const out = {};
+  for (const el of document.querySelectorAll('[data-scamp-id], [class]')) {
+    const key = el.getAttribute('data-scamp-id') || el.className;
+    if (typeof key !== 'string' || !/^[a-z][a-z0-9_]*$/i.test(key)) continue;
+    if (out[key]) continue;
+    const cs = getComputedStyle(el);
+    const entry = {};
+    for (const p of props) entry[p] = cs.getPropertyValue(p).trim();
+    out[key] = entry;
+  }
+  return out;
+})()`;
+
+export const measureComputed = async (
+  page: Page,
+  props: ReadonlyArray<string>
+): Promise<ComputedStyles> =>
+  (await page.evaluate(COMPUTED_SCRIPT(props))) as ComputedStyles;
+
+export type ComputedDivergence = {
+  element: string;
+  property: string;
+  canvas: string;
+  browser: string;
+};
+
+export const compareComputed = (
+  canvas: ComputedStyles,
+  browser: ComputedStyles
+): ComputedDivergence[] => {
+  const out: ComputedDivergence[] = [];
+  for (const [element, expected] of Object.entries(browser)) {
+    const actual = canvas[element];
+    if (!actual) continue;
+    for (const [property, value] of Object.entries(expected)) {
+      const mine = actual[property] ?? '';
+      if (mine !== value) {
+        out.push({ element, property, canvas: mine, browser: value });
+      }
+    }
+  }
+  return out;
+};
+
+export const describeComputed = (
+  divergences: ReadonlyArray<ComputedDivergence>
+): string =>
+  divergences
+    .map((d) => `  ${d.element}.${d.property}: canvas "${d.canvas}" vs browser "${d.browser}"`)
+    .join('\n');
+
+/** Render a fixture in a browser and read its computed styles. */
+export const computedInBrowser = async (
+  browser: Browser,
+  source: { html: string; css: string; themeCss: string },
+  viewport: { width: number; height: number },
+  props: ReadonlyArray<string>
+): Promise<ComputedStyles> => {
+  const page = await browser.newPage({ viewport });
+  try {
+    await page.setContent(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+        `<style>${source.themeCss}</style><style>${source.css}</style>` +
+        `</head><body style="margin:0;min-height:100vh">${source.html}</body></html>`,
+      { waitUntil: 'load' }
+    );
+    return await measureComputed(page, props);
+  } finally {
+    await page.close();
+  }
+};
