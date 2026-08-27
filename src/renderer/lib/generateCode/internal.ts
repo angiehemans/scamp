@@ -2,6 +2,20 @@
 import { ROOT_ELEMENT_ID, slugifyName, type ScampElement } from "../element";
 
 /**
+ * Escape text for an HTML/JSX text node or a double-quoted attribute.
+ * Shared by the TSX generator and the HTML exporter so the two can't
+ * drift on an escaping rule.
+ */
+export const escapeHtml = (raw: string): string =>
+  raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+
+/**
  * The CSS class name for an element. When the element has a custom name,
  * the slugified name replaces the type prefix:
  *   - unnamed rect → `rect_a1b2`

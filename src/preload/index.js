@@ -113,6 +113,8 @@ const api = {
     exportChooseSavePath: (args) => ipcRenderer.invoke(IPC.ExportChooseSavePath, args),
     exportPng: (args) => ipcRenderer.invoke(IPC.ExportPng, args),
     exportSvg: (args) => ipcRenderer.invoke(IPC.ExportSvg, args),
+    chooseHtmlExportFolder: () => ipcRenderer.invoke(IPC.ExportHtmlChooseFolder),
+    exportHtml: (args) => ipcRenderer.invoke(IPC.ExportHtmlWrite, args),
     // Theme
     readTheme: (args) => ipcRenderer.invoke(IPC.ThemeRead, args),
     writeTheme: (args) => ipcRenderer.invoke(IPC.ThemeWrite, args),

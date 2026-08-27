@@ -76,6 +76,8 @@ export declare const IPC: {
     readonly ExportChooseSavePath: "export:chooseSavePath";
     readonly ExportPng: "export:png";
     readonly ExportSvg: "export:svg";
+    readonly ExportHtmlChooseFolder: "exportHtml:chooseFolder";
+    readonly ExportHtmlWrite: "exportHtml:write";
     readonly UpdaterChecking: "updater:checking";
     readonly UpdaterAvailable: "updater:available";
     readonly UpdaterNotAvailable: "updater:not-available";

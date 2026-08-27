@@ -24,7 +24,23 @@ release time.
 
 ### Unreleased
 
-Nothing yet.
+**Added**
+
+- **Export a project as HTML.** A new **Export HTML** button in the
+  project header writes every page as plain `.html` + `.css` into a
+  folder you choose — no build step and no dependencies. Pages keep
+  their routes (`about/index.html`), links between them are rewritten
+  to work both on a static host and straight off disk, images are
+  copied into `assets/`, and `theme.css` comes along so every token
+  still resolves. Component instances are flattened into ordinary
+  markup, each with its own copy of the component's styles, so
+  per-instance sizing and text survive. You pick a location and Scamp
+  creates a folder there named after the project — re-exporting reuses
+  it, and a name held by anything Scamp didn't write is stepped over
+  rather than overwritten. The button reports progress and
+  the result — a spinner while writing, a green count when it lands, and
+  a red **Export failed** with the reason on hover — so an export that
+  declines to run can't be mistaken for one that did nothing.
 
 ### 0.6.0 — 2026-08-19
 
@@ -282,6 +298,8 @@ Everything Scamp does today. Each entry links to its user documentation.
   [Preview Mode](user_docs/preview.md)
 - Images compressed to WebP on import, with oversized photos scaled to
   fit. [Elements](user_docs/elements.md)
+- Export the whole project as a folder of static HTML + CSS.
+  [Export](user_docs/export.md)
 
 ### The app itself
 

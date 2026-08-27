@@ -19,6 +19,7 @@ import { registerDesignMdIpc } from './ipc/designMd';
 import { registerImageIpc } from './ipc/image';
 import { registerClipboardIpc } from './ipc/clipboard';
 import { registerExportIpc } from './ipc/export';
+import { registerHtmlExportIpc } from './ipc/htmlExport';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
 import { registerPreviewIpc } from './ipc/preview';
@@ -238,6 +239,7 @@ app.whenReady().then(() => {
     registerImageIpc();
     registerClipboardIpc();
     registerExportIpc();
+    registerHtmlExportIpc();
     registerUpdaterIpc();
     registerPreviewIpc({
         open: openPreviewWindow,

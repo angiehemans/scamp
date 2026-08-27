@@ -129,6 +129,9 @@ export const IPC = {
     ExportChooseSavePath: 'export:chooseSavePath',
     ExportPng: 'export:png',
     ExportSvg: 'export:svg',
+    // Export (whole project, as static HTML + CSS)
+    ExportHtmlChooseFolder: 'exportHtml:chooseFolder',
+    ExportHtmlWrite: 'exportHtml:write',
     // Auto-update (electron-updater). Main → renderer status events drive
     // the in-app update banner; the renderer → main install trigger fires
     // when the user clicks "Restart and install". See docs/notes/auto-update.md.

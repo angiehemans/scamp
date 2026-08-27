@@ -13,6 +13,9 @@ import type {
   CreateProjectArgs,
   ExportChooseSavePathArgs,
   ExportChooseSavePathResult,
+  ExportHtmlArgs,
+  ExportHtmlChooseFolderResult,
+  ExportHtmlResult,
   ExportPngArgs,
   ExportResult,
   ExportSvgArgs,
@@ -295,6 +298,12 @@ const api = {
 
   exportSvg: (args: ExportSvgArgs): Promise<ExportResult> =>
     ipcRenderer.invoke(IPC.ExportSvg, args),
+
+  chooseHtmlExportFolder: (): Promise<ExportHtmlChooseFolderResult> =>
+    ipcRenderer.invoke(IPC.ExportHtmlChooseFolder),
+
+  exportHtml: (args: ExportHtmlArgs): Promise<ExportHtmlResult> =>
+    ipcRenderer.invoke(IPC.ExportHtmlWrite, args),
 
   // Theme
   readTheme: (args: { projectPath: string }): Promise<string> =>

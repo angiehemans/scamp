@@ -1,5 +1,11 @@
 import { type ScampElement } from "../element";
 /**
+ * Escape text for an HTML/JSX text node or a double-quoted attribute.
+ * Shared by the TSX generator and the HTML exporter so the two can't
+ * drift on an escaping rule.
+ */
+export declare const escapeHtml: (raw: string) => string;
+/**
  * The CSS class name for an element. When the element has a custom name,
  * the slugified name replaces the type prefix:
  *   - unnamed rect → `rect_a1b2`

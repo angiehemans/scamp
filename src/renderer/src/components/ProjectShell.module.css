@@ -304,6 +304,44 @@ font-size: 14px;
   flex: 0 0 auto;
 }
 
+/*
+ * Export HTML button states. An export that finishes without visible
+ * feedback is indistinguishable from one that silently failed — revealing
+ * the folder isn't reliable on its own (shell.openPath can no-op on Linux),
+ * so the button says so itself.
+ */
+.toggleButtonBusy,
+.toggleButtonBusy:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+.toggleButtonDone,
+.toggleButtonDone:hover {
+  color: var(--status-success);
+}
+
+.toggleButtonError,
+.toggleButtonError:hover {
+  color: var(--status-error);
+}
+
+.spinning {
+  animation: toggleButtonSpin 900ms linear infinite;
+}
+
+@keyframes toggleButtonSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation-duration: 2400ms;
+  }
+}
+
 .toggleActive {
   background: var(--accent);
   color: var(--text-inverse);

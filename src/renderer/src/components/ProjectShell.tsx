@@ -44,6 +44,7 @@ import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
+import { useHtmlExport } from './projectShell/useHtmlExport';
 import {
   useFontLinkReconciler,
   useProjectTheme,
@@ -297,6 +298,13 @@ export const ProjectShell = ({
   useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
   useSvgAssetReload();
 
+  const {
+    exportHtml,
+    status: exportStatus,
+    message: exportMessage,
+    location: exportLocation,
+  } = useHtmlExport(project.path, project.name);
+
   return (
     <div className={styles.shell}>
       <ProjectHeader
@@ -305,6 +313,10 @@ export const ProjectShell = ({
         projectFormat={projectFormatForPreview}
         onClose={onClose}
         onOpenPreview={openPreview}
+        onExportHtml={exportHtml}
+        exportStatus={exportStatus}
+        exportMessage={exportMessage}
+        exportLocation={exportLocation}
       />
       <SaveStatusToast />
       {showMigrationBanner && (

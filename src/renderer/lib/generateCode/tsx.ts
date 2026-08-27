@@ -2,16 +2,7 @@
 import { PASSTHROUGH_PROP, rootClassNameAttribute } from "../classNamePassthrough";
 import { ROOT_ELEMENT_ID, type ScampElement } from "../element";
 import { sizeDeclarationLines } from "./declarations";
-import { classNameFor, tagFor } from "./internal";
-
-const escapeHtml = (raw: string): string =>
-  raw
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
+import { classNameFor, escapeHtml, tagFor } from "./internal";
 
 const componentNameFromPage = (pageName: string): string => {
   const parts = pageName.split(/[-_]/).filter((part) => part.length > 0);

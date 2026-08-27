@@ -897,3 +897,47 @@ export type ExportResult = {
   /** Populated on failure — short, user-readable. */
   error?: string;
 };
+
+/** One text file in an HTML export, at a path relative to the export root. */
+export type ExportHtmlFile = {
+  path: string;
+  contents: string;
+};
+
+export type ExportHtmlChooseFolderResult = {
+  canceled: boolean;
+  path: string | null;
+};
+
+export type ExportHtmlArgs = {
+  /**
+   * The folder the user picked through `ExportHtmlChooseFolder` — the
+   * PARENT the export folder is created inside, not the export folder
+   * itself. Main derives that name, so the renderer can't choose where
+   * the write lands.
+   */
+  parentDir: string;
+  /** Source project — the assets folder is copied from it. */
+  projectPath: string;
+  projectName: string;
+  files: ExportHtmlFile[];
+};
+
+/**
+ * `reason: 'occupied'` is retained for callers that distinguish it, but the
+ * export no longer refuses a non-empty destination: it creates its own
+ * folder inside the chosen one and steps over any name already taken.
+ */
+export type ExportHtmlResult =
+  | {
+      ok: true;
+      /** The folder actually created, inside the chosen parent. */
+      targetDir: string;
+      fileCount: number;
+      assetCount: number;
+    }
+  | {
+      ok: false;
+      error: string;
+      reason?: 'occupied';
+    };

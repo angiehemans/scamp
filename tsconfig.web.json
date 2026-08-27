@@ -28,6 +28,7 @@
     "test/**/*",
     "src/main/ipc/componentOps.ts",
     "src/main/ipc/contextOps.ts",
+    "src/main/ipc/htmlExportOps.ts",
     "src/main/installId.ts",
     "src/main/mcp/jsonRpc.ts",
     "src/main/mcp/protocol.ts",

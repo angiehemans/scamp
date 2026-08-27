@@ -44,6 +44,7 @@ import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
+import { useHtmlExport } from './projectShell/useHtmlExport';
 import { useFontLinkReconciler, useProjectTheme, } from './projectShell/useProjectFonts';
 import { useDesignMdSync } from './projectShell/useDesignMdSync';
 import { useActiveTarget } from './projectShell/useActiveTarget';
@@ -206,7 +207,8 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // (after keyDeps/latestExit exist) rather than earlier in the body.
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
     useSvgAssetReload();
-    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+    const { exportHtml, status: exportStatus, message: exportMessage, location: exportLocation, } = useHtmlExport(project.path, project.name);
+    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview, onExportHtml: exportHtml, exportStatus: exportStatus, exportMessage: exportMessage, exportLocation: exportLocation }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.
