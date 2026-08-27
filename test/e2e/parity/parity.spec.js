@@ -1,7 +1,7 @@
 import { test, expect } from '../fixtures/app';
 import { pageRoot } from '../fixtures/selectors';
 import { PARITY_FIXTURES } from './fixtures';
-import { compareGeometry, describeDivergences, launchTruthBrowser, measure, measureInBrowser, } from './harness';
+import { compareGeometry, comparePixels, describeDivergences, launchTruthBrowser, measure, hideCanvasChrome, measureInBrowser, screenshotInBrowser, } from './harness';
 /**
  * The canvas and the preview must lay out identically. This renders each
  * fixture both ways from the same source files and compares the geometry
@@ -15,6 +15,13 @@ import { compareGeometry, describeDivergences, launchTruthBrowser, measure, meas
  */
 /** Layout differences below this are sub-pixel noise, not divergence. */
 const TOLERANCE_PX = 1;
+/**
+ * Share of pixels allowed to differ before a paint comparison fails.
+ * Antialiasing along a radius or a shadow's falloff will always disagree
+ * slightly between two renderers; a missing gradient or a wrong colour
+ * moves far more than this.
+ */
+const MAX_DIFFERING_FRACTION = 0.02;
 const runParityCheck = async (fixture, window, themeCss) => {
     await expect(pageRoot(window)).toBeVisible();
     const canvas = await measure(window);
@@ -35,6 +42,26 @@ const runParityCheck = async (fixture, window, themeCss) => {
         expect(divergences, divergences.length === 0
             ? ''
             : `canvas and browser disagree for "${fixture.name}":\n${describeDivergences(divergences)}\n\n${fixture.why}`).toEqual([]);
+        if (fixture.pixels === true) {
+            // The canvas root, not the frame: the frame carries canvas-only
+            // affordances (the min-height floor) the browser has no counterpart
+            // for, and the root is the thing both sides genuinely share.
+            await hideCanvasChrome(window);
+            const canvasPng = await window
+                .locator('[data-scamp-id="root"]')
+                .first()
+                .screenshot();
+            const shot = await screenshotInBrowser(browser, {
+                html: fixture.html,
+                css: `${fixture.css}\n${fixture.truthCss ?? ''}`,
+                themeCss,
+            }, { width: Math.round(rootWidth ?? 0), height: 900 });
+            const diff = await comparePixels(shot.page, canvasPng, shot.png);
+            await shot.page.close();
+            expect(diff.differingFraction, `canvas and browser paint differently for "${fixture.name}": ` +
+                `${(diff.differingFraction * 100).toFixed(1)}% of pixels differ ` +
+                `(worst channel delta ${diff.maxChannelDelta}).\n\n${fixture.why}`).toBeLessThanOrEqual(MAX_DIFFERING_FRACTION);
+        }
     }
     finally {
         await browser.close();

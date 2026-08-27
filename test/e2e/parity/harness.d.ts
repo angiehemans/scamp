@@ -1,17 +1,4 @@
 import { type Browser, type Page } from '@playwright/test';
-/**
- * Machinery for comparing what the canvas lays out against what a browser
- * lays out from the same source files.
- *
- * The browser side deliberately imports NOTHING from `src/`. An oracle
- * that shares code with the thing it checks can agree with it while both
- * are wrong, so the fixture carries hand-written HTML and this module only
- * wraps it in a document with the page's CSS applied verbatim. The
- * document shell mirrors the project's own `app/layout.tsx` so the body
- * reset matches what the preview would use.
- *
- * see docs/plans/canvas-preview-parity-plan.md
- */
 export type Box = {
     x: number;
     y: number;
@@ -60,3 +47,65 @@ export type Divergence = {
 export declare const compareGeometry: (canvas: Geometry, browser: Geometry, tolerance?: number) => Divergence[];
 /** Human-readable failure text — the numbers are the whole point. */
 export declare const describeDivergences: (divergences: ReadonlyArray<Divergence>) => string;
+/**
+ * ---------------------------------------------------------------------------
+ * Pixel comparison
+ * ---------------------------------------------------------------------------
+ *
+ * Geometry says the boxes are in the right places; it says nothing about
+ * what is painted in them. Colour, gradients, shadows, radii and blend
+ * modes all produce identical geometry — the gradient bug in
+ * canvas-gradient-backgrounds.md would have passed the geometry harness
+ * without a murmur.
+ *
+ * Two things make a naive pixel diff useless here, so neither is attempted:
+ *
+ *  - the canvas renders inside a transformed frame, so its screenshot is at
+ *    the zoom factor while the browser's is at 1
+ *  - Electron's Chromium and the standalone build resolve `system-ui`
+ *    differently, so any text differs by a few pixels
+ *
+ * Both are handled by normalising the two images to the same modest size
+ * and comparing with a per-channel tolerance. That is deliberately blunt:
+ * it answers "is this block the wrong colour / is this gradient missing"
+ * and not "is this edge antialiased identically", which is the question
+ * worth asking of a design tool.
+ */
+export type PixelDiff = {
+    /** Fraction of compared pixels that differ beyond the tolerance, 0..1. */
+    differingFraction: number;
+    /** Largest single-channel difference seen, 0..255. */
+    maxChannelDelta: number;
+};
+/**
+ * Compare two PNG screenshots inside a browser page, which avoids adding a
+ * PNG decoder dependency — the browser already has one.
+ */
+export declare const comparePixels: (page: Page, canvasPng: Buffer, browserPng: Buffer) => Promise<PixelDiff>;
+/**
+ * Render a fixture in the browser and screenshot its page root, leaving the
+ * page open so the caller can also use it to run the comparison.
+ */
+export declare const screenshotInBrowser: (browser: Browser, source: {
+    html: string;
+    css: string;
+    themeCss: string;
+}, viewport: {
+    width: number;
+    height: number;
+}) => Promise<{
+    png: Buffer;
+    page: Page;
+}>;
+/**
+ * Hide everything the browser has no counterpart for, before a paint
+ * comparison.
+ *
+ * `locator.screenshot()` captures whatever is painted over the element's
+ * box, so the canvas toolbar and the shortcuts panel landed in the first
+ * capture and accounted for the entire difference. Rather than enumerate
+ * app chrome — which changes — hide all of it and re-show only the frame,
+ * then take out the canvas-only affordances that live *inside* the frame
+ * and legitimately have no browser equivalent.
+ */
+export declare const hideCanvasChrome: (page: Page) => Promise<void>;

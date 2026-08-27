@@ -71,14 +71,47 @@ without `npx tsc --build tsconfig.web.json --force` runs the previous
 version — which shows up as stale test titles and results that don't
 match the source.
 
-## What it does not catch
+## Paint comparison
 
-Geometry only. Paint-level properties — colour, gradients, shadows,
-filters, blend modes — produce identical boxes and are invisible to this
-harness. The gradient bug that prompted
+Geometry says the boxes are in the right places and nothing about what is
+painted in them. Colour, gradients, shadows, radii and blend modes all
+produce identical geometry, so the bug behind
 [canvas-gradient-backgrounds.md](canvas-gradient-backgrounds.md) would
-have passed. Pixel diffing is the answer there, and is deliberately left
-to a later phase; geometry is where the divergences have actually been
+have passed the geometry check without a murmur.
+
+A fixture with `pixels: true` also screenshots the page root on both
+sides and compares them. Two things make a naive diff useless, so neither
+is attempted: the canvas renders inside a transformed frame (its
+screenshot is at the zoom factor, the browser's at 1), and the two
+Chromium builds resolve `system-ui` differently. Both are handled by
+normalising the images to a common width and comparing with a per-channel
+tolerance, failing when more than 2% of pixels differ.
+
+That is deliberately blunt. It answers "is this block the wrong colour,
+is this gradient missing" and not "is this edge antialiased identically",
+which is the question worth asking of a design tool. Paint fixtures must
+avoid text for the font reason above.
+
+**Chrome has to be hidden first.** `locator.screenshot()` captures
+whatever is painted over the element's box, so the canvas toolbar and the
+shortcuts panel landed in the first capture and accounted for the entire
+5.4% difference. `hideCanvasChrome` hides everything and re-shows only the
+frame, then removes the canvas-only affordances inside it (selection
+overlay, grid, handles).
+
+### Validating a paint oracle is harder than it looks
+
+Breaking the canvas's gradient handling did **not** make the paint test
+fail — because the injected stylesheet supplies the gradient too, so the
+canvas still rendered it correctly. That is the architecture working, but
+it means the obvious mutation proves nothing. The oracle was validated by
+breaking *both* paths at once, which produced a 4.3% difference.
+
+## What it still does not catch
+
+Anything only visible in motion (transitions, animation timing) and
+anything behind an interaction (`:hover`). Geometry is still where the
+structural divergences have been
 and is far less brittle.
 
 ## Adding a fixture

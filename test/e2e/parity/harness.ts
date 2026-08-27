@@ -17,6 +17,9 @@ import { chromium, type Browser, type Page } from '@playwright/test';
  * see docs/plans/canvas-preview-parity-plan.md
  */
 
+/** Mirrors `@lib/canvasStylesheet`; duplicated so the oracle imports no src. */
+const CANVAS_SCOPE_ATTR = 'data-scamp-canvas';
+
 export type Box = { x: number; y: number; w: number; h: number };
 export type Geometry = Record<string, Box>;
 
@@ -223,3 +226,158 @@ export const describeDivergences = (
         : `  ${d.element}.${d.field}: canvas ${d.canvas.toFixed(1)} vs browser ${d.browser.toFixed(1)} (off by ${d.delta.toFixed(1)}px)`
     )
     .join('\n');
+
+/**
+ * ---------------------------------------------------------------------------
+ * Pixel comparison
+ * ---------------------------------------------------------------------------
+ *
+ * Geometry says the boxes are in the right places; it says nothing about
+ * what is painted in them. Colour, gradients, shadows, radii and blend
+ * modes all produce identical geometry — the gradient bug in
+ * canvas-gradient-backgrounds.md would have passed the geometry harness
+ * without a murmur.
+ *
+ * Two things make a naive pixel diff useless here, so neither is attempted:
+ *
+ *  - the canvas renders inside a transformed frame, so its screenshot is at
+ *    the zoom factor while the browser's is at 1
+ *  - Electron's Chromium and the standalone build resolve `system-ui`
+ *    differently, so any text differs by a few pixels
+ *
+ * Both are handled by normalising the two images to the same modest size
+ * and comparing with a per-channel tolerance. That is deliberately blunt:
+ * it answers "is this block the wrong colour / is this gradient missing"
+ * and not "is this edge antialiased identically", which is the question
+ * worth asking of a design tool.
+ */
+
+export type PixelDiff = {
+  /** Fraction of compared pixels that differ beyond the tolerance, 0..1. */
+  differingFraction: number;
+  /** Largest single-channel difference seen, 0..255. */
+  maxChannelDelta: number;
+};
+
+/** Width both images are normalised to before comparing. */
+const DIFF_WIDTH = 240;
+
+/** Per-channel difference below which two pixels count as equal. */
+const CHANNEL_TOLERANCE = 12;
+
+/**
+ * Compare two PNG screenshots inside a browser page, which avoids adding a
+ * PNG decoder dependency — the browser already has one.
+ */
+export const comparePixels = async (
+  page: Page,
+  canvasPng: Buffer,
+  browserPng: Buffer
+): Promise<PixelDiff> => {
+  const result = await page.evaluate(
+    async ([a, b, width, tolerance]) => {
+      const load = (dataUrl: string): Promise<HTMLImageElement> =>
+        new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = dataUrl;
+        });
+      const [imgA, imgB] = await Promise.all([load(a as string), load(b as string)]);
+      const w = width as number;
+      // Same target box for both, so the canvas's zoom factor and any
+      // aspect difference are normalised away before comparing.
+      const h = Math.max(
+        1,
+        Math.round((w * (imgA.height / imgA.width + imgB.height / imgB.width)) / 2)
+      );
+      const draw = (img: HTMLImageElement): Uint8ClampedArray => {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d');
+        if (!ctx) throw new Error('no 2d context');
+        ctx.drawImage(img, 0, 0, w, h);
+        return ctx.getImageData(0, 0, w, h).data;
+      };
+      const da = draw(imgA);
+      const db = draw(imgB);
+      let differing = 0;
+      let maxDelta = 0;
+      const total = w * h;
+      for (let i = 0; i < da.length; i += 4) {
+        const dr = Math.abs((da[i] ?? 0) - (db[i] ?? 0));
+        const dg = Math.abs((da[i + 1] ?? 0) - (db[i + 1] ?? 0));
+        const dbl = Math.abs((da[i + 2] ?? 0) - (db[i + 2] ?? 0));
+        const delta = Math.max(dr, dg, dbl);
+        if (delta > maxDelta) maxDelta = delta;
+        if (delta > (tolerance as number)) differing += 1;
+      }
+      return { differingFraction: differing / total, maxChannelDelta: maxDelta };
+    },
+    [
+      `data:image/png;base64,${canvasPng.toString('base64')}`,
+      `data:image/png;base64,${browserPng.toString('base64')}`,
+      DIFF_WIDTH,
+      CHANNEL_TOLERANCE,
+    ] as const
+  );
+  return result as PixelDiff;
+};
+
+/**
+ * Render a fixture in the browser and screenshot its page root, leaving the
+ * page open so the caller can also use it to run the comparison.
+ */
+export const screenshotInBrowser = async (
+  browser: Browser,
+  source: { html: string; css: string; themeCss: string },
+  viewport: { width: number; height: number }
+): Promise<{ png: Buffer; page: Page }> => {
+  const page = await browser.newPage({ viewport });
+  const document = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+${source.themeCss}
+    </style>
+    <style>
+${source.css}
+    </style>
+  </head>
+  <body style="margin: 0; min-height: 100vh">
+${source.html}
+  </body>
+</html>`;
+  await page.setContent(document, { waitUntil: 'load' });
+  const png = await page.locator('.root').first().screenshot();
+  return { png, page };
+};
+
+/**
+ * Hide everything the browser has no counterpart for, before a paint
+ * comparison.
+ *
+ * `locator.screenshot()` captures whatever is painted over the element's
+ * box, so the canvas toolbar and the shortcuts panel landed in the first
+ * capture and accounted for the entire difference. Rather than enumerate
+ * app chrome — which changes — hide all of it and re-show only the frame,
+ * then take out the canvas-only affordances that live *inside* the frame
+ * and legitimately have no browser equivalent.
+ */
+export const hideCanvasChrome = async (page: Page): Promise<void> => {
+  await page.addStyleTag({
+    content: `
+      body * { visibility: hidden !important; }
+      [${CANVAS_SCOPE_ATTR}], [${CANVAS_SCOPE_ATTR}] * { visibility: visible !important; }
+      [data-testid="selection-overlay"],
+      [data-testid="grid-overlay"],
+      [data-testid="overflow-indicator"],
+      /* CSS-module class names keep the source name in them, so this
+         catches the interaction layer without importing its stylesheet. */
+      [${CANVAS_SCOPE_ATTR}] [class*="nteractionLayer"],
+      [${CANVAS_SCOPE_ATTR}] [class*="andle"] { visibility: hidden !important; }
+    `,
+  });
+};

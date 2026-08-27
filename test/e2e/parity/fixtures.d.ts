@@ -28,6 +28,13 @@ export type ParityFixture = {
      */
     html: string;
     /**
+     * Compare painted pixels as well as geometry. Only worth setting on
+     * fixtures whose point is what things look like rather than where they
+     * are, and they must avoid text — Electron and the standalone Chromium
+     * resolve `system-ui` differently.
+     */
+    pixels?: boolean;
+    /**
      * Components to seed on disk, exactly as Scamp would write them.
      */
     components?: ReadonlyArray<{

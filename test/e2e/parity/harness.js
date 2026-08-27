@@ -3,6 +3,21 @@ import * as os from 'os';
 import * as path from 'path';
 import { chromium } from '@playwright/test';
 /**
+ * Machinery for comparing what the canvas lays out against what a browser
+ * lays out from the same source files.
+ *
+ * The browser side deliberately imports NOTHING from `src/`. An oracle
+ * that shares code with the thing it checks can agree with it while both
+ * are wrong, so the fixture carries hand-written HTML and this module only
+ * wraps it in a document with the page's CSS applied verbatim. The
+ * document shell mirrors the project's own `app/layout.tsx` so the body
+ * reset matches what the preview would use.
+ *
+ * see docs/plans/canvas-preview-parity-plan.md
+ */
+/** Mirrors `@lib/canvasStylesheet`; duplicated so the oracle imports no src. */
+const CANVAS_SCOPE_ATTR = 'data-scamp-canvas';
+/**
  * Measure every Scamp element in the document, relative to the page root
  * and normalised out of any canvas zoom.
  *
@@ -181,3 +196,109 @@ export const describeDivergences = (divergences) => divergences
     ? `  ${d.element}: missing from the canvas entirely`
     : `  ${d.element}.${d.field}: canvas ${d.canvas.toFixed(1)} vs browser ${d.browser.toFixed(1)} (off by ${d.delta.toFixed(1)}px)`)
     .join('\n');
+/** Width both images are normalised to before comparing. */
+const DIFF_WIDTH = 240;
+/** Per-channel difference below which two pixels count as equal. */
+const CHANNEL_TOLERANCE = 12;
+/**
+ * Compare two PNG screenshots inside a browser page, which avoids adding a
+ * PNG decoder dependency — the browser already has one.
+ */
+export const comparePixels = async (page, canvasPng, browserPng) => {
+    const result = await page.evaluate(async ([a, b, width, tolerance]) => {
+        const load = (dataUrl) => new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = dataUrl;
+        });
+        const [imgA, imgB] = await Promise.all([load(a), load(b)]);
+        const w = width;
+        // Same target box for both, so the canvas's zoom factor and any
+        // aspect difference are normalised away before comparing.
+        const h = Math.max(1, Math.round((w * (imgA.height / imgA.width + imgB.height / imgB.width)) / 2));
+        const draw = (img) => {
+            const c = document.createElement('canvas');
+            c.width = w;
+            c.height = h;
+            const ctx = c.getContext('2d');
+            if (!ctx)
+                throw new Error('no 2d context');
+            ctx.drawImage(img, 0, 0, w, h);
+            return ctx.getImageData(0, 0, w, h).data;
+        };
+        const da = draw(imgA);
+        const db = draw(imgB);
+        let differing = 0;
+        let maxDelta = 0;
+        const total = w * h;
+        for (let i = 0; i < da.length; i += 4) {
+            const dr = Math.abs((da[i] ?? 0) - (db[i] ?? 0));
+            const dg = Math.abs((da[i + 1] ?? 0) - (db[i + 1] ?? 0));
+            const dbl = Math.abs((da[i + 2] ?? 0) - (db[i + 2] ?? 0));
+            const delta = Math.max(dr, dg, dbl);
+            if (delta > maxDelta)
+                maxDelta = delta;
+            if (delta > tolerance)
+                differing += 1;
+        }
+        return { differingFraction: differing / total, maxChannelDelta: maxDelta };
+    }, [
+        `data:image/png;base64,${canvasPng.toString('base64')}`,
+        `data:image/png;base64,${browserPng.toString('base64')}`,
+        DIFF_WIDTH,
+        CHANNEL_TOLERANCE,
+    ]);
+    return result;
+};
+/**
+ * Render a fixture in the browser and screenshot its page root, leaving the
+ * page open so the caller can also use it to run the comparison.
+ */
+export const screenshotInBrowser = async (browser, source, viewport) => {
+    const page = await browser.newPage({ viewport });
+    const document = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+${source.themeCss}
+    </style>
+    <style>
+${source.css}
+    </style>
+  </head>
+  <body style="margin: 0; min-height: 100vh">
+${source.html}
+  </body>
+</html>`;
+    await page.setContent(document, { waitUntil: 'load' });
+    const png = await page.locator('.root').first().screenshot();
+    return { png, page };
+};
+/**
+ * Hide everything the browser has no counterpart for, before a paint
+ * comparison.
+ *
+ * `locator.screenshot()` captures whatever is painted over the element's
+ * box, so the canvas toolbar and the shortcuts panel landed in the first
+ * capture and accounted for the entire difference. Rather than enumerate
+ * app chrome — which changes — hide all of it and re-show only the frame,
+ * then take out the canvas-only affordances that live *inside* the frame
+ * and legitimately have no browser equivalent.
+ */
+export const hideCanvasChrome = async (page) => {
+    await page.addStyleTag({
+        content: `
+      body * { visibility: hidden !important; }
+      [${CANVAS_SCOPE_ATTR}], [${CANVAS_SCOPE_ATTR}] * { visibility: visible !important; }
+      [data-testid="selection-overlay"],
+      [data-testid="grid-overlay"],
+      [data-testid="overflow-indicator"],
+      /* CSS-module class names keep the source name in them, so this
+         catches the interaction layer without importing its stylesheet. */
+      [${CANVAS_SCOPE_ATTR}] [class*="nteractionLayer"],
+      [${CANVAS_SCOPE_ATTR}] [class*="andle"] { visibility: hidden !important; }
+    `,
+    });
+};
