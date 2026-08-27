@@ -7,7 +7,6 @@ import { classifyBackgroundValue } from "./backgroundValue";
 import { customPropsToStyle } from "./customProps";
 import { ROOT_ELEMENT_ID, type PropertyGroup, type ScampElement } from "./element";
 import { tagFor } from "./generateCode";
-import { formatBoxShadowShorthand, formatFilterList } from "./parsers";
 import { CUSTOM_PROP_TO_GROUP } from "./propertyGroups";
 import { formatSpaceShorthand, formatSpaceValue, isZeroSpaceTuple, isZeroSpaceValue } from "./spaceValue";
 import { resolveTokenChain } from "./resolveToken";
@@ -427,33 +426,16 @@ export const elementToStyle = (
   if (effectiveOpacity !== 1) {
     base.opacity = effectiveOpacity;
   }
-  // Box shadows are stored as a typed list; format the shorthand the
-  // same way the generator does so the canvas matches the file output.
-  // Empty list → no declaration (browser default).
-  if (!isOff('shadow') && el.boxShadows.length > 0) {
-    base.boxShadow = formatBoxShadowShorthand(el.boxShadows);
-  }
-  // Blend modes — only apply when non-default so we don't fight with
-  // browser inheritance for elements that haven't been touched.
-  if (!isOff('blend')) {
-    if (el.mixBlendMode !== 'normal') {
-      base.mixBlendMode = el.mixBlendMode;
-    }
-    if (el.backgroundBlendMode !== 'normal') {
-      base.backgroundBlendMode = el.backgroundBlendMode;
-    }
-  }
-  // Filters / backdrop-filter — same pattern as box-shadow: format
-  // the typed list so the canvas matches the file output. Empty list
-  // → no declaration (browser default).
-  if (!isOff('filters')) {
-    if (el.filters.length > 0) {
-      base.filter = formatFilterList(el.filters);
-    }
-    if (el.backdropFilters.length > 0) {
-      base.backdropFilter = formatFilterList(el.backdropFilters);
-    }
-  }
+  // Box shadows, blend modes and filters are NOT written here. They are
+  // pure paint, the generator already emits them, and the injected
+  // stylesheet carries that text verbatim — so an inline copy could only
+  // ever agree or drift. Removing it also lets a breakpoint's shadow win,
+  // which an inline value would have masked.
+  //
+  // Verified by the parity harness on painted pixels, not just geometry:
+  // these produce identical boxes and are invisible to a geometry check.
+  // see docs/notes/canvas-inline-layer-peel.md
+
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually
   // renders on the canvas. Anything in customProperties is, by
