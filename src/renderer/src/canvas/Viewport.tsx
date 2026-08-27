@@ -18,6 +18,8 @@ import {
 } from '@shared/types';
 import { overflowExtent, settleExtent } from '@lib/canvasOverflow';
 import { ElementRenderer } from './ElementRenderer';
+import { buildCanvasStylesheet, CANVAS_SCOPE_ATTR } from '@lib/canvasStylesheet';
+import { generateCode } from '@lib/generateCode';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import { CanvasBoundaryOverlay } from './CanvasBoundaryOverlay';
 import styles from './Viewport.module.css';
@@ -467,6 +469,7 @@ export const Viewport = ({
         ref={frameRef}
         className={styles.frame}
         data-testid="canvas-frame"
+        {...{ [CANVAS_SCOPE_ATTR]: '' }}
         data-canvas-width={frameW}
         data-canvas-scale={scale}
         data-cursor={
@@ -505,6 +508,7 @@ export const Viewport = ({
         }}
       >
         <CanvasKeyframes />
+        <CanvasPageStylesheet />
         <ElementRenderer elementId={rootElementId} />
         <CanvasInteractionLayer frameRef={frameRef} scale={scale} />
         {/* Component-editor artboard handles: `onResize` is only supplied in
@@ -568,6 +572,43 @@ export const Viewport = ({
  * Re-renders only when `pageKeyframesBlocks` changes; otherwise the
  * `<style>` tag's textContent stays stable and doesn't churn.
  */
+/**
+ * Mounts the page's own generated CSS inside the canvas frame.
+ *
+ * The canvas translates the element model into inline styles, which cannot
+ * express `::before` / `::after` or any hand-written selector — those
+ * rendered in the preview and not here. Loading the same stylesheet the
+ * generator writes to disk supplies exactly what the translation can't.
+ * Inline styles still win on the properties they set, so this only adds.
+ *
+ * see docs/plans/canvas-preview-parity-plan.md
+ */
+const CanvasPageStylesheet = (): JSX.Element | null => {
+  const elements = useCanvasStore((s) => s.elements);
+  const rootElementId = useCanvasStore((s) => s.rootElementId);
+  const breakpoints = useCanvasStore((s) => s.breakpoints);
+  const customMediaBlocks = useCanvasStore((s) => s.pageCustomMediaBlocks);
+  const pageKeyframesBlocks = useCanvasStore((s) => s.pageKeyframesBlocks);
+
+  const sheet = useMemo(() => {
+    // `pageName` only names the generated function and the CSS-module
+    // import; neither reaches the CSS half, so a placeholder is fine.
+    const { css } = generateCode({
+      elements,
+      rootId: rootElementId,
+      pageName: 'canvas',
+      breakpoints,
+      customMediaBlocks,
+      pageKeyframesBlocks,
+    });
+    return buildCanvasStylesheet(css);
+  }, [elements, rootElementId, breakpoints, customMediaBlocks, pageKeyframesBlocks]);
+
+  if (sheet.length === 0) return null;
+  return <style>{sheet}</style>;
+};
+
+
 const CanvasKeyframes = (): JSX.Element | null => {
   const keyframes = useCanvasStore((s) => s.pageKeyframesBlocks);
   if (keyframes.length === 0) return null;

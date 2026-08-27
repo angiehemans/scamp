@@ -42,17 +42,14 @@ be set up the way the real preview is**, or the harness invents bugs.
 
 A fixture with `knownGap` is asserted to FAIL, via `test.fail()`. The
 suite stays green while the divergence is recorded, and the moment
-someone fixes it the test flips to failing and has to be updated. One is
-recorded today:
+someone fixes it the test flips to failing and has to be updated.
 
-| Fixture | Gap |
-|---|---|
-| `pseudo-element-before-content` | `customSelectorBlocks` are never applied to the canvas DOM, so `::before` / `::after` and any hand-written selector are invisible there |
-
-The other two the harness found on its first run — the `align-items`
-default and the grid `gap` shorthand — are fixed. See
-[align-items-default.md](align-items-default.md) and
-[grid-gap-shorthand.md](grid-gap-shorthand.md).
+**None are recorded today.** All three the harness found on its first run
+are fixed: the `align-items` default
+([note](align-items-default.md)), the grid `gap` shorthand
+([note](grid-gap-shorthand.md)), and `::before` / custom selectors, which
+closed when the canvas started loading the page's own stylesheet
+([note](canvas-injected-stylesheet.md)).
 
 ## Fixtures must not depend on text metrics
 

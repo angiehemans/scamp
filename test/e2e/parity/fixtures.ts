@@ -269,8 +269,6 @@ export const PARITY_FIXTURES: ReadonlyArray<ParityFixture> = [
   {
     name: 'pseudo-element-before-content',
     why: 'A `::before` badge, which agent.md actively recommends. It occupies real layout space in the browser.',
-    knownGap:
-      'The canvas never renders customSelectorBlocks — `::before` / `::after` and any hand-written selector are parsed and written back to the file but never applied to the canvas DOM.',
     tsx: page(`    <div data-scamp-id="root" className={styles.root}>
       <div data-scamp-id="badge_f001" className={styles.badge_f001} />
     </div>`),

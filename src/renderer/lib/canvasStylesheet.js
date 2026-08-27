@@ -1,0 +1,80 @@
+/**
+ * The page's own CSS, injected into the canvas.
+ *
+ * The canvas has always re-derived styles from the element model into
+ * inline styles, which means every property is a chance to translate
+ * wrongly — and some CSS has no inline form at all, so it never rendered:
+ * `::before` / `::after`, `:nth-child`, and any hand-written selector.
+ *
+ * Rather than teach the translator more tricks, the canvas now also loads
+ * the exact stylesheet the generator writes to disk. Inline styles still
+ * win on the properties they set, so this is additive: it supplies only
+ * what the translation could never express. Later phases move properties
+ * out of the inline layer and let these rules take over.
+ *
+ * see docs/plans/canvas-preview-parity-plan.md
+ */
+/** Attribute marking the canvas frame, used as the `@scope` root. */
+export const CANVAS_SCOPE_ATTR = 'data-scamp-canvas';
+/** The selector the page's rules are scoped to. */
+export const CANVAS_SCOPE_SELECTOR = `[${CANVAS_SCOPE_ATTR}]`;
+/**
+ * Remove top-level `@keyframes` blocks.
+ *
+ * The canvas already injects keyframes separately (`CanvasKeyframes`), and
+ * an at-rule that isn't a style rule has no defined meaning inside
+ * `@scope` — a browser that rejects it could drop the whole scoped block,
+ * taking every page rule with it. Cheaper to leave them where they work.
+ */
+export const stripKeyframes = (css) => {
+    let out = '';
+    let i = 0;
+    while (i < css.length) {
+        const match = /@(?:-[a-z]+-)?keyframes\b/iy;
+        match.lastIndex = i;
+        if (!match.test(css)) {
+            out += css[i] ?? '';
+            i += 1;
+            continue;
+        }
+        // Skip to the block's opening brace, then past its matching close.
+        let j = css.indexOf('{', i);
+        if (j === -1)
+            break;
+        let depth = 0;
+        for (; j < css.length; j += 1) {
+            const c = css[j] ?? '';
+            if (c === '{')
+                depth += 1;
+            else if (c === '}') {
+                depth -= 1;
+                if (depth === 0) {
+                    j += 1;
+                    break;
+                }
+            }
+        }
+        i = j;
+    }
+    return out;
+};
+/**
+ * Wrap a page's CSS so it applies only inside the canvas frame.
+ *
+ * `@scope` rather than a descendant prefix (`#canvas .rect_a1b2`) because
+ * a prefix changes specificity, and a rule that outranks its counterpart
+ * in the preview is a new way to diverge. Note `@scope` is not entirely
+ * cascade-neutral either — scope proximity is considered before source
+ * order, so a scoped rule beats an unscoped one of equal specificity
+ * regardless of position. That only matters for rules outside this sheet
+ * targeting the same page classes, which nothing does.
+ *
+ * Returns an empty string when there's nothing to inject, so callers can
+ * skip mounting a `<style>` at all.
+ */
+export const buildCanvasStylesheet = (css, scopeSelector = CANVAS_SCOPE_SELECTOR) => {
+    const body = stripKeyframes(css).trim();
+    if (body.length === 0)
+        return '';
+    return `@scope (${scopeSelector}) {\n${body}\n}`;
+};

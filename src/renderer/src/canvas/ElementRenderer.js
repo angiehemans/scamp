@@ -107,7 +107,10 @@ renderSlot) => {
         // browser-default colour, font and border, while the identical element
         // in the component editor gets `all: unset` — so an instance renders
         // system-button grey where the definition renders the designed styles.
-        className: styles.element,
+        // The page's own class goes on the node too, so the generated
+        // stylesheet injected into the frame matches it. see
+        // docs/plans/canvas-preview-parity-plan.md
+        className: `${styles.element} ${className}`,
         style,
     };
     // Forward agent-written attributes through the same per-tag deny
@@ -630,7 +633,7 @@ export const ElementRenderer = ({ elementId }) => {
         ...(previewAnimation !== null
             ? { key: `preview-${previewAnimation.key}` }
             : {}),
-        className: `${styles.element} ${isSelected ? styles.selected : ''} ${isText && isEditing ? styles.textEditing : ''} ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
+        className: `${styles.element} ${classNameFor(element)} ${isSelected ? styles.selected : ''} ${isText && isEditing ? styles.textEditing : ''} ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
         style,
         ref: elementRef,
     };
