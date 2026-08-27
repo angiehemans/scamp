@@ -555,6 +555,55 @@ all built around flex as the default container model.
 
 When in doubt: \`display: flex\` plus \`flex-direction\` plus \`gap\`.
 
+### Decorative layers must be \`position: absolute\`
+
+A glow, gradient wash, blurred blob, or any other purely visual layer
+inside a flex container **must** be taken out of flow:
+
+\`\`\`css
+/* ❌ wrong — an in-flow flex item. It is invisible, but it still
+   occupies main-axis space and shoves the real content sideways. */
+.hero_glow {
+  width: 980px;
+  height: 820px;
+  background: radial-gradient(circle, rgba(160,140,255,.2), transparent 70%);
+}
+
+/* ✅ right — painted, but out of flow */
+.hero_glow {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 980px;
+  height: 820px;
+  background: radial-gradient(circle, rgba(160,140,255,.2), transparent 70%);
+  pointer-events: none;
+}
+\`\`\`
+
+The parent needs \`position: relative\` for the layer to anchor to it.
+
+\`pointer-events: none\` stops it swallowing clicks, but it does **not**
+remove it from layout — only \`position: absolute\` (or \`fixed\`) does.
+This is the single most common way an agent-built hero ends up with its
+content squashed and pushed to one side.
+
+### A fixed-width sibling competes with a \`width: 100%\` one
+
+In a flex row, \`width: 100%\` is a *starting size*, not a guarantee. A
+sibling with a fixed width takes its share first and both shrink to fit:
+
+\`\`\`css
+.row   { display: flex; }
+.fixed { width: 980px; }        /* takes ~half the row */
+.fluid { width: 100%; max-width: 1160px; }   /* gets what's left */
+\`\`\`
+
+If you want the fluid child centred in the container, don't put a sized
+sibling in flow next to it — make the sibling absolute, or wrap the
+content so the decorative element is not a flex item.
+
 ### Other CSS rules
 
 - One property per line.
@@ -1621,6 +1670,55 @@ all built around flex as the default container model.
   layouts still render but expose fewer controls to the user.
 
 When in doubt: \`display: flex\` plus \`flex-direction\` plus \`gap\`.
+
+### Decorative layers must be \`position: absolute\`
+
+A glow, gradient wash, blurred blob, or any other purely visual layer
+inside a flex container **must** be taken out of flow:
+
+\`\`\`css
+/* ❌ wrong — an in-flow flex item. It is invisible, but it still
+   occupies main-axis space and shoves the real content sideways. */
+.hero_glow {
+  width: 980px;
+  height: 820px;
+  background: radial-gradient(circle, rgba(160,140,255,.2), transparent 70%);
+}
+
+/* ✅ right — painted, but out of flow */
+.hero_glow {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 980px;
+  height: 820px;
+  background: radial-gradient(circle, rgba(160,140,255,.2), transparent 70%);
+  pointer-events: none;
+}
+\`\`\`
+
+The parent needs \`position: relative\` for the layer to anchor to it.
+
+\`pointer-events: none\` stops it swallowing clicks, but it does **not**
+remove it from layout — only \`position: absolute\` (or \`fixed\`) does.
+This is the single most common way an agent-built hero ends up with its
+content squashed and pushed to one side.
+
+### A fixed-width sibling competes with a \`width: 100%\` one
+
+In a flex row, \`width: 100%\` is a *starting size*, not a guarantee. A
+sibling with a fixed width takes its share first and both shrink to fit:
+
+\`\`\`css
+.row   { display: flex; }
+.fixed { width: 980px; }        /* takes ~half the row */
+.fluid { width: 100%; max-width: 1160px; }   /* gets what's left */
+\`\`\`
+
+If you want the fluid child centred in the container, don't put a sized
+sibling in flow next to it — make the sibling absolute, or wrap the
+content so the decorative element is not a flex item.
 
 ### Other CSS rules
 
