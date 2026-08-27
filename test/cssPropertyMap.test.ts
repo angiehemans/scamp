@@ -79,12 +79,23 @@ describe('cssToScampProperty', () => {
   });
 
   describe('gap', () => {
-    it('parses px', () => {
-      expect(apply('gap', '16px')).toEqual({ gap: 16 });
+    // The shorthand sets both axes in CSS, so it feeds the grid fields as
+    // well as the flex one. A grid written with `gap` used to parse to no
+    // gap at all, and the generator then dropped it from the file.
+    // see docs/notes/grid-gap-shorthand.md
+    it('parses px onto every gap field', () => {
+      expect(apply('gap', '16px')).toEqual({
+        gap: 16,
+        columnGap: 16,
+        rowGap: 16,
+      });
     });
     it('accepts var()-based values as a token-form SpaceValue', () => {
+      const token = { kind: 'token', ref: 'var(--space-3)' };
       expect(apply('gap', 'var(--space-3)')).toEqual({
-        gap: { kind: 'token', ref: 'var(--space-3)' },
+        gap: token,
+        columnGap: token,
+        rowGap: token,
       });
     });
     it('still refuses unsupported units (rem, %, etc.)', () => {

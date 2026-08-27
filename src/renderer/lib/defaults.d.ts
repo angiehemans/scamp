@@ -12,7 +12,7 @@ export declare const DEFAULT_RECT_STYLES: {
     display: "none";
     flexDirection: "row";
     gap: number;
-    alignItems: "flex-start";
+    alignItems: "stretch";
     justifyContent: "flex-start";
     gridTemplateColumns: string;
     gridTemplateRows: string;
@@ -81,7 +81,7 @@ export declare const DEFAULT_ROOT_STYLES: {
     display: "none";
     flexDirection: "row";
     gap: number;
-    alignItems: "flex-start";
+    alignItems: "stretch";
     justifyContent: "flex-start";
     gridTemplateColumns: string;
     gridTemplateRows: string;
@@ -150,7 +150,7 @@ export declare const DEFAULT_COMPONENT_ROOT_STYLES: {
     display: "none";
     flexDirection: "row";
     gap: number;
-    alignItems: "flex-start";
+    alignItems: "stretch";
     justifyContent: "flex-start";
     gridTemplateColumns: string;
     gridTemplateRows: string;

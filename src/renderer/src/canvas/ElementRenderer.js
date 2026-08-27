@@ -2,6 +2,7 @@ import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 import { createElement, useEffect, useRef, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor, tagFor } from '@lib/generateCode';
+import { instanceClassPrefix } from '@lib/generateHtml';
 import { CANVAS_SKIP_ATTRS_BY_TAG, canvasRenderTag, elementToStyle, } from '@lib/elementToStyle';
 import { DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { instanceStretchStyle } from '@lib/instanceStretch';
@@ -39,6 +40,14 @@ const renderComponentSubtree = (element, elementsMap, parentDisplay, parentDirec
  * page would write into each other's overrides.
  */
 instanceId, 
+/**
+ * The owning instance's CSS class (`inst_a024`) — which is NOT the same
+ * string as `instanceId` above, that being the raw canvas id (`a024`).
+ * Used to prefix the component's class names so they match the prefixed
+ * copy of the component's rules in the injected stylesheet.
+ * see docs/notes/canvas-injected-stylesheet.md
+ */
+instanceClass, 
 /**
  * The current edit target, if any. When the recursion reaches
  * a text element whose `prop` matches AND whose owning instance
@@ -107,7 +116,13 @@ renderSlot) => {
         // browser-default colour, font and border, while the identical element
         // in the component editor gets `all: unset` — so an instance renders
         // system-button grey where the definition renders the designed styles.
-        className: styles.element,
+        // Prefixed by the owning instance, not bare. Inside an instance these
+        // are the COMPONENT's class names, and a bare `root` would be matched
+        // by the PAGE's `.root` rule in the injected stylesheet — CSS Modules
+        // keep the two apart on disk and the prefix does it here. The sheet
+        // carries a matching prefixed copy of the component's rules.
+        // see docs/notes/canvas-injected-stylesheet.md
+        className: `${styles.element} ${instanceClassPrefix('', instanceClass)}${className}`,
         style,
     };
     // Forward agent-written attributes through the same per-tag deny
@@ -265,7 +280,7 @@ renderSlot) => {
         const child = elementsMap[childId];
         if (!child)
             return null;
-        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, editingProp, onCommitProp, onChangeEditingProp, instanceSelected, renderSlot);
+        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, instanceClass, editingProp, onCommitProp, onChangeEditingProp, instanceSelected, renderSlot);
     })
         .filter((c) => c !== null);
     return createElement(tag, { ...props, key: element.id }, children);
@@ -548,7 +563,7 @@ export const ElementRenderer = ({ elementId }) => {
         const inner = root
             ? renderComponentSubtree(root, componentTreeForInstance.elements, 
             // Pass page-side layout context so flex/grid still applies.
-            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected, renderSlot)
+            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, classNameFor(element), editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected, renderSlot)
             : null;
         if (isEmptyComponent) {
             return (_jsxs("div", { ...wrapperProps, style: {
@@ -630,7 +645,7 @@ export const ElementRenderer = ({ elementId }) => {
         ...(previewAnimation !== null
             ? { key: `preview-${previewAnimation.key}` }
             : {}),
-        className: `${styles.element} ${isSelected ? styles.selected : ''} ${isText && isEditing ? styles.textEditing : ''} ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
+        className: `${styles.element} ${classNameFor(element)} ${isSelected ? styles.selected : ''} ${isText && isEditing ? styles.textEditing : ''} ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
         style,
         ref: elementRef,
     };

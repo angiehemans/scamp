@@ -6,6 +6,10 @@ import { DEFAULT_BODY_FONT_FAMILY, } from '@shared/agentMd';
 import { MAX_COMPONENT_CANVAS_DIM, MIN_COMPONENT_CANVAS_DIM, } from '@shared/types';
 import { overflowExtent, settleExtent } from '@lib/canvasOverflow';
 import { ElementRenderer } from './ElementRenderer';
+import { buildCanvasStylesheet, CANVAS_SCOPE_ATTR } from '@lib/canvasStylesheet';
+import { generateCode } from '@lib/generateCode';
+import { collectExpandedInstances } from '@lib/generateHtml';
+import { assemblePageCss } from '@lib/htmlExportCss';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import { CanvasBoundaryOverlay } from './CanvasBoundaryOverlay';
 import styles from './Viewport.module.css';
@@ -350,7 +354,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
     return (_jsxs("div", { className: styles.frameShell, style: {
             width: shellWidth,
             height: shellHeight,
-        }, children: [_jsxs("div", { ref: frameRef, className: styles.frame, "data-testid": "canvas-frame", "data-canvas-width": frameW, "data-canvas-scale": scale, "data-cursor": activeTool === 'rectangle' || activeTool === 'image'
+        }, children: [_jsxs("div", { ref: frameRef, className: styles.frame, "data-testid": "canvas-frame", [CANVAS_SCOPE_ATTR]: '', "data-canvas-width": frameW, "data-canvas-scale": scale, "data-cursor": activeTool === 'rectangle' || activeTool === 'image'
                     ? 'crosshair'
                     : activeTool === 'text'
                         ? 'text'
@@ -370,6 +374,11 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
                         ? { height: `${canvasHeight}px` }
                         : { minHeight: `${canvasHeight ?? EMPTY_FRAME_MIN_HEIGHT}px` }),
                     overflow: clipContent ? 'hidden' : undefined,
+                    // Makes the frame the container width-based `@media` blocks are
+                    // rewritten to query, so breakpoints resolve against the artboard
+                    // rather than the app window.
+                    // see docs/notes/canvas-injected-stylesheet.md
+                    containerType: 'inline-size',
                     transform: `scale(${scale})`,
                     transformOrigin: 'top left',
                     // Mirror the project's `body { font-family: var(--font-sans) }`
@@ -380,7 +389,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
                     // macOS, etc.) and visually disagrees with the preview.
                     fontFamily: themeFontFamily,
                     position: 'relative',
-                }, children: [_jsx(CanvasKeyframes, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale }), onResize && (_jsxs(_Fragment, { children: [_jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTL}`, onPointerDown: makeResizePointerDown('tl'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (top-left)", title: "Drag to resize \u00B7 double-click to fit content" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTR}`, onPointerDown: makeResizePointerDown('tr'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (top-right)", title: "Drag to resize \u00B7 double-click to fit content" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBL}`, onPointerDown: makeResizePointerDown('bl'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (bottom-left)", title: "Drag to resize \u00B7 double-click to fit content" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBR}`, onPointerDown: makeResizePointerDown('br'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (bottom-right)", title: "Drag to resize \u00B7 double-click to fit content" })] }))] }), _jsx(CanvasBoundaryOverlay, { scale: scale, boundaryWidth: frameW, boundaryHeight: reservedHeight, overflowX: overflowX, overflowY: overflowY, naturalHeight: content.bottom, clip: clipContent, fixedHeight: heightIsFixed })] }));
+                }, children: [_jsx(CanvasKeyframes, {}), _jsx(CanvasPageStylesheet, {}), _jsx(ElementRenderer, { elementId: rootElementId }), _jsx(CanvasInteractionLayer, { frameRef: frameRef, scale: scale }), onResize && (_jsxs(_Fragment, { children: [_jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTL}`, onPointerDown: makeResizePointerDown('tl'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (top-left)", title: "Drag to resize \u00B7 double-click to fit content" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleTR}`, onPointerDown: makeResizePointerDown('tr'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (top-right)", title: "Drag to resize \u00B7 double-click to fit content" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBL}`, onPointerDown: makeResizePointerDown('bl'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (bottom-left)", title: "Drag to resize \u00B7 double-click to fit content" }), _jsx("div", { className: `${styles.canvasResizeHandle} ${styles.canvasResizeHandleBR}`, onPointerDown: makeResizePointerDown('br'), onDoubleClick: handleFitToContent, "aria-label": "Resize canvas (bottom-right)", title: "Drag to resize \u00B7 double-click to fit content" })] }))] }), _jsx(CanvasBoundaryOverlay, { scale: scale, boundaryWidth: frameW, boundaryHeight: reservedHeight, overflowX: overflowX, overflowY: overflowY, naturalHeight: content.bottom, clip: clipContent, fixedHeight: heightIsFixed })] }));
 };
 /**
  * Mounts a `<style>` element inside the canvas frame containing the
@@ -392,6 +401,68 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
  * Re-renders only when `pageKeyframesBlocks` changes; otherwise the
  * `<style>` tag's textContent stays stable and doesn't churn.
  */
+/**
+ * Mounts the page's own generated CSS inside the canvas frame.
+ *
+ * The canvas translates the element model into inline styles, which cannot
+ * express `::before` / `::after` or any hand-written selector — those
+ * rendered in the preview and not here. Loading the same stylesheet the
+ * generator writes to disk supplies exactly what the translation can't.
+ * Inline styles still win on the properties they set, so this only adds.
+ *
+ * see docs/plans/canvas-preview-parity-plan.md
+ */
+const CanvasPageStylesheet = () => {
+    const elements = useCanvasStore((s) => s.elements);
+    const rootElementId = useCanvasStore((s) => s.rootElementId);
+    const breakpoints = useCanvasStore((s) => s.breakpoints);
+    const customMediaBlocks = useCanvasStore((s) => s.pageCustomMediaBlocks);
+    const pageKeyframesBlocks = useCanvasStore((s) => s.pageKeyframesBlocks);
+    const componentTrees = useCanvasStore((s) => s.componentTrees);
+    const sheet = useMemo(() => {
+        // `pageName` only names the generated function and the CSS-module
+        // import; neither reaches the CSS half, so a placeholder is fine.
+        const { css } = generateCode({
+            elements,
+            rootId: rootElementId,
+            pageName: 'canvas',
+            breakpoints,
+            customMediaBlocks,
+            pageKeyframesBlocks,
+        });
+        // Each instance gets its own prefixed copy of its component's rules,
+        // which is what keeps a component's `.root` off the page's and off
+        // every other instance's — the job CSS Modules do on disk. Same
+        // transform the HTML exporter uses, so the two can't disagree about
+        // what a prefix looks like.
+        const instances = collectExpandedInstances(elements, rootElementId, componentTrees).map((instance) => {
+            const tree = componentTrees[instance.componentName];
+            if (!tree)
+                return { prefix: instance.prefix, css: '' };
+            return {
+                prefix: instance.prefix,
+                css: generateCode({
+                    elements: tree.elements,
+                    rootId: tree.rootId,
+                    pageName: instance.componentName,
+                    breakpoints,
+                    isComponent: true,
+                }).css,
+            };
+        });
+        return buildCanvasStylesheet(assemblePageCss(css, instances));
+    }, [
+        elements,
+        rootElementId,
+        breakpoints,
+        customMediaBlocks,
+        pageKeyframesBlocks,
+        componentTrees,
+    ]);
+    if (sheet.length === 0)
+        return null;
+    return _jsx("style", { children: sheet });
+};
 const CanvasKeyframes = () => {
     const keyframes = useCanvasStore((s) => s.pageKeyframesBlocks);
     if (keyframes.length === 0)

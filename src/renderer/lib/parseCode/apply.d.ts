@@ -30,4 +30,15 @@ export declare const makeBaseline: (raw: RawElement, isComponent?: boolean) => S
  * Position properties (`position`, `left`, `top`) are handled inline since
  * they affect element fields that aren't in cssToScampProperty.
  */
-export declare const applyDeclarations: (baseline: ScampElement, decls: RawDeclaration[]) => ScampElement;
+export declare const applyDeclarations: (baseline: ScampElement, decls: RawDeclaration[], 
+/**
+ * True when this element's parent is a flex/grid container.
+ *
+ * Decides whether an explicit `position: absolute` carries information.
+ * Scamp auto-emits `absolute` for a child of a NON-layout parent, so there
+ * it can stay the `auto` sentinel and round-trip text-stably. Inside a
+ * flex/grid parent `auto` means "in flow", so `absolute` must be pinned —
+ * otherwise it is dropped on parse and deleted from the user's file on the
+ * next save. see docs/notes/parse-position-absolute-in-flex.md
+ */
+parentIsLayoutContainer?: boolean) => ScampElement;

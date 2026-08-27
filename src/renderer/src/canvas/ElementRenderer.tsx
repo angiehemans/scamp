@@ -11,6 +11,7 @@ import {
 import { useCanvasStore } from '@store/canvasSlice';
 import { type ScampElement } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
+import { instanceClassPrefix } from '@lib/generateHtml';
 import {
   CANVAS_SKIP_ATTRS_BY_TAG,
   canvasRenderTag,
@@ -71,6 +72,14 @@ const renderComponentSubtree = (
    * page would write into each other's overrides.
    */
   instanceId: string,
+  /**
+   * The owning instance's CSS class (`inst_a024`) — which is NOT the same
+   * string as `instanceId` above, that being the raw canvas id (`a024`).
+   * Used to prefix the component's class names so they match the prefixed
+   * copy of the component's rules in the injected stylesheet.
+   * see docs/notes/canvas-injected-stylesheet.md
+   */
+  instanceClass: string,
   /**
    * The current edit target, if any. When the recursion reaches
    * a text element whose `prop` matches AND whose owning instance
@@ -158,7 +167,13 @@ const renderComponentSubtree = (
     // browser-default colour, font and border, while the identical element
     // in the component editor gets `all: unset` — so an instance renders
     // system-button grey where the definition renders the designed styles.
-    className: styles.element,
+    // Prefixed by the owning instance, not bare. Inside an instance these
+    // are the COMPONENT's class names, and a bare `root` would be matched
+    // by the PAGE's `.root` rule in the injected stylesheet — CSS Modules
+    // keep the two apart on disk and the prefix does it here. The sheet
+    // carries a matching prefixed copy of the component's rules.
+    // see docs/notes/canvas-injected-stylesheet.md
+    className: `${styles.element} ${instanceClassPrefix('', instanceClass)}${className}`,
     style,
   };
   // Forward agent-written attributes through the same per-tag deny
@@ -352,6 +367,7 @@ const renderComponentSubtree = (
         projectFormat,
         projectPath,
         instanceId,
+        instanceClass,
         editingProp,
         onCommitProp,
         onChangeEditingProp,
@@ -702,6 +718,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
           projectFormat,
           projectPath,
           element.id,
+          classNameFor(element),
           editingPropForThis,
           handleCommitProp,
           handleChangeEditingProp,
@@ -813,9 +830,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     ...(previewAnimation !== null
       ? { key: `preview-${previewAnimation.key}` }
       : {}),
-    className: `${styles.element} ${isSelected ? styles.selected : ''} ${
-      isText && isEditing ? styles.textEditing : ''
-    } ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
+    className: `${styles.element} ${classNameFor(element)} ${
+      isSelected ? styles.selected : ''
+    } ${isText && isEditing ? styles.textEditing : ''} ${
+      element.visibilityMode === 'none' ? styles.hiddenNone : ''
+    }`.trim(),
     style,
     ref: elementRef,
   };

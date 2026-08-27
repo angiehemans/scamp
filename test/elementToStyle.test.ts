@@ -238,17 +238,20 @@ describe('elementToStyle — root vs instance-inner', () => {
 });
 
 describe('elementToStyle — theme token resolution', () => {
-  it('resolves a var(--token) font-family against the theme tokens', () => {
-    const tokens: ReadonlyArray<ThemeToken> = [
-      { name: '--font-sans', value: 'Inter, sans-serif' },
-    ];
-    const el = makeEl({ type: 'text', text: 'hi', fontFamily: 'var(--font-sans)' });
-    expect(style(el, { tokens }).fontFamily).toBe('Inter, sans-serif');
-  });
+  // The two font-family token tests that lived here are gone with the
+  // typography peel: the canvas no longer resolves `var(--font-sans)`
+  // itself, the browser resolves it natively in the injected stylesheet.
+  // That path is covered end to end by the `typography` parity fixture,
+  // which asserts computed `font-family` matches the browser's.
+  // see docs/notes/canvas-inline-layer-peel.md
 
-  it('leaves an unknown token as the raw value (browser falls back)', () => {
-    const el = makeEl({ type: 'text', text: 'hi', fontFamily: 'var(--missing)' });
-    expect(style(el, { tokens: [] }).fontFamily).toBe('var(--missing)');
+  it('still resolves a colour token, which the canvas does resolve', () => {
+    const el = makeEl({ backgroundColor: 'var(--brand)' });
+    expect(
+      style(el, {
+        tokens: [{ name: '--brand', value: '#ff0000' }] as never,
+      }).backgroundColor
+    ).toBe('#ff0000');
   });
 
   it('follows a semantic → primitive → hex chain for a colour property', () => {
@@ -274,18 +277,22 @@ describe('elementToStyle — typed text property wins over customProperties echo
   const makeText = (overrides: Partial<ScampElement> = {}): ScampElement =>
     makeEl({ type: 'text', text: 'Hello', ...overrides });
 
-  it('applies the typed fontWeight, ignoring a stale customProperties echo', () => {
-    // The canvas must not render a leftover `font-weight` echo (e.g. a
-    // keyword the parser could not type) once the typed field is set —
-    // this was the font-weight-not-updating bug.
+  it('writes no font-weight inline, and still drops the stale echo', () => {
+    // Typography now comes from the injected stylesheet, so the typed
+    // value is deliberately absent here. The echo must STILL be filtered —
+    // an inline `font-weight: bold` would beat the stylesheet and
+    // reintroduce the font-weight-not-updating bug from the other side.
+    // see docs/notes/canvas-inline-layer-peel.md
     const el = makeText({
       fontWeight: 700,
       customProperties: { 'font-weight': 'bold' },
     });
-    expect(style(el).fontWeight).toBe(700);
+    expect(style(el).fontWeight).toBeUndefined();
   });
 
   it('drops every typed typography echo when its field is set', () => {
+    // None of these may reach the inline layer: the typed value belongs to
+    // the stylesheet now, and the echo would outrank it if written here.
     const el = makeText({
       fontSize: '24px',
       fontFamily: 'Inter',
@@ -303,12 +310,12 @@ describe('elementToStyle — typed text property wins over customProperties echo
       },
     });
     const s = style(el);
-    expect(s.fontSize).toBe('24px');
-    expect(s.fontFamily).toBe('Inter');
-    expect(s.color).toBe('#111111');
-    expect(s.lineHeight).toBe('1.5');
-    expect(s.letterSpacing).toBe('0.02em');
-    expect(s.textAlign).toBe('center');
+    expect(s.fontSize).toBeUndefined();
+    expect(s.fontFamily).toBeUndefined();
+    expect(s.color).toBeUndefined();
+    expect(s.lineHeight).toBeUndefined();
+    expect(s.letterSpacing).toBeUndefined();
+    expect(s.textAlign).toBeUndefined();
   });
 
   it('still renders a customProperties font-weight echo when no typed weight is set', () => {
@@ -340,5 +347,41 @@ describe('elementToStyle — typed text property wins over customProperties echo
       customProperties: { 'font-weight': 'bold' },
     });
     expect(style(el).fontWeight).toBe('bold');
+  });
+});
+
+describe('elementToStyle — background values', () => {
+  it('puts a plain colour on background-color', () => {
+    const s = style(makeEl({ backgroundColor: '#ff0000' }));
+    expect(s.backgroundColor).toBe('#ff0000');
+    expect(s.backgroundImage).toBeUndefined();
+  });
+
+  it('puts a gradient on background-image, where it is actually valid', () => {
+    // Regression: the canvas put every value on `background-color`, and
+    // `background-color: radial-gradient(…)` is invalid CSS — the browser
+    // drops it, so the glow rendered in the preview and not on the canvas.
+    // see docs/notes/canvas-gradient-backgrounds.md
+    const gradient = 'radial-gradient(circle, rgba(160,140,255,.2) 0%, rgba(7,6,15,0) 70%)';
+    const s = style(makeEl({ backgroundColor: gradient }));
+    expect(s.backgroundImage).toBe(gradient);
+    expect(s.backgroundColor).toBeUndefined();
+  });
+
+  it('keeps a positioned image value on the shorthand', () => {
+    const s = style(makeEl({ backgroundColor: 'url(/a.png) center / cover' }));
+    expect(s.background).toBe('url(/a.png) center / cover');
+  });
+
+  it('emits no background at all when the group is toggled off', () => {
+    const s = style(
+      makeEl({
+        backgroundColor: 'linear-gradient(red, blue)',
+        toggledOffGroups: ['background'],
+      })
+    );
+    expect(s.backgroundImage).toBeUndefined();
+    expect(s.backgroundColor).toBeUndefined();
+    expect(s.background).toBeUndefined();
   });
 });

@@ -3,10 +3,10 @@
 // testable. `rootMinHeight` is now a required param (was defaulted to
 // the UI-side EMPTY_FRAME_MIN_HEIGHT) to keep this module free of canvas
 // component deps.
+import { classifyBackgroundValue } from "./backgroundValue";
 import { customPropsToStyle } from "./customProps";
 import { ROOT_ELEMENT_ID, type PropertyGroup, type ScampElement } from "./element";
 import { tagFor } from "./generateCode";
-import { formatBoxShadowShorthand, formatFilterList } from "./parsers";
 import { CUSTOM_PROP_TO_GROUP } from "./propertyGroups";
 import { formatSpaceShorthand, formatSpaceValue, isZeroSpaceTuple, isZeroSpaceValue } from "./spaceValue";
 import { resolveTokenChain } from "./resolveToken";
@@ -96,6 +96,28 @@ const TYPED_TEXT_CSS_PROPS: Record<string, (el: ScampElement) => boolean> = {
   'text-align': (el) => el.textAlign !== undefined,
   'line-height': (el) => el.lineHeight !== undefined,
   'letter-spacing': (el) => el.letterSpacing !== undefined,
+};
+
+
+/**
+ * Route a `background` value to the longhand that can actually hold it.
+ * Colours resolve through the colour token chain (unknown → `transparent`,
+ * the sentinel the panel relies on); gradients and images resolve through
+ * the non-colour chain, which keeps the raw value when a token is missing
+ * rather than blanking the whole gradient.
+ */
+const backgroundStyle = (
+  value: string,
+  off: boolean,
+  tokens: ReadonlyArray<ThemeToken>
+): CSSProperties => {
+  if (off) return {};
+  const kind = classifyBackgroundValue(value);
+  if (kind === 'color') {
+    return { backgroundColor: resolveTokenColor(value, tokens) };
+  }
+  const resolved = resolveTokenValue(value, tokens);
+  return kind === 'image' ? { backgroundImage: resolved } : { background: resolved };
 };
 
 
@@ -286,24 +308,25 @@ export const elementToStyle = (
     // with `background-image` / `background-size` longhands that arrive
     // via customProperties — mixing shorthand + longhand in one inline
     // style makes React warn and can wipe the image on the canvas.
-    backgroundColor: isOff('background')
-      ? undefined
-      : resolveTokenColor(el.backgroundColor, tokens),
-    borderRadius: formatSpaceShorthand(el.borderRadius),
+    //
+    // Which longhand depends on the value. The generator writes the
+    // shorthand, which takes a colour OR a gradient; putting a gradient on
+    // `background-color` is invalid CSS and the browser silently drops it,
+    // so gradients rendered in the preview and not here.
+    // see docs/notes/canvas-gradient-backgrounds.md
+    ...backgroundStyle(el.backgroundColor, isOff('background'), tokens),
+    // `border-radius` and the border longhands are NOT written here — the
+    // stylesheet carries the generator's own text for them.
+    //
+    // `box-sizing` and the margin reset below ARE kept: they mirror
+    // theme.css's universal reset, and the canvas injects only the PAGE's
+    // stylesheet, not the theme. Remove them and every bordered or padded
+    // box changes size. see docs/notes/canvas-inline-layer-peel.md
     boxSizing: 'border-box',
     // Reset browser-default margins on semantic text tags (h1, p, etc.)
     // so the canvas position matches the stored coordinates.
     margin: 0,
   };
-  if (
-    !isOff('border') &&
-    el.borderStyle !== 'none' &&
-    !isZeroSpaceTuple(el.borderWidth)
-  ) {
-    base.borderWidth = formatSpaceShorthand(el.borderWidth);
-    base.borderStyle = el.borderStyle;
-    base.borderColor = resolveTokenColor(el.borderColor, tokens);
-  }
   // SVG paint — applied so the canvas reflects the SvgSection controls.
   // The fill/stroke property on the wrapper recolours the shapes inside
   // (inherits + overrides their attributes — the standard svg recolour
@@ -324,25 +347,18 @@ export const elementToStyle = (
   if (el.tag === 'svg' && el.color !== undefined && el.color.length > 0) {
     base.color = resolveTokenColor(el.color, tokens);
   }
-  if (el.display === 'flex') {
-    base.display = 'flex';
-    base.flexDirection = el.flexDirection;
-    base.gap = formatSpaceValue(el.gap);
-    base.alignItems = el.alignItems;
-    base.justifyContent = el.justifyContent;
-  } else if (el.display === 'grid') {
-    base.display = 'grid';
-    if (el.gridTemplateColumns.length > 0) {
-      base.gridTemplateColumns = el.gridTemplateColumns;
-    }
-    if (el.gridTemplateRows.length > 0) {
-      base.gridTemplateRows = el.gridTemplateRows;
-    }
-    if (!isZeroSpaceValue(el.columnGap)) base.columnGap = formatSpaceValue(el.columnGap);
-    if (!isZeroSpaceValue(el.rowGap)) base.rowGap = formatSpaceValue(el.rowGap);
-    base.alignItems = el.alignItems;
-    base.justifyItems = el.justifyItems;
-  }
+  // Flex / grid CONTAINER properties are not written here. They are
+  // static — nothing about a drag changes a container's direction, gap or
+  // alignment — so the stylesheet can own them outright, the way it owns
+  // paint, typography and borders.
+  //
+  // The element's own SIZE and POSITION stay inline below, and are the
+  // reason this group could not be peeled wholesale: a drag writes
+  // transient left/top and a resize writes transient width/height
+  // straight onto the node, and those have no counterpart in the file
+  // until the gesture commits.
+  // see docs/notes/canvas-inline-layer-peel.md
+
   // Grid-item placement on the parent grid.
   if (inGridParent) {
     if (el.gridColumn.length > 0) base.gridColumn = el.gridColumn;
@@ -368,19 +384,15 @@ export const elementToStyle = (
   if (!isZeroSpaceTuple(el.margin)) {
     base.margin = formatSpaceShorthand(el.margin);
   }
-  if (el.type === 'text' && !isOff('typography')) {
-    if (el.fontFamily !== undefined)
-      base.fontFamily = resolveTokenValue(el.fontFamily, tokens);
-    if (el.fontSize !== undefined)
-      base.fontSize = resolveTokenValue(el.fontSize, tokens);
-    if (el.fontWeight !== undefined) base.fontWeight = el.fontWeight;
-    if (el.color !== undefined) base.color = resolveTokenColor(el.color, tokens);
-    if (el.textAlign !== undefined) base.textAlign = el.textAlign;
-    if (el.lineHeight !== undefined)
-      base.lineHeight = resolveTokenValue(el.lineHeight, tokens);
-    if (el.letterSpacing !== undefined)
-      base.letterSpacing = resolveTokenValue(el.letterSpacing, tokens);
-  }
+  // Typography is NOT written here. The generator emits every one of these
+  // and the injected stylesheet carries that text verbatim, so an inline
+  // copy could only agree or drift — and while it stayed inline it masked
+  // its own breakpoint override.
+  //
+  // Verified on computed values rather than geometry or pixels: type
+  // produces no geometry of its own, and the two Chromium builds resolve
+  // fonts differently, so neither of the other modes can see it.
+  // see docs/notes/canvas-inline-layer-peel.md
   if (el.type === 'image') {
     base.objectFit = 'cover';
     base.display = 'block';
@@ -400,33 +412,16 @@ export const elementToStyle = (
   if (effectiveOpacity !== 1) {
     base.opacity = effectiveOpacity;
   }
-  // Box shadows are stored as a typed list; format the shorthand the
-  // same way the generator does so the canvas matches the file output.
-  // Empty list → no declaration (browser default).
-  if (!isOff('shadow') && el.boxShadows.length > 0) {
-    base.boxShadow = formatBoxShadowShorthand(el.boxShadows);
-  }
-  // Blend modes — only apply when non-default so we don't fight with
-  // browser inheritance for elements that haven't been touched.
-  if (!isOff('blend')) {
-    if (el.mixBlendMode !== 'normal') {
-      base.mixBlendMode = el.mixBlendMode;
-    }
-    if (el.backgroundBlendMode !== 'normal') {
-      base.backgroundBlendMode = el.backgroundBlendMode;
-    }
-  }
-  // Filters / backdrop-filter — same pattern as box-shadow: format
-  // the typed list so the canvas matches the file output. Empty list
-  // → no declaration (browser default).
-  if (!isOff('filters')) {
-    if (el.filters.length > 0) {
-      base.filter = formatFilterList(el.filters);
-    }
-    if (el.backdropFilters.length > 0) {
-      base.backdropFilter = formatFilterList(el.backdropFilters);
-    }
-  }
+  // Box shadows, blend modes and filters are NOT written here. They are
+  // pure paint, the generator already emits them, and the injected
+  // stylesheet carries that text verbatim — so an inline copy could only
+  // ever agree or drift. Removing it also lets a breakpoint's shadow win,
+  // which an inline value would have masked.
+  //
+  // Verified by the parity harness on painted pixels, not just geometry:
+  // these produce identical boxes and are invisible to a geometry check.
+  // see docs/notes/canvas-inline-layer-peel.md
+
   // Spread customProperties LAST so unmapped CSS the user / agent
   // wrote (box-shadow, line-height, font-family, margin, …) actually
   // renders on the canvas. Anything in customProperties is, by

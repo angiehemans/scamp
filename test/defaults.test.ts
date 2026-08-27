@@ -7,7 +7,7 @@ describe('DEFAULT_RECT_STYLES', () => {
       display: 'none',
       flexDirection: 'row',
       gap: 0,
-      alignItems: 'flex-start',
+      alignItems: 'stretch',
       justifyContent: 'flex-start',
       gridTemplateColumns: '',
       gridTemplateRows: '',

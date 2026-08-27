@@ -232,7 +232,18 @@ export const makeBaseline = (
  */
 export const applyDeclarations = (
   baseline: ScampElement,
-  decls: RawDeclaration[]
+  decls: RawDeclaration[],
+  /**
+   * True when this element's parent is a flex/grid container.
+   *
+   * Decides whether an explicit `position: absolute` carries information.
+   * Scamp auto-emits `absolute` for a child of a NON-layout parent, so there
+   * it can stay the `auto` sentinel and round-trip text-stably. Inside a
+   * flex/grid parent `auto` means "in flow", so `absolute` must be pinned —
+   * otherwise it is dropped on parse and deleted from the user's file on the
+   * next save. see docs/notes/parse-position-absolute-in-flex.md
+   */
+  parentIsLayoutContainer: boolean = false
 ): ScampElement => {
   let element: ScampElement = baseline;
   const customProperties: Record<string, string> = {};
@@ -316,7 +327,7 @@ export const applyDeclarations = (
       // trips text-stable.
       if (prop === 'position') {
         const v = value.trim();
-        if (v === 'absolute') continue;
+        if (v === 'absolute' && !parentIsLayoutContainer) continue;
         if (v === 'relative' && element.id === ROOT_ELEMENT_ID) continue;
       }
       const mapper = cssToScampProperty[prop];

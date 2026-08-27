@@ -143,6 +143,20 @@ export const parseCode = (tsx, css, options) => {
     // each text element whose body resolves to `{propName}` back
     // into a typed `prop` field.
     const propDefaults = parsePropsDestructure(tsx);
+    // Which elements are flex/grid containers, by id. Needed while applying
+    // declarations: whether a child's `position: absolute` is information or
+    // just Scamp's own auto-emission depends on the parent's display.
+    // see docs/notes/parse-position-absolute-in-flex.md
+    const LAYOUT_DISPLAY = /^(?:inline-)?(?:flex|grid)$/;
+    const classById = new Map(rawElements.map((r) => [r.id, r.dedupedFrom ?? resolveClassName(r.className, r.id)]));
+    const isLayoutContainer = (id) => {
+        if (id === null)
+            return false;
+        const cls = classById.get(id);
+        if (cls === undefined)
+            return false;
+        return (parsedCss.byClass.get(cls) ?? []).some((d) => d.prop === 'display' && LAYOUT_DISPLAY.test(d.value.trim()));
+    };
     // Always start with a root, even if the TSX is missing one. Downstream
     // code (canvas store, ProjectShell) assumes ROOT_ELEMENT_ID exists.
     let rootSeen = false;
@@ -172,7 +186,7 @@ export const parseCode = (tsx, css, options) => {
             if (isComponent)
                 decls = stripComponentRootMinHeightFloor(decls);
         }
-        const applied = applyDeclarations(baseline, decls);
+        const applied = applyDeclarations(baseline, decls, isLayoutContainer(raw.parentId));
         // If the file didn't actually declare a width or a height for this
         // element, treat the dimension as `auto` (no rendering hint, no
         // generator output). Without this we'd silently default to the
