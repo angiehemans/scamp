@@ -31,4 +31,6 @@ Only fall back to `align-self: stretch` when the cross axis is the
   against the container's definite inline size, so keep it verbatim. This
   preserves the parent's `align-items` and matches the browser/preview.
 
-The main-axis routing (`flex: 1` for the growing axis) is unchanged.
+The main-axis routing was later found to have the same class of bug —
+`flex: 1` is basis 0, not `width: 100%` — and now keeps the generated
+`100%` too. See [canvas-flex-main-axis-stretch.md](canvas-flex-main-axis-stretch.md).

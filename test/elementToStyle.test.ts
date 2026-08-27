@@ -165,14 +165,31 @@ describe('elementToStyle — component-editor root vs. the canvas (viewport resi
 });
 
 describe('elementToStyle — flex parent stretch routing', () => {
-  it('main-axis stretch in a row parent becomes flex:1 and drops the size', () => {
+  it('main-axis stretch in a row parent keeps width:100% rather than flex:1', () => {
+    // `flex: 1` is `flex: 1 1 0%` — basis ZERO — while the generated CSS
+    // says `width: 100%`, which is basis 100%. They agree only when the item
+    // has no siblings; with a sized sibling the basis-0 item can only grow
+    // into the leftovers instead of shrinking proportionally, which showed
+    // up as a hero squeezed to half width and pushed right on the canvas
+    // while the preview looked fine.
+    // see docs/notes/canvas-flex-main-axis-stretch.md
     const s = style(makeEl({ widthMode: 'stretch' }), {
       parentDisplay: 'flex',
       parentDirection: 'row',
     });
-    expect(s.flex).toBe(1);
+    expect(s.width).toBe('100%');
     expect(s.minWidth).toBe(0);
-    expect(s.width).toBeUndefined();
+    expect(s.flex).toBeUndefined();
+  });
+
+  it('main-axis height stretch in a column parent keeps height:100%', () => {
+    const s = style(makeEl({ heightMode: 'stretch' }), {
+      parentDisplay: 'flex',
+      parentDirection: 'column',
+    });
+    expect(s.height).toBe('100%');
+    expect(s.minHeight).toBe(0);
+    expect(s.flex).toBeUndefined();
   });
 
   it('cross-axis (block) stretch in a row parent becomes align-self:stretch', () => {

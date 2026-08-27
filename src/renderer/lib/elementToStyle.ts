@@ -193,15 +193,19 @@ export const elementToStyle = (
 
   if (inFlexParent) {
     const widthIsMain = isRow;
-    // Main axis stretch → flex: 1, drop the explicit size
+    // Main axis stretch keeps the `100%` the generator wrote, with a zero
+    // min so it can still shrink like any flex item.
+    //
+    // It must NOT become `flex: 1`. That is `flex: 1 1 0%` — flex-basis
+    // ZERO — while `width: 100%` is basis 100%. The two agree only when the
+    // item has no siblings competing for space; with a sized sibling they
+    // diverge badly, because a basis-0 item can only grow into what the
+    // sibling leaves rather than shrinking proportionally alongside it.
+    // see docs/notes/canvas-flex-main-axis-stretch.md
     if (el.widthMode === 'stretch' && widthIsMain) {
-      flexProps.flex = 1;
       flexProps.minWidth = 0;
-      effectiveWidth = undefined;
     } else if (el.heightMode === 'stretch' && !widthIsMain) {
-      flexProps.flex = 1;
       flexProps.minHeight = 0;
-      effectiveHeight = undefined;
     }
     // Cross-axis stretch fill. The two axes are NOT symmetric:
     //   - Row parent → cross axis is the BLOCK axis (height). A

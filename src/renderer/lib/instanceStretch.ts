@@ -41,11 +41,14 @@ export const instanceStretchStyle = (
   // Default flex-direction is row, so an absent direction means width is main.
   const widthIsMain = parentDirection !== 'column';
   const out: CSSProperties = {};
+  // Main axis: the generated CSS says `100%`, so the wrapper says `100%`.
+  // `flex: 1` would be basis 0 and diverge from the browser as soon as the
+  // item has a sized sibling. see docs/notes/canvas-flex-main-axis-stretch.md
   if (widthStretch && widthIsMain) {
-    out.flex = 1;
+    out.width = '100%';
     out.minWidth = 0;
   } else if (heightStretch && !widthIsMain) {
-    out.flex = 1;
+    out.height = '100%';
     out.minHeight = 0;
   }
   // Cross-axis stretch is asymmetric: a row parent's cross axis is the block

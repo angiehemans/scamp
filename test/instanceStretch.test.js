@@ -31,15 +31,18 @@ describe('instanceStretchStyle', () => {
         });
     });
     describe('in a flex row parent', () => {
-        it('maps main-axis width stretch to flex: 1 with a zero min-width', () => {
+        it('maps main-axis width stretch to width: 100% with a zero min-width', () => {
+            // Mirrors `elementToStyle`: the generated CSS says `100%`, and `flex: 1`
+            // would be basis 0 — a different layout as soon as there's a sized
+            // sibling. see docs/notes/canvas-flex-main-axis-stretch.md
             expect(instanceStretchStyle('auto', 'auto', 'stretch', 'auto', 'flex', 'row')).toEqual({
-                flex: 1,
+                width: '100%',
                 minWidth: 0,
             });
         });
         it('treats an absent direction as row, since row is the flex default', () => {
             expect(instanceStretchStyle('auto', 'auto', 'stretch', 'auto', 'flex', undefined)).toEqual({
-                flex: 1,
+                width: '100%',
                 minWidth: 0,
             });
         });
@@ -48,9 +51,9 @@ describe('instanceStretchStyle', () => {
                 alignSelf: 'stretch',
             });
         });
-        it('combines main-axis flex with cross-axis align-self when both stretch', () => {
+        it('combines main-axis width with cross-axis align-self when both stretch', () => {
             expect(instanceStretchStyle('auto', 'auto', 'stretch', 'stretch', 'flex', 'row')).toEqual({
-                flex: 1,
+                width: '100%',
                 minWidth: 0,
                 alignSelf: 'stretch',
             });
@@ -73,9 +76,9 @@ describe('instanceStretchStyle', () => {
         });
     });
     describe('in a flex column parent', () => {
-        it('maps main-axis height stretch to flex: 1 with a zero min-height', () => {
+        it('maps main-axis height stretch to height: 100% with a zero min-height', () => {
             expect(instanceStretchStyle('auto', 'auto', 'auto', 'stretch', 'flex', 'column')).toEqual({
-                flex: 1,
+                height: '100%',
                 minHeight: 0,
             });
         });
@@ -84,9 +87,9 @@ describe('instanceStretchStyle', () => {
                 width: '100%',
             });
         });
-        it('combines main-axis flex with a cross-axis width when both stretch', () => {
+        it('combines a main-axis height with a cross-axis width when both stretch', () => {
             expect(instanceStretchStyle('auto', 'auto', 'stretch', 'stretch', 'flex', 'column')).toEqual({
-                flex: 1,
+                height: '100%',
                 minHeight: 0,
                 width: '100%',
             });
