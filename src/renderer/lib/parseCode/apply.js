@@ -213,7 +213,18 @@ export const makeBaseline = (raw, isComponent = false) => {
  * Position properties (`position`, `left`, `top`) are handled inline since
  * they affect element fields that aren't in cssToScampProperty.
  */
-export const applyDeclarations = (baseline, decls) => {
+export const applyDeclarations = (baseline, decls, 
+/**
+ * True when this element's parent is a flex/grid container.
+ *
+ * Decides whether an explicit `position: absolute` carries information.
+ * Scamp auto-emits `absolute` for a child of a NON-layout parent, so there
+ * it can stay the `auto` sentinel and round-trip text-stably. Inside a
+ * flex/grid parent `auto` means "in flow", so `absolute` must be pinned —
+ * otherwise it is dropped on parse and deleted from the user's file on the
+ * next save. see docs/notes/parse-position-absolute-in-flex.md
+ */
+parentIsLayoutContainer = false) => {
     let element = baseline;
     const customProperties = {};
     for (const { prop, value } of decls) {
@@ -295,7 +306,7 @@ export const applyDeclarations = (baseline, decls) => {
             // trips text-stable.
             if (prop === 'position') {
                 const v = value.trim();
-                if (v === 'absolute')
+                if (v === 'absolute' && !parentIsLayoutContainer)
                     continue;
                 if (v === 'relative' && element.id === ROOT_ELEMENT_ID)
                     continue;
