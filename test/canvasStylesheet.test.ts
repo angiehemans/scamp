@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCanvasStylesheet,
   CANVAS_SCOPE_SELECTOR,
-  stripKeyframes,
+  stripStrippedAtRules,
 } from '@lib/canvasStylesheet';
 
 /**
@@ -13,16 +13,16 @@ import {
  * see docs/plans/canvas-preview-parity-plan.md
  */
 
-describe('stripKeyframes', () => {
+describe('stripStrippedAtRules', () => {
   it('removes a keyframes block', () => {
     // The canvas injects keyframes separately, and a non-style at-rule
     // inside `@scope` risks the browser dropping the whole scoped block.
-    const out = stripKeyframes('@keyframes fade { from { opacity: 0; } }');
+    const out = stripStrippedAtRules('@keyframes fade { from { opacity: 0; } }');
     expect(out.trim()).toBe('');
   });
 
   it('keeps the rules around it', () => {
-    const out = stripKeyframes(
+    const out = stripStrippedAtRules(
       '.a { color: red; }\n@keyframes fade { from { opacity: 0; } }\n.b { color: blue; }'
     );
     expect(out).toContain('.a { color: red; }');
@@ -31,28 +31,45 @@ describe('stripKeyframes', () => {
   });
 
   it('removes a vendor-prefixed keyframes block', () => {
-    expect(stripKeyframes('@-webkit-keyframes fade { from { opacity: 0; } }').trim()).toBe('');
+    expect(stripStrippedAtRules('@-webkit-keyframes fade { from { opacity: 0; } }').trim()).toBe('');
   });
 
   it('removes several blocks', () => {
-    const out = stripKeyframes(
+    const out = stripStrippedAtRules(
       '@keyframes a { to { opacity: 1; } }\n.x { color: red; }\n@keyframes b { to { opacity: 0; } }'
     );
     expect(out).toContain('.x');
     expect(out).not.toContain('@keyframes');
   });
 
-  it('leaves a media query alone', () => {
-    const css = '@media (max-width: 700px) { .a { display: none; } }';
-    expect(stripKeyframes(css)).toBe(css);
+  it('removes a media query, which would follow the window not the frame', () => {
+    // A media query is evaluated against the document viewport — the
+    // Electron window — while Scamp's breakpoints size the canvas frame.
+    // Keeping them would fire mobile rules on a desktop artboard whenever
+    // the app window happened to be narrow.
+    const out = stripStrippedAtRules(
+      '.a { color: red; }\n@media (max-width: 700px) { .b { display: none; } }'
+    );
+    expect(out).toContain('.a { color: red; }');
+    expect(out).not.toContain('@media');
+    expect(out).not.toContain('.b');
+  });
+
+  it('removes a media query wrapping several rules', () => {
+    const out = stripStrippedAtRules(
+      '@media (min-width: 40em) { .a { color: red; } .b { color: blue; } }\n.c { color: green; }'
+    );
+    expect(out).toContain('.c');
+    expect(out).not.toContain('@media');
+    expect(out).not.toContain('.a');
   });
 
   it('handles css with no keyframes at all', () => {
-    expect(stripKeyframes('.a { color: red; }')).toBe('.a { color: red; }');
+    expect(stripStrippedAtRules('.a { color: red; }')).toBe('.a { color: red; }');
   });
 
   it('handles an empty stylesheet', () => {
-    expect(stripKeyframes('')).toBe('');
+    expect(stripStrippedAtRules('')).toBe('');
   });
 });
 
@@ -76,11 +93,12 @@ describe('buildCanvasStylesheet', () => {
     expect(out).toContain('.list > .item:nth-child(2)');
   });
 
-  it('carries media queries', () => {
+  it('drops media queries, which the breakpoint cascade handles inline', () => {
     const out = buildCanvasStylesheet(
-      '@media (max-width: 700px) { .a { display: none; } }'
+      '.a { color: red; }\n@media (max-width: 700px) { .b { display: none; } }'
     );
-    expect(out).toContain('@media (max-width: 700px)');
+    expect(out).toContain('.a');
+    expect(out).not.toContain('@media');
   });
 
   it('drops keyframes, which the canvas injects separately', () => {

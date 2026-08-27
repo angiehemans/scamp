@@ -18,15 +18,7 @@
 export declare const CANVAS_SCOPE_ATTR = "data-scamp-canvas";
 /** The selector the page's rules are scoped to. */
 export declare const CANVAS_SCOPE_SELECTOR = "[data-scamp-canvas]";
-/**
- * Remove top-level `@keyframes` blocks.
- *
- * The canvas already injects keyframes separately (`CanvasKeyframes`), and
- * an at-rule that isn't a style rule has no defined meaning inside
- * `@scope` — a browser that rejects it could drop the whole scoped block,
- * taking every page rule with it. Cheaper to leave them where they work.
- */
-export declare const stripKeyframes: (css: string) => string;
+export declare const stripStrippedAtRules: (css: string) => string;
 /**
  * Wrap a page's CSS so it applies only inside the canvas frame.
  *

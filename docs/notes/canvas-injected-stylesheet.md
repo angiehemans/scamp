@@ -46,6 +46,29 @@ of equal specificity regardless of position. Verified in Electron 31
 scoped rules don't leak outside the frame. It only matters for rules
 outside this sheet targeting the same page classes, which nothing does.
 
+## Media queries are excluded, and this is the interesting one
+
+A media query is evaluated against the **document viewport** — here, the
+Electron window — while Scamp's breakpoints size the canvas *frame*. Set
+the artboard to 390px in a maximised window and a `max-width: 700px` rule
+does not fire; narrow the window on a 1440px artboard and it does. Both
+are wrong, and neither has anything to do with the design.
+
+The breakpoint cascade is already resolved against the frame width and
+applied inline, which is the correct semantics, so stripping these loses
+nothing that worked. What it does cost is breakpoint-specific rules that
+inline styles cannot express — a `::before` inside a media query still
+won't render on the canvas.
+
+Fixing that properly needs the frame to actually BE a viewport, which
+means an iframe, or `@container` queries with the frame as the container
+(and the generated CSS is written with `@media`, not `@container`, so
+that would be a translation — the thing this whole effort is trying to
+stop doing).
+
+This is the strongest argument yet for the iframe end-state the parity
+plan lists as option 3.
+
 ## Keyframes are excluded
 
 `CanvasKeyframes` already injects them, and a non-style at-rule inside

@@ -22,18 +22,33 @@ export const CANVAS_SCOPE_ATTR = 'data-scamp-canvas';
 export const CANVAS_SCOPE_SELECTOR = `[${CANVAS_SCOPE_ATTR}]`;
 
 /**
- * Remove top-level `@keyframes` blocks.
+ * At-rules removed before the sheet is scoped into the canvas.
  *
- * The canvas already injects keyframes separately (`CanvasKeyframes`), and
- * an at-rule that isn't a style rule has no defined meaning inside
- * `@scope` — a browser that rejects it could drop the whole scoped block,
- * taking every page rule with it. Cheaper to leave them where they work.
+ * `@keyframes` — the canvas injects these separately (`CanvasKeyframes`),
+ * and a non-style at-rule inside `@scope` has no defined meaning; a
+ * browser that rejects it could drop the whole scoped block and take
+ * every page rule with it.
+ *
+ * `@media` — a media query is evaluated against the DOCUMENT viewport,
+ * which here is the Electron window, not the canvas frame. Scamp's
+ * breakpoints size the frame (390, 768, …) while the window stays wide,
+ * so these rules would fire on the wrong condition entirely: mobile rules
+ * on a desktop artboard because the app window happens to be narrow, and
+ * no mobile rules on a mobile artboard in a maximised window.
+ *
+ * The breakpoint cascade is resolved against the frame width and applied
+ * inline, which is the correct semantics, so dropping these loses nothing
+ * that works. Rendering them properly needs the frame to actually BE a
+ * viewport — an iframe — or `@container` queries.
+ * see docs/notes/canvas-injected-stylesheet.md
  */
-export const stripKeyframes = (css: string): string => {
+const STRIPPED_AT_RULE = /@(?:-[a-z]+-)?(?:keyframes|media)\b/iy;
+
+export const stripStrippedAtRules = (css: string): string => {
   let out = '';
   let i = 0;
   while (i < css.length) {
-    const match = /@(?:-[a-z]+-)?keyframes\b/iy;
+    const match = STRIPPED_AT_RULE;
     match.lastIndex = i;
     if (!match.test(css)) {
       out += css[i] ?? '';
@@ -78,7 +93,7 @@ export const buildCanvasStylesheet = (
   css: string,
   scopeSelector: string = CANVAS_SCOPE_SELECTOR
 ): string => {
-  const body = stripKeyframes(css).trim();
+  const body = stripStrippedAtRules(css).trim();
   if (body.length === 0) return '';
   return `@scope (${scopeSelector}) {\n${body}\n}`;
 };
