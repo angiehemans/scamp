@@ -347,25 +347,18 @@ export const elementToStyle = (
   if (el.tag === 'svg' && el.color !== undefined && el.color.length > 0) {
     base.color = resolveTokenColor(el.color, tokens);
   }
-  if (el.display === 'flex') {
-    base.display = 'flex';
-    base.flexDirection = el.flexDirection;
-    base.gap = formatSpaceValue(el.gap);
-    base.alignItems = el.alignItems;
-    base.justifyContent = el.justifyContent;
-  } else if (el.display === 'grid') {
-    base.display = 'grid';
-    if (el.gridTemplateColumns.length > 0) {
-      base.gridTemplateColumns = el.gridTemplateColumns;
-    }
-    if (el.gridTemplateRows.length > 0) {
-      base.gridTemplateRows = el.gridTemplateRows;
-    }
-    if (!isZeroSpaceValue(el.columnGap)) base.columnGap = formatSpaceValue(el.columnGap);
-    if (!isZeroSpaceValue(el.rowGap)) base.rowGap = formatSpaceValue(el.rowGap);
-    base.alignItems = el.alignItems;
-    base.justifyItems = el.justifyItems;
-  }
+  // Flex / grid CONTAINER properties are not written here. They are
+  // static — nothing about a drag changes a container's direction, gap or
+  // alignment — so the stylesheet can own them outright, the way it owns
+  // paint, typography and borders.
+  //
+  // The element's own SIZE and POSITION stay inline below, and are the
+  // reason this group could not be peeled wholesale: a drag writes
+  // transient left/top and a resize writes transient width/height
+  // straight onto the node, and those have no counterpart in the file
+  // until the gesture commits.
+  // see docs/notes/canvas-inline-layer-peel.md
+
   // Grid-item placement on the parent grid.
   if (inGridParent) {
     if (el.gridColumn.length > 0) base.gridColumn = el.gridColumn;

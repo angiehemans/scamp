@@ -73,6 +73,26 @@ takes it from the matched font, so its height differed between engines by
 width, wearing different clothes. Typography fixtures must pin
 `line-height` for the same reason they must not measure intrinsic width.
 
+## What is left inline, and why
+
+After paint, typography, borders and the flex/grid container properties,
+the inline layer holds only things the stylesheet cannot own:
+
+| Kept | Why |
+|---|---|
+| `width` / `height` | a resize writes transient values straight onto the node, before anything reaches the file |
+| `position` / `left` / `top` | same, for a drag |
+| the root's min-height floor | a blank page needs a canvas to draw on; the preview has no such notion |
+| the component-instance wrapper's sizing | a canvas-only box the generated page does not have |
+| `box-sizing` and `margin: 0` | mirror theme.css, which the canvas does not inject |
+| grid-item placement, `align-self` | read from the parent's model during a drag |
+
+Sizing and position are the interesting entry. They are not *wrong*
+inline — they are genuinely dual-purpose. The stylesheet has the
+committed value; the inline layer has the value under the user's cursor
+right now. A future step could write only the transient and let the sheet
+own the resting state, which would be the last of the translation gone.
+
 ## Doing the next group
 
 Remove it, run the parity harness, and check both geometry and paint. If
