@@ -144,11 +144,19 @@ mustEstablishPositioningContext = false) => {
             if (el.gridTemplateRows.trim().length > 0) {
                 lines.push(`grid-template-rows: ${el.gridTemplateRows};`);
             }
-            if (!spaceValueEquals(el.columnGap, BASE.columnGap)) {
-                lines.push(`column-gap: ${formatSpaceValue(el.columnGap)};`);
+            // Equal axes round-trip as the `gap` shorthand the file most likely
+            // used; unequal ones need the longhands.
+            if (spaceValueEquals(el.columnGap, el.rowGap) &&
+                !spaceValueEquals(el.columnGap, BASE.columnGap)) {
+                lines.push(`gap: ${formatSpaceValue(el.columnGap)};`);
             }
-            if (!spaceValueEquals(el.rowGap, BASE.rowGap)) {
-                lines.push(`row-gap: ${formatSpaceValue(el.rowGap)};`);
+            else {
+                if (!spaceValueEquals(el.columnGap, BASE.columnGap)) {
+                    lines.push(`column-gap: ${formatSpaceValue(el.columnGap)};`);
+                }
+                if (!spaceValueEquals(el.rowGap, BASE.rowGap)) {
+                    lines.push(`row-gap: ${formatSpaceValue(el.rowGap)};`);
+                }
             }
             if (el.alignItems !== BASE.alignItems) {
                 lines.push(`align-items: ${el.alignItems};`);

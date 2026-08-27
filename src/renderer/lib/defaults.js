@@ -10,7 +10,15 @@ export const DEFAULT_RECT_STYLES = {
     display: 'none',
     flexDirection: 'row',
     gap: 0,
-    alignItems: 'flex-start',
+    // CSS defaults `align-items` to `stretch`, and the generator omits the
+    // declaration when it equals this baseline — so a file with no
+    // `align-items` stretches in the browser. Defaulting the model to
+    // `flex-start` made the canvas alone apply flex-start, and every flex
+    // container that never set the property rendered differently from the
+    // preview. see docs/notes/align-items-default.md
+    alignItems: 'stretch',
+    // `justify-content` genuinely defaults to `flex-start` in CSS, so this
+    // one already agreed.
     justifyContent: 'flex-start',
     gridTemplateColumns: '',
     gridTemplateRows: '',
@@ -65,7 +73,15 @@ export const DEFAULT_ROOT_STYLES = {
     display: 'none',
     flexDirection: 'row',
     gap: 0,
-    alignItems: 'flex-start',
+    // CSS defaults `align-items` to `stretch`, and the generator omits the
+    // declaration when it equals this baseline — so a file with no
+    // `align-items` stretches in the browser. Defaulting the model to
+    // `flex-start` made the canvas alone apply flex-start, and every flex
+    // container that never set the property rendered differently from the
+    // preview. see docs/notes/align-items-default.md
+    alignItems: 'stretch',
+    // `justify-content` genuinely defaults to `flex-start` in CSS, so this
+    // one already agreed.
     justifyContent: 'flex-start',
     gridTemplateColumns: '',
     gridTemplateRows: '',

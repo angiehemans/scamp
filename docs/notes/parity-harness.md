@@ -42,14 +42,37 @@ be set up the way the real preview is**, or the harness invents bugs.
 
 A fixture with `knownGap` is asserted to FAIL, via `test.fail()`. The
 suite stays green while the divergence is recorded, and the moment
-someone fixes it the test flips to failing and has to be updated. Three
-are recorded today:
+someone fixes it the test flips to failing and has to be updated. One is
+recorded today:
 
 | Fixture | Gap |
 |---|---|
 | `pseudo-element-before-content` | `customSelectorBlocks` are never applied to the canvas DOM, so `::before` / `::after` and any hand-written selector are invisible there |
-| `flex-row-stretch-with-sized-sibling` | Scamp's model defaults `alignItems` to `flex-start`; CSS defaults it to `stretch`. The generator omits the declaration at the default, so the browser stretches and the canvas doesn't |
-| `grid-two-columns` | The canvas grid branch reads `columnGap`/`rowGap` but never `el.gap`, so a grid using the `gap` shorthand has no gap on the canvas |
+
+The other two the harness found on its first run — the `align-items`
+default and the grid `gap` shorthand — are fixed. See
+[align-items-default.md](align-items-default.md) and
+[grid-gap-shorthand.md](grid-gap-shorthand.md).
+
+## Fixtures must not depend on text metrics
+
+The canvas runs in Electron's Chromium and the oracle in a standalone
+Chromium build. They resolve `system-ui` slightly differently, so the
+intrinsic width of a text run differs by a few pixels between them — a
+fixture with `width: fit-content` on a `<p>` reported a 3.2px divergence
+that was pure font resolution.
+
+Give text elements an explicit size. Testing text metrics across two
+browser instances isn't meaningful; testing the box they sit in is.
+
+## Regenerate the shims before running it
+
+**Regenerate the shims before running the harness.** `tsconfig.web.json`
+includes `test/**`, so these specs get committed `.js` siblings like
+everything else, and Playwright imports the `.js`. Editing a fixture
+without `npx tsc --build tsconfig.web.json --force` runs the previous
+version — which shows up as stale test titles and results that don't
+match the source.
 
 ## What it does not catch
 
