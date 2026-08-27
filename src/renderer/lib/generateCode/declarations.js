@@ -144,19 +144,19 @@ mustEstablishPositioningContext = false) => {
             if (el.gridTemplateRows.trim().length > 0) {
                 lines.push(`grid-template-rows: ${el.gridTemplateRows};`);
             }
-            // Equal axes round-trip as the `gap` shorthand the file most likely
-            // used; unequal ones need the longhands.
-            if (spaceValueEquals(el.columnGap, el.rowGap) &&
-                !spaceValueEquals(el.columnGap, BASE.columnGap)) {
-                lines.push(`gap: ${formatSpaceValue(el.columnGap)};`);
+            // Each field emits from its own source, so the round trip can tell
+            // them apart. A grid written with the `gap` shorthand keeps it —
+            // that declaration used to be dropped entirely, because the grid
+            // branch only ever read the axis fields, which the shorthand never
+            // populated. see docs/notes/grid-gap-shorthand.md
+            if (!spaceValueEquals(el.gap, BASE.gap)) {
+                lines.push(`gap: ${formatSpaceValue(el.gap)};`);
             }
-            else {
-                if (!spaceValueEquals(el.columnGap, BASE.columnGap)) {
-                    lines.push(`column-gap: ${formatSpaceValue(el.columnGap)};`);
-                }
-                if (!spaceValueEquals(el.rowGap, BASE.rowGap)) {
-                    lines.push(`row-gap: ${formatSpaceValue(el.rowGap)};`);
-                }
+            if (!spaceValueEquals(el.columnGap, BASE.columnGap)) {
+                lines.push(`column-gap: ${formatSpaceValue(el.columnGap)};`);
+            }
+            if (!spaceValueEquals(el.rowGap, BASE.rowGap)) {
+                lines.push(`row-gap: ${formatSpaceValue(el.rowGap)};`);
             }
             if (el.alignItems !== BASE.alignItems) {
                 lines.push(`align-items: ${el.alignItems};`);

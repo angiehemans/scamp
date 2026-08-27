@@ -95,12 +95,12 @@ export const cssToScampProperty: Record<string, Mapper> = {
   gap: (v) => {
     const sv = parseSpaceValueOrNull(v);
     if (sv === null) return null;
-    // CSS `gap` sets both axes, so it feeds the grid fields too. Scamp
-    // routes `gap` to a flex-flavoured field and grids to
-    // `columnGap`/`rowGap`; without this a grid written with the shorthand
-    // parsed to no gap at all, and the generator then deleted the
-    // declaration from the file. see docs/notes/grid-gap-shorthand.md
-    return { gap: sv, columnGap: sv, rowGap: sv };
+    // ONLY `gap`. Populating the axis fields as well made a flex element
+    // fail the round-trip: it parsed to gap+columnGap+rowGap where the
+    // original had only gap. The grid side is fixed in the generator
+    // instead, which emits each field from its own source.
+    // see docs/notes/grid-gap-shorthand.md
+    return { gap: sv };
   },
   'align-items': (v) => {
     if (v === 'flex-start' || v === 'center' || v === 'flex-end' || v === 'stretch') {

@@ -134,7 +134,7 @@ describe('grid: generator (container)', () => {
     expect(css).not.toContain('justify-items');
   });
 
-  it('does not emit flex-only fields when display is grid', () => {
+  it('does not emit genuinely flex-only fields when display is grid', () => {
     const elements = {
       [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
       a1b2: makeRect('a1b2', ROOT_ELEMENT_ID, {
@@ -154,8 +154,12 @@ describe('grid: generator (container)', () => {
     });
     expect(css).toContain('display: grid;');
     expect(css).not.toContain('flex-direction');
-    expect(css).not.toMatch(/\bgap:/);
     expect(css).not.toContain('justify-content');
+    // `gap` is NOT flex-only — it is valid on a grid and means the same
+    // thing. A grid written with the shorthand used to have the
+    // declaration deleted on save, because the grid branch only read the
+    // axis fields. see docs/notes/grid-gap-shorthand.md
+    expect(css).toMatch(/\bgap:\s*16px;/);
   });
 });
 

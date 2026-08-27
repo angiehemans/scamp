@@ -24,15 +24,38 @@ Same shape as the `position: absolute` bug: a value the model couldn't
 represent in the place the generator looked for it, so the round trip
 quietly dropped it. see docs/notes/parse-position-absolute-in-flex.md
 
-## The fix
+## The fix, and the wrong first attempt
 
-- The `gap` mapping populates `gap`, `columnGap` and `rowGap`, matching
-  what the CSS shorthand actually means.
-- The generator's grid branch emits `gap: X` when the two axes are equal
-  and the longhands only when they differ — so `gap: 20px` round-trips as
-  written instead of being expanded.
+The first attempt had the parser populate all three fields from the
+shorthand. It fixed the data loss and **broke the round-trip invariant**:
+a flex element parsed to `gap` + `columnGap` + `rowGap` where the original
+had only `gap`, so `parseCode(generateCode(x)) !== x`.
 
-The canvas needed no change: it already read `columnGap` / `rowGap`, and
-those are now populated.
+It also collapsed equal axes into `gap` on the way out, which loses which
+field the value came from — `column-gap: 20px; row-gap: 20px` came back as
+`gap: 20px` and reparsed into different fields. Two round-trip hazards in
+one change.
+
+The fix is in the generator instead, and each field emits from its own
+source:
+
+- the `gap` mapping sets only `gap`, as it always did
+- the grid branch emits `gap` from `el.gap`, **and** `column-gap` /
+  `row-gap` from their own fields
+
+A grid written with the shorthand therefore keeps it, a grid written with
+longhands keeps those, and both round-trip. `gap` is valid CSS on a grid
+and means the same thing, so emitting it there is not a workaround.
+
+The canvas needs no change at all now: the injected stylesheet carries
+whichever spelling the file used.
+
+## How it went unnoticed
+
+`npm run test:unit` excludes the integration tests, and the round-trip
+invariant lives in `test/integration/sync.integration.test.ts`. Run the
+bare `npx vitest run` (2678 tests) before trusting a parser or generator
+change — `test:unit` alone is 2403 and will not tell you the invariant
+broke.
 
 see docs/notes/parity-harness.md

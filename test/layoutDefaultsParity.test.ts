@@ -73,13 +73,14 @@ describe('align-items default matches CSS', () => {
 });
 
 describe('gap shorthand on a grid', () => {
-  it('populates both axes, as CSS `gap` does', () => {
+  it('stays on the gap field, so a flex element still round-trips', () => {
     const parsed = parseCode(
       ...(Object.values(pageWith(' gap: 20px;', 'grid')) as [string, string])
     );
     const box = parsed.elements['a1b2'];
-    expect(box?.columnGap).toBe(20);
-    expect(box?.rowGap).toBe(20);
+    expect(box?.gap).toBe(20);
+    expect(box?.columnGap).toBe(0);
+    expect(box?.rowGap).toBe(0);
   });
 
   it('survives a save on a grid, rather than being deleted', () => {
@@ -92,13 +93,22 @@ describe('gap shorthand on a grid', () => {
     expect(boxAfterRoundTrip(pageWith(' gap: 20px;', 'flex'))).toContain('gap: 20px;');
   });
 
-  it('writes the longhands when the axes differ', () => {
+  it('writes the longhands from their own fields', () => {
     const out = boxAfterRoundTrip(
       pageWith(' column-gap: 20px; row-gap: 8px;', 'grid')
     );
     expect(out).toContain('column-gap: 20px;');
     expect(out).toContain('row-gap: 8px;');
-    expect(out).not.toMatch(/^\s*gap:/m);
+  });
+
+  it('round-trips equal longhands as longhands, not as a shorthand', () => {
+    // Collapsing equal axes into `gap` loses which field the value came
+    // from, and the reparse then disagrees with the original element.
+    const out = boxAfterRoundTrip(
+      pageWith(' column-gap: 20px; row-gap: 20px;', 'grid')
+    );
+    expect(out).toContain('column-gap: 20px;');
+    expect(out).toContain('row-gap: 20px;');
   });
 
   it('emits nothing when there is no gap', () => {

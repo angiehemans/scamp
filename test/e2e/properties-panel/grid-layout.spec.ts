@@ -72,15 +72,16 @@ test.describe('properties panel: grid layout', () => {
     await waitForSaved(window);
 
     const { css } = await readPageFiles(project.dir, project.pageName);
-    // Equal axes are written as the `gap` shorthand, which is what CSS
-    // `gap` means and what the file most likely used. Unequal axes still
-    // emit the longhands — see the test below. This used to emit
-    // `column-gap` + `row-gap` unconditionally, from fields the parser
-    // never populated from a `gap` shorthand, so a grid written with `gap`
-    // lost it on the next save. see docs/notes/grid-gap-shorthand.md
+    expect(css).toMatch(
+      new RegExp(`\\.${className}[^}]*column-gap:\\s*24px;`, 's')
+    );
+    expect(css).toMatch(
+      new RegExp(`\\.${className}[^}]*row-gap:\\s*24px;`, 's')
+    );
+    // The flex `gap` field is cleared by the migration, so only the axis
+    // longhands remain.
     const block = css.match(new RegExp(`\\.${className}\\s*\\{[^}]*\\}`, 's'))?.[0] ?? '';
-    expect(block).toMatch(/gap:\s*24px;/);
-    expect(block).toContain('display: grid;');
+    expect(block).not.toMatch(/^\s*gap:/m);
   });
 
   test('grid child sizing controls appear when parent is grid and emit grid-column / grid-row', async ({
