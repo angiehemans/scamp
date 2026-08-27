@@ -150,13 +150,13 @@ weeks'.
 
 1. **Is a flag worth it, or should phase A be a throwaway spike?** A
    branch that is never shipped costs nothing to delete. I lean throwaway
-   spike, then a committed migration.
+   spike, then a committed migration. sounds good
 2. **How much interaction fidelity is negotiable in the interim?** If B
    and C take a while, is a canvas that renders perfectly but selects
-   slightly differently acceptable to ship behind a flag?
+   slightly differently acceptable to ship behind a flag? no I wont ship this until It is fully manually tested by me and feels as good or better than the current designing experience
 3. **Should the iframe load the real files** (`file://` or a dev-server
    URL) rather than generated content? That would be maximal fidelity —
    literally the preview — but couples the canvas to the save pipeline
-   and to Next's dev server.
+   and to Next's dev server. I dont think it should be coupled to the next server so its okay if the canvas loads a scamp generate version as long as it matches what the preview will be and the design experience is smooth and fast.
 4. **What happens to the component editor?** It shares the canvas. One
-   iframe per target, or one reused?
+   iframe per target, or one reused? one iframe per target.
