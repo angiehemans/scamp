@@ -110,3 +110,25 @@ prefixes are only ever one level deep. `collectExpandedInstances` still
 emits rules for nested ones; they simply go unused.
 
 see docs/plans/canvas-preview-parity-plan.md
+
+## Why the inline layer cannot be peeled back yet
+
+The point of injecting the stylesheet is eventually to stop translating:
+remove a property from `elementToStyle` and let the sheet supply it. That
+is blocked, and by the same limitation as `@media` above.
+
+The canvas resolves each element at the **active breakpoint**
+(`resolveElementAtBreakpoint`) and renders the result inline. The injected
+sheet has its `@media` blocks stripped, so it only ever carries the
+desktop base. Remove `box-shadow` from the inline layer and a
+breakpoint-specific shadow disappears from the canvas, because the only
+thing that knew about it was the inline value.
+
+So every property that can be breakpoint-overridden — which is most of
+them — has to stay inline until the frame can evaluate media queries
+itself. That means the iframe.
+
+The order in the parity plan therefore wants revisiting: the iframe is
+listed as an alternative scoping option, but it is really the
+prerequisite for phase 3 rather than a nicety. Nothing meaningful can be
+peeled without it.

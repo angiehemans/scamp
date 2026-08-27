@@ -107,6 +107,15 @@ canvas still rendered it correctly. That is the architecture working, but
 it means the obvious mutation proves nothing. The oracle was validated by
 breaking *both* paths at once, which produced a 4.3% difference.
 
+### Paint fixtures must fit the visible canvas
+
+`locator.screenshot()` of the canvas root captures only what is painted.
+The root is as wide as the artboard, but the canvas viewport is narrower
+(sidebars), so anything past that edge is simply absent from the capture —
+the first five-box fixture lost its fifth box and reported a difference
+that was pure clipping. Keep painted content inside roughly 800px, or
+wrap it.
+
 ## What it still does not catch
 
 Anything only visible in motion (transitions, animation timing) and

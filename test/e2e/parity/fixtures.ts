@@ -412,22 +412,27 @@ export default function Home() {
   },
   {
     name: 'painted-surfaces',
-    why: 'Gradients, shadows, radii and alpha — everything that produces identical geometry and therefore slips past a geometry-only check. The radial gradient here is the exact shape of the bug that rendered in the preview and not on the canvas.',
+    why: 'Gradients, shadows, filters, blend modes, radii and alpha — everything that produces identical geometry and therefore slips past a geometry-only check. The radial gradient here is the exact shape of the bug that rendered in the preview and not on the canvas.',
     pixels: true,
     tsx: page(`    <div data-scamp-id="root" className={styles.root}>
       <div data-scamp-id="grad_g001" className={styles.grad_g001} />
       <div data-scamp-id="linear_g002" className={styles.linear_g002} />
       <div data-scamp-id="shadow_g003" className={styles.shadow_g003} />
+      <div data-scamp-id="filtered_g004" className={styles.filtered_g004} />
+      <div data-scamp-id="blended_g005" className={styles.blended_g005} />
     </div>`),
     html: `    <div class="root">
       <div class="grad_g001"></div>
       <div class="linear_g002"></div>
       <div class="shadow_g003"></div>
+      <div class="filtered_g004"></div>
+      <div class="blended_g005"></div>
     </div>`,
     css: `.root {
   width: 100%;
   min-height: 100vh;
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   padding: 20px;
   align-items: flex-start;
@@ -436,26 +441,41 @@ export default function Home() {
 }
 
 .grad_g001 {
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle 100px at 50% 50%, rgba(160, 140, 255, 0.9) 0%, rgba(94, 200, 245, 0.4) 45%, rgba(7, 6, 15, 0) 70%);
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle 60px at 50% 50%, rgba(160, 140, 255, 0.9) 0%, rgba(94, 200, 245, 0.4) 45%, rgba(7, 6, 15, 0) 70%);
 }
 
 .linear_g002 {
-  width: 200px;
-  height: 200px;
+  width: 120px;
+  height: 120px;
   background: linear-gradient(135deg, #ff5f6d 0%, #ffc371 100%);
   border-radius: 24px;
 }
 
 .shadow_g003 {
-  width: 200px;
-  height: 200px;
+  width: 120px;
+  height: 120px;
   background: #445566;
   border-radius: 50%;
   border-width: 4px;
   border-style: solid;
   border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0px 12px 32px 0px rgba(160, 140, 255, 0.7);
+}
+
+.filtered_g004 {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(90deg, #22c55e 0%, #3b82f6 100%);
+  filter: blur(6px) saturate(180%);
+}
+
+.blended_g005 {
+  width: 120px;
+  height: 120px;
+  background: #ff5f6d;
+  mix-blend-mode: difference;
 }
 `,
   },
