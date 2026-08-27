@@ -107,10 +107,16 @@ renderSlot) => {
         // browser-default colour, font and border, while the identical element
         // in the component editor gets `all: unset` — so an instance renders
         // system-button grey where the definition renders the designed styles.
-        // The page's own class goes on the node too, so the generated
-        // stylesheet injected into the frame matches it. see
-        // docs/plans/canvas-preview-parity-plan.md
-        className: `${styles.element} ${className}`,
+        // Deliberately NOT carrying the component's own class here. Inside an
+        // instance these are the COMPONENT's class names (`root`,
+        // `label_a005`), and the stylesheet injected into the frame is the
+        // PAGE's — so `.root` would match a component root and paint it with
+        // the page root's rules. CSS modules keep the two apart on disk; the
+        // canvas needs per-instance prefixing to do the same, which is the
+        // next step. Until then instance internals render from inline styles
+        // only, exactly as they did before.
+        // see docs/notes/canvas-injected-stylesheet.md
+        className: styles.element,
         style,
     };
     // Forward agent-written attributes through the same per-tag deny
