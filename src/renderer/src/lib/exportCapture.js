@@ -141,14 +141,22 @@ export const captureIsolatedPng = async (inputs) => {
     const height = inputs.node.offsetHeight;
     if (width === 0 || height === 0)
         return null;
+    // The off-screen placement goes on a WRAPPER, never on the captured node
+    // itself. `html-to-image` serialises the node with its own inline styles
+    // into a foreignObject, so a node carrying `position: fixed; left:
+    // -100000px` renders itself straight out of the capture viewport and the
+    // result is a blank image. Measured, not guessed: an offscreen-fixed
+    // node captures 0 content pixels, the same node inside an
+    // offscreen-fixed wrapper captures all of them.
+    const host = document.createElement('div');
+    host.style.cssText =
+        'position:fixed;top:0;left:-100000px;pointer-events:none;';
+    host.style.width = `${width}px`;
     const clone = inputs.node.cloneNode(true);
     clone.style.transform = 'none';
-    clone.style.position = 'fixed';
-    clone.style.top = '0';
-    clone.style.left = '-100000px';
+    clone.style.position = 'static';
     clone.style.width = `${width}px`;
     clone.style.height = `${height}px`;
-    clone.style.pointerEvents = 'none';
     // Editor chrome painted as a class on the element itself, stripped from
     // the copy rather than from what the user is looking at.
     for (const cls of [
@@ -175,7 +183,8 @@ export const captureIsolatedPng = async (inputs) => {
         el.removeAttribute('data-element-id');
         el.removeAttribute('data-testid');
     }
-    document.body.appendChild(clone);
+    host.appendChild(clone);
+    document.body.appendChild(host);
     try {
         return await toPng(clone, {
             width,
@@ -191,7 +200,7 @@ export const captureIsolatedPng = async (inputs) => {
         });
     }
     finally {
-        clone.remove();
+        host.remove();
     }
 };
 /**

@@ -27,6 +27,24 @@ const FRAME_FIT_INSET = 40;
  * to distribute within.
  */
 export const EMPTY_FRAME_MIN_HEIGHT = 900;
+/**
+ * Opt-in tracing for the canvas extent -> fit-zoom loop, enabled with
+ * `localStorage.setItem('scamp.debugZoom', '1')` and a reload.
+ *
+ * The extent feeds the fit scale and the fit scale is the basis the extent
+ * is measured against, so when the two disagree the canvas alternates
+ * between two zoom levels on every edit. Which element sets the widest
+ * edge is the fact that identifies the cause, and it can only be read from
+ * a running canvas with a real project in it.
+ */
+const extentDebugEnabled = () => {
+    try {
+        return globalThis.localStorage?.getItem('scamp.debugZoom') === '1';
+    }
+    catch {
+        return false;
+    }
+};
 export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, clipContent, scrollContainerRef, onResize, }) => {
     const frameRef = useRef(null);
     const [scale, setScale] = useState(1);
@@ -101,6 +119,9 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
             // Width-only fit — tall pages scroll vertically inside the
             // artboard instead of squashing. Never scale up past 1.0.
             const next = Math.min(w / fitWidth, 1);
+            if (extentDebugEnabled()) {
+                console.log('[fit] containerWidth=%s fitWidth=%s (frameW=%s contentRight=%s clip=%s) -> scale=%s', w, fitWidth, frameW, content.right, clipContent, next.toFixed(4));
+            }
             setLocalFitScale(next);
             // Mirror into the store so the zoom indicator can show the real
             // percentage in fit mode and the wheel handler can anchor on it.
@@ -161,6 +182,7 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
         container.scrollLeft += anchor.logicalX * anchor.delta;
         container.scrollTop += anchor.logicalY * anchor.delta;
     }, [scale, scrollContainerRef]);
+    // see extentDebugEnabled above for the tracing flag
     // Measure the frame's natural (pre-scale) height AND its overflow past
     // the canvas bounds. `transform: scale` doesn't affect layout, so we
     // need frameH to reserve the right scrolled-space footprint; the scroll
@@ -179,10 +201,20 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
         const appliedScale = frame.offsetWidth > 0 ? frameRect.width / frame.offsetWidth : 1;
         let right = frame.clientWidth;
         let bottom = frame.clientHeight;
+        // Which element set the widest edge. Only read when the extent debug
+        // flag is on; naming the culprit is the whole point of that log.
+        let widest = '';
         for (const node of frame.querySelectorAll('[data-element-id]')) {
             const r = node.getBoundingClientRect();
-            right = Math.max(right, (r.right - frameRect.left) / appliedScale);
+            const nodeRight = (r.right - frameRect.left) / appliedScale;
+            if (nodeRight > right) {
+                right = nodeRight;
+                widest = node.getAttribute('data-element-id') ?? '';
+            }
             bottom = Math.max(bottom, (r.bottom - frameRect.top) / appliedScale);
+        }
+        if (extentDebugEnabled()) {
+            console.log('[extent] scale=%s frameClientWidth=%s rawRight=%s settled=%s widest=%s', appliedScale.toFixed(4), frame.clientWidth, right.toFixed(2), settleExtent(right, frame.clientWidth), widest || '(none — nothing past the frame)');
         }
         // `settleExtent` absorbs the sub-pixel wobble an exactly-frame-width
         // element produces, and the identity bail keeps an unchanged
