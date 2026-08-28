@@ -54,10 +54,13 @@ afterEach(async () => {
  * Drives the browser half: reads the state off the URL the app opened and
  * calls back with it, the way the real sign-in page would.
  */
+/** A port of our own, so this never races the live-backend test for 8976. */
+const TEST_PORT = 18990;
+
 const browserThatSignsIn = (code = 'the-code') =>
   async (url: string): Promise<void> => {
     const state = new URL(url).searchParams.get('state') ?? '';
-    await fetch(`http://127.0.0.1:8976/callback?code=${code}&state=${state}`);
+    await fetch(`http://127.0.0.1:${TEST_PORT}/callback?code=${code}&state=${state}`);
   };
 
 const okFetch: FetchLike = async () => ({
@@ -72,6 +75,7 @@ const deps = (over: Partial<AuthDeps> = {}): AuthDeps => ({
   safeStorage: safeStorage(),
   userDataDir: dir,
   env: { SCAMP_AUTH_BASE_URL: 'http://localhost:3000' },
+  loopbackPort: TEST_PORT,
   ...over,
 });
 
@@ -104,7 +108,9 @@ describe('signing in', () => {
     const result = await signIn(
       deps({
         openExternal: async () => {
-          await fetch('http://127.0.0.1:8976/callback?code=x&state=not-the-state');
+          await fetch(
+            `http://127.0.0.1:${TEST_PORT}/callback?code=x&state=not-the-state`
+          );
         },
       })
     );

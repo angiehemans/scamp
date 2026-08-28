@@ -17,7 +17,14 @@ import { readCallback } from '../src/main/auth/desktopAuthFlow';
  * 8976, or with each other.
  */
 
-const PORT = 18976;
+/**
+ * A fresh port per listener. Reusing one across tests was intermittently
+ * flaky: `close` resolves before the OS has always released the socket,
+ * so the next `listen` could hit EADDRINUSE and report port-unavailable —
+ * a different test failing on each run.
+ */
+let nextPort = 45300;
+const takePort = (): number => nextPort++;
 let cleanup: Array<() => Promise<void>> = [];
 
 afterEach(async () => {
@@ -25,7 +32,7 @@ afterEach(async () => {
   cleanup = [];
 });
 
-const start = async (port = PORT, timeoutMs?: number) => {
+const start = async (port = takePort(), timeoutMs?: number) => {
   const result = await startLoopbackServer(
     timeoutMs === undefined ? { port } : { port, timeoutMs }
   );
@@ -35,24 +42,25 @@ const start = async (port = PORT, timeoutMs?: number) => {
 
 describe('the loopback listener', () => {
   it('hands back the callback URL the browser hit', async () => {
-    const server = await start();
+    const port = takePort();
+    const server = await start(port);
     if (server.status !== 'listening') throw new Error(server.status);
     const waiting = server.waitForCallback();
-    await fetch(`http://127.0.0.1:${PORT}/callback?code=abc&state=xyz`);
-    const result = await waiting;
-    expect(result).toEqual({
+    await fetch(`http://127.0.0.1:${port}/callback?code=abc&state=xyz`);
+    expect(await waiting).toEqual({
       status: 'callback',
-      url: `http://localhost:${PORT}/callback?code=abc&state=xyz`,
+      url: `http://localhost:${port}/callback?code=abc&state=xyz`,
     });
   });
 
   it('produces a URL that readCallback can parse', async () => {
     // The two halves have to agree about the shape, so check them together
     // rather than trusting a hand-written string.
-    const server = await start();
+    const port = takePort();
+    const server = await start(port);
     if (server.status !== 'listening') throw new Error(server.status);
     const waiting = server.waitForCallback();
-    await fetch(`http://127.0.0.1:${PORT}/callback?code=the-code&state=the-state`);
+    await fetch(`http://127.0.0.1:${port}/callback?code=the-code&state=the-state`);
     const result = await waiting;
     if (result.status !== 'callback') throw new Error('no callback');
     expect(readCallback(result.url, 'the-state')).toEqual({
@@ -62,20 +70,22 @@ describe('the loopback listener', () => {
   });
 
   it('answers the browser so the tab does not hang', async () => {
-    const server = await start();
+    const port = takePort();
+    const server = await start(port);
     if (server.status !== 'listening') throw new Error(server.status);
     const waiting = server.waitForCallback();
-    const response = await fetch(`http://127.0.0.1:${PORT}/callback?code=a&state=b`);
+    const response = await fetch(`http://127.0.0.1:${port}/callback?code=a&state=b`);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('close this tab');
     await waiting;
   });
 
   it('ignores requests to any other path', async () => {
-    const server = await start();
+    const port = takePort();
+    const server = await start(port);
     if (server.status !== 'listening') throw new Error(server.status);
     const waiting = server.waitForCallback();
-    const stray = await fetch(`http://127.0.0.1:${PORT}/favicon.ico`);
+    const stray = await fetch(`http://127.0.0.1:${port}/favicon.ico`);
     expect(stray.status).toBe(404);
     // Still waiting — a stray request must not resolve the sign-in.
     await server.close();
@@ -85,21 +95,22 @@ describe('the loopback listener', () => {
   it('reports the port being unavailable, so the caller can fall back', async () => {
     // The allowlist is exact-match, so we cannot pick another port — this
     // is the signal to use the scamp:// scheme instead.
-    const first = await start();
+    const port = takePort();
+    const first = await start(port);
     if (first.status !== 'listening') throw new Error(first.status);
-    expect(await startLoopbackServer({ port: PORT })).toEqual({
+    expect(await startLoopbackServer({ port })).toEqual({
       status: 'port-unavailable',
     });
   });
 
   it('times out when the browser never comes back', async () => {
-    const server = await start(PORT + 1, 60);
+    const server = await start(takePort(), 60);
     if (server.status !== 'listening') throw new Error(server.status);
     expect(await server.waitForCallback()).toEqual({ status: 'timeout' });
   });
 
   it('reports cancellation when closed while waiting', async () => {
-    const server = await start(PORT + 2);
+    const server = await start(takePort());
     if (server.status !== 'listening') throw new Error(server.status);
     const waiting = server.waitForCallback();
     await server.close();
@@ -107,11 +118,12 @@ describe('the loopback listener', () => {
   });
 
   it('keeps the first callback when two arrive', async () => {
-    const server = await start(PORT + 3);
+    const port = takePort();
+    const server = await start(port);
     if (server.status !== 'listening') throw new Error(server.status);
     const waiting = server.waitForCallback();
-    await fetch(`http://127.0.0.1:${PORT + 3}/callback?code=first&state=s`);
-    await fetch(`http://127.0.0.1:${PORT + 3}/callback?code=second&state=s`);
+    await fetch(`http://127.0.0.1:${port}/callback?code=first&state=s`);
+    await fetch(`http://127.0.0.1:${port}/callback?code=second&state=s`);
     const result = await waiting;
     if (result.status !== 'callback') throw new Error('no callback');
     expect(result.url).toContain('code=first');

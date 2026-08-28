@@ -24,7 +24,7 @@ export const signIn = async (deps) => {
         // attempt is better than racing two listeners for one port.
         return { status: 'failed', message: 'Sign-in is already in progress.' };
     }
-    const server = await startLoopbackServer();
+    const server = await startLoopbackServer(deps.loopbackPort === undefined ? {} : { port: deps.loopbackPort });
     if (server.status === 'port-unavailable') {
         // The redirect allowlist is exact-match, so another port is not an
         // option. The scamp:// fallback is not built yet; say so plainly

@@ -18,6 +18,13 @@ export type AuthDeps = {
     safeStorage: SafeStorageLike;
     userDataDir: string;
     env?: Record<string, string | undefined>;
+    /**
+     * Override the loopback port. Only for tests: the real port is fixed
+     * because the backend's redirect allowlist is exact-match, and the
+     * live-backend test therefore has to hold 8976. Unit tests use another
+     * port so the two cannot race for it under vitest's parallel files.
+     */
+    loopbackPort?: number;
 };
 export type SignInOutcome = {
     status: 'signed-in';
