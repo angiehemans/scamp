@@ -66,11 +66,15 @@ export const startLoopbackServer = async ({
   port = LOOPBACK_PORT,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }: StartOptions = {}): Promise<StartResult> => {
+  // The outcome is recorded whether or not anyone is waiting yet. A fast
+  // redirect can land before `waitForCallback` has been called — the test
+  // browser does it every time, and a real one on localhost easily could —
+  // and dropping the result there would hang the sign-in forever.
   let resolveResult: ((r: LoopbackResult) => void) | null = null;
-  let settled = false;
+  let settledResult: LoopbackResult | null = null;
   const settle = (result: LoopbackResult): void => {
-    if (settled) return;
-    settled = true;
+    if (settledResult !== null) return;
+    settledResult = result;
     resolveResult?.(result);
   };
 
@@ -115,6 +119,10 @@ export const startLoopbackServer = async ({
 
   const waitForCallback = (): Promise<LoopbackResult> =>
     new Promise<LoopbackResult>((resolve) => {
+      if (settledResult !== null) {
+        resolve(settledResult);
+        return;
+      }
       resolveResult = resolve;
       const timer = setTimeout(() => settle({ status: 'timeout' }), timeoutMs);
       // Don't hold the process open on this timer.

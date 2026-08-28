@@ -78,7 +78,14 @@ export const exchangeCodeForToken = async ({
   try {
     response = await fetchImpl(new URL('/api/desktop/token', baseUrl).toString(), {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        // Better Auth checks the origin, and a request from the main
+        // process has none — Node's fetch sends no Origin header, unlike a
+        // browser. The backend's own reference client sets it explicitly
+        // for the same reason; without it the exchange is refused.
+        origin: new URL(baseUrl).origin,
+      },
       body: JSON.stringify({ code, codeVerifier }),
     });
   } catch (err) {

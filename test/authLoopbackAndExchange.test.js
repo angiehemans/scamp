@@ -133,7 +133,7 @@ describe('exchanging the code for a token', () => {
     it('posts the code and verifier to the right endpoint', async () => {
         const calls = [];
         const fetchImpl = async (url, init) => {
-            calls.push({ url, body: init.body });
+            calls.push({ url, body: init.body, headers: init.headers });
             return { ok: true, status: 200, text: async () => JSON.stringify({ token: 't', user }) };
         };
         await exchangeCodeForToken({ ...args, fetchImpl });
@@ -142,6 +142,18 @@ describe('exchanging the code for a token', () => {
             code: 'the-code',
             codeVerifier: 'the-verifier',
         });
+    });
+    it('sends an origin header, which the backend requires', async () => {
+        // Node's fetch sends no Origin, unlike a browser, and Better Auth
+        // checks it — the backend's own reference client sets it explicitly.
+        // Found by reading that client rather than by a failing request.
+        const calls = [];
+        const fetchImpl = async (_url, init) => {
+            calls.push(init.headers);
+            return { ok: true, status: 200, text: async () => JSON.stringify({ token: 't', user }) };
+        };
+        await exchangeCodeForToken({ ...args, fetchImpl });
+        expect(calls[0]?.['origin']).toBe('http://localhost:3000');
     });
     it('reports a rejection with the backend wording', async () => {
         // Expected, not alarming: the code is single-use and short-lived.

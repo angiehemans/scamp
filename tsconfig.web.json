@@ -33,6 +33,7 @@
     "src/main/auth/tokenStore.ts",
     "src/main/auth/loopbackServer.ts",
     "src/main/auth/tokenExchange.ts",
+    "src/main/auth/authService.ts",
     "src/main/installId.ts",
     "src/main/mcp/jsonRpc.ts",
     "src/main/mcp/protocol.ts",
