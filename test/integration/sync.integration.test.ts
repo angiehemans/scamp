@@ -78,7 +78,7 @@ describe('sync round-trip integration', () => {
 
   it('round-trips a non-trivial element tree through the file system', async () => {
     const elements: Record<string, ScampElement> = {
-      [ROOT_ELEMENT_ID]: makeRoot(['a1b2', 't001']),
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2', 't001', 'd100']),
       a1b2: makeRect({
         id: 'a1b2',
         x: 100,
@@ -138,9 +138,6 @@ describe('sync round-trip integration', () => {
         type: 'text',
         x: 200,
         y: 400,
-        // The default widthValue/heightValue (100) round-trip via the
-        // generator as `auto` mode (no width/height declaration), so we
-        // pick non-default sizes here to lock in `fixed` mode.
         widthValue: 240,
         heightValue: 32,
         text: 'Hello & welcome',
@@ -148,6 +145,22 @@ describe('sync round-trip integration', () => {
         fontWeight: 600,
         color: '#222222',
         textAlign: 'center',
+      }),
+      // A fixed size that happens to equal the default. This case used to
+      // fail: the generator skipped the declaration as a default, and
+      // `parseCode` reads an absent width as `auto`, so fixed/100 went in
+      // and auto came out. The comment that used to sit above `t001`
+      // recorded that as expected behaviour and picked non-default sizes
+      // to avoid it — which is how the invariant stayed green through a
+      // real violation.
+      d100: makeRect({
+        id: 'd100',
+        x: 600,
+        y: 40,
+        widthMode: 'fixed',
+        heightMode: 'fixed',
+        widthValue: DEFAULT_RECT_STYLES.widthValue,
+        heightValue: DEFAULT_RECT_STYLES.heightValue,
       }),
     };
 

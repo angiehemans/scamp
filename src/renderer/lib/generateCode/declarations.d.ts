@@ -11,10 +11,25 @@ import { type BreakpointOverride, type ScampElement } from "../element";
  * (everything else about an instance lives in the component definition).
  * see docs/notes/components-data-model.md
  */
-export declare const sizeDeclarationLines: (el: ScampElement, base?: {
-    widthValue: number;
-    heightValue: number;
-}) => string[];
+/**
+ * `width` / `height` for one element.
+ *
+ * A fixed size is ALWAYS emitted, even when it equals the default. Every
+ * other property here is skipped when it matches its default, which is
+ * safe because "absent" and "the default" mean the same thing in CSS —
+ * absent `opacity` is 1. That does not hold for size: absent `width` is
+ * `auto`, which is a different rendering entirely.
+ *
+ * Skipping it broke two things at once. A rectangle drawn at exactly
+ * 100px wide lost its width in the generated CSS, so the canvas showed
+ * 100px (from the model) and the browser showed a content-sized box. And
+ * it violated the round-trip invariant: `parseCode` reads an absent width
+ * as `auto`, not as fixed-at-the-default, so fixed/100 in, auto out.
+ *
+ * There is no risk of pinning agent-written elements that have no width:
+ * those parse as `auto`, and only `fixed` emits a length here.
+ */
+export declare const sizeDeclarationLines: (el: ScampElement) => string[];
 /**
  * Build the list of `prop: value;` lines for one element. Skips anything
  * equal to its default; appends customProperties verbatim at the end.

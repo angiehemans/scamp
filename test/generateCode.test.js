@@ -798,3 +798,53 @@ const extractBlock = (css, selector) => {
     const end = css.indexOf('}', start);
     return css.slice(start + 1, end);
 };
+describe('generateCode — a fixed size is never omitted as a default', () => {
+    it('emits a fixed width that happens to equal the default', () => {
+        // Absent `width` is `auto` in CSS, not "the default 100px". Skipping
+        // it made a rectangle drawn at exactly 100px wide lose its width in
+        // the file: the canvas showed 100px from the model, the browser
+        // showed a content-sized box.
+        const { css } = generateCode({
+            elements: {
+                [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+                a1b2: makeRect({
+                    id: 'a1b2',
+                    widthMode: 'fixed',
+                    widthValue: DEFAULT_RECT_STYLES.widthValue,
+                }),
+            },
+            rootId: ROOT_ELEMENT_ID,
+            pageName: 'home',
+        });
+        expect(css).toMatch(/\.rect_a1b2[^}]*width:\s*100px/s);
+    });
+    it('emits a fixed height that happens to equal the default', () => {
+        const { css } = generateCode({
+            elements: {
+                [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+                a1b2: makeRect({
+                    id: 'a1b2',
+                    heightMode: 'fixed',
+                    heightValue: DEFAULT_RECT_STYLES.heightValue,
+                }),
+            },
+            rootId: ROOT_ELEMENT_ID,
+            pageName: 'home',
+        });
+        expect(css).toMatch(/\.rect_a1b2[^}]*height:\s*100px/s);
+    });
+    it('still emits nothing for an auto axis', () => {
+        // The guard on the fix: elements an agent wrote with no width parse as
+        // `auto`, and must not acquire one on the next save.
+        const { css } = generateCode({
+            elements: {
+                [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+                a1b2: makeRect({ id: 'a1b2', widthMode: 'auto', heightMode: 'auto' }),
+            },
+            rootId: ROOT_ELEMENT_ID,
+            pageName: 'home',
+        });
+        expect(css).not.toMatch(/\.rect_a1b2[^}]*width:/s);
+        expect(css).not.toMatch(/\.rect_a1b2[^}]*height:/s);
+    });
+});

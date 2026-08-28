@@ -19,10 +19,25 @@ import { tagFor } from "./internal";
  * (everything else about an instance lives in the component definition).
  * see docs/notes/components-data-model.md
  */
-export const sizeDeclarationLines = (
-  el: ScampElement,
-  base: { widthValue: number; heightValue: number } = DEFAULT_RECT_STYLES
-): string[] => {
+/**
+ * `width` / `height` for one element.
+ *
+ * A fixed size is ALWAYS emitted, even when it equals the default. Every
+ * other property here is skipped when it matches its default, which is
+ * safe because "absent" and "the default" mean the same thing in CSS —
+ * absent `opacity` is 1. That does not hold for size: absent `width` is
+ * `auto`, which is a different rendering entirely.
+ *
+ * Skipping it broke two things at once. A rectangle drawn at exactly
+ * 100px wide lost its width in the generated CSS, so the canvas showed
+ * 100px (from the model) and the browser showed a content-sized box. And
+ * it violated the round-trip invariant: `parseCode` reads an absent width
+ * as `auto`, not as fixed-at-the-default, so fixed/100 in, auto out.
+ *
+ * There is no risk of pinning agent-written elements that have no width:
+ * those parse as `auto`, and only `fixed` emits a length here.
+ */
+export const sizeDeclarationLines = (el: ScampElement): string[] => {
   const lines: string[] = [];
   if (el.widthMode === 'stretch') {
     lines.push(`width: 100%;`);
@@ -34,7 +49,7 @@ export const sizeDeclarationLines = (
     // round-trips exactly what the user / agent wrote.
     if (el.widthCustom !== undefined && el.widthCustom.length > 0) {
       lines.push(`width: ${el.widthCustom};`);
-    } else if (el.widthValue !== base.widthValue) {
+    } else {
       lines.push(`width: ${el.widthValue}px;`);
     }
   }
@@ -45,7 +60,7 @@ export const sizeDeclarationLines = (
   } else if (el.heightMode === 'fixed') {
     if (el.heightCustom !== undefined && el.heightCustom.length > 0) {
       lines.push(`height: ${el.heightCustom};`);
-    } else if (el.heightValue !== base.heightValue) {
+    } else {
       lines.push(`height: ${el.heightValue}px;`);
     }
   }
@@ -118,7 +133,7 @@ export const elementDeclarationLines = (
   // through the same code path.
   const BASE = isRoot ? DEFAULT_ROOT_STYLES : DEFAULT_RECT_STYLES;
 
-  lines.push(...sizeDeclarationLines(el, BASE));
+  lines.push(...sizeDeclarationLines(el));
 
   // `min-height` — free-form string. Page-root defaults to `100vh`
   // (via DEFAULT_ROOT_STYLES) so generated pages have visible height

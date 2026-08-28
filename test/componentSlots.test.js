@@ -147,6 +147,12 @@ describe('component slots — Phase 2 default-slot content round-trip', () => {
         ...DEFAULT_RECT_STYLES,
         id,
         type: 'component-instance',
+        // `makeComponentInstance` uses auto on both axes — the instance has no
+        // intrinsic size, the rendered component's root sets the box. Building
+        // it from DEFAULT_RECT_STYLES alone gives it a fixed 100px size no real
+        // instance has.
+        widthMode: 'auto',
+        heightMode: 'auto',
         parentId: ROOT_ELEMENT_ID,
         childIds,
         x: 0,
@@ -211,6 +217,8 @@ describe('component slots — slot content flows (parity with preview)', () => {
                 ...DEFAULT_RECT_STYLES,
                 id: 'i001',
                 type: 'component-instance',
+                widthMode: 'auto',
+                heightMode: 'auto',
                 parentId: ROOT_ELEMENT_ID,
                 childIds: ['c001'],
                 x: 0,

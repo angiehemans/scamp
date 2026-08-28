@@ -31,14 +31,21 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     );
     await waitForSaved(window);
 
-    // Inject a duplicate `height` declaration into the rect's class
-    // block. The parser's last-applied wins (`100vh`) and the file
-    // round-trips with both heights until the user edits.
+    // Inject duplicate `height` declarations at the END of the class
+    // block, so last-applied wins (`100vh`) and the canvas tree actually
+    // changes.
+    //
+    // Injecting at the START leaves the generator's own `height` last, so
+    // the winning value is unchanged, the tree round-trips identically,
+    // and `externalEdit` skips the reload — the duplicate indicator then
+    // never appears. That is a real gap (a duplicate that changes nothing
+    // is exactly the dead weight worth flagging) and it is NOT covered
+    // here.
     const cssPath = path.join(project.dir, 'home.module.css');
     const original = await fs.readFile(cssPath, 'utf-8');
     const withDuplicate = original.replace(
-      new RegExp(`\\.${className}\\s*\\{`),
-      `.${className} {\n  height: 100%;\n  height: 100vh;`
+      new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`),
+      `$1  height: 100%;\n  height: 100vh;\n}`
     );
     expect(withDuplicate).not.toBe(original);
     await fs.writeFile(cssPath, withDuplicate, 'utf-8');
@@ -69,8 +76,8 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     await fs.writeFile(
       cssPath,
       original.replace(
-        new RegExp(`\\.${className}\\s*\\{`),
-        `.${className} {\n  height: 100%;\n  height: 100vh;`
+        new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`),
+        `$1  height: 100%;\n  height: 100vh;\n}`
       ),
       'utf-8'
     );

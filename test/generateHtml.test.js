@@ -51,6 +51,11 @@ const instance = (id, instanceId, overrides = {}) => makeEl(id, {
     type: 'component-instance',
     componentName: 'SidebarRow',
     instanceId,
+    // Matches `makeComponentInstance`: an instance has no intrinsic size,
+    // the rendered component's root sets the box. Without this the fixture
+    // carries the generic fixed 100px default, which no real instance has.
+    widthMode: 'auto',
+    heightMode: 'auto',
     ...overrides,
 });
 describe('generateHtml — plain elements', () => {
@@ -272,6 +277,9 @@ describe('generateHtml — nested components', () => {
                 type: 'component-instance',
                 componentName: 'SidebarRow',
                 instanceId: 'inst_b111',
+                // As above: a real instance is auto on both axes.
+                widthMode: 'auto',
+                heightMode: 'auto',
             }),
         ]),
     });
@@ -308,6 +316,9 @@ describe('collectExpandedInstances', () => {
                 type: 'component-instance',
                 componentName: 'SidebarRow',
                 instanceId: 'inst_b111',
+                // As above: a real instance is auto on both axes.
+                widthMode: 'auto',
+                heightMode: 'auto',
             }),
         ]),
     });

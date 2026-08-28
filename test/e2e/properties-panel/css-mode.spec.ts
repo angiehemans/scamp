@@ -25,9 +25,18 @@ test.describe('properties panel: CSS mode', () => {
     // whole declaration so we don't fight it.
     const editor = propertiesPanel(window).locator('.cm-content').first();
     await editor.click();
+    // A centre-click lands wherever the block happens to reach, and the
+    // typed text splices into that line — `background: #e5e5e5` became
+    // `background: #e5e5e5letter-spacing: 4px;;`, which the parser
+    // rejects and the save reports as an error. Go to the end of the
+    // document first so the edit is deterministic regardless of how many
+    // declarations the element has. `ControlOrMeta` because a literal
+    // `Control+End` is a no-op on macOS. see CLAUDE.md
+    await window.keyboard.press('ControlOrMeta+End');
+    await window.keyboard.press('Enter');
     await window.keyboard.type('letter-spacing: 4px;');
     // Commit via Cmd+S so the blur path also works identically.
-    await window.keyboard.press('Control+s');
+    await window.keyboard.press('ControlOrMeta+s');
 
     await waitForSaved(window);
     const { css } = await readPageFiles(project.dir, project.pageName);
@@ -53,8 +62,10 @@ test.describe('properties panel: CSS mode', () => {
 
     // First edit + Cmd+S.
     await editor.click();
+    await window.keyboard.press('ControlOrMeta+End');
+    await window.keyboard.press('Enter');
     await window.keyboard.type('letter-spacing: 4px;');
-    await window.keyboard.press('Control+s');
+    await window.keyboard.press('ControlOrMeta+s');
     await waitForSaved(window);
 
     // Second edit + Cmd+S — the regression to guard against is the
@@ -63,10 +74,10 @@ test.describe('properties panel: CSS mode', () => {
     // stale text and the first edit gets clobbered. We assert BOTH
     // declarations make it to disk.
     await editor.click();
-    await window.keyboard.press('End');
+    await window.keyboard.press('ControlOrMeta+End');
     await window.keyboard.press('Enter');
     await window.keyboard.type('word-spacing: 2px;');
-    await window.keyboard.press('Control+s');
+    await window.keyboard.press('ControlOrMeta+s');
     await waitForSaved(window);
 
     const { css } = await readPageFiles(project.dir, project.pageName);
