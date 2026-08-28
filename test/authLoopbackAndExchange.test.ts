@@ -194,7 +194,9 @@ describe('exchanging the code for a token', () => {
   });
 
   it('posts the code and verifier to the right endpoint', async () => {
-    const calls: Array<{ url: string; body: string; headers: Record<string, string> }> = [];
+    // `body` is optional on FetchLike since the heartbeat sends none; the
+    // exchange always sets it, which this asserts.
+    const calls: Array<{ url: string; body: string | undefined; headers: Record<string, string> }> = [];
     const fetchImpl: FetchLike = async (url, init) => {
       calls.push({ url, body: init.body, headers: init.headers });
       return { ok: true, status: 200, text: async () => JSON.stringify({ token: 't', user }) };

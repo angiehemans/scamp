@@ -41,7 +41,8 @@ export type ExchangeResult = {
 export type FetchLike = (url: string, init: {
     method: string;
     headers: Record<string, string>;
-    body: string;
+    /** Absent for requests that carry none — the heartbeat, notably. */
+    body?: string;
 }) => Promise<{
     ok: boolean;
     status: number;

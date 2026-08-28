@@ -176,6 +176,8 @@ describe('exchanging the code for a token', () => {
         expect(await exchangeCodeForToken({ ...args, fetchImpl: ok({ token: 't', user }) })).toEqual({ status: 'ok', token: 't', user });
     });
     it('posts the code and verifier to the right endpoint', async () => {
+        // `body` is optional on FetchLike since the heartbeat sends none; the
+        // exchange always sets it, which this asserts.
         const calls = [];
         const fetchImpl = async (url, init) => {
             calls.push({ url, body: init.body, headers: init.headers });

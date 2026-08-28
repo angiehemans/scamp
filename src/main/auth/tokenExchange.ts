@@ -35,7 +35,8 @@ export type FetchLike = (
   init: {
     method: string;
     headers: Record<string, string>;
-    body: string;
+    /** Absent for requests that carry none — the heartbeat, notably. */
+    body?: string;
   }
 ) => Promise<{
   ok: boolean;

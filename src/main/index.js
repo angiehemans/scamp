@@ -20,7 +20,7 @@ import { registerDesignMdIpc } from './ipc/designMd';
 import { registerImageIpc } from './ipc/image';
 import { registerClipboardIpc } from './ipc/clipboard';
 import { registerExportIpc } from './ipc/export';
-import { registerAuthIpc } from './ipc/auth';
+import { disposeAuth, registerAuthIpc } from './ipc/auth';
 import { registerHtmlExportIpc } from './ipc/htmlExport';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
@@ -344,6 +344,7 @@ const snapshotOnShutdown = async () => {
 };
 const performShutdownCleanup = async () => {
     await snapshotOnShutdown();
+    disposeAuth();
     await stopMcp();
     disposeWatcher();
     setSentryProjectRoot(null);

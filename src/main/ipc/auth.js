@@ -1,6 +1,8 @@
 import { app, ipcMain, safeStorage, shell, BrowserWindow } from 'electron';
 import { IPC } from '@shared/ipcChannels';
-import { cancelSignIn, getStatus, signIn, signOut, } from '../auth/authService';
+import { cancelSignIn, currentAuthToken, getStatus, signIn, signOut, } from '../auth/authService';
+import { authBaseUrl } from '../auth/desktopAuthFlow';
+import { sendHeartbeat, startHeartbeat } from '../auth/heartbeat';
 /**
  * Sign-in handlers.
  *
@@ -23,6 +25,27 @@ const deps = () => ({
     userDataDir: app.getPath('userData'),
     isPackaged: app.isPackaged,
 });
+/**
+ * Activity reporting. Without it the app is invisible to the product's
+ * active-user numbers: it talks to the API at sign-in and then, until
+ * cloud sync ships, essentially never again.
+ * see docs/notes/desktop-heartbeat.md
+ */
+const heartbeatDeps = () => {
+    const base = deps();
+    return {
+        baseUrl: authBaseUrl(process.env, app.isPackaged),
+        fetchImpl: base.fetchImpl,
+        token: currentAuthToken,
+        onUnauthorized: async () => {
+            // The session is gone. Drop it locally rather than let the UI keep
+            // saying the user is signed in until they restart.
+            await signOut(base);
+            broadcast(IPC.AuthComplete, { signedIn: false });
+        },
+    };
+};
+let stopHeartbeat = null;
 /** Tell every window, so a second window reflects the change too. */
 const broadcast = (channel, payload) => {
     for (const win of BrowserWindow.getAllWindows()) {
@@ -30,10 +53,20 @@ const broadcast = (channel, payload) => {
     }
 };
 export const registerAuthIpc = () => {
+    // Load any stored token, then beat once for the launch. `getStatus` is
+    // the only thing that reads the token off disk, and it makes no network
+    // call of its own — a signed-out launch still costs nothing.
+    void (async () => {
+        await getStatus(deps());
+        stopHeartbeat = startHeartbeat(heartbeatDeps());
+    })();
     ipcMain.handle(IPC.AuthStart, async () => {
         const outcome = await signIn(deps());
         if (outcome.status === 'signed-in') {
             broadcast(IPC.AuthComplete, { signedIn: true, user: outcome.user });
+            // Count the sign-in itself, rather than waiting up to four hours for
+            // a new user to register as having used the app at all.
+            void sendHeartbeat(heartbeatDeps());
         }
         return outcome;
     });
@@ -43,4 +76,10 @@ export const registerAuthIpc = () => {
         await signOut(deps());
         broadcast(IPC.AuthComplete, { signedIn: false });
     });
+};
+/** Stop the repeat at shutdown. The timer is unref'ed, so this is tidiness
+ *  rather than a requirement for the process to exit. */
+export const disposeAuth = () => {
+    stopHeartbeat?.();
+    stopHeartbeat = null;
 };

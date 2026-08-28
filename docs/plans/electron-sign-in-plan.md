@@ -267,6 +267,16 @@ is left:
    fine for building and testing; a signed release that opens
    `scamp.club/sign-in` will fail until it is live.
 
+   **Done — verified 2026-08-28.** `www.scamp.club` is canonical (both
+   `scamp.club` and `scampdesign.app` 301 to it, so
+   `DEFAULT_AUTH_BASE_URL` is right). `GET /api/desktop/token` returns 405
+   and `POST /api/desktop/heartbeat` without a token returns 401 — both
+   routes exist in production. What is NOT verified from outside: that the
+   production redirect allowlist contains
+   `http://localhost:8976/callback` verbatim, and that its trusted origins
+   include `https://www.scamp.club` with the `www`. Both are exact-match
+   checks that fail closed.
+
 2. **macOS signing.** Unchanged and still ours to confirm: `safeStorage`
    uses the Keychain, and an unsigned or ad-hoc-signed build gets a
    different keychain identity, so a token stored by one build may not be
@@ -278,6 +288,13 @@ is left:
    platform, and that port 8976 is usable. The `scamp://` fallback still
    needs the full closed/already-running matrix on Windows and Linux,
    but only when we build it.
+
+4. **Activity reporting.** Added after the original checklist: the app
+   sends `POST /api/desktop/heartbeat` on launch, on sign-in, and every
+   four hours, so desktop usage reaches DAU/MAU at all. A 401 from it now
+   signs the user out locally — that is where an expired session
+   surfaces, since it is the only API call the app makes between sign-in
+   and cloud sync. see docs/notes/desktop-heartbeat.md
 
 **No secrets ship in the app.** PKCE exists precisely so a public client
 needs none, and the verifier is generated per attempt and never stored.
