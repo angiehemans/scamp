@@ -1,7 +1,8 @@
 # Sign in to a Scamp account from the app — Plan
 
-Status: **answered, not started.** Waiting on local backend work before
-implementation begins. Backlog v11, story 1.
+Status: **ready to build.** Backend contract published and running
+locally; see `## The backend contract` below for what changed. Backlog
+v11, story 1.
 
 ## Context
 
@@ -70,21 +71,34 @@ Handled in three places:
 - `second-instance` — Windows/Linux, app already running
 - `process.argv` at startup — Windows/Linux, cold start from the link
 
-### 3. A state nonce, because any app can claim `scamp://`
+### 3. PKCE — the callback carries a code, not a token
 
-Custom protocol schemes are first-come, unverified, and OS-wide. Another
-application can register `scamp://` and receive callbacks meant for us,
-and a malicious local process can invoke `scamp://auth/callback?token=…`
-with anything it likes.
+Superseded and improved on by the backend. My original decision was a
+`state` nonce, on the reasoning that any app can claim `scamp://`. That
+reasoning was right and the mitigation was insufficient: `state` proves
+the callback belongs to a request we made, not that only we can use it.
+An interceptor that reads the callback still gets a token.
 
-So the flow generates a random `state` before opening the browser, holds
-it in memory only, and **rejects any callback whose state does not
-match**. That stops a replayed or forged callback injecting a token.
-Single-use: the pending state is cleared as soon as a callback arrives,
-matched or not.
+The backend therefore puts a **code** on the callback, redeemable only
+with a verifier that never leaves the app:
 
-This needs the backend to echo `state` back on the redirect — see the
-manual tasks.
+```
+verifier  = random 43-128 chars, in memory only
+challenge = base64url(sha256(verifier))
+→ /sign-in?...&code_challenge=<challenge>&code_challenge_method=S256
+← scamp://auth/callback?code=…&state=…
+→ POST /api/desktop/token { code, codeVerifier }
+← { token, user }
+```
+
+`state` is still generated and still checked — it is required to be
+8–256 chars and echoed verbatim — but it is no longer load-bearing on its
+own. An intercepted callback yields something unspendable.
+
+The backend's own checks assert the properties we care about: the
+callback carries no token, a different verifier cannot redeem, the
+challenge cannot be replayed as the verifier, a wrong guess burns the
+code, and a code cannot be redeemed twice.
 
 ### 4. Refuse to store rather than store in plaintext
 
@@ -97,47 +111,66 @@ If encryption is unavailable: sign-in still completes for the session,
 the token is held in memory only, and the user is told they will need to
 sign in again next launch. Never a silent plaintext write.
 
-### 5. Sessions expire on inactivity, not on a clock
+### 5. Loopback redirect first, custom scheme as fallback
 
-Answering the question on open question 2: yes, this is a solved shape,
-and it is the one to use. A session that never expires at all is
-achievable and a bad idea — a stolen keychain entry would be permanent
-access with no way to age it out. What you want is a **sliding window**:
+The backend allowlists `http://localhost:8976/callback` and
+`http://127.0.0.1:8976/callback` alongside `scamp://auth/callback`. That
+is worth taking, and not only for development.
 
-- a **short-lived access token** (~1 hour) that main attaches to requests
-- a **long-lived refresh token** (30–90 days) that **rolls forward every
-  time it is used**
+A loopback listener means the app opens a browser, the browser redirects
+to a local HTTP server the app is running, and the app reads the code
+directly. **No OS protocol registration, no URL interception, no
+platform-specific entry points, no reliance on which app last claimed
+`scamp://`.** It is also what RFC 8252 (OAuth for native apps)
+recommends over custom schemes, for exactly the hijacking reason in
+decision 3.
 
-Use the app on Monday and the window moves to Monday+90. Use it every
-week and it never expires. Stop using it entirely and it lapses after the
-inactivity period. That is exactly "long sessions that only expire after
-a period of inactivity", and it needs no compromise on security.
+Concretely it removes most of the risk in this story:
 
-Better Auth expresses this natively: its session config has `expiresIn`
-(the window) and `updateAge` (how often an active session is extended),
-so a long `expiresIn` with a sensible `updateAge` is a sliding window
-without custom code. **Worth confirming which token type the backend
-issues for a desktop client** — Better Auth's default web sessions are
-cookie-based, so a desktop flow usually wants its JWT/bearer plugin.
-That's part of manual task 3.
+| | custom scheme | loopback |
+|---|---|---|
+| OS registration | required, per platform | none |
+| Callback entry points | three (`open-url`, `second-instance`, `argv`) | one |
+| Single-instance lock | required | not required for auth |
+| Can another app intercept? | yes, last registrant wins | no, we hold the socket |
+| Manual cross-platform testing | the whole of item 6 | much less |
 
-Three things that make this safer on desktop than it would be in a
-browser, and one that doesn't:
+**One constraint that shapes this:** the allowlist is exact-match with no
+wildcard, so the port is fixed at 8976. If something else holds it, we
+cannot fall back to a random port — so the plan is loopback first, and
+the `scamp://` scheme as the fallback when the port is unavailable. That
+keeps the scheme work in the story but demotes it from "the mechanism" to
+"the contingency", and it can land after a working loopback flow rather
+than before.
 
-- the refresh token lives in the OS keychain, not in web storage
-- it never reaches the renderer (decision 1)
-- a short access-token lifetime means a server-side revocation takes
-  effect within the hour
-- but it *is* a real credential at rest, so the backend should support
-  revocation — "sign out everywhere" — rather than relying on expiry
-  alone
+The single-instance lock stays regardless, because focusing an existing
+window is the behaviour you confirmed you want — it is just no longer
+load-bearing for auth.
 
-Refresh is attempted on launch and again on any 401. A failed refresh is
-**passive**: the app drops to signed-out and the user finds out next time
-they touch a cloud feature. No modal interrupts someone mid-drag, which
-is the "never intrusive" rule from the story.
+### 6. Sessions expire on inactivity, not on a clock
 
-### 6. Signed-out is the default and costs nothing
+Confirmed by the backend, and it is the sliding window I described —
+with one simplification: **there is no separate refresh token.**
+
+`/api/desktop/token` returns an opaque **Better Auth session token**, not
+a JWT. Default expiry is 30 days, refreshed on use. A token used
+regularly keeps working; one left unused past expiry stops.
+
+So the app does not implement refresh at all. It sends the token, and
+treats a `401` as "signed out — sign in again". That is less code than
+the access/refresh pair I originally sketched, and it removes a whole
+class of token-lifecycle bugs.
+
+The opaque choice also buys immediate revocation: signing out on the web
+or deleting the session row kills the desktop token at once, because
+every request hits the database anyway. Worth knowing for a future "sign
+out everywhere".
+
+The user object returned alongside (`id`, `name`, `email`,
+`emailVerified`) is **display data only**. The app shows it and never
+treats it as authority; the server re-checks every request.
+
+### 7. Signed-out is the default and costs nothing### 6. Signed-out is the default and costs nothing
 
 No token file, no keychain read, no network on launch until the user
 clicks Sign in. `auth:status` answers from memory after a single lazy
@@ -206,47 +239,61 @@ prove the OS registration works.
 
 ---
 
-## Things I need you to do
+## The backend contract
 
-These can't be done from here, and phase 1 is blocked on the first two.
+Published and running locally on the `backend-setup` branch. Not
+deployed — production needs a deploy before a release build can sign in.
 
-1. **Allow the redirect on the backend.** `scamp://auth/callback` has to
-   be in Better Auth's permitted redirect list, or the sign-in page will
-   refuse to redirect to it. Non-http schemes are often rejected by
-   default.
+- **Redirect allowlist** — `scamp://auth/callback`,
+  `http://localhost:8976/callback`, `http://127.0.0.1:8976/callback`.
+  Exact match, no wildcard.
+- **PKCE** — S256, verifier 43–128 chars. See decision 3.
+- **`state`** — echoed verbatim, must be 8–256 chars.
+- **Token** — opaque Better Auth session token, 30 days, refreshed on
+  use, no refresh token. `401` means sign in again.
+- **Base URL** — `SCAMP_AUTH_BASE_URL`, defaulting to
+  `https://www.scamp.club`; local dev points at `http://localhost:3000`.
+- **Reference implementation** — `scripts/check-desktop-auth.mjs` in the
+  backend repo drives the whole flow in ~80 lines of Node. Worth reading
+  before writing our version, and worth mirroring its assertions in our
+  own tests.
 
-2. **Echo the `state` parameter back.** The sign-in page must return the
-   `state` it was given, unmodified, on the callback URL. Without it,
-   decision 3 is not possible and the callback is spoofable. If the
-   backend can't do this, tell me and I'll write up the alternatives —
-   they're all worse.
+## Things I still need from you
 
-3. **Confirm the token contract:** what the JWT contains (is `name` and
-   `email` in the claims, or does the app need a `/me` call?), its
-   lifetime, and how refresh works — a refresh token, a silent re-auth,
-   or a long-lived JWT. Decision 2 in phase 2 depends on the answer.
+Items 1–4 of the original list are answered by the contract above. What
+is left:
 
-4. **Decide the sign-in URL per environment.** Production URL, and what
-   a dev build should point at. I'd suggest an env var with a production
-   default so a dev build can't accidentally hit prod.
+1. **Deploy the backend** before a release build ships. Local-only is
+   fine for building and testing; a signed release that opens
+   `scamp.club/sign-in` will fail until it is live.
 
-5. **macOS signing.** `safeStorage` uses the Keychain, and an unsigned or
-   ad-hoc-signed build gets a different keychain identity — tokens
-   stored by one build may not be readable by the next. Worth confirming
-   the release build signs consistently before we rely on it.
+2. **macOS signing.** Unchanged and still ours to confirm: `safeStorage`
+   uses the Keychain, and an unsigned or ad-hoc-signed build gets a
+   different keychain identity, so a token stored by one build may not be
+   readable by the next.
 
-6. **Manual verification on all three platforms**, once phase 1 lands. I
-   can test the callback handling, but not the OS routing. Specifically:
-   clicking a `scamp://` link with the app **closed**, and with it
-   **already running**, on macOS, Windows and Linux. The
-   already-running case on Windows/Linux is the one decision 2 exists for
-   and the one most likely to fail.
+3. **Cross-platform verification — much smaller now.** Taking the
+   loopback path (decision 5), there is no OS routing to test. What
+   remains is confirming the browser hands back to the app on each
+   platform, and that port 8976 is usable. The `scamp://` fallback still
+   needs the full closed/already-running matrix on Windows and Linux,
+   but only when we build it.
 
-**No secrets are needed in the app.** This flow receives a token via
-redirect; there is no client secret to embed, and there should not be —
-anything shipped in the bundle is readable. If the backend expects a
-client secret for this flow, that's a design problem worth raising before
-implementation.
+**No secrets ship in the app.** PKCE exists precisely so a public client
+needs none, and the verifier is generated per attempt and never stored.
+
+## Not doing yet: the device authorization flow
+
+The backend offers it as an alternative that removes OS routing
+completely — the app shows a short code, the user types it on the web,
+the app polls. It is the right answer if the `scamp://` path proves
+painful.
+
+I would not reach for it now, because **the loopback redirect already
+removes the OS routing problem** at a lower UX cost: the browser bounces
+back automatically instead of asking someone to retype a code. Device
+flow is the better fallback than `scamp://` if loopback turns out to be
+blocked — worth remembering it exists rather than building it.
 
 ## Open questions
 
