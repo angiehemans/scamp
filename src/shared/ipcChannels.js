@@ -35,6 +35,12 @@ export const IPC = {
     // stays local-only (the scaffolded `.gitignore` ignores `.scamp/`).
     ComponentWriteThumbnail: 'component:writeThumbnail',
     ComponentReadThumbnail: 'component:readThumbnail',
+    // Start-screen project thumbnail — a cropped capture of the project's
+    // home page, written on save under `.scamp/preview.png`. Same shape as
+    // the component thumbnails above, one per project instead of one per
+    // component. see docs/notes/project-thumbnails.md
+    ProjectWriteThumbnail: 'project:writeThumbnail',
+    ProjectReadThumbnail: 'project:readThumbnail',
     // Live agent context — a markdown snapshot of the open target and the
     // selected element, written to `.scamp/context.md` on every selection so
     // an agent in the terminal can read it instead of asking the user what

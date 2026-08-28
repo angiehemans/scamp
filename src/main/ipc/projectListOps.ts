@@ -77,16 +77,21 @@ export const attachCardMeta = async (
   projects: ReadonlyArray<StartScreenProject>,
   readMeta: (
     path: string
-  ) => Promise<{ cardBackground?: string; state?: string }>
+  ) => Promise<{
+    cardBackground?: string;
+    state?: string;
+    hasThumbnail?: boolean;
+  }>
 ): Promise<StartScreenProject[]> =>
   Promise.all(
     projects.map(async (p) => {
       if (!p.exists) return p;
-      const { cardBackground, state } = await readMeta(p.path);
+      const { cardBackground, state, hasThumbnail } = await readMeta(p.path);
       return {
         ...p,
         ...(cardBackground ? { cardBackground } : {}),
         ...(state ? { state } : {}),
+        ...(hasThumbnail ? { hasThumbnail } : {}),
       };
     })
   );

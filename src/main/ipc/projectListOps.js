@@ -63,10 +63,11 @@ export const mergeProjectsForDisplay = (recents, scanned) => {
 export const attachCardMeta = async (projects, readMeta) => Promise.all(projects.map(async (p) => {
     if (!p.exists)
         return p;
-    const { cardBackground, state } = await readMeta(p.path);
+    const { cardBackground, state, hasThumbnail } = await readMeta(p.path);
     return {
         ...p,
         ...(cardBackground ? { cardBackground } : {}),
         ...(state ? { state } : {}),
+        ...(hasThumbnail ? { hasThumbnail } : {}),
     };
 }));

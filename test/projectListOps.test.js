@@ -95,6 +95,19 @@ describe('attachCardMeta', () => {
         expect(result[1]?.cardBackground).toBeUndefined();
         expect(result[1]?.state).toBeUndefined();
     });
+    it('attaches hasThumbnail so the card knows whether to expect an image', async () => {
+        const projects = [
+            startProject({ path: '/p/withThumb' }),
+            startProject({ path: '/p/without' }),
+        ];
+        const result = await attachCardMeta(projects, async (path) => ({
+            hasThumbnail: path === '/p/withThumb',
+        }));
+        expect(result[0]?.hasThumbnail).toBe(true);
+        // Omitted rather than false — the card treats absent as "no image",
+        // and an explicit false would only add noise to the payload.
+        expect(result[1]?.hasThumbnail).toBeUndefined();
+    });
     it('skips the disk read for a missing project', async () => {
         const projects = [startProject({ path: '/gone', exists: false })];
         let called = false;

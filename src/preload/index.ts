@@ -36,6 +36,10 @@ import type {
   ComponentReadThumbnailArgs,
   ComponentReadThumbnailResult,
   ComponentWriteThumbnailArgs,
+  ProjectReadThumbnailArgs,
+  ProjectReadThumbnailResult,
+  ProjectWriteThumbnailArgs,
+  ProjectWriteThumbnailResult,
   ContextWriteArgs,
   McpQueryArgs,
   McpQueryResultArgs,
@@ -183,6 +187,17 @@ const api = {
     args: ComponentReadThumbnailArgs
   ): Promise<ComponentReadThumbnailResult> =>
     ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
+
+  // Start-screen project thumbnails.
+  writeProjectThumbnail: (
+    args: ProjectWriteThumbnailArgs
+  ): Promise<ProjectWriteThumbnailResult> =>
+    ipcRenderer.invoke(IPC.ProjectWriteThumbnail, args),
+
+  readProjectThumbnail: (
+    args: ProjectReadThumbnailArgs
+  ): Promise<ProjectReadThumbnailResult> =>
+    ipcRenderer.invoke(IPC.ProjectReadThumbnail, args),
 
   // Project snapshots (persistent `.scamp/` point-in-time copies).
   createSnapshot: (

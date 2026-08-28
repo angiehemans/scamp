@@ -7,6 +7,7 @@ import { readableTextColor } from "@lib/readableTextColor"
 import { basename } from "../lib/path"
 import { CreateProjectModal } from "./CreateProjectModal"
 import { AccountPanel } from "./startScreen/AccountPanel"
+import { ProjectCardThumb } from "./startScreen/ProjectCardThumb"
 import { SegmentedControl } from "./controls/SegmentedControl"
 import { Tooltip } from "./controls/Tooltip"
 import styles from "./StartScreen.module.css"
@@ -172,24 +173,32 @@ export const StartScreen = ({
                 disabled={!project.exists}
                 type="button"
               >
-                <span className={styles.cardTop}>
-                  <span className={styles.cardName}>{project.name}</span>
-                  {project.state && (
-                    <span className={styles.cardState}>{project.state}</span>
+                {project.exists && (
+                  <ProjectCardThumb
+                    projectPath={project.path}
+                    hasThumbnail={project.hasThumbnail === true}
+                  />
+                )}
+                <span className={styles.cardBody}>
+                  <span className={styles.cardTop}>
+                    <span className={styles.cardName}>{project.name}</span>
+                    {project.state && (
+                      <span className={styles.cardState}>{project.state}</span>
+                    )}
+                  </span>
+                  <span className={styles.cardMeta}>
+                    {lastOpenedLabel(project)}
+                  </span>
+                  {project.exists ? (
+                    <span className={styles.cardPath} title={project.path}>
+                      {shortPath(project.path)}
+                    </span>
+                  ) : (
+                    <span className={styles.cardMissingLabel}>
+                      Folder not found
+                    </span>
                   )}
                 </span>
-                <span className={styles.cardMeta}>
-                  {lastOpenedLabel(project)}
-                </span>
-                {project.exists ? (
-                  <span className={styles.cardPath} title={project.path}>
-                    {shortPath(project.path)}
-                  </span>
-                ) : (
-                  <span className={styles.cardMissingLabel}>
-                    Folder not found
-                  </span>
-                )}
               </button>
               {!project.exists && (
                 <Tooltip label="Remove from list">

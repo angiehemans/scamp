@@ -90,6 +90,12 @@ export type StartScreenProject = {
     cardBackground?: string;
     /** Free-text status from the project's `scamp.config.json`, if set. */
     state?: string;
+    /**
+     * Whether `.scamp/preview.png` exists. Sent with the list so a card with
+     * no thumbnail renders its placeholder immediately instead of flashing
+     * one in after a round-trip that was always going to return null.
+     */
+    hasThumbnail?: boolean;
 };
 export type ChooseFolderResult = {
     canceled: boolean;
@@ -573,6 +579,29 @@ export type ComponentReadThumbnailArgs = {
  * been written for this component yet — sidebar then renders a
  * placeholder.
  */
+export type ProjectWriteThumbnailArgs = {
+    projectPath: string;
+    /** `data:image/png;base64,…` URL, already cropped to the card aspect. */
+    dataUrl: string;
+};
+export type ProjectWriteThumbnailResult = {
+    ok: true;
+    thumbnailPath: string;
+} | {
+    ok: false;
+    error: string;
+};
+export type ProjectReadThumbnailArgs = {
+    projectPath: string;
+};
+/**
+ * Base64 PNG (no `data:` prefix), or null when the project has never been
+ * saved since thumbnails shipped. The card falls back to its
+ * `cardBackground` colour.
+ */
+export type ProjectReadThumbnailResult = {
+    base64: string | null;
+};
 export type ComponentReadThumbnailResult = {
     base64: string | null;
 };

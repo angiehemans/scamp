@@ -1,0 +1,23 @@
+/* 16:10 matches THUMBNAIL_ASPECT in @lib/thumbnailCrop — the capture is
+   cropped to this ratio, so the two have to agree or the image letterboxes
+   inside its own frame. */
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+  /* Transparent so the card's own cardBackground shows through when there
+     is no image yet. */
+  background: none;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* The PNG is already cropped to this ratio; `cover` only guards against
+     an older thumbnail written at a different aspect. */
+  object-fit: cover;
+  object-position: top center;
+}

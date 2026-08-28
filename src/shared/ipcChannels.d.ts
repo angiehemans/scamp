@@ -22,6 +22,8 @@ export declare const IPC: {
     readonly ComponentRead: "component:read";
     readonly ComponentWriteThumbnail: "component:writeThumbnail";
     readonly ComponentReadThumbnail: "component:readThumbnail";
+    readonly ProjectWriteThumbnail: "project:writeThumbnail";
+    readonly ProjectReadThumbnail: "project:readThumbnail";
     readonly ContextWrite: "context:write";
     readonly ProjectsList: "projects:list";
     readonly RecentProjectsRemove: "recentProjects:remove";

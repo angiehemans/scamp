@@ -4,6 +4,7 @@ import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import { parseRecentStore, upsertRecent, setRecentFormat, removeRecentByPath, } from './recentProjectsOps';
 import { attachCardMeta, mergeProjectsForDisplay } from './projectListOps';
+import { hasProjectThumbnail } from './projectThumbnailOps';
 import { readConfig } from './projectConfigOps';
 import { scanProjectsInFolder } from './projectScan';
 import { getSettings } from './settings';
@@ -69,8 +70,11 @@ const listStartScreenProjects = async () => {
     // scamp.config.json. `readConfig` bypasses the active-project IPC guard
     // (it's the ops-level reader), so it's safe for not-yet-open projects.
     return attachCardMeta(merged, async (path) => {
-        const cfg = await readConfig(path);
-        return { cardBackground: cfg.cardBackground, state: cfg.state };
+        const [cfg, hasThumbnail] = await Promise.all([
+            readConfig(path),
+            hasProjectThumbnail(path),
+        ]);
+        return { cardBackground: cfg.cardBackground, state: cfg.state, hasThumbnail };
     });
 };
 export const registerRecentProjectsIpc = () => {

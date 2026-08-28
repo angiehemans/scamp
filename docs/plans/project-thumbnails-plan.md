@@ -1,6 +1,8 @@
 # Project thumbnails on the start screen — Plan
 
-Status: draft, awaiting answers to the open questions at the bottom.
+Status: **implemented.** All six questions answered below; every phase
+built. Implementation notes live in `docs/notes/project-thumbnails.md` —
+read that first, this plan is the reasoning behind it.
 
 ## Context
 
@@ -212,29 +214,29 @@ that's a judgement call I can't make from here.
 1. **Capture on save, or capture on close?** I've argued for save above:
    close-time capture misses the quit path entirely and races the canvas
    unmount. Answering "close anyway" is fine — I'd then await the capture
-   with a timeout and accept that quitting from a project skips it.
+   with a timeout and accept that quitting from a project skips it. lets try on save then.
 
 2. **Home page only, or the last page you were on?** I lean home only, for
    recognition. This interacts with question 1 — see the note above about
-   the two together being the worst case.
+   the two together being the worst case. home page only
 
 3. **Crop or fit?** Top-crop to the card aspect (my lean — a page is
    recognisable by its top), or letterbox the whole page into the frame so
    you see all of it small. Or capture a fixed viewport height, e.g. the
-   top 1200px, so every card shows a comparable slice.
+   top 1200px, so every card shows a comparable slice. crop
 
 4. **What do projects with no thumbnail look like?** Text-only card at a
    shorter height (grid goes ragged), or a `cardBackground`-filled block
    the same size as an image (grid stays even, but an empty coloured
-   rectangle might read as a broken image).
+   rectangle might read as a broken image). card background filled block
 
 5. **Does `cardBackground` survive?** It's currently the whole card's
    background. With an image on top it could stay as the card's base
    colour, become the placeholder fill, or go away. I lean: keep it as the
-   placeholder fill and the card base.
+   placeholder fill and the card base. yest its the backup when there is no screenshot
 
 6. **Should thumbnails travel with the project?** `.scamp/` is gitignored,
    so a project cloned to another machine shows a placeholder until it's
    opened and saved there. That seems right — a screenshot is a local
    cache, not project source — but it does mean a shared project looks
-   blank to a collaborator on first open. Confirm you're happy with that.
+   blank to a collaborator on first open. Confirm you're happy with that. yeah thats fine.

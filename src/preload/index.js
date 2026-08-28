@@ -57,6 +57,9 @@ const api = {
     getMcpStatus: () => ipcRenderer.invoke(IPC.McpStatus),
     writeComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentWriteThumbnail, args),
     readComponentThumbnail: (args) => ipcRenderer.invoke(IPC.ComponentReadThumbnail, args),
+    // Start-screen project thumbnails.
+    writeProjectThumbnail: (args) => ipcRenderer.invoke(IPC.ProjectWriteThumbnail, args),
+    readProjectThumbnail: (args) => ipcRenderer.invoke(IPC.ProjectReadThumbnail, args),
     // Project snapshots (persistent `.scamp/` point-in-time copies).
     createSnapshot: (args) => ipcRenderer.invoke(IPC.SnapshotCreate, args),
     listSnapshots: (args) => ipcRenderer.invoke(IPC.SnapshotList, args),

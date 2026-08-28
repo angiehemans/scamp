@@ -6,6 +6,7 @@ import { registerProjectIpc } from './ipc/project';
 import { registerFileIpc } from './ipc/file';
 import { registerPageIpc } from './ipc/page';
 import { registerComponentIpc } from './ipc/component';
+import { registerProjectThumbnailIpc } from './ipc/projectThumbnail';
 import { registerContextIpc } from './ipc/context';
 import { registerSnapshotIpc } from './ipc/snapshot';
 import { createSnapshot } from './ipc/snapshotOps';
@@ -253,6 +254,7 @@ app.whenReady().then(() => {
     registerFileIpc();
     registerPageIpc();
     registerComponentIpc();
+    registerProjectThumbnailIpc();
     registerContextIpc();
     registerSnapshotIpc();
     registerRecentProjectsIpc();

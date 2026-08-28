@@ -10,6 +10,7 @@ import { errorMessage } from '@shared/errorMessage';
 import { selectAnyAgentActive, selectPauseReason, useTerminalActivityStore, } from '@store/terminalActivitySlice';
 import { externalEditTracker } from '../lib/externalEditTracker';
 import { captureAndPersistComponentThumbnail } from '../lib/componentThumbnail';
+import { captureAndPersistProjectThumbnail } from '../lib/projectThumbnail';
 import { importNameForTarget, toEditTarget } from './editTarget';
 import { notifyWriteAborted } from './pendingSaves';
 import { dispatchPageWrite } from './writeDispatch';
@@ -188,6 +189,19 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
                 captureAndPersistComponentThumbnail({
                     projectPath,
                     componentName: target.name,
+                });
+            });
+        }
+    }
+    // Start-screen card capture, home page only.
+    // see docs/notes/project-thumbnails.md
+    if (target.kind === 'page') {
+        const projectPath = store.projectPath;
+        if (projectPath) {
+            requestAnimationFrame(() => {
+                captureAndPersistProjectThumbnail({
+                    projectPath,
+                    pageName: target.name,
                 });
             });
         }

@@ -24,4 +24,5 @@ export declare const mergeProjectsForDisplay: (recents: ReadonlyArray<RecentProj
 export declare const attachCardMeta: (projects: ReadonlyArray<StartScreenProject>, readMeta: (path: string) => Promise<{
     cardBackground?: string;
     state?: string;
+    hasThumbnail?: boolean;
 }>) => Promise<StartScreenProject[]>;
