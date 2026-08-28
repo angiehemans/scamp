@@ -1,0 +1,96 @@
+/* Sits at the foot of the start-screen sidebar. Quiet by default: an
+   account is optional and the signed-out state must not look like a
+   prompt. see docs/plans/electron-sign-in-plan.md */
+.panel {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signIn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.signIn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.signIn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--text-inverse);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.email,
+.note,
+.error {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* Long addresses must not widen the sidebar. */
+.email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  color: var(--status-error);
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  align-self: flex-start;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link:hover {
+  color: var(--text-primary);
+}

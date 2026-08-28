@@ -6,6 +6,7 @@ import { formatRelativeTime } from "@store/formatHistoryLabel"
 import { readableTextColor } from "@lib/readableTextColor"
 import { basename } from "../lib/path"
 import { CreateProjectModal } from "./CreateProjectModal"
+import { AccountPanel } from "./startScreen/AccountPanel"
 import { SegmentedControl } from "./controls/SegmentedControl"
 import { Tooltip } from "./controls/Tooltip"
 import styles from "./StartScreen.module.css"
@@ -412,6 +413,8 @@ export const StartScreen = ({
             </div>
           </div>
         )}
+      
+        <AccountPanel />
       </aside>
 
       <main className={styles.main}>{renderMain()}</main>
