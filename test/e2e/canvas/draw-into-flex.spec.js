@@ -27,7 +27,7 @@ export default function Home() {
         <div data-scamp-id="kid_one" className={styles.kid_one}></div>
         <div data-scamp-id="kid_two" className={styles.kid_two}></div>
       </div>
-      <div data-scamp-id="box_plain" className={styles.box_plain}></div>
+      <div data-scamp-id="stretch_col" className={styles.stretch_col}></div>
     </div>
   );
 }
@@ -50,13 +50,24 @@ const HOME_CSS = `.root {
   background-color: rgb(240, 240, 240);
 }
 
-.box_plain {
+/* Sized by its layout, not by a pixel width — the shape every other
+   fixture here was missing. A percentage width parses to stretch mode,
+   and a stretch element's widthValue is an untouched 100. Reading that
+   number instead of measuring the box clamped anything drawn inside to
+   100px wide. Real-world case: a projects column in scamp-ui.
+   (No backticks in here — this block is inside a template literal.) */
+.stretch_col {
   position: absolute;
   left: 0px;
   top: 480px;
-  width: 500px;
+  width: 100%;
   height: 300px;
-  background-color: rgb(220, 230, 240);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px 20px;
+  background-color: rgb(225, 235, 245);
 }
 
 /* Two 150px children in a 500px row: adding a 180px box overflows the
@@ -144,6 +155,91 @@ test.describe('canvas: drawing into a flex container', () => {
         const css = await project.readCss();
         expect(css).toMatch(new RegExp(String.raw `\.${className}[^}]*flex-shrink:\s*0`, 's'));
     });
+    test('a box drawn at exactly the default size keeps that size', async ({ window, project, }) => {
+        // 100 is DEFAULT_RECT_STYLES.widthValue. The generator used to skip
+        // any value equal to its default, so this exact box emitted no width
+        // at all — and an element with no width is content-sized in a flex
+        // parent, which collapsed it. Reported as "drawn at 100w but the
+        // width isn't even showing in its css".
+        // see docs/notes/default-omission-and-size.md
+        await expect(pageRoot(window)).toBeVisible();
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 320, y: 320 }, { x: 420, y: 420 });
+        await waitForSaved(window);
+        const drawn = canvasElementsByPrefix(window, 'rect_').first();
+        const className = await drawn.getAttribute('data-scamp-id');
+        if (!className)
+            throw new Error('no rect created');
+        const css = await project.readCss();
+        expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*100px`, 's'));
+        expect(css).toMatch(new RegExp(`\\.${className}[^}]*height:\\s*100px`, 's'));
+        const box = await drawn.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return { w: Math.round(r.width), h: Math.round(r.height) };
+        });
+        expect(box).toEqual({ w: 100, h: 100 });
+    });
+    test('a full-width parent does not clamp the draw to 100px', async ({ window, project, }) => {
+        // `parentSizeOf` used to return the parent's MODEL widthValue, which
+        // for a `width: 100%` (stretch) parent is an untouched 100 — nothing
+        // to do with the rendered box. Drawing inside such a container
+        // clamped the width to 100 while the height clamped against a real
+        // fixed height and came through intact.
+        await expect(pageRoot(window)).toBeVisible();
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 150, y: 520 }, { x: 470, y: 660 });
+        await waitForSaved(window);
+        const drawn = canvasElementsByPrefix(window, 'rect_').first();
+        const className = await drawn.getAttribute('data-scamp-id');
+        if (!className)
+            throw new Error('no rect created');
+        const css = await project.readCss();
+        expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*320px`, 's'));
+        expect(css).toMatch(new RegExp(`\\.${className}[^}]*height:\\s*140px`, 's'));
+        const box = await drawn.evaluate((el) => {
+            const r = el.getBoundingClientRect();
+            return { w: Math.round(r.width), h: Math.round(r.height) };
+        });
+        expect(box).toEqual({ w: 320, h: 140 });
+    });
+});
+/**
+ * The other half of the fix, in its own fixture: the offset clamp is
+ * correct for a parent that does NOT own its children's layout, and must
+ * survive. Separate because the two fixtures were competing for the
+ * reachable band of the canvas — the frame renders unscaled and offset,
+ * so a container pushed past ~620 frame-y is off-window and the drag
+ * silently does nothing.
+ */
+const PLAIN_TSX = `import styles from './page.module.css';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="box_plain" className={styles.box_plain}></div>
+    </div>
+  );
+}
+`;
+const PLAIN_CSS = `.root {
+}
+
+.box_plain {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 500px;
+  height: 300px;
+  background-color: rgb(220, 230, 240);
+}
+`;
+test.describe('canvas: drawing into a plain container', () => {
+    test.use({
+        projectOptions: {
+            format: 'nextjs',
+            pageContent: { home: { tsx: PLAIN_TSX, css: PLAIN_CSS } },
+        },
+    });
     test('an absolutely positioned parent still keeps its child inside', async ({ window, project, }) => {
         // The other half: the offset clamp is correct for a non-layout parent
         // and must survive. The same drag into a plain absolutely-positioned
@@ -152,7 +248,7 @@ test.describe('canvas: drawing into a flex container', () => {
         await selectTool(window, 'r');
         // 370, not 400: the clamp would land on exactly 100px, which is the
         // default width and therefore omitted from the CSS entirely.
-        await dragInFrame(window, { x: 370, y: 500 }, { x: 560, y: 620 });
+        await dragInFrame(window, { x: 370, y: 60 }, { x: 560, y: 180 });
         await waitForSaved(window);
         const className = await canvasElementsByPrefix(window, 'rect_')
             .first()

@@ -77,6 +77,47 @@ the correct default for a drawing tool and the wrong default for a
 responsive layout. Deleting the one line in the CSS panel restores normal
 flex behaviour.
 
+## The third half: measuring the parent, not asking the model
+
+The clamp fix made the CSS right; `flex-shrink: 0` made it render right.
+Both were still wrong for the container that actually prompted the report,
+because `parentSizeOf` never measured anything:
+
+```ts
+return { w: el.widthValue, h: el.heightValue };
+```
+
+Those numbers only mean something when the axis is `fixed`. For `stretch`,
+`fit-content` or `auto` they are the untouched fallback — 100 — with no
+relation to the rendered box.
+
+A real page made that concrete. `scamp-ui`'s start page has:
+
+```css
+.projects_a056 {
+  width: 100%;      /* → stretch, widthValue stays 100 */
+  height: 850px;    /* → fixed, heightValue is real   */
+  display: flex;
+  flex-direction: column;
+}
+```
+
+So a rectangle drawn inside it clamped to `min(drawn, 100)` on the width
+and `min(drawn, 850)` on the height. The file recorded
+`width: 100px; height: 382px` — a real drag height beside a width that was
+never anything but the default. Correct height, absurd width, in exactly
+the containers a real design uses.
+
+`parentSizeOf` now measures, falling back to the model only when the node
+cannot be found. Note the same function already measured for the root, and
+for `boundsFor` — this one branch was the odd one out.
+
+Worth naming why three fixtures in a row missed it: every one gave the
+parent an explicit pixel width, which makes `widthValue` accidentally
+correct. A percentage-width parent is the common case in real projects and
+was the one shape never tested. `test/e2e/canvas/draw-into-flex.spec.ts`
+now has `stretch_col` for exactly this.
+
 ## Testing note
 
 `test/e2e/canvas/draw-into-flex.spec.ts` covers both directions: a flex

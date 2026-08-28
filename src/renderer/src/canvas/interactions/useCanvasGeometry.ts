@@ -124,7 +124,22 @@ export const useCanvasGeometry = (
     }
     const el = elements[id];
     if (!el) return { w: Number.POSITIVE_INFINITY, h: Number.POSITIVE_INFINITY };
-    return { w: el.widthValue, h: el.heightValue };
+    // MEASURE the parent; do not read `widthValue` / `heightValue` off the
+    // model. Those numbers are only meaningful when the axis is `fixed`.
+    // For `stretch`, `fit-content` or `auto` they are an untouched
+    // fallback — 100 — with no relation to the rendered box.
+    //
+    // That is not a rounding error, it is a wrong answer by an order of
+    // magnitude: a `width: 100%` container 1440px wide reported 100, so a
+    // rectangle drawn inside it was clamped to 100px wide while its height
+    // clamped correctly against a real fixed height and survived. Correct
+    // height, absurd width, and only in containers sized by their layout.
+    // see docs/notes/draw-into-flex-parent.md
+    const measured = measureElementInFrame(id);
+    return {
+      w: measured?.w ?? el.widthValue,
+      h: measured?.h ?? el.heightValue,
+    };
   };
 
   /**
