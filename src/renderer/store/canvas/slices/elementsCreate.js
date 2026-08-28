@@ -1,4 +1,5 @@
 import { cloneElementSubtree, generateElementId, groupSiblings, reorderElementPure, reparentWithPositionPure, ROOT_ELEMENT_ID, ungroupSiblings, wrapElement, } from '@lib/element';
+import { preserveDrawnSize } from '@lib/flexChild';
 import { classNameFor } from '@lib/generateCode';
 import { resolveInsertParent } from '@lib/insertParent';
 import { normalizeCopySelection } from '@lib/clipboardSelection';
@@ -24,7 +25,9 @@ export const createElementsCreateSlice = (set) => ({
             return {
                 elements: {
                     ...state.elements,
-                    [id]: withTag,
+                    // A flex parent would otherwise shrink it below the drawn width.
+                    // see docs/notes/draw-into-flex-parent.md
+                    [id]: preserveDrawnSize(withTag, parent),
                     [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
                 },
                 selectedElementIds: [id],
@@ -66,7 +69,7 @@ export const createElementsCreateSlice = (set) => ({
             return {
                 elements: {
                     ...state.elements,
-                    [id]: newImage,
+                    [id]: preserveDrawnSize(newImage, parent),
                     [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
                 },
                 selectedElementIds: [id],
@@ -91,7 +94,7 @@ export const createElementsCreateSlice = (set) => ({
             return {
                 elements: {
                     ...state.elements,
-                    [id]: newSvg,
+                    [id]: preserveDrawnSize(newSvg, parent),
                     [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
                 },
                 selectedElementIds: [id],
@@ -111,7 +114,7 @@ export const createElementsCreateSlice = (set) => ({
             return {
                 elements: {
                     ...state.elements,
-                    [id]: newInput,
+                    [id]: preserveDrawnSize(newInput, parent),
                     [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
                 },
                 selectedElementIds: [id],

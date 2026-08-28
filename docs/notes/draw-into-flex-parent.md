@@ -47,6 +47,36 @@ overflow. Only the offset-driven shrink is dropped.
 next round-trip anyway — zeroing it keeps the in-memory model matching
 what lands on disk.
 
+## The second half: the render, not just the model
+
+Fixing the clamp made the CSS correct and the canvas still wrong. A drawn
+box reported `width: 180px` in the stylesheet and rendered at 148px,
+because a flex item's default `flex-shrink: 1` squashes it below its own
+width as soon as the line overflows. Both halves were behaving exactly as
+CSS specifies; they simply disagreed about the answer.
+
+The draw tool's promise is that you get the box you drew, so a drawn
+element in a flex parent now gets `flex-shrink: 0` (`preserveDrawnSize` in
+`src/renderer/lib/flexChild.ts`), applied to the rectangle, image, SVG and
+input creators — everything that commits an exact drawn size. Text is left
+alone: it hugs its content, and pinning it against shrinking changes how
+it wraps, which is a different decision.
+
+It goes through `customProperties` rather than a new typed field. That
+means it is emitted verbatim into the generated CSS, so the preview and
+any browser agree with the canvas; it round-trips through `parseCode` as
+an unknown property with no new mapping and no risk to the round-trip
+invariant; and it stays visible and removable in the CSS panel.
+
+Grid parents are excluded — a grid item is sized by its track and already
+honours an explicit width.
+
+**The trade-off, stated plainly:** these boxes no longer participate in
+flex shrinking, so they will not narrow when their container does. That is
+the correct default for a drawing tool and the wrong default for a
+responsive layout. Deleting the one line in the CSS panel restores normal
+flex behaviour.
+
 ## Testing note
 
 `test/e2e/canvas/draw-into-flex.spec.ts` covers both directions: a flex
@@ -62,3 +92,10 @@ canvas spec:
   is `DEFAULT_RECT_STYLES.widthValue` and the generator omits defaults.
   Assertions have to pick a number that is not a default, or they fail
   against correct behaviour.
+- **Start the drag over empty space in the container.** Beginning it on
+  top of a child resolves the insert parent to the root instead, and the
+  spec then silently tests nothing — the CSS looks right because no flex
+  parent was ever involved.
+- **Assert the rendered box, not only the CSS.** Every CSS assertion in
+  this spec passed while the canvas was visibly wrong. Only
+  `getBoundingClientRect().width` caught it.

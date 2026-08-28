@@ -16,6 +16,7 @@ import {
   type PropertyGroup,
   type ScampElement,
 } from '@lib/element';
+import { preserveDrawnSize } from '@lib/flexChild';
 import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore, type HistoryCommitInput } from '../../historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
@@ -113,7 +114,9 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: withTag,
+          // A flex parent would otherwise shrink it below the drawn width.
+          // see docs/notes/draw-into-flex-parent.md
+          [id]: preserveDrawnSize(withTag, parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -155,7 +158,7 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: newImage,
+          [id]: preserveDrawnSize(newImage, parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -181,7 +184,7 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: newSvg,
+          [id]: preserveDrawnSize(newSvg, parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -201,7 +204,7 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: newInput,
+          [id]: preserveDrawnSize(newInput, parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],

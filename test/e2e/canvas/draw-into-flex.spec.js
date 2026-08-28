@@ -23,6 +23,10 @@ export default function Home() {
   return (
     <div data-scamp-id="root" className={styles.root}>
       <div data-scamp-id="row_flex" className={styles.row_flex}></div>
+      <div data-scamp-id="row_full" className={styles.row_full}>
+        <div data-scamp-id="kid_one" className={styles.kid_one}></div>
+        <div data-scamp-id="kid_two" className={styles.kid_two}></div>
+      </div>
       <div data-scamp-id="box_plain" className={styles.box_plain}></div>
     </div>
   );
@@ -39,7 +43,7 @@ const HOME_CSS = `.root {
   left: 0px;
   top: 0px;
   width: 500px;
-  height: 400px;
+  height: 280px;
   display: flex;
   flex-direction: row;
   gap: 12px;
@@ -49,10 +53,39 @@ const HOME_CSS = `.root {
 .box_plain {
   position: absolute;
   left: 0px;
-  top: 450px;
+  top: 480px;
   width: 500px;
   height: 300px;
   background-color: rgb(220, 230, 240);
+}
+
+/* Two 150px children in a 500px row: adding a 180px box overflows the
+   line (150 + 150 + 180 + gaps > 500), which is when flex-shrink starts
+   squashing items below their own width. The kids are left narrow enough
+   that there is empty row to START the drag in — beginning it on top of a
+   child resolves the insert parent to the root instead. */
+.row_full {
+  position: absolute;
+  left: 0px;
+  top: 300px;
+  width: 500px;
+  height: 160px;
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  background-color: rgb(230, 240, 230);
+}
+
+.kid_one {
+  width: 150px;
+  height: 120px;
+  background-color: rgb(200, 120, 120);
+}
+
+.kid_two {
+  width: 150px;
+  height: 120px;
+  background-color: rgb(120, 200, 120);
 }
 `;
 test.use({
@@ -93,6 +126,23 @@ test.describe('canvas: drawing into a flex container', () => {
         const css = await project.readCss();
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*160px`, 's'));
         expect(css).toMatch(new RegExp(`\\.${className}[^}]*height:\\s*140px`, 's'));
+    });
+    test('the box RENDERS at the size drawn, not just records it', async ({ window, project, }) => {
+        // The half that the CSS assertions above cannot see. A flex item's
+        // default `flex-shrink: 1` squashes it below its own width once the
+        // line overflows, so the stylesheet said 180px and the canvas drew
+        // 148px — both behaving exactly as CSS specifies.
+        await expect(pageRoot(window)).toBeVisible();
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 320, y: 320 }, { x: 500, y: 440 });
+        await waitForSaved(window);
+        const drawn = canvasElementsByPrefix(window, 'rect_').first();
+        const rendered = await drawn.evaluate((el) => Math.round(el.getBoundingClientRect().width));
+        expect(rendered).toBe(180);
+        // And the opt-out is in the file, so the preview agrees with the canvas.
+        const className = await drawn.getAttribute('data-scamp-id');
+        const css = await project.readCss();
+        expect(css).toMatch(new RegExp(String.raw `\.${className}[^}]*flex-shrink:\s*0`, 's'));
     });
     test('an absolutely positioned parent still keeps its child inside', async ({ window, project, }) => {
         // The other half: the offset clamp is correct for a non-layout parent
