@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampToParent, MIN_SIZE } from '../src/renderer/lib/bounds';
+import { clampSizeToParent, clampToParent, MIN_SIZE, } from '../src/renderer/lib/bounds';
 describe('clampToParent', () => {
     it('returns a rect unchanged when it is fully inside the parent', () => {
         expect(clampToParent(10, 10, 50, 50, 200, 200)).toEqual({
@@ -42,5 +42,37 @@ describe('clampToParent', () => {
         const once = clampToParent(-10, -10, 500, 500, 100, 100);
         const twice = clampToParent(once.x, once.y, once.w, once.h, 100, 100);
         expect(twice).toEqual(once);
+    });
+});
+describe('clampSizeToParent', () => {
+    it('keeps the drawn size regardless of where in the parent it was drawn', () => {
+        // The bug this exists for: `clampToParent` shrinks width to
+        // `parentW - x`, so drawing near the right edge of a flex container
+        // collapsed the element to MIN_SIZE even though the drag was wide.
+        expect(clampSizeToParent(200, 100, 720, 900)).toEqual({ w: 200, h: 100 });
+    });
+    it('still bounds the size by the parent so a draw cannot overflow it', () => {
+        expect(clampSizeToParent(2000, 3000, 720, 900)).toEqual({ w: 720, h: 900 });
+    });
+    it('floors each axis at MIN_SIZE', () => {
+        expect(clampSizeToParent(2, 3, 720, 900)).toEqual({
+            w: MIN_SIZE,
+            h: MIN_SIZE,
+        });
+    });
+    it('floors at MIN_SIZE even when the parent is smaller than that', () => {
+        // A parent narrower than the minimum would otherwise produce a
+        // zero-width child that cannot be clicked to fix.
+        expect(clampSizeToParent(50, 50, 5, 5)).toEqual({
+            w: MIN_SIZE,
+            h: MIN_SIZE,
+        });
+    });
+    it('clamps each axis independently', () => {
+        expect(clampSizeToParent(2000, 100, 720, 900)).toEqual({ w: 720, h: 100 });
+        expect(clampSizeToParent(200, 3000, 720, 900)).toEqual({ w: 200, h: 900 });
+    });
+    it('handles an exact fit without shrinking', () => {
+        expect(clampSizeToParent(720, 900, 720, 900)).toEqual({ w: 720, h: 900 });
     });
 });

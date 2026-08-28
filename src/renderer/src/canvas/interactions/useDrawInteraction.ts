@@ -2,7 +2,7 @@ import { type PointerEvent, useEffect, useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
-import { clampToParent, MIN_SIZE } from '@lib/bounds';
+import { clampSizeToParent, clampToParent, MIN_SIZE } from '@lib/bounds';
 import { resolveInsertParent } from '@lib/insertParent';
 import { assetsDirSegment } from '@renderer/src/lib/path';
 import { prepareSvgForInsert } from '@renderer/src/lib/svg';
@@ -58,6 +58,7 @@ export const useDrawInteraction = (geometry: CanvasGeometry): DrawInteraction =>
   const createSvgElement = useCanvasStore((s) => s.createSvgElement);
   const createInput = useCanvasStore((s) => s.createInput);
   const setElementSlotName = useCanvasStore((s) => s.setElementSlotName);
+  const elements = useCanvasStore((s) => s.elements);
 
   const { toFrame, measureElementInFrame, parentSizeOf } = geometry;
 
@@ -286,7 +287,22 @@ export const useDrawInteraction = (geometry: CanvasGeometry): DrawInteraction =>
     const w = wasClick ? defaultWidth : dragW;
     const h = wasClick ? defaultHeight : dragH;
 
-    const clamped = clampToParent(x, y, w, h, parent.w, parent.h);
+    // A flex or grid parent lays its children out itself, so the drawn
+    // offset means nothing — and letting it constrain the size collapses
+    // anything drawn near the right edge to MIN_SIZE.
+    // see docs/notes/draw-into-flex-parent.md
+    const parentDisplay = elements[draw.parentId]?.display;
+    const parentOwnsLayout = parentDisplay === 'flex' || parentDisplay === 'grid';
+    const clamped = parentOwnsLayout
+      ? {
+          // Zeroed to match what lands on disk: the generator emits no
+          // left/top for a flow child, so a kept offset would vanish on
+          // the next round-trip anyway.
+          x: 0,
+          y: 0,
+          ...clampSizeToParent(w, h, parent.w, parent.h),
+        }
+      : clampToParent(x, y, w, h, parent.w, parent.h);
     if (clamped.w >= MIN_SIZE && clamped.h >= MIN_SIZE) {
       let createdId: string;
       if (pendingImage) {
