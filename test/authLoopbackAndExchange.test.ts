@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { connect } from 'net';
 
 import { startLoopbackServer } from '../src/main/auth/loopbackServer';
 import {
@@ -90,6 +91,42 @@ describe('the loopback listener', () => {
     // Still waiting — a stray request must not resolve the sign-in.
     await server.close();
     expect(await waiting).toEqual({ status: 'cancelled' });
+  });
+
+  it('closes even though the browser left a connection open', async () => {
+    // The bug this covers: `server.close` waits on open connections, and a
+    // browser leaves one behind — Chrome preconnects a socket it never
+    // sends a request on. `close` is awaited in the `finally` of `signIn`,
+    // so a close that never resolves means a sign-in that never returns,
+    // long after it has actually succeeded.
+    const port = takePort();
+    const server = await start(port);
+    if (server.status !== 'listening') throw new Error(server.status);
+    const waiting = server.waitForCallback();
+    await fetch(`http://127.0.0.1:${port}/callback?code=a&state=b`);
+    await waiting;
+
+    const preconnect = connect(port, '127.0.0.1');
+    await new Promise<void>((resolve) => preconnect.on('connect', () => resolve()));
+
+    const closed = server.close().then(() => 'closed');
+    const hung = new Promise<string>((resolve) =>
+      setTimeout(() => resolve('hung'), 2000)
+    );
+    expect(await Promise.race([closed, hung])).toBe('closed');
+    preconnect.destroy();
+  });
+
+  it('tells the browser not to keep the connection alive', async () => {
+    // Belt to the closeAllConnections braces: a socket the browser has
+    // already dropped cannot hold anything up.
+    const port = takePort();
+    const server = await start(port);
+    if (server.status !== 'listening') throw new Error(server.status);
+    const waiting = server.waitForCallback();
+    const response = await fetch(`http://127.0.0.1:${port}/callback?code=a&state=b`);
+    expect(response.headers.get('connection')).toBe('close');
+    await waiting;
   });
 
   it('reports the port being unavailable, so the caller can fall back', async () => {

@@ -14,6 +14,12 @@ const NOT_FOUND_PAGE = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Not found</title></head>
 <body></body></html>
 `;
+// `connection: close` is load-bearing — this listener serves one request
+// and shuts down. see docs/notes/loopback-close-hang.md
+const HTML_HEADERS = {
+    'content-type': 'text/html; charset=utf-8',
+    connection: 'close',
+};
 /** Fifteen minutes: long enough to sign up, create a password, get a 2FA code. */
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 /**
@@ -38,15 +44,19 @@ export const startLoopbackServer = async ({ port = LOOPBACK_PORT, timeoutMs = DE
     const server = createServer((req, res) => {
         const path = (req.url ?? '').split('?')[0];
         if (path !== '/callback') {
-            res.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
+            res.writeHead(404, HTML_HEADERS);
             res.end(NOT_FOUND_PAGE);
             return;
         }
-        // Answer the browser first so the tab settles, then hand the URL on.
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(DONE_PAGE);
-        // Absolute URL so `readCallback` can parse it with `new URL`.
-        settle({ status: 'callback', url: `http://localhost:${port}${req.url ?? ''}` });
+        // Answer the browser first so the tab settles, then hand the URL on —
+        // but only once the response has flushed, because the sign-in that
+        // follows ends by destroying this very connection.
+        // see docs/notes/loopback-close-hang.md
+        res.writeHead(200, HTML_HEADERS);
+        res.end(DONE_PAGE, () => {
+            // Absolute URL so `readCallback` can parse it with `new URL`.
+            settle({ status: 'callback', url: `http://localhost:${port}${req.url ?? ''}` });
+        });
     });
     const listening = await new Promise((resolve) => {
         const onError = (err) => {
@@ -66,8 +76,12 @@ export const startLoopbackServer = async ({ port = LOOPBACK_PORT, timeoutMs = DE
     });
     if (listening !== null)
         return listening;
+    // closeAllConnections first, or this never returns: a browser leaves a
+    // preconnected socket that `server.close` waits on forever.
+    // see docs/notes/loopback-close-hang.md
     const close = async () => {
         settle({ status: 'cancelled' });
+        server.closeAllConnections();
         await new Promise((resolve) => server.close(() => resolve()));
     };
     const waitForCallback = () => new Promise((resolve) => {

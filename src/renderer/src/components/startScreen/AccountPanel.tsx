@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { AuthStatusResult, AuthUser } from '@shared/types';
+import type { AuthSignInResult, AuthStatusResult, AuthUser } from '@shared/types';
 
 import styles from './AccountPanel.module.css';
 
@@ -54,7 +54,15 @@ export const AccountPanel = (): JSX.Element => {
 
   const handleSignIn = async (): Promise<void> => {
     setState({ kind: 'signing-in' });
-    const result = await window.scamp.authSignIn();
+    // Anything that escapes the main-side handler rejects this invoke, and
+    // an unhandled rejection here would leave the button reading "Waiting
+    // for browser…" forever with nothing left to wait for.
+    const result = await window.scamp.authSignIn().catch(
+      (err: unknown): AuthSignInResult => ({
+        status: 'failed',
+        message: err instanceof Error ? err.message : 'Sign-in failed. Try again.',
+      })
+    );
     if (result.status === 'signed-in') {
       setState({
         kind: 'signed-in',
