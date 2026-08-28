@@ -278,6 +278,7 @@ implementation.
    state through a file watcher or a local socket) but materially more
    work.
 
-   My reading is that you meant windows rather than OS processes, and
-   that focusing the existing window is fine. **Flagging it because it is
-   cheap to confirm now and expensive to discover in phase 1.**
+   **Confirmed: windows, not OS processes.** A hard single-instance lock
+   is correct — a second launch focuses the existing window, and the
+   callback always reaches the one running app. No shared-auth-state
+   machinery is needed, and decision 2 stands as written.
