@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { IconLayoutGrid, IconList } from "@tabler/icons-react"
+import { IconFolder, IconLayoutGrid, IconList } from "@tabler/icons-react"
 import type { ProjectData, Settings, StartScreenProject } from "@shared/types"
 import { errorMessage } from "@shared/errorMessage"
 import { formatRelativeTime } from "@store/formatHistoryLabel"
@@ -68,21 +68,6 @@ export const StartScreen = ({
         await refreshSettings()
       }
       // The folder changed — re-scan so its projects show.
-      await refreshProjects()
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
-
-  const handleClearDefaultFolder = async (): Promise<void> => {
-    setError(null)
-    try {
-      const next = await window.scamp.setDefaultProjectsFolder(null)
-      if (next && typeof next === "object" && "defaultProjectsFolder" in next) {
-        setSettings(next)
-      } else {
-        await refreshSettings()
-      }
       await refreshProjects()
     } catch (e) {
       setError(errorMessage(e))
@@ -269,7 +254,24 @@ export const StartScreen = ({
     return (
       <>
         <div className={styles.mainHeader}>
-          <h2 className={styles.recentTitle}>Projects</h2>
+          <div className={styles.titleGroup}>
+            <h2 className={styles.recentTitle}>Projects</h2>
+            {defaultFolder && (
+              <Tooltip
+                header="Projects folder"
+                label={`${defaultFolder}\nClick to choose a different one.`}
+              >
+                <button
+                  className={styles.folderButton}
+                  onClick={handlePickDefaultFolder}
+                  type="button"
+                  aria-label={`Projects folder: ${defaultFolder}. Choose a different one.`}
+                >
+                  <IconFolder size={16} stroke={1.75} />
+                </button>
+              </Tooltip>
+            )}
+          </div>
           {projects.length > 0 && (
             <div className={styles.viewToggle}>
               <SegmentedControl<ViewMode>
@@ -389,31 +391,6 @@ export const StartScreen = ({
           Settings
         </button>
 
-        {defaultFolder && (
-          <div className={styles.sidebarFooter}>
-            <span className={styles.footerLabel}>Default folder</span>
-            <Tooltip label={defaultFolder}>
-              <span className={styles.footerPath}>{defaultFolder}</span>
-            </Tooltip>
-            <div className={styles.footerLinks}>
-              <button
-                className={styles.linkButton}
-                onClick={handlePickDefaultFolder}
-                type="button"
-              >
-                Change
-              </button>
-              <button
-                className={styles.linkButton}
-                onClick={handleClearDefaultFolder}
-                type="button"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        )}
-      
         <AccountPanel />
       </aside>
 

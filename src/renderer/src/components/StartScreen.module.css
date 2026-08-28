@@ -56,13 +56,6 @@
   flex: 1;
 }
 
-.sidebarFooter {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-}
-
 .resources {
   display: flex;
   flex-direction: column;
@@ -81,19 +74,6 @@
   letter-spacing: 0.5px;
   color: var(--text-tertiary);
   font-size: 10px;
-}
-
-.footerPath {
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 11px;
-}
-
-.footerLinks {
-  display: flex;
-  gap: 8px;
 }
 
 .linkButton {
@@ -176,6 +156,39 @@
 .viewToggle {
   flex: none;
   width: 64px;
+}
+
+/* Title and the projects-folder button read as one unit, so the icon
+   attaches to the heading rather than floating in the header row. */
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.folderButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.folderButton:hover {
+  background: var(--bg-raised);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.folderButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .recentTitle {
