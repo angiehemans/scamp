@@ -170,6 +170,36 @@ test.describe('canvas: drawing into a flex container', () => {
     );
   });
 
+  test('a box drawn at exactly the default size keeps that size', async ({
+    window,
+    project,
+  }) => {
+    // 100 is DEFAULT_RECT_STYLES.widthValue. The generator used to skip
+    // any value equal to its default, so this exact box emitted no width
+    // at all — and an element with no width is content-sized in a flex
+    // parent, which collapsed it. Reported as "drawn at 100w but the
+    // width isn't even showing in its css".
+    // see docs/notes/default-omission-and-size.md
+    await expect(pageRoot(window)).toBeVisible();
+    await selectTool(window, 'r');
+    await dragInFrame(window, { x: 320, y: 320 }, { x: 420, y: 420 });
+    await waitForSaved(window);
+
+    const drawn = canvasElementsByPrefix(window, 'rect_').first();
+    const className = await drawn.getAttribute('data-scamp-id');
+    if (!className) throw new Error('no rect created');
+
+    const css = await project.readCss();
+    expect(css).toMatch(new RegExp(`\\.${className}[^}]*width:\\s*100px`, 's'));
+    expect(css).toMatch(new RegExp(`\\.${className}[^}]*height:\\s*100px`, 's'));
+
+    const box = await drawn.evaluate((el) => {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    });
+    expect(box).toEqual({ w: 100, h: 100 });
+  });
+
   test('an absolutely positioned parent still keeps its child inside', async ({
     window,
     project,

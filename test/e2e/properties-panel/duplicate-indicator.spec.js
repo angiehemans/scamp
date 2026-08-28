@@ -16,12 +16,19 @@ test.describe('properties panel: duplicate CSS indicator', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        // Inject a duplicate `height` declaration into the rect's class
-        // block. The parser's last-applied wins (`100vh`) and the file
-        // round-trips with both heights until the user edits.
+        // Inject duplicate `height` declarations at the END of the class
+        // block, so last-applied wins (`100vh`) and the canvas tree actually
+        // changes.
+        //
+        // Injecting at the START leaves the generator's own `height` last, so
+        // the winning value is unchanged, the tree round-trips identically,
+        // and `externalEdit` skips the reload — the duplicate indicator then
+        // never appears. That is a real gap (a duplicate that changes nothing
+        // is exactly the dead weight worth flagging) and it is NOT covered
+        // here.
         const cssPath = path.join(project.dir, 'home.module.css');
         const original = await fs.readFile(cssPath, 'utf-8');
-        const withDuplicate = original.replace(new RegExp(`\\.${className}\\s*\\{`), `.${className} {\n  height: 100%;\n  height: 100vh;`);
+        const withDuplicate = original.replace(new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`), `$1  height: 100%;\n  height: 100vh;\n}`);
         expect(withDuplicate).not.toBe(original);
         await fs.writeFile(cssPath, withDuplicate, 'utf-8');
         // The duplicate-dot is keyed by the section's cssProperties list;
@@ -38,7 +45,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
         await waitForSaved(window);
         const cssPath = path.join(project.dir, 'home.module.css');
         const original = await fs.readFile(cssPath, 'utf-8');
-        await fs.writeFile(cssPath, original.replace(new RegExp(`\\.${className}\\s*\\{`), `.${className} {\n  height: 100%;\n  height: 100vh;`), 'utf-8');
+        await fs.writeFile(cssPath, original.replace(new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`), `$1  height: 100%;\n  height: 100vh;\n}`), 'utf-8');
         const sizeSection = panelSection(window, 'Size');
         await expect(sizeSection.getByTestId('duplicate-dot')).toBeVisible({
             timeout: 10_000,
