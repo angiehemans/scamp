@@ -193,6 +193,12 @@ export const captureIsolatedPng = async (inputs) => {
             // No cache-busting: this runs on a timer, not on demand, and
             // re-fetching every image on every capture is pure waste.
             cacheBust: false,
+            // Font embedding walks `document.styleSheets` and reads `cssRules`,
+            // which throws on every cross-origin sheet — Google Fonts here — and
+            // html-to-image logs each failure. Those fonts could never be
+            // embedded anyway, so all the attempt bought was a console full of
+            // DOMExceptions and two network round-trips on every save.
+            skipFonts: true,
             filter: (n) => !isChromeNode(n),
             ...(inputs.backgroundColor !== null
                 ? { backgroundColor: inputs.backgroundColor }

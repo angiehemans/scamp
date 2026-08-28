@@ -7,6 +7,7 @@ import { MAX_COMPONENT_CANVAS_DIM, MIN_COMPONENT_CANVAS_DIM, } from '@shared/typ
 import { overflowExtent, settleExtent } from '@lib/canvasOverflow';
 import { ElementRenderer } from './ElementRenderer';
 import { buildCanvasStylesheet, CANVAS_SCOPE_ATTR } from '@lib/canvasStylesheet';
+import { animatedSubtreePredicate, layoutEdges } from './animatedExtent';
 import { generateCode } from '@lib/generateCode';
 import { collectExpandedInstances } from '@lib/generateHtml';
 import { assemblePageCss } from '@lib/htmlExportCss';
@@ -204,14 +205,34 @@ export const Viewport = ({ canvasWidth, canvasHeight, heightIsFixed = false, cli
         // Which element set the widest edge. Only read when the extent debug
         // flag is on; naming the culprit is the whole point of that log.
         let widest = '';
+        // A running animation moves an element's bounding box, so measuring it
+        // reads whatever frame the animation is on — which flips the extent,
+        // and with it the fit zoom, on every edit. Those elements are measured
+        // by their transform-free layout box instead.
+        // see src/renderer/src/canvas/animatedExtent.ts
+        const isAnimated = animatedSubtreePredicate(frame);
         for (const node of frame.querySelectorAll('[data-element-id]')) {
-            const r = node.getBoundingClientRect();
-            const nodeRight = (r.right - frameRect.left) / appliedScale;
+            if (!(node instanceof HTMLElement))
+                continue;
+            let nodeRight;
+            let nodeBottom;
+            if (isAnimated(node)) {
+                const edges = layoutEdges(node, frame);
+                if (edges === null)
+                    continue;
+                nodeRight = edges.right;
+                nodeBottom = edges.bottom;
+            }
+            else {
+                const r = node.getBoundingClientRect();
+                nodeRight = (r.right - frameRect.left) / appliedScale;
+                nodeBottom = (r.bottom - frameRect.top) / appliedScale;
+            }
             if (nodeRight > right) {
                 right = nodeRight;
                 widest = node.getAttribute('data-element-id') ?? '';
             }
-            bottom = Math.max(bottom, (r.bottom - frameRect.top) / appliedScale);
+            bottom = Math.max(bottom, nodeBottom);
         }
         if (extentDebugEnabled()) {
             console.log('[extent] scale=%s frameClientWidth=%s rawRight=%s settled=%s widest=%s', appliedScale.toFixed(4), frame.clientWidth, right.toFixed(2), settleExtent(right, frame.clientWidth), widest || '(none — nothing past the frame)');

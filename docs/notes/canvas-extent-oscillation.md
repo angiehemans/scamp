@@ -23,3 +23,49 @@ The same trap is documented for the component-canvas hug in `component-canvas-si
 **2. The scrollbar.** `.artboardScroll` was `overflow: auto` with no reserved gutter. A vertical scrollbar appearing shrinks `clientWidth`, which shrinks `fitScale`, which shrinks `shellHeight`, which removes the scrollbar, which grows `clientWidth` — forever. `scrollbar-gutter: stable` takes the scrollbar out of the loop entirely.
 
 Fix 1 stops the canvas from entering the oscillation; fix 2 stops it from being able to sustain one. Anything that later derives layout from `clientWidth` on a scroll container whose contents it also sizes needs the same gutter treatment.
+
+
+## Second cause: animated elements (found in a real project)
+
+`settleExtent` handles sub-pixel wobble. It cannot handle an element that
+is genuinely moving.
+
+A page with `animation: glow-drift 18s ease-in-out infinite` on a
+full-width hero glow, translating 60px and scaling 1.08, made the canvas
+flip between two zoom levels on **every edit**. The extent is measured from
+bounding boxes, a bounding box includes the current transform, and the
+measurement therefore samples whatever frame the animation is on.
+
+Measured in Electron's Chromium, frame width 1440, one animated child:
+
+| animation time | via client rect / scale | via layout box |
+|---|---|---|
+| 0ms | 1440 | 1440 |
+| 3000ms | 1467.4 | 1440 |
+| 6000ms | 1530.6 | 1440 |
+| 9000ms | 1557.6 | 1440 |
+
+The extent fed `fitWidth = max(frameW, content.right)`, so the fit zoom
+alternated between `802/1440 = 55.7%` and `802/1474 = 54.4%`, and the
+overflow indicator appeared and vanished with it. The user's report was
+"changing a text colour changes the zoom" — the colour was incidental, any
+edit re-measures.
+
+The fix is in `src/renderer/src/canvas/animatedExtent.ts`: elements with a
+running animation (and their descendants, since an ancestor transform moves
+them too) are measured by their transform-free layout box —
+`offsetLeft`/`offsetWidth` up the offset chain. Everything else keeps the
+client-rect path.
+
+Deliberately NOT skipping animated elements: one parked past the right edge
+is genuinely overflowing and the user needs to see that. Its resting layout
+position is the honest answer; the frame it happens to be on is not.
+
+## Tracing
+
+`localStorage.setItem('scamp.debugZoom', '1')` and reload logs each extent
+measurement with the scale it was taken at, the raw and settled right
+edge, and — the part that identified this — the `data-element-id` of the
+element setting the widest edge. Also logs the fit calculation. Left in
+because the loop is only observable in a running canvas with a real
+project in it.
