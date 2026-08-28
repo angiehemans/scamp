@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
-import { authBaseUrl, buildSignInUrl, challengeFor, DEFAULT_AUTH_BASE_URL, generateState, generateVerifier, LOOPBACK_REDIRECT_URI, readCallback, } from '../src/main/auth/desktopAuthFlow';
+import { authBaseUrl, buildSignInUrl, challengeFor, DEFAULT_AUTH_BASE_URL, DEV_AUTH_BASE_URL, generateState, generateVerifier, LOOPBACK_REDIRECT_URI, readCallback, } from '../src/main/auth/desktopAuthFlow';
 /**
  * These mirror the assertions the backend's own check script makes, from
  * the app's side of the flow. The properties that matter are about what an
@@ -150,10 +150,18 @@ describe('readCallback', () => {
     });
 });
 describe('authBaseUrl', () => {
-    it('defaults to production', () => {
-        expect(authBaseUrl({})).toBe(DEFAULT_AUTH_BASE_URL);
+    it('sends a packaged build to production', () => {
+        expect(authBaseUrl({}, true)).toBe(DEFAULT_AUTH_BASE_URL);
     });
-    it('honours the local override', () => {
-        expect(authBaseUrl({ SCAMP_AUTH_BASE_URL: 'http://localhost:3000' })).toBe('http://localhost:3000');
+    it('sends a dev run to localhost', () => {
+        // Defaulting dev to production was the reverse of the intent: it
+        // opened the live site, which does not serve the desktop endpoints, so
+        // sign-in hung with no explanation.
+        expect(authBaseUrl({}, false)).toBe(DEV_AUTH_BASE_URL);
+    });
+    it('honours an explicit override in either build', () => {
+        const env = { SCAMP_AUTH_BASE_URL: 'https://staging.example.com' };
+        expect(authBaseUrl(env, true)).toBe('https://staging.example.com');
+        expect(authBaseUrl(env, false)).toBe('https://staging.example.com');
     });
 });

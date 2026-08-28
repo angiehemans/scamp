@@ -38,6 +38,8 @@ export type AuthDeps = {
    * port so the two cannot race for it under vitest's parallel files.
    */
   loopbackPort?: number;
+  /** False in a dev run, which then signs in against localhost. */
+  isPackaged?: boolean;
 };
 
 export type SignInOutcome =
@@ -98,7 +100,7 @@ export const signIn = async (deps: AuthDeps): Promise<SignInOutcome> => {
   try {
     await deps.openExternal(
       buildSignInUrl({
-        baseUrl: authBaseUrl(deps.env),
+        baseUrl: authBaseUrl(deps.env, deps.isPackaged ?? true),
         redirectUri: LOOPBACK_REDIRECT_URI,
         state,
         challenge: challengeFor(verifier),
@@ -115,7 +117,7 @@ export const signIn = async (deps: AuthDeps): Promise<SignInOutcome> => {
     }
 
     const exchanged = await exchangeCodeForToken({
-      baseUrl: authBaseUrl(deps.env),
+      baseUrl: authBaseUrl(deps.env, deps.isPackaged ?? true),
       code: callback.code,
       codeVerifier: verifier,
       fetchImpl: deps.fetchImpl,

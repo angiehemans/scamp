@@ -32,6 +32,7 @@ const deps = (): AuthDeps => ({
   },
   safeStorage,
   userDataDir: app.getPath('userData'),
+  isPackaged: app.isPackaged,
 });
 
 /** Tell every window, so a second window reflects the change too. */

@@ -78,6 +78,17 @@ export const AccountPanel = (): JSX.Element => {
     });
   };
 
+  /**
+   * Abandon a sign-in in flight. Without this the only way out of
+   * "waiting for browser" is the 15-minute timeout — which is what
+   * happened when a dev build opened the live site, where the desktop
+   * endpoints do not exist and no callback was ever coming.
+   */
+  const handleCancel = async (): Promise<void> => {
+    await window.scamp.authCancelSignIn();
+    setState({ kind: 'signed-out' });
+  };
+
   const handleSignOut = async (): Promise<void> => {
     await window.scamp.authSignOut();
     setState({ kind: 'signed-out' });
@@ -129,7 +140,12 @@ export const AccountPanel = (): JSX.Element => {
         {state.kind === 'signing-in' ? 'Waiting for browser…' : 'Sign in'}
       </button>
       {state.kind === 'signing-in' && (
-        <p className={styles.note}>Finish signing in in your browser.</p>
+        <>
+          <p className={styles.note}>Finish signing in in your browser.</p>
+          <button className={styles.link} onClick={handleCancel} type="button">
+            Cancel
+          </button>
+        </>
       )}
       {state.kind === 'signed-out' && state.message !== undefined && (
         <p className={styles.error} role="status">

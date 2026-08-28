@@ -43,7 +43,7 @@ export const signIn = async (deps) => {
     inFlight = server;
     try {
         await deps.openExternal(buildSignInUrl({
-            baseUrl: authBaseUrl(deps.env),
+            baseUrl: authBaseUrl(deps.env, deps.isPackaged ?? true),
             redirectUri: LOOPBACK_REDIRECT_URI,
             state,
             challenge: challengeFor(verifier),
@@ -58,7 +58,7 @@ export const signIn = async (deps) => {
             return { status: 'failed', message: describeCallbackFailure(callback.reason) };
         }
         const exchanged = await exchangeCodeForToken({
-            baseUrl: authBaseUrl(deps.env),
+            baseUrl: authBaseUrl(deps.env, deps.isPackaged ?? true),
             code: callback.code,
             codeVerifier: verifier,
             fetchImpl: deps.fetchImpl,

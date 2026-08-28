@@ -25,6 +25,8 @@ export type AuthDeps = {
      * port so the two cannot race for it under vitest's parallel files.
      */
     loopbackPort?: number;
+    /** False in a dev run, which then signs in against localhost. */
+    isPackaged?: boolean;
 };
 export type SignInOutcome = {
     status: 'signed-in';

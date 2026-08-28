@@ -150,7 +150,26 @@ const statesMatch = (a: string, b: string): boolean => {
   return diff === 0;
 };
 
-/** The base URL to sign in against, honouring the dev override. */
+/** Where a development build signs in, when nothing says otherwise. */
+export const DEV_AUTH_BASE_URL = 'http://localhost:3000';
+
+/**
+ * The base URL to sign in against.
+ *
+ * A packaged build goes to production; an unpackaged one goes to
+ * localhost. `SCAMP_AUTH_BASE_URL` overrides either.
+ *
+ * The first version defaulted everything to production on the reasoning
+ * that a dev build must not reach prod by accident. The effect was the
+ * reverse of the intent: running `npm run dev` opened the live site,
+ * which does not serve the desktop endpoints, so sign-in hung with no
+ * explanation. Keying off `isPackaged` gives the protection that was
+ * actually wanted in both directions — a dev run cannot reach prod, and a
+ * release cannot reach localhost.
+ */
 export const authBaseUrl = (
-  env: Record<string, string | undefined> = process.env
-): string => env['SCAMP_AUTH_BASE_URL'] ?? DEFAULT_AUTH_BASE_URL;
+  env: Record<string, string | undefined> = process.env,
+  isPackaged = true
+): string =>
+  env['SCAMP_AUTH_BASE_URL'] ??
+  (isPackaged ? DEFAULT_AUTH_BASE_URL : DEV_AUTH_BASE_URL);

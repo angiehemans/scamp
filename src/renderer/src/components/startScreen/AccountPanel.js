@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useCallback, useEffect, useState } from 'react';
 import styles from './AccountPanel.module.css';
 /** First initial for the avatar, falling back to the email. */
@@ -50,6 +50,16 @@ export const AccountPanel = () => {
                 : result.message,
         });
     };
+    /**
+     * Abandon a sign-in in flight. Without this the only way out of
+     * "waiting for browser" is the 15-minute timeout — which is what
+     * happened when a dev build opened the live site, where the desktop
+     * endpoints do not exist and no callback was ever coming.
+     */
+    const handleCancel = async () => {
+        await window.scamp.authCancelSignIn();
+        setState({ kind: 'signed-out' });
+    };
     const handleSignOut = async () => {
         await window.scamp.authSignOut();
         setState({ kind: 'signed-out' });
@@ -59,5 +69,5 @@ export const AccountPanel = () => {
     if (state.kind === 'signed-in') {
         return (_jsxs("div", { className: styles.panel, "data-testid": "account-panel", children: [_jsxs("div", { className: styles.identity, children: [_jsx("span", { className: styles.avatar, "aria-hidden": "true", children: initialFor(state.user) }), _jsxs("span", { className: styles.details, children: [_jsx("span", { className: styles.name, children: state.user?.name || 'Signed in' }), state.user?.email !== undefined && (_jsx("span", { className: styles.email, children: state.user.email }))] })] }), state.sessionOnly && (_jsx("p", { className: styles.note, children: "This device can\u2019t store your sign-in securely, so you\u2019ll need to sign in again next time you open Scamp." })), _jsx("button", { className: styles.link, onClick: handleSignOut, type: "button", "data-testid": "sign-out-button", children: "Sign out" })] }));
     }
-    return (_jsxs("div", { className: styles.panel, "data-testid": "account-panel", children: [_jsx("button", { className: styles.signIn, onClick: handleSignIn, type: "button", disabled: state.kind === 'signing-in', "data-testid": "sign-in-button", children: state.kind === 'signing-in' ? 'Waiting for browser…' : 'Sign in' }), state.kind === 'signing-in' && (_jsx("p", { className: styles.note, children: "Finish signing in in your browser." })), state.kind === 'signed-out' && state.message !== undefined && (_jsx("p", { className: styles.error, role: "status", children: state.message }))] }));
+    return (_jsxs("div", { className: styles.panel, "data-testid": "account-panel", children: [_jsx("button", { className: styles.signIn, onClick: handleSignIn, type: "button", disabled: state.kind === 'signing-in', "data-testid": "sign-in-button", children: state.kind === 'signing-in' ? 'Waiting for browser…' : 'Sign in' }), state.kind === 'signing-in' && (_jsxs(_Fragment, { children: [_jsx("p", { className: styles.note, children: "Finish signing in in your browser." }), _jsx("button", { className: styles.link, onClick: handleCancel, type: "button", children: "Cancel" })] })), state.kind === 'signed-out' && state.message !== undefined && (_jsx("p", { className: styles.error, role: "status", children: state.message }))] }));
 };
