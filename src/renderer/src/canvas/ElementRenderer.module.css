@@ -7,8 +7,18 @@
  * system button. Users can re-add whatever appearance they want via
  * the properties panel. Targets the element regardless of whether
  * it's rendered as the semantic tag (a, button) or as a replaced
- * div (dialog, svg). */
-.element:is(button, a, select, input, textarea, fieldset, legend) {
+ * div (dialog, svg).
+ *
+ * `:where`, NOT `:is`. `:is` takes the specificity of its most specific
+ * argument, making this (0,1,1) — which outranks the (0,1,0) class rules
+ * the generator writes, so `all: unset` silently ate the page's own
+ * colour, font-size and everything else for links and buttons. That was
+ * invisible while the canvas styled elements inline (inline beats any
+ * rule); peeling styles out into the injected stylesheet exposed it.
+ * `:where` contributes zero specificity, so the page's rules win and the
+ * reset only fills in what the page does not set.
+ * see docs/notes/canvas-tag-reset-specificity.md */
+.element:where(button, a, select, input, textarea, fieldset, legend) {
   all: unset;
   box-sizing: border-box;
   font: inherit;
@@ -16,8 +26,10 @@
   display: block;
 }
 
-/* Re-expose the selectable/caret behaviours that `all: unset` strips. */
-.element:is(input, textarea, select) {
+/* Re-expose the selectable/caret behaviours that `all: unset` strips.
+ * `:where` for the same reason as above — a page that sets its own
+ * `cursor` on an input should win. */
+.element:where(input, textarea, select) {
   cursor: text;
   -webkit-user-select: text;
   user-select: text;
@@ -29,10 +41,10 @@
  * -2px` draws the outline 2px inside the element bounds.
  *
  * Chained as `.element.selected` (specificity 0,2,0) so it wins over the
- * `.element:is(button, a, …) { all: unset }` rule above (specificity
- * 0,1,1) — without this, selecting an `<a>`, `<button>`, or any other
- * form/interactive tag would silently strip the outline along with the
- * browser-default chrome. */
+ * `.element:where(button, a, …) { all: unset }` rule above — without
+ * this, selecting an `<a>`, `<button>`, or any other form/interactive tag
+ * would silently strip the outline along with the browser-default
+ * chrome. */
 .element.selected {
   outline: 2px solid var(--accent);
   outline-offset: -2px;

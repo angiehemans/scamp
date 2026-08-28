@@ -195,6 +195,19 @@ export const captureIsolatedPng = async (inputs: {
     for (const el of clone.querySelectorAll(`.${cls}`)) el.classList.remove(cls);
   }
 
+  // Strip the attributes other code finds the canvas and its elements by.
+  // A second node answering to `[data-testid="canvas-frame"]` or to any
+  // `[data-element-id]` is a live hazard: the size readout, the export
+  // helper and the boundary measurement all resolve elements by query, and
+  // this copy sits at left:-100000px. `data-scamp-canvas` stays — it is
+  // the `@scope` root the page stylesheet needs to apply at all.
+  clone.removeAttribute('data-testid');
+  clone.removeAttribute('data-element-id');
+  for (const el of clone.querySelectorAll('[data-element-id], [data-testid]')) {
+    el.removeAttribute('data-element-id');
+    el.removeAttribute('data-testid');
+  }
+
   document.body.appendChild(clone);
   try {
     return await toPng(clone, {
