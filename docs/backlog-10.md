@@ -8,60 +8,81 @@ features are independent and come last, ordered by complexity.
 
 ## 1. Sign in to Scamp account from the Electron app
 
-**User story**
+As a Scamp user, I want to sign in to my Scamp account from inside the app so I can access cloud features without leaving the app or manually copying tokens.
 
-As a Scamp user, I want to sign in to my Scamp account from inside the
-app so I can access cloud features without leaving the app or manually
-copying tokens.
+Auth backend: User accounts are already built on Better Auth (email/password live today). This issue is the Electron-side sign-in flow against that existing backend. Google/GitHub one-click sign-in is added separately in SCMP-77.
 
-**Depends on:** Clerk auth on the cloud backend (cloud backlog) must be
-set up first.
+Behaviour
 
-**Behaviour**
+A "Sign in" button appears in the top-right of the toolbar when the user is not signed in — subtle, never intrusive, since the local app works fully without an account
 
-- A "Sign in" button appears in the top-right of the toolbar when the
-  user is not signed in — subtle, never intrusive, since the local app
-  works fully without an account
-- Clicking "Sign in" opens the Scamp sign-in page in the user's default
-  browser via `shell.openExternal()`
-- The user signs in via Clerk (email, GitHub, or Google)
-- On success, Clerk redirects to `scamp://auth/callback?token=...`
-- The Electron app registers the `scamp://` protocol handler and
-  intercepts the callback
-- The JWT from the callback is stored securely using Electron's
-  `safeStorage` API — never written to a plain text file
-- The toolbar updates to show the user's avatar and name
-- Sessions refresh silently in the background — the user is never asked
-  to sign in again unless the session explicitly expires
-- A "Sign out" option in the user menu clears the stored token and
-  reverts to the signed-out state
+Clicking "Sign in" opens the Scamp sign-in page in the user's default browser via shell.openExternal()
 
-**IPC channels**
+The user signs in via the Scamp sign-in page (email/password today; Google/GitHub once SCMP-77 lands)
 
-| Channel | Direction | Payload |
-|---|---|---|
-| `auth:start` | renderer → main | none |
-| `auth:complete` | main → renderer | `{ userId, email, name }` |
-| `auth:signout` | renderer → main | none |
-| `auth:status` | renderer → main | none |
-| `auth:status:result` | main → renderer | `{ signedIn, user? }` |
+On success, the sign-in page redirects to scamp://auth/callback?token=...
 
-**Implementation notes**
+The Electron app registers the scamp:// protocol handler and intercepts the callback
 
-- Register the `scamp://` protocol in `electron-builder` config so the
-  OS routes the callback URL to the app
-- `safeStorage` encrypts the token using the OS keychain — Keychain on
-  Mac, DPAPI on Windows
-- On first launch after sign-in, call the cloud API to confirm the user
-  record exists and create it if not
-- The account panel shows the user's name, email, current tier, and a
-  sign-out button
+The JWT from the callback is stored securely using Electron's safeStorage API — never written to a plain text file
 
-**Done when:** A user can click Sign in, complete the browser flow, and
-return to a signed-in state in the app. The JWT is stored and used
-automatically on the next launch.
+The toolbar updates to show the user's avatar and name
 
----
+Sessions refresh silently in the background — the user is never asked to sign in again unless the session explicitly expires
+
+A "Sign out" option in the user menu clears the stored token and reverts to the signed-out state
+
+IPC channels
+
+Channel
+
+Direction
+
+Payload
+
+auth:start
+
+renderer → main
+
+none
+
+auth:complete
+
+main → renderer
+
+{ userId, email, name }
+
+auth:signout
+
+renderer → main
+
+none
+
+auth:status
+
+renderer → main
+
+none
+
+auth:status:result
+
+main → renderer
+
+{ signedIn, user? }
+
+Implementation notes
+
+Register the scamp:// protocol in electron-builder config so the OS routes the callback URL to the app
+
+safeStorage encrypts the token using the OS keychain — Keychain on Mac, DPAPI on Windows
+
+On first launch after sign-in, call the cloud API to confirm the Better Auth session/user record is valid
+
+The account panel shows the user's name, email, current tier, and a sign-out button
+
+Done when
+
+A user can click Sign in, complete the browser flow, and return to a signed-in state in the app. The JWT is stored and used automatically on the next launch.
 
 ## 2. Sync project to Scamp cloud
 
