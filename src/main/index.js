@@ -19,6 +19,7 @@ import { registerDesignMdIpc } from './ipc/designMd';
 import { registerImageIpc } from './ipc/image';
 import { registerClipboardIpc } from './ipc/clipboard';
 import { registerExportIpc } from './ipc/export';
+import { registerAuthIpc } from './ipc/auth';
 import { registerHtmlExportIpc } from './ipc/htmlExport';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
@@ -180,6 +181,30 @@ const createWindow = () => {
 protocol.registerSchemesAsPrivileged([
     { scheme: 'scamp-asset', privileges: { standard: true, bypassCSP: true, supportFetchAPI: true } },
 ]);
+/**
+ * One Scamp at a time.
+ *
+ * A second launch focuses the existing window rather than starting
+ * another copy. That is the behaviour we want on its own — two copies
+ * editing the same project would fight over the same files — and it also
+ * keeps sign-in coherent: the loopback listener binds a fixed port, so a
+ * second copy could not receive a callback anyway.
+ * see docs/plans/electron-sign-in-plan.md
+ */
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+}
+else {
+    app.on('second-instance', () => {
+        const [existing] = BrowserWindow.getAllWindows();
+        if (!existing)
+            return;
+        if (existing.isMinimized())
+            existing.restore();
+        existing.focus();
+    });
+}
 app.whenReady().then(() => {
     // Sentry init has already happened at module load — see the
     // pre-`whenReady` block above. Don't re-init here; the SDK
@@ -239,6 +264,7 @@ app.whenReady().then(() => {
     registerImageIpc();
     registerClipboardIpc();
     registerExportIpc();
+    registerAuthIpc();
     registerHtmlExportIpc();
     registerUpdaterIpc();
     registerPreviewIpc({

@@ -39,6 +39,12 @@ export declare const IPC: {
     readonly ClipboardRead: "clipboard:read";
     readonly ClipboardWrite: "clipboard:write";
     readonly ClipboardSaveImage: "clipboard:saveImage";
+    readonly AuthStart: "auth:start";
+    readonly AuthCancel: "auth:cancel";
+    readonly AuthStatus: "auth:status";
+    readonly AuthSignOut: "auth:signout";
+    /** Broadcast to every window when the signed-in state changes. */
+    readonly AuthComplete: "auth:complete";
     readonly ThemeRead: "theme:read";
     readonly ThemeChanged: "theme:changed";
     readonly ThemeWrite: "theme:write";

@@ -898,6 +898,29 @@ export type ExportResult = {
   error?: string;
 };
 
+/**
+ * The signed-in identity, as the renderer sees it. Display data only —
+ * the session token never leaves the main process, and the server
+ * re-checks authority on every request.
+ */
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+};
+
+export type AuthStatusResult = {
+  signedIn: boolean;
+  user?: AuthUser;
+};
+
+export type AuthSignInResult =
+  | { status: 'signed-in'; user: AuthUser; persisted: boolean }
+  | { status: 'cancelled' }
+  | { status: 'timeout' }
+  | { status: 'failed'; message: string };
+
 /** One text file in an HTML export, at a path relative to the export root. */
 export type ExportHtmlFile = {
   path: string;

@@ -1,5 +1,5 @@
 import type { TitleBarColors } from '@shared/titleBarColors';
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, ExportHtmlArgs, ExportHtmlChooseFolderResult, ExportHtmlResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
+import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, AuthSignInResult, AuthStatusResult, ExportHtmlArgs, ExportHtmlChooseFolderResult, ExportHtmlResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -94,6 +94,11 @@ declare const api: {
     exportSvg: (args: ExportSvgArgs) => Promise<ExportResult>;
     chooseHtmlExportFolder: () => Promise<ExportHtmlChooseFolderResult>;
     exportHtml: (args: ExportHtmlArgs) => Promise<ExportHtmlResult>;
+    authSignIn: () => Promise<AuthSignInResult>;
+    authCancelSignIn: () => Promise<void>;
+    authStatus: () => Promise<AuthStatusResult>;
+    authSignOut: () => Promise<void>;
+    onAuthChanged: (handler: (status: AuthStatusResult) => void) => (() => void);
     readTheme: (args: {
         projectPath: string;
     }) => Promise<string>;

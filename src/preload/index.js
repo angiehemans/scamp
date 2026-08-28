@@ -115,6 +115,17 @@ const api = {
     exportSvg: (args) => ipcRenderer.invoke(IPC.ExportSvg, args),
     chooseHtmlExportFolder: () => ipcRenderer.invoke(IPC.ExportHtmlChooseFolder),
     exportHtml: (args) => ipcRenderer.invoke(IPC.ExportHtmlWrite, args),
+    // Account. The session token never crosses this boundary — the renderer
+    // only ever learns who is signed in.
+    authSignIn: () => ipcRenderer.invoke(IPC.AuthStart),
+    authCancelSignIn: () => ipcRenderer.invoke(IPC.AuthCancel),
+    authStatus: () => ipcRenderer.invoke(IPC.AuthStatus),
+    authSignOut: () => ipcRenderer.invoke(IPC.AuthSignOut),
+    onAuthChanged: (handler) => {
+        const listener = (_e, status) => handler(status);
+        ipcRenderer.on(IPC.AuthComplete, listener);
+        return () => ipcRenderer.removeListener(IPC.AuthComplete, listener);
+    },
     // Theme
     readTheme: (args) => ipcRenderer.invoke(IPC.ThemeRead, args),
     writeTheme: (args) => ipcRenderer.invoke(IPC.ThemeWrite, args),

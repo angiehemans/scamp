@@ -73,6 +73,13 @@ export const IPC = {
     // terminal prompt. see docs/plans/copy-context-button-plan.md
     ClipboardWrite: 'clipboard:write',
     ClipboardSaveImage: 'clipboard:saveImage',
+    // Account / sign-in
+    AuthStart: 'auth:start',
+    AuthCancel: 'auth:cancel',
+    AuthStatus: 'auth:status',
+    AuthSignOut: 'auth:signout',
+    /** Broadcast to every window when the signed-in state changes. */
+    AuthComplete: 'auth:complete',
     // Theme
     ThemeRead: 'theme:read',
     ThemeChanged: 'theme:changed',

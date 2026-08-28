@@ -13,6 +13,8 @@ import type {
   CreateProjectArgs,
   ExportChooseSavePathArgs,
   ExportChooseSavePathResult,
+  AuthSignInResult,
+  AuthStatusResult,
   ExportHtmlArgs,
   ExportHtmlChooseFolderResult,
   ExportHtmlResult,
@@ -304,6 +306,18 @@ const api = {
 
   exportHtml: (args: ExportHtmlArgs): Promise<ExportHtmlResult> =>
     ipcRenderer.invoke(IPC.ExportHtmlWrite, args),
+
+  // Account. The session token never crosses this boundary — the renderer
+  // only ever learns who is signed in.
+  authSignIn: (): Promise<AuthSignInResult> => ipcRenderer.invoke(IPC.AuthStart),
+  authCancelSignIn: (): Promise<void> => ipcRenderer.invoke(IPC.AuthCancel),
+  authStatus: (): Promise<AuthStatusResult> => ipcRenderer.invoke(IPC.AuthStatus),
+  authSignOut: (): Promise<void> => ipcRenderer.invoke(IPC.AuthSignOut),
+  onAuthChanged: (handler: (status: AuthStatusResult) => void): (() => void) => {
+    const listener = (_e: unknown, status: AuthStatusResult): void => handler(status);
+    ipcRenderer.on(IPC.AuthComplete, listener);
+    return () => ipcRenderer.removeListener(IPC.AuthComplete, listener);
+  },
 
   // Theme
   readTheme: (args: { projectPath: string }): Promise<string> =>
