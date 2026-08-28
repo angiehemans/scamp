@@ -21,3 +21,14 @@ export type CaptureProjectThumbnailInputs = {
 };
 /** Fire-and-forget; never blocks the underlying save. */
 export declare const captureAndPersistProjectThumbnail: (inputs: CaptureProjectThumbnailInputs) => void;
+/**
+ * Run a scheduled capture now, because the project is closing and the
+ * timer would otherwise fire against an unmounted canvas.
+ *
+ * Safe to call immediately before the unmount: the capture clones the
+ * frame and detaches the copy synchronously, so the rasterising that
+ * follows no longer depends on the canvas still being there. No-op when
+ * nothing is scheduled — closing without editing should not rewrite an
+ * identical thumbnail.
+ */
+export declare const flushPendingProjectThumbnail: (projectPath: string) => void;

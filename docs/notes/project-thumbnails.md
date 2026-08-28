@@ -74,6 +74,36 @@ bytes.
 `ProjectCardThumb.module.css` must agree. If they drift, the image
 letterboxes inside its own frame.
 
+## Capture must not touch the live canvas
+
+`capturePng` (the export path) mutates the real DOM while it works: it
+resets the frame's `transform` and strips selection classes, restoring both
+afterwards. That is invisible for an export the user asked for and waits
+on. It is very visible on every save — `Viewport.measureFrame` recovers the
+applied zoom from `getBoundingClientRect().width / offsetWidth`, so
+blanking the transform makes the canvas jump to 100% and back on every
+edit, and the selection outline flickers with it.
+
+`captureIsolatedPng` clones the frame instead, fixes the clone up
+off-screen with `transform: none`, and rasterises that. The clone keeps
+`data-scamp-canvas` and the frame's inline theme custom properties, so the
+`@scope`d page stylesheet and every `var(--…)` resolve as they do on the
+real canvas.
+
+Two consequences worth knowing:
+
+- The clone is created and detached **synchronously**, so a capture
+  started immediately before the canvas unmounts still completes. That is
+  what makes `flushPendingProjectThumbnail` safe to call from `onClose`.
+- Captures are debounced 1500ms after the last save
+  (`CAPTURE_IDLE_MS`). Rasterising a whole page on every 200ms save
+  debounce is far more work than a thumbnail is worth, and it competes
+  with the canvas for the main thread — felt as jerky zooming and dragging.
+
+The component thumbnail path still uses the mutating `capturePng` and has
+the same flicker on component saves. Not fixed here, but it is the same
+bug and `captureIsolatedPng` is the fix.
+
 ## Freshness and the file watcher
 
 The watcher ignores dotfile paths, so writing `.scamp/preview.png` fires no

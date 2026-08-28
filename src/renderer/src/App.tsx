@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StartScreen } from './components/StartScreen';
+import { flushPendingProjectThumbnail } from './lib/projectThumbnail';
 import { ProjectShell } from './components/ProjectShell';
 import { SettingsPage } from './components/SettingsPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -235,6 +236,10 @@ export const App = (): JSX.Element => {
             // so the snapshot includes the latest canvas state, then take
             // it. Fire-and-forget — main reads the project from disk.
             flushPendingPageWrite();
+            // Take the thumbnail before the canvas goes: the capture
+            // detaches its own copy synchronously, so it survives the
+            // unmount on the next line.
+            flushPendingProjectThumbnail(closingProjectPath);
             void window.scamp.createSnapshot({
               projectPath: closingProjectPath,
               trigger: 'session_close',

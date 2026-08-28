@@ -1,5 +1,5 @@
 import { needsBackfill, thumbnailFrame, } from '@lib/thumbnailCrop';
-import { capturePng } from './exportCapture';
+import { captureIsolatedPng } from './exportCapture';
 /**
  * Start-screen thumbnail capture. The component-sidebar equivalent one
  * level down is `componentThumbnail.ts`; this differs in two ways.
@@ -17,6 +17,15 @@ import { capturePng } from './exportCapture';
 /** The page whose capture represents the whole project. */
 export const THUMBNAIL_PAGE_NAME = 'home';
 const inFlight = new Set();
+/**
+ * Trailing debounce. A save fires on a 200ms debounce while you type, and
+ * rasterising the whole page on each one is far more work than a thumbnail
+ * is worth — it also competes with the canvas for the main thread, which
+ * is felt as jerky zooming and dragging. One capture once the editing
+ * stops is all this needs.
+ */
+const CAPTURE_IDLE_MS = 1500;
+const pending = new Map();
 const findCanvasFrame = () => {
     const node = document.querySelector('[data-testid="canvas-frame"]');
     return node instanceof HTMLElement ? node : null;
@@ -57,36 +66,60 @@ const cropToCard = async (sourceDataUrl, frame, background) => {
 export const captureAndPersistProjectThumbnail = (inputs) => {
     if (inputs.pageName !== THUMBNAIL_PAGE_NAME)
         return;
-    if (inFlight.has(inputs.projectPath))
+    const existing = pending.get(inputs.projectPath);
+    if (existing !== undefined)
+        clearTimeout(existing);
+    pending.set(inputs.projectPath, setTimeout(() => {
+        pending.delete(inputs.projectPath);
+        runCapture(inputs.projectPath);
+    }, CAPTURE_IDLE_MS));
+};
+/**
+ * Run a scheduled capture now, because the project is closing and the
+ * timer would otherwise fire against an unmounted canvas.
+ *
+ * Safe to call immediately before the unmount: the capture clones the
+ * frame and detaches the copy synchronously, so the rasterising that
+ * follows no longer depends on the canvas still being there. No-op when
+ * nothing is scheduled — closing without editing should not rewrite an
+ * identical thumbnail.
+ */
+export const flushPendingProjectThumbnail = (projectPath) => {
+    const existing = pending.get(projectPath);
+    if (existing === undefined)
         return;
-    inFlight.add(inputs.projectPath);
+    clearTimeout(existing);
+    pending.delete(projectPath);
+    runCapture(projectPath);
+};
+const runCapture = (projectPath) => {
+    if (inFlight.has(projectPath))
+        return;
+    inFlight.add(projectPath);
     void (async () => {
         try {
             const node = findCanvasFrame();
             if (!node)
                 return;
-            const width = node.offsetWidth;
-            const height = node.offsetHeight;
             const frame = thumbnailFrame({
-                sourceWidth: width,
-                sourceHeight: height,
+                sourceWidth: node.offsetWidth,
+                sourceHeight: node.offsetHeight,
             });
             // Null means the frame had no size — normal mid-teardown.
             if (frame === null)
                 return;
             const background = backgroundOf(node);
-            const captured = await capturePng({
+            const captured = await captureIsolatedPng({
                 node,
                 backgroundColor: background,
-                width,
-                height,
-                scale: 1,
             });
+            if (captured === null)
+                return;
             const cropped = await cropToCard(captured, frame, background);
             if (cropped === null)
                 return;
             const result = await window.scamp.writeProjectThumbnail({
-                projectPath: inputs.projectPath,
+                projectPath,
                 dataUrl: cropped,
             });
             if (!result.ok) {
@@ -97,7 +130,7 @@ export const captureAndPersistProjectThumbnail = (inputs) => {
             console.warn('[projectThumbnail] capture failed', err);
         }
         finally {
-            inFlight.delete(inputs.projectPath);
+            inFlight.delete(projectPath);
         }
     })();
 };

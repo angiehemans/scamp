@@ -149,6 +149,72 @@ export const capturePng = (
   );
 
 /**
+ * Capture without touching the live canvas.
+ *
+ * `capturePng` above mutates the real DOM for the duration of the shot —
+ * it resets the frame's `transform` and strips selection classes. That is
+ * fine for an export the user asked for and waits on. It is not fine for
+ * an automatic capture on every save: `Viewport.measureFrame` recovers the
+ * applied zoom from `getBoundingClientRect().width / offsetWidth`, so
+ * blanking the transform makes the canvas visibly jump to 100% and back on
+ * every edit.
+ *
+ * So: clone the frame, fix the clone up off-screen, and rasterise that.
+ * The clone keeps `data-scamp-canvas` and the frame's inline theme
+ * custom properties, so the injected `@scope`d page stylesheet and every
+ * `var(--…)` still resolve exactly as they do on the real canvas.
+ *
+ * Returns null when the frame has no size — normal during teardown.
+ * see docs/notes/project-thumbnails.md
+ */
+export const captureIsolatedPng = async (inputs: {
+  node: HTMLElement;
+  backgroundColor: string | null;
+}): Promise<string | null> => {
+  const width = inputs.node.offsetWidth;
+  const height = inputs.node.offsetHeight;
+  if (width === 0 || height === 0) return null;
+
+  const clone = inputs.node.cloneNode(true) as HTMLElement;
+  clone.style.transform = 'none';
+  clone.style.position = 'fixed';
+  clone.style.top = '0';
+  clone.style.left = '-100000px';
+  clone.style.width = `${width}px`;
+  clone.style.height = `${height}px`;
+  clone.style.pointerEvents = 'none';
+  // Editor chrome painted as a class on the element itself, stripped from
+  // the copy rather than from what the user is looking at.
+  for (const cls of [
+    elementStyles.selected,
+    elementStyles.textEditing,
+    elementStyles.propEditAffordance,
+  ]) {
+    if (typeof cls !== 'string' || cls.length === 0) continue;
+    if (clone.classList.contains(cls)) clone.classList.remove(cls);
+    for (const el of clone.querySelectorAll(`.${cls}`)) el.classList.remove(cls);
+  }
+
+  document.body.appendChild(clone);
+  try {
+    return await toPng(clone, {
+      width,
+      height,
+      pixelRatio: 1,
+      // No cache-busting: this runs on a timer, not on demand, and
+      // re-fetching every image on every capture is pure waste.
+      cacheBust: false,
+      filter: (n) => !isChromeNode(n),
+      ...(inputs.backgroundColor !== null
+        ? { backgroundColor: inputs.backgroundColor }
+        : {}),
+    });
+  } finally {
+    clone.remove();
+  }
+};
+
+/**
  * Capture an SVG string. Resolution-independent — no `pixelRatio`.
  * Some complex CSS effects (filters, blend modes) may not be fully
  * captured; the panel surfaces a one-line warning to set
