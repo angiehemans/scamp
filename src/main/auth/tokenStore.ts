@@ -1,0 +1,105 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+
+/**
+ * Where the desktop session token lives.
+ *
+ * The token is an opaque Better Auth session token — a bearer credential
+ * with 30 days of sliding life — so it is treated as a secret at rest and
+ * never written in the clear.
+ *
+ * `safeStorage` is injected rather than imported so this module can be
+ * tested without Electron, and so the no-encryption path can be exercised
+ * directly. That path is the point of the module: on a Linux box with no
+ * keyring, `encryptString` can still "succeed" while producing something
+ * recoverable, which is exactly the silent plaintext write the story
+ * forbids.
+ *
+ * see docs/plans/electron-sign-in-plan.md
+ */
+
+/** The slice of Electron's safeStorage this needs. */
+export type SafeStorageLike = {
+  isEncryptionAvailable: () => boolean;
+  encryptString: (plain: string) => Buffer;
+  decryptString: (encrypted: Buffer) => string;
+};
+
+export type TokenStoreDeps = {
+  safeStorage: SafeStorageLike;
+  /** Directory for the encrypted blob — normally `app.getPath('userData')`. */
+  userDataDir: string;
+};
+
+export type LoadResult =
+  | { status: 'ok'; token: string }
+  | { status: 'none' }
+  /** Encryption is unavailable, so nothing was ever persisted to read. */
+  | { status: 'unavailable' }
+  /** A blob exists but could not be decrypted — different keychain identity. */
+  | { status: 'unreadable' };
+
+export type SaveResult =
+  | { status: 'saved' }
+  /**
+   * Deliberately not saved. The caller stays signed in for this session
+   * and must tell the user they will need to sign in again next launch.
+   */
+  | { status: 'memory-only' };
+
+const FILE_NAME = 'auth-token.bin';
+
+const tokenPath = (dir: string): string => path.join(dir, FILE_NAME);
+
+/**
+ * Persist the token, or refuse to.
+ *
+ * Refusing is a success path, not an error: sign-in still worked, it just
+ * will not survive a restart. Writing the token in the clear instead would
+ * turn a minor inconvenience into a credential sitting readable on disk.
+ */
+export const saveToken = async (
+  token: string,
+  { safeStorage, userDataDir }: TokenStoreDeps
+): Promise<SaveResult> => {
+  if (!safeStorage.isEncryptionAvailable()) return { status: 'memory-only' };
+  const encrypted = safeStorage.encryptString(token);
+  await fs.mkdir(userDataDir, { recursive: true });
+  await fs.writeFile(tokenPath(userDataDir), encrypted);
+  return { status: 'saved' };
+};
+
+/**
+ * Read a stored token.
+ *
+ * `unreadable` is its own outcome rather than an error because it has a
+ * mundane cause: the OS keychain identity changed — a re-signed or
+ * differently-signed build — so the blob is intact and undecryptable. The
+ * caller should clear it and ask the user to sign in again.
+ */
+export const loadToken = async ({
+  safeStorage,
+  userDataDir,
+}: TokenStoreDeps): Promise<LoadResult> => {
+  if (!safeStorage.isEncryptionAvailable()) return { status: 'unavailable' };
+  let blob: Buffer;
+  try {
+    blob = await fs.readFile(tokenPath(userDataDir));
+  } catch {
+    return { status: 'none' };
+  }
+  try {
+    const token = safeStorage.decryptString(blob);
+    if (token.length === 0) return { status: 'unreadable' };
+    return { status: 'ok', token };
+  } catch {
+    return { status: 'unreadable' };
+  }
+};
+
+/** Remove the stored token. Safe to call when there isn't one. */
+export const clearToken = async ({
+  userDataDir,
+}: Pick<TokenStoreDeps, 'userDataDir'>): Promise<void> => {
+  await fs.rm(tokenPath(userDataDir), { force: true });
+};
