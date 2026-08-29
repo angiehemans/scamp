@@ -72,11 +72,15 @@ mysteries.
   COPY of the elements — the same reference makes the store subscription
   bail before it clears `isLoading`, which silently swallows every later
   edit. `d2d6ece`
-- **Nested-container overflow markers.** Detection is from child layout
-  geometry, never `scrollWidth` (blind to `overflow: visible`) and never
-  a transform (an animated child would flash the marker on and off).
-  Mounted inside the frame so the canvas transform positions it, with a
-  counter-scaled label. `data-canvas-chrome` keeps it out of exports.
+- **Nested-container overflow markers — built, then removed on
+  evidence.** Shipped in `4d4123a`, reverted after one session against a
+  real design: a 1px border on a nested element was enough to raise a
+  warning, and that class of false positive recurs constantly in real
+  CSS. Not worth the noise. The root-level `CanvasBoundaryOverlay`
+  already covers the case that matters — content escaping the page —
+  and that is the decision, not a deferral. If it is ever revisited, the
+  problem to solve first is sub-pixel and border-width overflow, not
+  detection; detection was never the hard part.
 - **Port and timing flakes** (`authService`, `mcpServer` integration,
   `app-settings` e2e) — per-test ports and a missing poll. `1033248`
 - **Component thumbnails mutating the live canvas** — switched to

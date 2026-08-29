@@ -25,7 +25,6 @@ import { collectExpandedInstances } from '@lib/generateHtml';
 import { assemblePageCss } from '@lib/htmlExportCss';
 import { CanvasInteractionLayer } from './CanvasInteractionLayer';
 import { CanvasBoundaryOverlay } from './CanvasBoundaryOverlay';
-import { NestedOverflowMarkers } from './NestedOverflowMarkers';
 import styles from './Viewport.module.css';
 
 // Padding subtracted from the scroll container's inner width when
@@ -583,12 +582,6 @@ export const Viewport = ({
         <CanvasKeyframes />
         <CanvasPageStylesheet />
         <ElementRenderer elementId={rootElementId} />
-        {/* Nested containers whose children no longer fit. Mounted INSIDE
-            the frame so marker coordinates are frame-local and the
-            frame's own transform positions them at any zoom; the label
-            counter-scales so it stays readable. The root's own overflow
-            is the CanvasBoundaryOverlay outside the frame. */}
-        <NestedOverflowMarkers frame={frameRef.current} scale={scale} revision={elements} />
         <CanvasInteractionLayer frameRef={frameRef} scale={scale} />
         {/* Component-editor artboard handles: `onResize` is only supplied in
             component mode, so these are always present there (the artboard IS

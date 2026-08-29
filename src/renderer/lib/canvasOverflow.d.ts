@@ -30,30 +30,3 @@ export declare const settleExtent: (measured: number, frameBox: number, toleranc
  * string when there's no overflow so callers can render nothing.
  */
 export declare const formatOverflowLabel: (px: number) => string;
-/**
- * A child's rendered edges relative to its container's content box, in
- * logical px. Produced by the caller from layout geometry — never from
- * `scrollWidth`, which reports `clientWidth` for a container with
- * `overflow: visible` and so is blind to exactly the spill we are
- * looking for. Same trap `measureFrame` documents.
- */
-export type ChildEdges = {
-    right: number;
-    bottom: number;
-};
-/**
- * How far a container's children spill past its content box.
- *
- * Zero on both axes when everything fits. Rounded, and floored at zero,
- * so a sub-pixel layout wobble never lights an indicator.
- *
- * Deliberately takes measurements rather than elements: which children
- * count, and how their edges are measured, is the caller's problem —
- * animated elements in particular must be measured from layout geometry
- * rather than their current transform, or the indicator flickers on and
- * off through the animation. see docs/notes/canvas-extent-oscillation.md
- */
-export declare const containerOverflow: (children: ReadonlyArray<ChildEdges>, clientWidth: number, clientHeight: number) => {
-    x: number;
-    y: number;
-};
