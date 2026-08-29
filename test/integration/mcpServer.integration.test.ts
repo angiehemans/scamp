@@ -16,6 +16,13 @@ import { startMcpServer, type RunningMcpServer } from '../../src/main/mcp/server
 import { createToolInvoker, TOOL_DESCRIPTORS } from '../../src/main/mcp/tools';
 
 /**
+ * A fresh port per server start. A fixed one collided with whatever else
+ * vitest was running in parallel, and the failure landed on a different
+ * test each time.
+ */
+let nextPort = 41800;
+
+/**
  * A real HTTP server on a real port, driven the way a real client drives it.
  *
  * The unit tests prove our reading of the spec; this is the level that
@@ -54,7 +61,7 @@ describe('MCP HTTP server', () => {
     server = await startMcpServer({
       token: TOKEN,
       // Well away from the real default so a running Scamp can't collide.
-      port: 41800,
+      port: (nextPort += 1),
       deps: {
         tools: TOOL_DESCRIPTORS,
         invoke: createToolInvoker(async (tool) => ({ tool, ok: true })),
@@ -252,18 +259,22 @@ describe('MCP HTTP server', () => {
 
   describe('port allocation', () => {
     it('scans past a taken port and reports where it landed', async () => {
-      // A fixed default makes collision a real scenario, not a theoretical one.
+      // Ask for the port the running server actually took, so the
+      // collision is guaranteed. Naming a constant here stopped working
+      // once each server start took a fresh port: the constant was free,
+      // the scan had nothing to scan past, and it landed exactly on it.
+      const taken = server.port;
       const second = await startMcpServer({
         token: TOKEN,
-        port: 41800,
+        port: taken,
         deps: { tools: [], invoke: async () => textResult('x') },
       });
       try {
-        // Asserting exactly 41801 was flaky: a socket left in TIME_WAIT by a
+        // Asserting exactly +1 was flaky: a socket left in TIME_WAIT by a
         // previous run pushes the scan one further. The guarantee is "moves
         // past what's taken and reports where it landed", not "+1".
-        expect(second.port).toBeGreaterThan(41800);
-        expect(second.port).toBeLessThanOrEqual(41810);
+        expect(second.port).toBeGreaterThan(taken);
+        expect(second.port).toBeLessThanOrEqual(taken + 10);
         expect(second.url).toContain(String(second.port));
       } finally {
         await second.close();

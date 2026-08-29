@@ -126,6 +126,15 @@ test.describe('settings: app-level', () => {
     await window.getByRole('button', { name: 'On', exact: true }).click();
     await expect.poll(async () => (await readSettings())['sentryOptIn']).toBe(true);
 
+    // Poll for the id as well. `sentryOptIn` and `installId` do not land
+    // in the same write, so a settled toggle does not imply the id has
+    // been minted yet — reading straight through here failed
+    // intermittently with `installId: null`. The opt-out half below
+    // always polled; this half did not.
+    await expect
+      .poll(async () => typeof (await readSettings())['installId'])
+      .toBe('string');
+
     // A v4 UUID, generated locally — not derived from anything about the
     // machine or the person.
     const optedIn = await readSettings();

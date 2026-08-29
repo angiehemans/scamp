@@ -49,6 +49,7 @@ const HOME_CSS = `.root {
   width: 287px;
   height: 120px;
   background-color: rgb(200, 200, 220);
+  flex-shrink: 0;
 }
 
 .main_a003 {
@@ -109,16 +110,16 @@ test.describe('flex sizing contract', () => {
         await clickInFrame(window, { x: 350, y: 60 }); // main spans 287..487
         await pickType(window, 'Width', 'Fill');
         await waitForSaved(window);
-        // Fill takes the remainder and the sidebar keeps its width. Note
-        // what is NOT here: no `flex-shrink: 0` is written by Scamp. The
-        // sidebar holds 287 because the line has room, which is exactly what
-        // the same CSS does in a browser.
+        // The sidebar holds 287 because its guard is IN THE FILE — which is
+        // also why the browser agrees. Measured without one: 218.
         const side = await box(window, 'side_a002');
         const main = await box(window, 'main_a003');
         expect(side.w).toBe(287);
         expect(main.w).toBe(900 - 287);
+        // And the Fill child must never carry a guard: a basis of 100% that
+        // cannot shrink overflows the container by the sibling's width.
         const css = await project.readCss();
-        expect(css).not.toMatch(/\.side_a002[^}]*flex-shrink/s);
+        expect(css).toMatch(/\.side_a002[^}]*flex-shrink:\s*0/s);
         expect(css).not.toMatch(/\.main_a003[^}]*flex-shrink/s);
     });
     test('fill height stays visible against an indefinite parent', async ({ window, project, }) => {

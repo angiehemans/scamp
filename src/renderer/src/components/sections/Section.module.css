@@ -10,6 +10,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Containing block for the stretched toggle button below. */
+  position: relative;
 }
 
 /* Right-aligned cluster of header icon buttons (preset accessory, eye
@@ -21,6 +23,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  /* Above the stretched toggle button, and these ARE the click targets. */
+  position: relative;
 }
 
 /* Size's ratio-lock toggle etc. — plain inline-flex now that the parent
@@ -38,13 +42,16 @@
   margin: 0;
 }
 
-/* Full-width clickable header for collapsible sections. Title + any
- * override indicator sit on the left; the chevron flushes right via
- * `margin-left: auto` so the button reads as a section header bar. */
+/* Full-width clickable header for collapsible sections.
+ *
+ * EMPTY and stretched across the row rather than wrapping it: the row
+ * also holds real buttons (eye toggle, preset menu) and a button inside
+ * a button is invalid HTML. The visible content sits above this via
+ * `position: relative`, and anything non-interactive passes its clicks
+ * straight through. */
 .toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  position: absolute;
+  inset: 0;
   width: 100%;
   background: none;
   border: 0;
@@ -53,10 +60,17 @@
   color: inherit;
   cursor: pointer;
   font: inherit;
-  text-align: left;
 }
 
-.toggle:hover .heading {
+/* Above the stretched button, and click-through so the header still
+   toggles when you hit the title or the chevron. */
+.heading,
+.caret {
+  position: relative;
+  pointer-events: none;
+}
+
+.toggle:hover ~ .heading {
   color: var(--text-primary);
 }
 
@@ -66,7 +80,7 @@
   transition: transform 120ms ease;
 }
 
-.toggle:hover .caret {
+.toggle:hover ~ .titleActions .caret {
   color: var(--text-secondary);
 }
 

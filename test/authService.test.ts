@@ -43,6 +43,7 @@ let dir: string;
 
 beforeEach(async () => {
   __resetAuthState();
+  testPort = nextPort += 1;
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-authsvc-'));
 });
 afterEach(async () => {
@@ -54,13 +55,22 @@ afterEach(async () => {
  * Drives the browser half: reads the state off the URL the app opened and
  * calls back with it, the way the real sign-in page would.
  */
-/** A port of our own, so this never races the live-backend test for 8976. */
-const TEST_PORT = 18990;
+/**
+ * A fresh port per test, never 8976 (the live-backend test holds that).
+ *
+ * A single module-level constant was enough to make this file flaky:
+ * vitest runs files in parallel, and `close` can resolve before the OS
+ * has released the socket, so the next `listen` reports port-unavailable
+ * — surfacing as a different test failing on each run. Same fix
+ * `authLoopbackAndExchange.test.ts` already uses.
+ */
+let nextPort = 18990;
+let testPort = nextPort;
 
 const browserThatSignsIn = (code = 'the-code') =>
   async (url: string): Promise<void> => {
     const state = new URL(url).searchParams.get('state') ?? '';
-    await fetch(`http://127.0.0.1:${TEST_PORT}/callback?code=${code}&state=${state}`);
+    await fetch(`http://127.0.0.1:${testPort}/callback?code=${code}&state=${state}`);
   };
 
 const okFetch: FetchLike = async () => ({
@@ -75,7 +85,7 @@ const deps = (over: Partial<AuthDeps> = {}): AuthDeps => ({
   safeStorage: safeStorage(),
   userDataDir: dir,
   env: { SCAMP_AUTH_BASE_URL: 'http://localhost:3000' },
-  loopbackPort: TEST_PORT,
+  loopbackPort: testPort,
   ...over,
 });
 
@@ -109,7 +119,7 @@ describe('signing in', () => {
       deps({
         openExternal: async () => {
           await fetch(
-            `http://127.0.0.1:${TEST_PORT}/callback?code=x&state=not-the-state`
+            `http://127.0.0.1:${testPort}/callback?code=x&state=not-the-state`
           );
         },
       })

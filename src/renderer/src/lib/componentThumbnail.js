@@ -1,4 +1,4 @@
-import { capturePng } from './exportCapture';
+import { captureIsolatedPng } from './exportCapture';
 // Sidebar thumbnail capture. see docs/notes/components-thumbnails.md
 const inFlight = new Set();
 export const COMPONENT_THUMBNAIL_UPDATED_EVENT = 'scamp:component-thumbnail-updated';
@@ -17,17 +17,19 @@ export const captureAndPersistComponentThumbnail = (inputs) => {
             const frame = findCanvasFrame();
             if (!frame)
                 return;
-            const width = frame.offsetWidth;
-            const height = frame.offsetHeight;
-            if (width === 0 || height === 0)
-                return;
-            const dataUrl = await capturePng({
+            // Isolated, not `capturePng`: that one blanks the live frame's
+            // transform and strips selection classes for the duration, which
+            // the user sees as the canvas jumping to 100% and back on every
+            // component save. `captureIsolatedPng` clones the frame off-screen
+            // and touches nothing live. Returns null for a zero-sized frame,
+            // which is normal mid-teardown.
+            // see docs/notes/project-thumbnails.md
+            const dataUrl = await captureIsolatedPng({
                 node: frame,
                 backgroundColor: null,
-                width,
-                height,
-                scale: 1,
             });
+            if (dataUrl === null)
+                return;
             const result = await window.scamp.writeComponentThumbnail({
                 projectPath: inputs.projectPath,
                 componentName: inputs.componentName,

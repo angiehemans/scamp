@@ -216,36 +216,43 @@ export const Section = ({
   const handleToggle = (): void => setOpen((v) => !v);
   return (
     <section className={styles.section} data-panel-section={title}>
-      {wrapWithTooltip(
-        <button
-          className={styles.toggle}
-          type="button"
-          onClick={handleToggle}
-          aria-expanded={open}
-          // Explicit name so nested controls (eye toggle, preset menu)
-          // don't leak their labels into the toggle's accessible name.
-          aria-label={title}
-        >
-          <span className={styles.heading}>{title}</span>
-          {duplicateDot}
-          {overrideDot}
-          {/* Preset accessory + eye toggle + chevron cluster right. Each
-              accessory's own onClick stops propagation so it doesn't toggle
-              the section. */}
-          <span className={styles.titleActions}>
-            {groupAccessory && (
-              <span className={styles.groupAccessory}>{groupAccessory}</span>
-            )}
-            {groupToggleButton}
-            <IconChevronDown
-              size={14}
-              stroke={2}
-              className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
-              aria-hidden="true"
-            />
-          </span>
-        </button>
-      )}
+      {/* The toggle is an EMPTY button stretched across the row rather
+          than a wrapper around it. The accessories are real buttons (the
+          eye toggle, the preset menu), and a button inside a button is
+          invalid HTML — React warns, and the nesting is the kind of thing
+          that quietly breaks a keyboard or screen-reader path. As
+          siblings they keep their own click targets, while the row still
+          reads and behaves as one header bar.
+          see docs/todos.md */}
+      <div className={styles.titleRow}>
+        {wrapWithTooltip(
+          <button
+            className={styles.toggle}
+            type="button"
+            onClick={handleToggle}
+            aria-expanded={open}
+            // Explicit name so the sibling controls don't leak their
+            // labels into the toggle's accessible name.
+            aria-label={title}
+          />
+        )}
+        <span className={styles.heading}>{title}</span>
+        {duplicateDot}
+        {overrideDot}
+        {/* Preset accessory + eye toggle + chevron cluster right. */}
+        <span className={styles.titleActions}>
+          {groupAccessory && (
+            <span className={styles.groupAccessory}>{groupAccessory}</span>
+          )}
+          {groupToggleButton}
+          <IconChevronDown
+            size={14}
+            stroke={2}
+            className={`${styles.caret} ${open ? '' : styles.caretCollapsed}`}
+            aria-hidden="true"
+          />
+        </span>
+      </div>
       {open && wrappedContent}
     </section>
   );
