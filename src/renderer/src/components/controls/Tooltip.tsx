@@ -1,6 +1,7 @@
 import {
   cloneElement,
   ReactElement,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -147,9 +148,51 @@ export const Tooltip = ({
     setPosition(null);
   };
 
+  /**
+   * A focus raised by clicking the trigger must not open a tooltip: the
+   * pointer is already parked on it so no `mouseleave` follows, and the
+   * canvas's mousedown handlers call preventDefault, so the input may
+   * never blur either. The tooltip then sits there until the user finds
+   * something that does steal focus. Keyboard focus keeps working.
+   *
+   * `:focus-visible` can't decide this — a text input matches it however
+   * it was focused — so the pointer press is recorded instead.
+   */
+  const pointerFocusRef = useRef(false);
+
+  const handlePointerDown = (): void => {
+    pointerFocusRef.current = true;
+    handleLeave();
+  };
+
+  const handleFocus = (): void => {
+    if (pointerFocusRef.current) {
+      pointerFocusRef.current = false;
+      return;
+    }
+    handleEnter();
+  };
+
+  const handleBlur = (): void => {
+    pointerFocusRef.current = false;
+    handleLeave();
+  };
+
+  // Escape dismisses, the conventional out for a tooltip that has
+  // outstayed its welcome. Only bound while one is actually open.
+  useEffect(() => {
+    if (position === null) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setPosition(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [position]);
+
   const childProps = children.props as {
     onMouseEnter?: (e: React.MouseEvent) => void;
     onMouseLeave?: (e: React.MouseEvent) => void;
+    onPointerDown?: (e: React.PointerEvent) => void;
     onFocus?: (e: React.FocusEvent) => void;
     onBlur?: (e: React.FocusEvent) => void;
   };
@@ -172,13 +215,17 @@ export const Tooltip = ({
       childProps.onMouseLeave?.(e);
       handleLeave();
     },
+    onPointerDown: (e: React.PointerEvent) => {
+      childProps.onPointerDown?.(e);
+      handlePointerDown();
+    },
     onFocus: (e: React.FocusEvent) => {
       childProps.onFocus?.(e);
-      handleEnter();
+      handleFocus();
     },
     onBlur: (e: React.FocusEvent) => {
       childProps.onBlur?.(e);
-      handleLeave();
+      handleBlur();
     },
   });
 

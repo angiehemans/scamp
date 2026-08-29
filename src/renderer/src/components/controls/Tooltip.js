@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
-import { cloneElement, useLayoutEffect, useRef, useState, } from 'react';
+import { cloneElement, useEffect, useLayoutEffect, useRef, useState, } from 'react';
 import { createPortal } from 'react-dom';
 import { splitTooltipLabel } from '@lib/tooltipLabel';
 import { resolveTooltipPlacement, TOOLTIP_GAP, } from '@lib/tooltipPlacement';
@@ -92,6 +92,44 @@ export const Tooltip = ({ label, header, children, delay = 400, placement = 'aut
         }
         setPosition(null);
     };
+    /**
+     * A focus raised by clicking the trigger must not open a tooltip: the
+     * pointer is already parked on it so no `mouseleave` follows, and the
+     * canvas's mousedown handlers call preventDefault, so the input may
+     * never blur either. The tooltip then sits there until the user finds
+     * something that does steal focus. Keyboard focus keeps working.
+     *
+     * `:focus-visible` can't decide this — a text input matches it however
+     * it was focused — so the pointer press is recorded instead.
+     */
+    const pointerFocusRef = useRef(false);
+    const handlePointerDown = () => {
+        pointerFocusRef.current = true;
+        handleLeave();
+    };
+    const handleFocus = () => {
+        if (pointerFocusRef.current) {
+            pointerFocusRef.current = false;
+            return;
+        }
+        handleEnter();
+    };
+    const handleBlur = () => {
+        pointerFocusRef.current = false;
+        handleLeave();
+    };
+    // Escape dismisses, the conventional out for a tooltip that has
+    // outstayed its welcome. Only bound while one is actually open.
+    useEffect(() => {
+        if (position === null)
+            return;
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape')
+                setPosition(null);
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => document.removeEventListener('keydown', onKeyDown);
+    }, [position]);
     const childProps = children.props;
     const trigger = cloneElement(children, {
         ref: (node) => {
@@ -112,13 +150,17 @@ export const Tooltip = ({ label, header, children, delay = 400, placement = 'aut
             childProps.onMouseLeave?.(e);
             handleLeave();
         },
+        onPointerDown: (e) => {
+            childProps.onPointerDown?.(e);
+            handlePointerDown();
+        },
         onFocus: (e) => {
             childProps.onFocus?.(e);
-            handleEnter();
+            handleFocus();
         },
         onBlur: (e) => {
             childProps.onBlur?.(e);
-            handleLeave();
+            handleBlur();
         },
     });
     return (_jsxs(_Fragment, { children: [trigger, position !== null &&
