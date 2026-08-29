@@ -1,5 +1,10 @@
 import { test, expect } from '../fixtures/app';
-import { canvasFrame, pageRoot } from '../fixtures/selectors';
+import { clickInFrame, selectTool } from '../fixtures/canvas';
+import {
+  canvasElementsByPrefix,
+  canvasFrame,
+  pageRoot,
+} from '../fixtures/selectors';
 
 /**
  * The nested-container overflow indicator.
@@ -157,6 +162,25 @@ test.describe('nested container overflow', () => {
       await expect(markerFor(window, 'a006')).toHaveCount(0);
       await window.waitForTimeout(250);
     }
+  });
+
+  test('does not block selecting or duplicating the element beneath it', async ({
+    window,
+  }) => {
+    // The marker layer covers the whole frame. If it intercepts pointer
+    // events, nothing can be selected — and every shortcut that needs a
+    // selection (duplicate, copy, cut) silently stops working.
+    await expect(markerFor(window, 'a001')).toBeVisible();
+    await selectTool(window, 'v');
+    await clickInFrame(window, { x: 60, y: 40 }); // inside kid_a002
+
+    // Duplicating is the assertion: Cmd+D is a no-op without a
+    // selection, so this fails if the marker layer swallowed the click.
+    // (Resize handles are not the tell here — a flex child does not get
+    // them, since the layout owns its position.)
+    const before = await canvasElementsByPrefix(window, 'kid_').count();
+    await window.keyboard.press('ControlOrMeta+d');
+    await expect(canvasElementsByPrefix(window, 'kid_')).toHaveCount(before + 1);
   });
 
   test('is canvas chrome, so it never bakes into an export', async ({

@@ -155,11 +155,14 @@ test.describe('nested container overflow', () => {
     });
     test('markers sit over the container they describe', async ({ window }) => {
         await expect(markerFor(window, 'a001')).toBeVisible();
-        const boxes = await canvasFrame(window).evaluate(() => {
-            const marker = document
+        // Scope BOTH queries to the frame. The layers panel mirrors
+        // `data-element-id`, so a document-wide lookup finds its row instead
+        // of the canvas element — the trap `SizeSection` documents.
+        const boxes = await canvasFrame(window).evaluate((frame) => {
+            const marker = frame
                 .querySelector('[data-element-overflow="a001"]')
                 ?.getBoundingClientRect();
-            const target = document
+            const target = frame
                 .querySelector('[data-element-id="a001"]')
                 ?.getBoundingClientRect();
             return marker && target
