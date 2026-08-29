@@ -268,20 +268,6 @@ export const parseCode = (
       (d) => d.prop === 'display' && LAYOUT_DISPLAY.test(d.value.trim())
     );
   };
-  /** Flex parent whose cross axis is HEIGHT — display:flex and not a column. */
-  const isFlexRowContainer = (id: string | null): boolean => {
-    if (id === null) return false;
-    const cls = classById.get(id);
-    if (cls === undefined) return false;
-    const decls = parsedCss.byClass.get(cls) ?? [];
-    const isFlex = decls.some(
-      (d) => d.prop === 'display' && d.value.trim() === 'flex'
-    );
-    if (!isFlex) return false;
-    return !decls.some(
-      (d) => d.prop === 'flex-direction' && d.value.trim().startsWith('column')
-    );
-  };
 
   // Always start with a root, even if the TSX is missing one. Downstream
   // code (canvas store, ProjectShell) assumes ROOT_ELEMENT_ID exists.
@@ -336,23 +322,6 @@ export const parseCode = (
           widthMode: hasWidth ? applied.widthMode : 'auto',
           heightMode: hasHeight ? applied.heightMode : 'auto',
         };
-
-    // `align-self: stretch` with no height on a flex-row child IS the
-    // fill-height mode — it is what the generator writes for
-    // heightMode 'stretch' there, because `height: 100%` collapses
-    // against an indefinite container height. Mapping it back keeps the
-    // round trip closed and keeps the Size panel reading "Fill" rather
-    // than "Auto" for an element that visibly fills.
-    if (
-      !isRoot &&
-      !hasHeight &&
-      isFlexRowContainer(raw.parentId) &&
-      decls.some(
-        (d) => d.prop === 'align-self' && d.value.trim() === 'stretch'
-      )
-    ) {
-      finalElement = { ...finalElement, heightMode: 'stretch' };
-    }
 
     // Fold in any breakpoint overrides for this element's class.
     const overrides: Record<string, BreakpointOverride> = {};

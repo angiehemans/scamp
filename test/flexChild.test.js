@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { preserveDrawnSize, releaseDrawnSize } from '@lib/flexChild';
+import { preserveDrawnSize } from '@lib/flexChild';
 import { DEFAULT_RECT_STYLES } from '@lib/defaults';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 const element = (over = {}) => ({
@@ -64,54 +64,5 @@ describe('preserveDrawnSize', () => {
         expect(result.widthValue).toBe(180);
         expect(result.heightValue).toBe(120);
         expect(result.id).toBe(el.id);
-    });
-});
-describe('releaseDrawnSize', () => {
-    const drawn = () => element({ customProperties: { 'flex-shrink': '0' } });
-    it('drops the draw-time flex-shrink when the main axis leaves fixed', () => {
-        // width: 100% with shrink 0 is basis-100% that cannot shrink — a
-        // "fill width" main panel renders container-wide and overflows past
-        // its fixed sibling by exactly the sibling's width.
-        const patch = releaseDrawnSize(drawn(), parentWith('flex'), {
-            widthMode: 'stretch',
-        });
-        expect(patch.customProperties).toEqual({});
-        expect(patch.widthMode).toBe('stretch');
-    });
-    it('uses height as the main axis in a column parent', () => {
-        const col = element({ id: 'col', parentId: null, display: 'flex', flexDirection: 'column' });
-        expect(releaseDrawnSize(drawn(), col, { heightMode: 'stretch' }).customProperties).toEqual({});
-        // Width is the CROSS axis in a column — flex-shrink is irrelevant there.
-        expect(releaseDrawnSize(drawn(), col, { widthMode: 'stretch' }).customProperties).toBeUndefined();
-    });
-    it('leaves the cross axis alone in a row parent', () => {
-        // flex-shrink has no effect on the cross axis; fill-height must not
-        // strip the width preservation.
-        expect(releaseDrawnSize(drawn(), parentWith('flex'), { heightMode: 'stretch' })
-            .customProperties).toBeUndefined();
-    });
-    it('leaves a fixed-to-fixed change alone', () => {
-        expect(releaseDrawnSize(drawn(), parentWith('flex'), {
-            widthMode: 'fixed',
-            widthValue: 300,
-        }).customProperties).toBeUndefined();
-    });
-    it('never touches a flex-shrink the user authored with another value', () => {
-        const el = element({ customProperties: { 'flex-shrink': '2' } });
-        expect(releaseDrawnSize(el, parentWith('flex'), { widthMode: 'stretch' })
-            .customProperties).toBeUndefined();
-    });
-    it('keeps other custom properties when it strips the shrink', () => {
-        const el = element({
-            customProperties: { 'flex-shrink': '0', cursor: 'pointer' },
-        });
-        expect(releaseDrawnSize(el, parentWith('flex'), { widthMode: 'stretch' })
-            .customProperties).toEqual({ cursor: 'pointer' });
-    });
-    it('is a no-op outside a flex parent', () => {
-        expect(releaseDrawnSize(drawn(), parentWith('none'), { widthMode: 'stretch' })
-            .customProperties).toBeUndefined();
-        expect(releaseDrawnSize(drawn(), undefined, { widthMode: 'stretch' })
-            .customProperties).toBeUndefined();
     });
 });

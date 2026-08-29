@@ -11,7 +11,6 @@ import type {
   WidthMode,
 } from '@lib/element';
 import { parseSizeValue } from '@lib/parsers';
-import { releaseDrawnSize } from '@lib/flexChild';
 import {
   combineTypedWithType,
   rawForType,
@@ -144,10 +143,6 @@ const useMeasuredSize = (
 
 export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useResolvedElement(elementId);
-  const parentElement = useCanvasStore((s) => {
-    const parentId = s.elements[elementId]?.parentId;
-    return parentId ? s.elements[parentId] : undefined;
-  });
   const patchElement = useCanvasStore((s) => s.patchElement);
   const toggleRatioLock = useCanvasStore((s) => s.toggleRatioLock);
   const clearRatioLock = useCanvasStore((s) => s.clearRatioLock);
@@ -215,18 +210,13 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   // A committed W/H edit that lands a non-fixed mode drops the lock (a
   // stretch/auto axis can't be ratio-locked). When locked+fixed, the
   // paired dimension is recomputed inside `lockedSizePatch`.
-  // `releaseDrawnSize`: leaving fixed mode on the flex main axis drops the
-  // draw-time `flex-shrink: 0`, or "fill width" renders container-wide and
-  // overflows past a fixed sibling. see docs/notes/draw-into-flex-parent.md
   const handleCommitWidth = (raw: string): void => {
     if (parseSizeValue(raw).mode !== 'fixed') clearRatioLock(elementId);
-    const patch = lockedSizePatch(element, 'width', raw, activeRatio);
-    patchElement(elementId, releaseDrawnSize(element, parentElement, patch));
+    patchElement(elementId, lockedSizePatch(element, 'width', raw, activeRatio));
   };
   const handleCommitHeight = (raw: string): void => {
     if (parseSizeValue(raw).mode !== 'fixed') clearRatioLock(elementId);
-    const patch = lockedSizePatch(element, 'height', raw, activeRatio);
-    patchElement(elementId, releaseDrawnSize(element, parentElement, patch));
+    patchElement(elementId, lockedSizePatch(element, 'height', raw, activeRatio));
   };
   // Picking a type from the right-side menu converts the current value to
   // that type (seeded with the axis's current number) and commits it.
