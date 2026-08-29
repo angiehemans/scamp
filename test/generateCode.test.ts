@@ -901,3 +901,75 @@ describe('generateCode — a fixed size is never omitted as a default', () => {
     expect(css).not.toMatch(/\.rect_a1b2[^}]*height:/s);
   });
 });
+
+describe('generateCode — fill height in a flex row', () => {
+  const cssFor = (elements: Record<string, ScampElement>): string =>
+    generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' }).css;
+
+  it('emits align-self: stretch instead of height: 100%', () => {
+    // height: 100% resolves against an indefinite container height and
+    // computes to 0 — the invisible sidebar. Measured in Phase 0.
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['row1']),
+      row1: makeRect({ id: 'row1', display: 'flex', childIds: ['a1b2'] }),
+      a1b2: makeRect({ id: 'a1b2', parentId: 'row1', heightMode: 'stretch' }),
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*align-self:\s*stretch/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+  });
+
+  it('keeps height: 100% for a non-flex parent', () => {
+    // Resolves against the positioned parent, which has a real height.
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', heightMode: 'stretch' }),
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+  });
+
+  it('keeps height: 100% in a flex COLUMN parent', () => {
+    // Height is the MAIN axis there, not the cross axis.
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['col1']),
+      col1: makeRect({
+        id: 'col1',
+        display: 'flex',
+        flexDirection: 'column',
+        childIds: ['a1b2'],
+      }),
+      a1b2: makeRect({ id: 'a1b2', parentId: 'col1', heightMode: 'stretch' }),
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+  });
+
+  it('keeps width: 100% for cross-axis fill in a column parent', () => {
+    // Phase 0 measured this correct as it stands; align-self here would
+    // override the parent's align-items.
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['col1']),
+      col1: makeRect({
+        id: 'col1',
+        display: 'flex',
+        flexDirection: 'column',
+        childIds: ['a1b2'],
+      }),
+      a1b2: makeRect({ id: 'a1b2', parentId: 'col1', widthMode: 'stretch' }),
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*width:\s*100%/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*align-self/s);
+  });
+
+  it('never contradicts a user-set align-self', () => {
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['row1']),
+      row1: makeRect({ id: 'row1', display: 'flex', childIds: ['a1b2'] }),
+      a1b2: makeRect({
+        id: 'a1b2',
+        parentId: 'row1',
+        heightMode: 'stretch',
+        alignSelf: 'center',
+      }),
+    });
+    expect((css.match(/align-self/g) ?? []).length).toBeLessThanOrEqual(1);
+  });
+});

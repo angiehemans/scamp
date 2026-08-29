@@ -82,7 +82,7 @@ const elementCssChunks = (el, parent, mustEstablishPositioningContext = false) =
     // lands last. Doubling lifts the page rule to (0,2,0) so a size set
     // on the instance reliably beats the component's own width/height.
     if (el.type === 'component-instance') {
-        const sizeLines = sizeDeclarationLines(el);
+        const sizeLines = sizeDeclarationLines(el, parent);
         if (sizeLines.length === 0)
             return [];
         const cls = classNameFor(el);

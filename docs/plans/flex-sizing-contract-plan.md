@@ -1,6 +1,11 @@
 # The flex sizing contract — Plan
 
-Status: **Phase 0 complete — results below changed the design.** Rule 3's
+Status: **Phases 1-3 landed, with one rule inverted by the parity
+harness — see "Rule 2 reversal" below. Remaining: the explicit
+don't-shrink control (Angie's own proposal), which is what actually
+closes this.**
+
+Earlier status: **Phase 0 complete — results below changed the design.** Rule 3's
 main-axis half is DROPPED on the evidence; the fill-height half is kept
 and measured safe. Phases 1-4 proceed from the revised contract.
 
@@ -183,6 +188,47 @@ the user meant" (invisible sidebars appearing, overflowing mains
 snapping to the remainder), eager is right and the `f4fe569` break gets
 an explanation on the record. If something defensible moves, lazy wins.
 
+
+## Rule 2 reversal — derived vs stored (found in Phase 1)
+
+Rule 2 said the shrink guard should be **derived** by the generator and
+never stored. Implemented, it broke `parity: nested-flex-with-gap-and-padding`:
+
+```
+a_d002.w: canvas 120.0 vs browser 103.7 (off by 16.3px)
+c_d004.w: canvas  60.0 vs browser  51.8 (off by  8.2px)
+```
+
+The parity harness renders the fixture's hand-written CSS **verbatim,
+importing nothing from `src/`**. A derived declaration exists only in
+Scamp's head, so the canvas laid out a file the browser could not see —
+for every project Scamp did not write, which is the agent workflow the
+whole product is built around.
+
+Measured three ways, on the sidebar layout that started this:
+
+| guard | sidebar renders | canvas/browser parity |
+|---|---|---|
+| derived (not in the file) | 287 ✓ | **broken** |
+| none at all | **218 ✗** | fine |
+| **stored (written into the file)** | **287 ✓** | **fine** |
+
+Storing it is what puts the browser and the canvas in front of the same
+declaration. "Derived, not stored" was exactly backwards for a tool
+whose oracle is the file on disk — and Paper can hold the opposite view
+only because it authors every file it renders.
+
+`preserveDrawnSize` is therefore **kept**, not deleted. What remains
+wrong with it is unchanged from the original bug list: it fires only at
+draw time (not when a size is typed into the panel), and nothing removes
+it when the axis switches to Fill.
+
+**Recommended close: Angie's own proposal** — make the guard an explicit
+control ("don't shrink") in the Size section, written into the file when
+set. That preserves parity by construction, matches what a hand-coder
+writes, and makes the property visible and removable instead of
+residual. `releaseDrawnSize` then becomes unnecessary a second time,
+because nothing is applied behind the user's back.
 
 ## Phase 0 — RESULTS (measured in Electron's Chromium, 2026-08-28)
 

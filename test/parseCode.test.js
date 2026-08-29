@@ -595,3 +595,91 @@ describe('parseCode + generateCode — duplicated names survive a round trip', (
         expect(reparsed.elements['c3d4']?.id).not.toBe(reparsed.elements['a1b2']?.id);
     });
 });
+describe('parseCode — fill-height via align-self round trip', () => {
+    const TSX = `import styles from './home.module.css';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="row_shell" className={styles.row_shell}>
+        <div data-scamp-id="side_bar" className={styles.side_bar}></div>
+      </div>
+    </div>
+  );
+}
+`;
+    it('reads align-self: stretch with no height as fill-height', () => {
+        const { elements } = parseCode(TSX, `.root {
+}
+
+.row_shell {
+  display: flex;
+}
+
+.side_bar {
+  width: 287px;
+  align-self: stretch;
+}
+`);
+        expect(elements['bar']?.heightMode).toBe('stretch');
+        expect(elements['bar']?.widthValue).toBe(287);
+    });
+    it('does not infer fill-height when a height is declared', () => {
+        const { elements } = parseCode(TSX, `.root {
+}
+
+.row_shell {
+  display: flex;
+}
+
+.side_bar {
+  height: 200px;
+  align-self: stretch;
+}
+`);
+        expect(elements['bar']?.heightMode).toBe('fixed');
+    });
+    it('does not infer fill-height in a column parent', () => {
+        const { elements } = parseCode(TSX, `.root {
+}
+
+.row_shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.side_bar {
+  align-self: stretch;
+}
+`);
+        expect(elements['bar']?.heightMode).toBe('auto');
+    });
+    it('round-trips a sidebar that fills height beside a fixed width', () => {
+        const css = `.root {
+}
+
+.row_shell {
+  display: flex;
+}
+
+.side_bar {
+  width: 287px;
+  align-self: stretch;
+}
+`;
+        const first = parseCode(TSX, css);
+        const code = generateCode({
+            elements: first.elements,
+            rootId: first.rootId,
+            pageName: 'home',
+        });
+        const second = parseCode(code.tsx, code.css);
+        const recode = generateCode({
+            elements: second.elements,
+            rootId: second.rootId,
+            pageName: 'home',
+        });
+        expect(recode.css).toBe(code.css);
+        expect(code.css).toMatch(/\.side_bar[^}]*align-self:\s*stretch/s);
+    });
+});

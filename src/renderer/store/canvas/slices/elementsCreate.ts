@@ -114,8 +114,10 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          // A flex parent would otherwise shrink it below the drawn width.
-          // see docs/notes/draw-into-flex-parent.md
+          // Stored, not derived: the guard must be IN the file, or the
+          // canvas (which renders the model) and the browser (which
+          // renders the file) disagree about a box that has not been
+          // saved yet. see docs/plans/flex-sizing-contract-plan.md
           [id]: preserveDrawnSize(withTag, parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },

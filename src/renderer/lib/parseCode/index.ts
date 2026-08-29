@@ -260,6 +260,27 @@ export const parseCode = (
   const classById = new Map(
     rawElements.map((r) => [r.id, r.dedupedFrom ?? resolveClassName(r.className, r.id)])
   );
+  /**
+   * The parent's flex main axis, or null when the parent is not a flex
+   * container. Used to recognise the derived `flex-shrink: 0` guard so it
+   * is absorbed rather than echoed into `customProperties`.
+   */
+  const parentFlexMainAxis = (id: string | null): 'width' | 'height' | null => {
+    if (id === null) return null;
+    const cls = classById.get(id);
+    if (cls === undefined) return null;
+    const decls = parsedCss.byClass.get(cls) ?? [];
+    const isFlex = decls.some(
+      (d) => d.prop === 'display' && d.value.trim() === 'flex'
+    );
+    if (!isFlex) return null;
+    const isColumn = decls.some(
+      (d) =>
+        d.prop === 'flex-direction' && d.value.trim().startsWith('column')
+    );
+    return isColumn ? 'height' : 'width';
+  };
+
   const isLayoutContainer = (id: string | null): boolean => {
     if (id === null) return false;
     const cls = classById.get(id);
@@ -322,6 +343,22 @@ export const parseCode = (
           widthMode: hasWidth ? applied.widthMode : 'auto',
           heightMode: hasHeight ? applied.heightMode : 'auto',
         };
+
+    // `align-self: stretch` with no height on a flex-row child IS
+    // fill-height — it is what the generator writes there, because
+    // `height: 100%` collapses against an indefinite container. Mapping
+    // it back closes the round trip and keeps the Size panel reading
+    // "Fill" rather than "Auto" for an element that visibly fills.
+    if (
+      !isRoot &&
+      !hasHeight &&
+      parentFlexMainAxis(raw.parentId) === 'width' &&
+      decls.some(
+        (d) => d.prop === 'align-self' && d.value.trim() === 'stretch'
+      )
+    ) {
+      finalElement = { ...finalElement, heightMode: 'stretch' };
+    }
 
     // Fold in any breakpoint overrides for this element's class.
     const overrides: Record<string, BreakpointOverride> = {};

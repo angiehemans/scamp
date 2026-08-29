@@ -2,7 +2,7 @@ import { type PointerEvent, useEffect, useState } from 'react';
 
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
-import { clampSizeToParent, clampToParent, MIN_SIZE } from '@lib/bounds';
+import { clampToParent, MIN_SIZE } from '@lib/bounds';
 import { resolveInsertParent } from '@lib/insertParent';
 import { assetsDirSegment } from '@renderer/src/lib/path';
 import { prepareSvgForInsert } from '@renderer/src/lib/svg';
@@ -288,20 +288,22 @@ export const useDrawInteraction = (geometry: CanvasGeometry): DrawInteraction =>
     const h = wasClick ? defaultHeight : dragH;
 
     // A flex or grid parent lays its children out itself, so the drawn
-    // offset means nothing — and letting it constrain the size collapses
-    // anything drawn near the right edge to MIN_SIZE.
-    // see docs/notes/draw-into-flex-parent.md
+    // offset means nothing there — and neither does clamping the SIZE to
+    // the parent. Draw the box you want; if it does not fit, a hug parent
+    // grows around it and a fixed parent lets it overflow visibly, both
+    // of which are what a browser does. The clamp only ever produced
+    // surprises: `parentW - x` collapsed anything drawn near the right
+    // edge, and reading the parent's model size collapsed anything drawn
+    // inside a percentage-width container.
+    //
+    // x/y are zeroed to match what lands on disk — the generator emits no
+    // left/top for a flow child, so a kept offset would vanish on the
+    // next round trip anyway.
+    // see docs/plans/flex-sizing-contract-plan.md
     const parentDisplay = elements[draw.parentId]?.display;
     const parentOwnsLayout = parentDisplay === 'flex' || parentDisplay === 'grid';
     const clamped = parentOwnsLayout
-      ? {
-          // Zeroed to match what lands on disk: the generator emits no
-          // left/top for a flow child, so a kept offset would vanish on
-          // the next round-trip anyway.
-          x: 0,
-          y: 0,
-          ...clampSizeToParent(w, h, parent.w, parent.h),
-        }
+      ? { x: 0, y: 0, w: Math.max(MIN_SIZE, w), h: Math.max(MIN_SIZE, h) }
       : clampToParent(x, y, w, h, parent.w, parent.h);
     if (clamped.w >= MIN_SIZE && clamped.h >= MIN_SIZE) {
       let createdId: string;
