@@ -107,59 +107,42 @@ a hand-coder expects of them. And because the guard is derived,
 switching the axis away from `fixed` removes it automatically —
 `releaseDrawnSize` becomes unnecessary rather than re-landed.
 
-### Rule 3 — Fill emits the idiomatic spelling for its context
+### Rule 3 — Fill-height in a flex row emits `align-self: stretch`
 
-*(Expanded per Q5: Fill is smart on BOTH axes, for every parent
-context — non-layout, flex row, flex column, grid. This absorbs the
-fill-height half of reverted `f4fe569`, which Paper's export
-independently validated, instead of leaving it parked.)*
-
-The root cause of the sidebar bug: Scamp spelled every Fill as `100%` —
-a *shrink-based* fill in flex contexts, which dies the moment anything
-sets `flex-shrink: 0`, and a collapse-to-zero in the fill-height case.
-A hand-coder picks the spelling per context. So does Fill now:
+*(Narrowed by Phase 0. The original rule proposed a full Fill matrix
+including `flex: 1` on the main axis; measurement killed that half —
+see Phase 0 result 1. What survives is the fill-height fix.)*
 
 | Parent context | Fill **width** emits | Fill **height** emits |
 |---|---|---|
-| Non-layout (absolute positioning) | `width: 100%` *(unchanged)* | `height: 100%` *(unchanged — resolves against the positioned parent)* |
-| Flex **row** | **main:** `flex: 1;` + `min-width: 0;` | **cross:** `align-self: stretch;`, no height *(the `f4fe569` / Paper spelling)* |
-| Flex **column** | **cross:** `width: 100%` *(unchanged — resolves against a definite inline size AND preserves the parent's `align-items`; see `docs/notes/canvas-cross-axis-stretch.md`)* | **main:** `flex: 1;` + `min-height: 0;` |
-| Grid | *spike decides* — candidates: `width: 100%` vs `justify-self: stretch` | *spike decides* — candidates: `height: 100%` vs `align-self: stretch` (auto rows make percentages mushy) |
+| Non-layout (absolute positioning) | `width: 100%` — unchanged | `height: 100%` — unchanged |
+| Flex **row** | `width: 100%` — **unchanged** (main axis; the shrink guard from Rule 2 is what makes it behave) | **`align-self: stretch`, no height** — the one change |
+| Flex **column** | `width: 100%` — unchanged (cross axis; see `docs/notes/canvas-cross-axis-stretch.md`) | `height: 100%` — unchanged (main axis) |
+| Grid | `width: 100%` — unchanged | `height: 100%` — unchanged (items already stretch by default; Phase 0 result 4) |
 
-- `min-width: 0` / `min-height: 0` ride along with `flex: 1`
-  *(decided: emit — Q2)* so a fill child's content can never force it
-  past the remainder — the classic flexbox text-overflow gotcha,
-  pre-solved instead of discovered.
-- The grid row of the matrix is filled by Phase 0 measurements, not by
-  reasoning — grid's default `stretch` alignment and auto-track
-  percentage behaviour are exactly the kind of thing this week proved
-  we should measure first.
-- The `align-self: stretch` emission is guarded on the default
-  `alignSelf` so a user-set alignment is never contradicted by a second
-  line (same guard `f4fe569` carried).
+One cell changes. Everything else keeps the spelling it has today.
 
-**Parsing (decided: narrow — Q4).** Emission is as the matrix says.
-Reading files back: the exact spellings the matrix emits map to Fill
-mode (including existing `height: 100%` / `width: 100%` files — see
-migration below); other people's spellings (`flex: 1 1 0%`,
-`flex-grow: 1`, …) pass through `customProperties` verbatim. They still
-render correctly on canvas because the canvas renders the injected
-stylesheet — the only cost is the Size panel reading "Auto" instead of
-"Fill" for those. Widen later if agent-written files show common
-variants.
+**Why only this cell.** `height: 100%` on a flex-row child resolves
+against the container's height, which is `auto` under the usual
+`min-height: 100vh` page root — indefinite — so the child computes to
+**zero** and disappears. That is the invisible sidebar, and it is what a
+real browser does with the CSS Scamp writes. `align-self: stretch`
+fills the cross axis whether or not the container's height is definite
+(Phase 0 result 2), which is why Paper emits it even where a percentage
+would have worked.
 
-To answer the question asked inline at Q4 directly: yes — for flex
-children, Fill on the main axis emits `flex: 1` instead of
-`width: 100%`. Q4 was only about how many foreign spellings we
-*recognize on read*, and the answer is: just our own, for v1.
+Guarded on the default `alignSelf`, so a user-set alignment is never
+contradicted by a second line.
 
-**Prior art to clear first:** `docs/notes/canvas-flex-main-axis-stretch.md`
-argues against `flex: 1` — but its argument is that the canvas diverged
-from a file that said `width: 100%`. If the FILE says `flex: 1`, the
-canvas mirroring it is the fix. Phase 0 verifies this with
-measurements, not readings. Paper emits exactly `flex: 1` here, with no
-shrink guard on the fill child — external convergence, but still
-measured before trusted.
+**Parsing.** `align-self: stretch` with no height on a flex-row child
+maps back to fill-height, closing the round trip and keeping the Size
+panel reading "Fill" rather than "Auto". Any other `align-self` value
+passes through as it does today.
+
+**Migration: eager, because there is nothing to migrate.** Phase 0
+result 3 measured every page in `scamp-ui`: zero elements would be
+rewritten. Existing `height: 100%` files parse as fill-height already
+and self-heal on the next save of that page.
 
 ### Rule 4 — Overflow resolves by the parent's sizing mode
 
@@ -335,14 +318,16 @@ Numbers go into this doc before phase 1 starts.
 
 ## Phases
 
-1. **Rule 3 generator + parser** — the full matrix as settled by the
-   spike; round-trip fixtures including foreign spellings passing
-   through untouched; the invariant test gains a main-axis-fill and a
-   cross-axis-fill element in flex parents.
-2. **Rule 2** — generator emission of the derived guard; parse
-   absorption + typed-echo dedupe; delete `preserveDrawnSize` and its
-   wiring; migration test proving a file with draw-time residue
-   self-heals byte-stably.
+1. **Rule 2 — the derived shrink guard.** Generator emits
+   `flex-shrink: 0` for a fixed main axis in a flex parent; parse
+   absorbs the echo via the typed-echo dedupe rule; delete
+   `preserveDrawnSize` and its wiring; migration test proving a file
+   carrying the draw-time residue self-heals byte-stably. This is the
+   fix for the reported sidebar bug (Phase 0 result 1).
+2. **Rule 3 — fill-height only.** `align-self: stretch` emission for a
+   stretch cross-axis in a flex row, guarded on the default
+   `alignSelf`; parse mapping back; round-trip fixtures. Scope is one
+   matrix cell.
 3. **Rules 1 + 4** — remove the flex-parent size clamp from
    `useDrawInteraction`; hug-parent growth and fixed-parent overflow
    covered with rendered-geometry e2e; no new rendering code expected.
@@ -370,12 +355,16 @@ Numbers go into this doc before phase 1 starts.
 ## Decisions log (was: open questions)
 
 1. Guard on every fixed flex child, Paper-style house rule — **yes**.
-2. `min-width/min-height: 0` alongside `flex: 1` — **emit**.
+2. `min-width/min-height: 0` alongside `flex: 1` — **emit**. *(Moot:
+   no `flex: 1` is emitted. The canvas already adds `min-width: 0`
+   inline for stretch children.)*
 3. Fixed-parent overflow in v1 — **visible, no indicator**.
-4. Parse narrowness — **narrow**; emission per the matrix, foreign
-   spellings pass through. (And yes: Fill in flex = `flex: 1`, not
-   `width: 100%`.)
-5. Fill is context-smart on both axes, including grid — **in scope**;
-   grid spellings and migration strategy settled by Phase 0
-   measurements.
+4. Parse narrowness — **narrow**; foreign spellings pass through.
+   *(The `flex: 1` half of this answer is moot — Phase 0 dropped that
+   emission, so there is no new spelling to recognise beyond
+   `align-self: stretch`.)*
+5. Fill is context-smart on both axes, including grid — **in scope, and
+   the audit found only one cell that needed changing** (flex-row
+   fill-height). Grid, flex-column, and main-axis width were all
+   measured correct as they stand.
 6. Insertion index — **bundled**, as phase 5.
