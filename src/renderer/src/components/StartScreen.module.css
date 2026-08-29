@@ -286,16 +286,16 @@
 
 .cardGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
 }
 
 .card {
   position: relative;
   display: flex;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   color: var(--text-primary);
   overflow: hidden;
   transition: border-color 0.12s ease;
@@ -305,13 +305,28 @@
   border-color: var(--border-strong);
 }
 
+/* Fills the space under the thumbnail and pushes the path to the bottom
+   edge, so cards line up whether or not the title wraps. */
 .cardBody {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
   min-width: 0;
-  min-height: 96px;
-  padding: 14px 16px;
+  min-height: 104px;
+  padding: 16px;
+}
+
+/* Title row + "updated" line, kept together at the top of the body. */
+.cardTopGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
 }
 
 .cardMissing {
@@ -337,50 +352,60 @@
 
 .cardTop {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .cardName {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Status capsule. Fixed tokens rather than `currentColor` mixes: the
+   card no longer tints itself with `cardBackground`, so the chip reads
+   the same on every card. */
 .cardState {
   flex: none;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
-  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.4;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
+/* Real tokens rather than `opacity` on inherited colour: the hierarchy
+   is secondary for "updated", tertiary for the path, and it holds in
+   both themes instead of depending on what the card inherits. */
 .cardMeta {
-  font-size: 12px;
-  color: inherit;
-  opacity: 0.7;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
 .cardPath {
-  margin-top: auto;
-  font-size: 11px;
-  color: inherit;
-  opacity: 0.5;
+  max-width: 100%;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .cardMissingLabel {
-  margin-top: auto;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--error-text);
 }
 

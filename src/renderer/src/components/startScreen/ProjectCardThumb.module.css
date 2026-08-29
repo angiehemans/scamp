@@ -6,7 +6,7 @@
   width: 100%;
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   /* Transparent so the card's own cardBackground shows through when there
      is no image yet. */
   background: none;

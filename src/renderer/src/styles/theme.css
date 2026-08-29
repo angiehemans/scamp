@@ -96,6 +96,8 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
+  /* Pill / capsule — status chips and badges. */
+  --radius-pill: 999px;
 
   /* Heights of common controls. Already consistent in code; named
      so downstream refactors can keep them in sync. */

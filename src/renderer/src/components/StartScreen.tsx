@@ -3,7 +3,6 @@ import { IconFolder, IconLayoutGrid, IconList } from "@tabler/icons-react"
 import type { ProjectData, Settings, StartScreenProject } from "@shared/types"
 import { errorMessage } from "@shared/errorMessage"
 import { formatRelativeTime } from "@store/formatHistoryLabel"
-import { readableTextColor } from "@lib/readableTextColor"
 import { basename } from "../lib/path"
 import { CreateProjectModal } from "./CreateProjectModal"
 import { AccountPanel } from "./startScreen/AccountPanel"
@@ -158,14 +157,10 @@ export const StartScreen = ({
     const renderCards = (): JSX.Element => (
       <div className={styles.cardGrid}>
         {projects.map((project) => {
-          const bg = project.cardBackground
           return (
             <div
               key={project.path}
               className={`${styles.card} ${project.exists ? "" : styles.cardMissing}`}
-              style={
-                bg ? { background: bg, color: readableTextColor(bg) } : undefined
-              }
             >
               <button
                 className={styles.cardOpen}
@@ -177,17 +172,23 @@ export const StartScreen = ({
                   <ProjectCardThumb
                     projectPath={project.path}
                     hasThumbnail={project.hasThumbnail === true}
+                    background={project.cardBackground}
                   />
                 )}
                 <span className={styles.cardBody}>
-                  <span className={styles.cardTop}>
-                    <span className={styles.cardName}>{project.name}</span>
-                    {project.state && (
-                      <span className={styles.cardState}>{project.state}</span>
-                    )}
-                  </span>
-                  <span className={styles.cardMeta}>
-                    {lastOpenedLabel(project)}
+                  {/* Title + status and the "updated" line are one group so
+                      `space-between` on the body pins the path to the bottom
+                      edge — cards then line up even when a title wraps. */}
+                  <span className={styles.cardTopGroup}>
+                    <span className={styles.cardTop}>
+                      <span className={styles.cardName}>{project.name}</span>
+                      {project.state && (
+                        <span className={styles.cardState}>{project.state}</span>
+                      )}
+                    </span>
+                    <span className={styles.cardMeta}>
+                      {lastOpenedLabel(project)}
+                    </span>
                   </span>
                   {project.exists ? (
                     <span className={styles.cardPath} title={project.path}>

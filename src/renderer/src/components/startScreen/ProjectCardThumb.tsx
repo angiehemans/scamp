@@ -19,11 +19,18 @@ type Props = {
   projectPath: string;
   /** From the projects list, so a card with none never flashes an image in. */
   hasThumbnail: boolean;
+  /**
+   * The project's `cardBackground`, used as the fill when there is no
+   * screenshot yet. It tints this block only — not the whole card — so the
+   * title, status and path keep the contrast the design gives them.
+   */
+  background?: string;
 };
 
 export const ProjectCardThumb = ({
   projectPath,
   hasThumbnail,
+  background,
 }: Props): JSX.Element => {
   const [base64, setBase64] = useState<string | null>(null);
 
@@ -49,7 +56,11 @@ export const ProjectCardThumb = ({
   }, [projectPath, hasThumbnail]);
 
   return (
-    <span className={styles.thumb} data-testid="project-card-thumb">
+    <span
+      className={styles.thumb}
+      data-testid="project-card-thumb"
+      style={background !== undefined ? { background } : undefined}
+    >
       {base64 !== null && (
         <img
           className={styles.image}

@@ -1,7 +1,7 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import styles from './ProjectCardThumb.module.css';
-export const ProjectCardThumb = ({ projectPath, hasThumbnail, }) => {
+export const ProjectCardThumb = ({ projectPath, hasThumbnail, background, }) => {
     const [base64, setBase64] = useState(null);
     useEffect(() => {
         if (!hasThumbnail) {
@@ -25,5 +25,5 @@ export const ProjectCardThumb = ({ projectPath, hasThumbnail, }) => {
             cancelled = true;
         };
     }, [projectPath, hasThumbnail]);
-    return (_jsx("span", { className: styles.thumb, "data-testid": "project-card-thumb", children: base64 !== null && (_jsx("img", { className: styles.image, src: `data:image/png;base64,${base64}`, alt: "" })) }));
+    return (_jsx("span", { className: styles.thumb, "data-testid": "project-card-thumb", style: background !== undefined ? { background } : undefined, children: base64 !== null && (_jsx("img", { className: styles.image, src: `data:image/png;base64,${base64}`, alt: "" })) }));
 };
