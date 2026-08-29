@@ -1,8 +1,8 @@
 # The flex sizing contract — Plan
 
-Status: **questions answered, decisions folded in below.** Next action
-is Phase 0 (measurement spike); no repo code changes until its numbers
-are in this doc and Angie has seen them.
+Status: **Phase 0 complete — results below changed the design.** Rule 3's
+main-axis half is DROPPED on the evidence; the fill-height half is kept
+and measured safe. Phases 1-4 proceed from the revised contract.
 
 Supersedes `draw-free-space-plan.md` (free-space-constrained drawing),
 which is kept as a stub pointing here.
@@ -200,7 +200,116 @@ the user meant" (invisible sidebars appearing, overflowing mains
 snapping to the remainder), eager is right and the `f4fe569` break gets
 an explanation on the record. If something defensible moves, lazy wins.
 
-## Phase 0 — the spike (before any code)
+
+## Phase 0 — RESULTS (measured in Electron's Chromium, 2026-08-28)
+
+### 1. Rule 3's main axis is unnecessary — and would regress real pages
+
+Sidebar 342 fixed + main filling, Paper's frame geometry. Correct
+remainder is 890.
+
+| spelling | sidebar | main |
+|---|---|---|
+| today, no guards anywhere | 265 | 967 |
+| **Rule 2 only** (guard on the sidebar, main keeps `width: 100%`) | **342** | **890** |
+| Rule 2 + `flex: 1` on main | 342 | 890 |
+| Paper's export verbatim | 342 | 890 |
+| the reported bug (guard on MAIN) | **0** | 1248 |
+
+The last row is Angie's disappearing sidebar, reproduced exactly: the
+guard was on the wrong child. And rows 2-4 are identical — **the shrink
+guard is what fixes this layout; the `flex: 1` spelling adds nothing.**
+
+Worse, `flex: 1` is not neutral. Re-running the hero from
+`docs/notes/canvas-flex-main-axis-stretch.md` (1440px, an in-flow 980px
+decorative sibling):
+
+| spelling | glow | inner |
+|---|---|---|
+| `width: 100%` (what the generator writes today) | 583 | **857** |
+| `flex: 1` | 980 | **460** |
+
+The note was right, and my "its argument dissolves if the file says
+`flex: 1`" was wrong in the way that counts: the two spellings are
+genuinely different layouts, not different spellings of one layout.
+Switching the generator would silently re-lay-out every existing
+project that uses Fill next to an in-flow sized sibling.
+
+**Decision: Rule 3's main-axis change is dropped.** Fill on the main
+axis keeps emitting `width: 100%` / `height: 100%`. No `flex: 1`
+emission, no `flex: 1` parsing, no `min-width: 0` companion (Q2 is moot
+— the canvas already adds it inline), no migration. The prior-art note
+stands unamended.
+
+### 2. Fill-height in a flex row: `align-self: stretch` confirmed
+
+| parent | `height: 100%` | `align-self: stretch` |
+|---|---|---|
+| indefinite (`min-height: 400`) | 200x**0** | 200x400 |
+| definite (`height: 400`) | 200x400 | 200x400 |
+
+`height: 100%` collapses to zero against an indefinite container — the
+invisible sidebar, root-caused. `align-self: stretch` is correct in
+both cases, which is why Paper uses it even where a percentage would
+have worked. **Kept.**
+
+### 3. The fill-height migration is inert on real projects
+
+The suspected cause of the `f4fe569` canvas break was its migration:
+existing `height: 100%` elements re-emitting as `align-self: stretch`.
+Measured against every page in `scamp-ui`:
+
+| page | elements with `height: 100%` | would migrate |
+|---|---|---|
+| `app/page` | 1 | 0 |
+| `alignment-grid` | 127 | 0 |
+| `start-page` | 1 | 0 |
+| `new-layout`, `test` | 0 | 0 |
+
+Zero. The 127 in `alignment-grid` all sit inside **grid** parents, which
+the rule never touched. The project contains no `align-self` at all, so
+the parse-side half had nothing to bite on either.
+
+**So the fill-height change did not break the canvas** — it was inert on
+these files. That leaves `releaseDrawnSize` (which silently rewrote
+`customProperties` whenever a size field was committed; the project has
+4 such declarations) as the remaining suspect from that commit, and
+Rule 2 makes it unnecessary regardless. Recorded as unexplained rather
+than solved: see "Open risk" below.
+
+**Migration strategy: eager**, on the evidence — there is nothing to
+migrate.
+
+### 4. Grid: leave it alone
+
+| child in a `200px | 1fr` grid | result |
+|---|---|---|
+| no size declarations | 200x300 — already fills its track |
+| `width/height: 100%` | 692x300 — same as the default |
+| `justify-self/align-self: stretch` | same as the default |
+
+Grid items stretch by default, and `100%` matches that in a definite
+track. Nothing to change; the grid row of the Fill matrix stays as it
+is today.
+
+### 5. Rules 1 and 4 need no code
+
+- Hug (`fit-content`) parent with an oversized child: parent grew to
+  1230 — Figma's behaviour, for free, because it is just CSS.
+- Over-full line (500px, two guarded 300s, one shrink-based fill): the
+  guarded children held 300 each, the fill child floored at 0, parent
+  `scrollWidth` 600. Visible overflow, no negative sizes. Accepted per
+  Rule 4.
+
+### Open risk
+
+What actually broke the canvas after `f4fe569` is still unknown. The
+fill-height migration is now ruled out by measurement; `releaseDrawnSize`
+is the leading remaining candidate and is deleted-by-design under Rule 2.
+Phase 4's e2e must therefore include a rendered-geometry regression over
+a realistic multi-element page, not just the sidebar acceptance case.
+
+## Phase 0 — the spike (as planned, for the record)
 
 An Electron measurement script, same discipline as this week's checks.
 Numbers go into this doc before phase 1 starts.
