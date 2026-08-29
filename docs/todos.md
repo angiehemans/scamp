@@ -8,42 +8,9 @@ Roughly ordered by how much they cost per day of ignoring them.
 
 ---
 
-## 1. Three tests flake on ports and timing
+## 1. The duplicate-declaration indicator misses duplicates that change nothing
 
-**Status:** confirmed, recurring. Seen 2026-08-28.
-
-### What is wrong
-
-Three unrelated tests fail intermittently in full runs and pass in
-isolation and on rerun:
-
-| test | failure |
-|---|---|
-| `test/authService.test.ts` → "releases the port so a second attempt can run" and "survives a restart once persisted" | binds a fixed `TEST_PORT = 18990` |
-| `test/integration/mcpServer.integration.test.ts` → "rejects a missing token" | binds a port |
-| `test/e2e/settings/app-settings.spec.ts` → "the privacy toggle mints an install id" | reads settings before the write lands (`installId` null) |
-
-### Why it matters more than it looks
-
-This is the real cost: **a green run stopped being evidence.** Twice this
-week a genuine failure had to be picked out from flakes by hand, and once
-a run with four real failures was nearly reported as passing because the
-exit code came from the wrong command in a shell pipeline. Flakes train
-you to skim, which is exactly when a real regression walks through.
-
-### What a fix looks like
-
-The two port cases want the treatment `authLoopbackAndExchange.test.ts`
-already uses: allocate from a per-test counter (`nextPort = 45300`)
-rather than a module constant, so parallel vitest files cannot collide.
-`authService.test.ts` needs its `loopbackPort` override threaded the same
-way. The settings one is a missing await/poll, not a port.
-
----
-
-## 2. The duplicate-declaration indicator misses duplicates that change nothing
-
-**Status:** confirmed, not fixed. Found 2026-08-28.
+**Status:** confirmed, not fixed. Two attempts failed. Found 2026-08-28.
 
 ### What is wrong
 
@@ -91,7 +58,8 @@ Two attempts failed the same day, both in the sync bridge:
 
 The work is in the load-flag lifecycle, not in duplicate tracking —
 `findDuplicateDeclProps` already reports this correctly; the information
-is computed and then discarded.
+is computed and then discarded. **This wants its own session**: it is the
+most delicate code in the app and two rushed attempts both broke saving.
 
 A fix should also add the case to
 `test/e2e/properties-panel/duplicate-indicator.spec.ts`, which currently
@@ -100,68 +68,50 @@ sidestepping the bug (noted in the spec).
 
 ---
 
-## 3. Component thumbnails still mutate the live canvas
+## 2. The overflow indicator is root-level only
 
-**Status:** known, one-line-ish fix available.
-
-`src/renderer/src/lib/componentThumbnail.ts` still calls `capturePng`,
-which blanks the canvas frame's `transform` and strips selection classes
-for the duration of the shot. On every **component** save that produces
-the same visible zoom jump and selection flicker that was fixed for
-project thumbnails.
-
-The fix already exists: `captureIsolatedPng` in the same module clones
-the frame into an off-screen wrapper and touches nothing live. Switching
-the component path over is mostly deletion. Note the two traps it was
-built around — the offscreen placement must sit on a *wrapper* (a node
-carrying `position: fixed; left: -100000px` renders itself out of the
-capture and comes back blank), and identifying attributes must be
-stripped from the clone.
-
-see `docs/notes/project-thumbnails.md`
-
----
-
-## 4. `<button>` nested inside `<button>` in the properties panel
-
-**Status:** benign, real, unfixed.
-
-React logs `validateDOMNesting(...): <button> cannot appear as a
-descendant of <button>` — `PresetMenu` renders a button inside
-`Section`'s header button (seen via `ShadowsSection`). Invalid HTML;
-works today, but it is the kind of thing that breaks a keyboard or
-screen-reader path without warning.
-
-Fixing it means restructuring the section header so the disclosure
-control and the preset menu are siblings rather than nested — small, but
-it touches every section, so it wants its own pass.
-
----
-
-## 5. The overflow indicator is root-level only
+**Status:** deliberately deferred — this is a feature, not a bug fix.
 
 `CanvasBoundaryOverlay` flags content spilling past the **page root**.
 Nothing flags an over-full nested container — a flex row whose children
 no longer fit renders its overflow visibly (correct, and deliberate: we
 do not auto-clip), but with no affordance saying so.
 
-This became more visible once drawing stopped clamping to the parent, so
-an oversized box in a fixed-size container is now a normal thing to
-produce.
+More visible now that drawing no longer clamps to the parent, so an
+oversized box in a fixed-size container is a normal thing to produce.
 
-see `docs/plans/flex-sizing-contract-plan.md` rule 4
+### Why it was not done with the rest
+
+It is the only remaining item that adds new canvas chrome, and it needs
+per-container measurement in exactly the subsystem that produced this
+session's worst bug (an animated element's bounding box driving the
+artboard extent, flipping the zoom on every edit). Two specific hazards:
+
+- **Detection cannot use `scrollWidth`.** A container with
+  `overflow: visible` reports `scrollWidth === clientWidth`, so spilling
+  children are invisible to it — the same trap `measureFrame` documents.
+  It needs the rect-based walk, per container.
+- **Cost.** That walk currently runs once for the root. Running it for
+  every container on every element change is a different performance
+  proposition on a page with hundreds of elements.
+
+Any overlay must also carry `data-canvas-chrome="true"` or it will bake
+into PNG exports and thumbnails.
+
+Worth its own small plan rather than a slot at the end of a batch.
 
 ---
 
-## 6. `preserveDrawnSize` is inconsistent, by design decision deferred
+## 3. `preserveDrawnSize` is inconsistent, by decision deferred
+
+**Status:** parked by Angie on 2026-08-29 after the options were laid
+out — "leave this as is for now, so far I love how it works".
 
 The `flex-shrink: 0` guard is written when you **draw** a fixed box into
 a flex parent, and not when you **type** a fixed size into the Size
-panel. Nothing removes it when the axis later switches to Fill, which is
-the collision behind the sidebar bug.
+panel. Nothing removes it when the axis later switches to Fill.
 
-Deliberately parked after the options were laid out (2026-08-29). The
-three coherent resolutions:
+The three coherent resolutions:
 
 - **`px` means don't-shrink** — apply the guard whenever the main axis
   becomes fixed through the UI, remove it when it becomes Fill/Hug/Auto.
@@ -173,26 +123,25 @@ three coherent resolutions:
 Whichever is chosen, the guard must be **stored in the file**, never
 derived: a derived declaration is invisible to the browser and broke
 `parity: nested-flex-with-gap-and-padding` (canvas 120.0 vs browser
-103.7). see the "Rule 2 reversal" section of the plan.
+103.7). see the "Rule 2 reversal" section of
+`docs/plans/flex-sizing-contract-plan.md`.
 
 ---
 
-## 7. Fill-height is fixed for flex ROWS only
+## 4. One e2e flakes under parallel load
 
-`sizeDeclarationLines` emits `align-self: stretch` for cross-axis fill in
-a flex row. A flex **column** child set to Fill height is on the *main*
-axis and still emits `height: 100%`, which has the same
-indefinite-container mushiness — it just was not the reported bug and was
-left out of a core-function change rather than shipped unverified.
+`test/e2e/canvas/draw-into-flex.spec.ts` → "a box drawn hard against the
+right edge is not collapsed to 20px" failed once when run in a batch
+alongside `parity.spec.ts` (which launches its own chromium), and passed
+three times in isolation immediately after.
 
-Worth a Phase-0-style measurement before touching: the column main-axis
-case may want `flex: 1`, which Phase 0 showed is **not** a neutral
-respelling on the row main axis (it re-laid-out the hero in
-`canvas-flex-main-axis-stretch.md`, inner 857 → 460).
+Not a port collision — Playwright runs `workers: 1` here. Most likely a
+timing assumption that does not hold when the machine is loaded. Left
+recorded rather than chased, since the evidence is a single occurrence.
 
 ---
 
-## 8. Diagnostics left in place
+## 5. Diagnostics left in place
 
 Not bugs — decisions to revisit, listed so they are not discovered as
 mysteries.
@@ -206,3 +155,18 @@ mysteries.
   elements would migrate), and that half has since re-landed in
   `414088b` without a recurrence. The remaining suspect was
   `releaseDrawnSize`, which is not currently in the tree.
+
+---
+
+## Done
+
+- **Port and timing flakes** (`authService`, `mcpServer` integration,
+  `app-settings` e2e) — per-test ports and a missing poll. `1033248`
+- **Component thumbnails mutating the live canvas** — switched to
+  `captureIsolatedPng`; that path had no coverage at all, so it gained
+  an e2e that decodes the PNG and counts pixels. `1033248`
+- **`<button>` inside `<button>`** in the properties panel — the header
+  is now an empty stretched button with its accessories as siblings, with
+  a spec asserting zero nesting and zero React warnings. `1033248`
+- **Fill-height in a flex column** — `flex: 1`, fixing `.body_a0b4` in
+  scamp-ui's start page which was rendering 0 tall. `9e89c66`
