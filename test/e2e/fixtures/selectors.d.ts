@@ -64,10 +64,12 @@ export declare const tokenSwatch: (page: Page, tokenName: string) => Locator;
  */
 export declare const mappingTrigger: (scope: Page | Locator, tokenName: string) => Locator;
 /**
- * An option in the open mapping menu, keyed `palette:500` — the same value
- * the control used when it was a `<select>`.
+ * A primitive in the open mapping picker, keyed `palette:500` — the same
+ * value the control used when it was a `<select>`, kept so specs read the
+ * same across the control's several rewrites. The row now uses the shared
+ * ColorInput, whose token items carry the full token name.
  *
- * Queried from the page, not from the trigger's block: the menu is
+ * Queried from the page, not from the trigger's block: the popover is
  * positioned absolutely and does not render inside it.
  */
 export declare const mappingOption: (page: Page, key: string) => Locator;

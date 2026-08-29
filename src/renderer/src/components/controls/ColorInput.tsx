@@ -67,6 +67,18 @@ type Props = {
    * content and the hex lives in the popover.
    */
   swatchOnly?: boolean;
+  /**
+   * Accessible name for the swatch trigger. Defaults to "Pick color".
+   * Set it when a screen has several pickers that need telling apart —
+   * the theme panel names each one after the token it maps.
+   */
+  ariaLabel?: string;
+  /**
+   * Which tab the popover opens on. Defaults to `'color'`. The theme
+   * panel opens on `'tokens'`, where mapping to a primitive is the
+   * common case and a literal colour is the exception.
+   */
+  defaultTab?: 'color' | 'tokens';
 };
 
 // ---- Color format helpers ------------------------------------------------
@@ -213,9 +225,11 @@ export const ColorInput = ({
   onOpenTheme,
   disableAlpha = false,
   swatchOnly = false,
+  ariaLabel,
+  defaultTab = 'color',
 }: Props): JSX.Element => {
   const [draft, setDraft] = useState(value);
-  const [tab, setTab] = useState<PopoverTab>('color');
+  const [tab, setTab] = useState<PopoverTab>(defaultTab);
 
 
   const popover = usePopover<HTMLButtonElement>({
@@ -617,7 +631,7 @@ export const ColorInput = ({
             ref={popover.triggerRef}
             type="button"
             className={styles.colorSwatchOnlyButton}
-            aria-label="Pick color"
+            aria-label={ariaLabel ?? 'Pick color'}
             onClick={popover.toggle}
             style={{ background: resolved }}
           />
@@ -634,7 +648,7 @@ export const ColorInput = ({
           ref={popover.triggerRef}
           type="button"
           className={styles.colorSwatch}
-          aria-label="Pick color"
+          aria-label={ariaLabel ?? 'Pick color'}
           onClick={popover.toggle}
         >
           <span

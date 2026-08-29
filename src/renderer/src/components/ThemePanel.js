@@ -7,9 +7,6 @@ import { serializeThemeFile, themeDefFromClass, } from '@lib/parseTheme';
 import { classifyToken } from '@lib/tokenClassify';
 import { buildColorModel } from '@lib/colorModel';
 import { generatePalette } from '@lib/palette';
-import { resolveTokenChain } from '@lib/resolveToken';
-import { computePopoverPosition } from '@lib/popoverPosition';
-import { TITLE_BAR_HEIGHT } from '@shared/titleBarColors';
 import { buildTextStyles, defaultTextStyleTokens, isTextStyleToken, textStyleTokenName, textStyleTokensFromTemplate, TEXT_STYLE_PROPS, } from '@lib/typographyModel';
 import { defaultTokensForRole, isDesignRoleToken, roleTokenName, tokensForRole, ROLE_LABEL, } from '@lib/tokenRoles';
 import { errorMessage } from '@shared/errorMessage';
@@ -135,14 +132,6 @@ export const ThemePanel = ({ projectPath }) => {
     const [badgeMenuFor, setBadgeMenuFor] = useState(null);
     const closeBadgeMenu = useCallback(() => setBadgeMenuFor(null), []);
     /**
-     * The semantic token whose palette/shade picker is open. Carries the
-     * trigger rect (for edge-aware positioning) and the current mapping
-     * (`palette:shade`) so the open row is highlighted. Portaled like the
-     * badge menu to escape the scrollable token list.
-     */
-    const [semanticPickerFor, setSemanticPickerFor] = useState(null);
-    const closeSemanticPicker = useCallback(() => setSemanticPickerFor(null), []);
-    /**
      * Ref + signal pair for "scroll the token list to the bottom on the
      * next render". `handleAddToken` bumps `scrollToEndAfterAdd` and
      * the effect runs after React commits the new row so we read the
@@ -225,6 +214,15 @@ export const ThemePanel = ({ projectPath }) => {
     // semantic tokens. The flat list stays authoritative; every edit below
     // mutates it and reserializes. see docs/plans/design-system-plan.md
     const colorModel = useMemo(() => buildColorModel(localTokens), [localTokens]);
+    /**
+     * The primitives, as tokens for the semantic row's picker. Only
+     * primitives: offering the semantic tokens here would let one semantic
+     * point at another and make a reference cycle reachable in two clicks.
+     */
+    const primitiveTokens = useMemo(() => colorModel.palettes.flatMap((p) => p.shades.map((s) => ({
+        name: `--color-${p.name}-${s.shade}`,
+        value: s.value,
+    }))), [colorModel]);
     /**
      * Colour-classified tokens the structured model doesn't capture — i.e.
      * not prefixed `--color-` (arbitrary names in agent-seeded / legacy
@@ -513,6 +511,23 @@ export const ThemePanel = ({ projectPath }) => {
      * any other theme writes into its override block, leaving the base — and
      * thus every other theme — untouched.
      */
+    /**
+     * Write any value — a `var(--color-…)` primitive reference or a literal
+     * colour — into a semantic token for one theme. The Light theme
+     * (cssClass `''`) edits the base `:root` value; any other theme writes
+     * into its override block, leaving the base untouched.
+     */
+    const setSemanticValue = (tokenName, value, cssClass) => {
+        if (cssClass === '') {
+            const nextBase = localTokens.map((t) => t.name === tokenName ? { ...t, value } : t);
+            setLocalTokens(nextBase);
+            void persist(nextBase, localOverrides);
+            return;
+        }
+        const nextOverrides = setOverrideFor(cssClass, tokenName, value);
+        setLocalOverrides(nextOverrides);
+        void persist(localTokens, nextOverrides);
+    };
     const handleSemanticMap = (tokenName, paletteName, shade, cssClass) => {
         const value = `var(--color-${paletteName}-${shade})`;
         if (cssClass === '') {
@@ -809,29 +824,12 @@ export const ThemePanel = ({ projectPath }) => {
         const effectiveValue = isLightRow
             ? sem.value
             : (overrideMap?.get(sem.name) ?? sem.value);
-        const m = effectiveValue.match(SEMANTIC_REF_RE);
-        const selectValue = m ? `${m[1]}:${m[2]}` : '';
-        const resolved = resolveTokenChain(effectiveValue, localTokens);
         return (_jsxs("div", { className: styles.tokenRow, "data-token-row": true, children: [_jsx("input", { type: "text", className: styles.tokenName, value: sem.name, readOnly: !isLightRow, "aria-label": `Semantic token ${sem.name}`, onChange: isLightRow
                         ? (e) => handleNameChange(index, e.target.value)
                         : undefined, onBlur: isLightRow ? () => handleNameBlur(index) : undefined, onKeyDown: (e) => {
                         if (e.key === 'Enter')
                             e.currentTarget.blur();
-                    } }), _jsxs("button", { type: "button", className: styles.semanticTrigger, "aria-label": `Mapping for ${sem.name}`, "aria-haspopup": "menu", "aria-expanded": semanticPickerFor?.semName === sem.name &&
-                        semanticPickerFor?.cssClass === cssClass, onClick: (e) => {
-                        const isOpen = semanticPickerFor?.semName === sem.name &&
-                            semanticPickerFor?.cssClass === cssClass;
-                        if (isOpen) {
-                            setSemanticPickerFor(null);
-                            return;
-                        }
-                        setSemanticPickerFor({
-                            semName: sem.name,
-                            cssClass,
-                            anchor: e.currentTarget.getBoundingClientRect(),
-                            current: selectValue,
-                        });
-                    }, children: [_jsx("span", { className: styles.semanticTriggerSwatch, style: { background: resolved ?? 'transparent' }, "data-broken": resolved === null, title: resolved ?? 'unresolved reference' }), _jsx("span", { className: styles.semanticTriggerLabel, children: m ? `${m[1]} / ${m[2]}` : effectiveValue || '— custom —' }), _jsx("span", { className: styles.semanticTriggerCaret, "aria-hidden": "true", children: "\u25BE" })] }), isLightRow && (_jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) }))] }, `${cssClass}:${sem.name}`));
+                    } }), _jsx("div", { className: styles.semanticValue, children: _jsx(ColorInput, { value: effectiveValue, onChange: (next) => setSemanticValue(sem.name, next, cssClass), tokens: primitiveTokens, defaultTab: "tokens", ariaLabel: `Mapping for ${sem.name}` }) }), isLightRow && (_jsx(Tooltip, { label: "Delete token", children: _jsx("button", { className: styles.tokenDelete, onClick: () => handleDeleteRequest(index), type: "button", children: "x" }) }))] }, `${cssClass}:${sem.name}`));
     };
     /** A stacked theme override block: header (rename + remove) + rows. */
     const renderThemeBlock = (block) => {
@@ -909,31 +907,5 @@ export const ThemePanel = ({ projectPath }) => {
                             }, children: TYPOGRAPHY_CATEGORY_OPTIONS.map((opt) => {
                                 const targetCategory = classifyToken(localTokens[badgeMenuFor.index]?.value ?? '');
                                 return (_jsx("button", { type: "button", role: "menuitem", className: `${styles.badgeMenuItem} ${targetCategory === opt.value ? styles.badgeMenuItemActive : ''}`, onClick: () => handleChangeCategory(badgeMenuFor.index, opt.value), children: opt.label }, opt.value));
-                            }) })] }), document.body), semanticPickerFor !== null &&
-                createPortal(_jsxs(_Fragment, { children: [_jsx("div", { className: styles.badgeMenuBackdrop, onMouseDown: closeSemanticPicker }), (() => {
-                            const pos = computePopoverPosition(semanticPickerFor.anchor, {
-                                width: 240,
-                                desiredMaxHeight: 320,
-                                align: 'left',
-                                overlayWhenTight: true,
-                            }, {
-                                width: window.innerWidth,
-                                height: window.innerHeight,
-                                top: TITLE_BAR_HEIGHT,
-                            });
-                            return (_jsx("div", { className: styles.semanticMenu, role: "menu", style: {
-                                    left: pos.left,
-                                    top: pos.top,
-                                    bottom: pos.bottom,
-                                    width: pos.width,
-                                    maxHeight: pos.maxHeight,
-                                }, children: colorModel.palettes.flatMap((p) => p.shades.map((s) => {
-                                    const key = `${p.name}:${s.shade}`;
-                                    const active = key === semanticPickerFor.current;
-                                    return (_jsxs("button", { type: "button", role: "menuitem", "data-mapping": key, className: `${styles.semanticMenuItem} ${active ? styles.semanticMenuItemActive : ''}`, onClick: () => {
-                                            handleSemanticMap(semanticPickerFor.semName, p.name, Number(s.shade), semanticPickerFor.cssClass);
-                                            setSemanticPickerFor(null);
-                                        }, children: [_jsx("span", { className: styles.semanticMenuSwatch, style: { background: s.value } }), _jsxs("span", { className: styles.semanticMenuName, children: [p.name, " / ", s.shade] }), _jsx("span", { className: styles.semanticMenuValue, children: s.value })] }, key));
-                                })) }));
-                        })()] }), document.body)] }));
+                            }) })] }), document.body)] }));
 };

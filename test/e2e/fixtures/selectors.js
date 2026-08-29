@@ -70,10 +70,15 @@ export const tokenSwatch = (page, tokenName) => page.locator(`[data-token="${tok
  */
 export const mappingTrigger = (scope, tokenName) => scope.locator(`[aria-label="Mapping for ${tokenName}"]`);
 /**
- * An option in the open mapping menu, keyed `palette:500` — the same value
- * the control used when it was a `<select>`.
+ * A primitive in the open mapping picker, keyed `palette:500` — the same
+ * value the control used when it was a `<select>`, kept so specs read the
+ * same across the control's several rewrites. The row now uses the shared
+ * ColorInput, whose token items carry the full token name.
  *
- * Queried from the page, not from the trigger's block: the menu is
+ * Queried from the page, not from the trigger's block: the popover is
  * positioned absolutely and does not render inside it.
  */
-export const mappingOption = (page, key) => page.locator(`[role="menuitem"][data-mapping="${key}"]`);
+export const mappingOption = (page, key) => {
+    const [palette, shade] = key.split(':');
+    return page.locator(`[data-token="--color-${palette}-${shade}"]`);
+};

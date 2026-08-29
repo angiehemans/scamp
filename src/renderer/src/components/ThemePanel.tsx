@@ -218,23 +218,6 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
   const closeBadgeMenu = useCallback(() => setBadgeMenuFor(null), []);
 
   /**
-   * The semantic token whose palette/shade picker is open. Carries the
-   * trigger rect (for edge-aware positioning) and the current mapping
-   * (`palette:shade`) so the open row is highlighted. Portaled like the
-   * badge menu to escape the scrollable token list.
-   */
-  const [semanticPickerFor, setSemanticPickerFor] = useState<{
-    semName: string;
-    cssClass: string;
-    anchor: DOMRect;
-    current: string;
-  } | null>(null);
-  const closeSemanticPicker = useCallback(
-    () => setSemanticPickerFor(null),
-    []
-  );
-
-  /**
    * Ref + signal pair for "scroll the token list to the bottom on the
    * next render". `handleAddToken` bumps `scrollToEndAfterAdd` and
    * the effect runs after React commits the new row so we read the
@@ -321,6 +304,22 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
   // semantic tokens. The flat list stays authoritative; every edit below
   // mutates it and reserializes. see docs/plans/design-system-plan.md
   const colorModel = useMemo(() => buildColorModel(localTokens), [localTokens]);
+
+  /**
+   * The primitives, as tokens for the semantic row's picker. Only
+   * primitives: offering the semantic tokens here would let one semantic
+   * point at another and make a reference cycle reachable in two clicks.
+   */
+  const primitiveTokens = useMemo<ThemeToken[]>(
+    () =>
+      colorModel.palettes.flatMap((p) =>
+        p.shades.map((s) => ({
+          name: `--color-${p.name}-${s.shade}`,
+          value: s.value,
+        }))
+      ),
+    [colorModel]
+  );
 
   /**
    * Colour-classified tokens the structured model doesn't capture — i.e.
@@ -641,6 +640,30 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
    * any other theme writes into its override block, leaving the base — and
    * thus every other theme — untouched.
    */
+  /**
+   * Write any value — a `var(--color-…)` primitive reference or a literal
+   * colour — into a semantic token for one theme. The Light theme
+   * (cssClass `''`) edits the base `:root` value; any other theme writes
+   * into its override block, leaving the base untouched.
+   */
+  const setSemanticValue = (
+    tokenName: string,
+    value: string,
+    cssClass: string
+  ): void => {
+    if (cssClass === '') {
+      const nextBase = localTokens.map((t) =>
+        t.name === tokenName ? { ...t, value } : t
+      );
+      setLocalTokens(nextBase);
+      void persist(nextBase, localOverrides);
+      return;
+    }
+    const nextOverrides = setOverrideFor(cssClass, tokenName, value);
+    setLocalOverrides(nextOverrides);
+    void persist(localTokens, nextOverrides);
+  };
+
   const handleSemanticMap = (
     tokenName: string,
     paletteName: string,
@@ -1076,9 +1099,6 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
     const effectiveValue = isLightRow
       ? sem.value
       : (overrideMap?.get(sem.name) ?? sem.value);
-    const m = effectiveValue.match(SEMANTIC_REF_RE);
-    const selectValue = m ? `${m[1]}:${m[2]}` : '';
-    const resolved = resolveTokenChain(effectiveValue, localTokens);
     return (
       <div
         key={`${cssClass}:${sem.name}`}
@@ -1101,44 +1121,19 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
             if (e.key === 'Enter') e.currentTarget.blur();
           }}
         />
-        <button
-          type="button"
-          className={styles.semanticTrigger}
-          aria-label={`Mapping for ${sem.name}`}
-          aria-haspopup="menu"
-          aria-expanded={
-            semanticPickerFor?.semName === sem.name &&
-            semanticPickerFor?.cssClass === cssClass
-          }
-          onClick={(e) => {
-            const isOpen =
-              semanticPickerFor?.semName === sem.name &&
-              semanticPickerFor?.cssClass === cssClass;
-            if (isOpen) {
-              setSemanticPickerFor(null);
-              return;
-            }
-            setSemanticPickerFor({
-              semName: sem.name,
-              cssClass,
-              anchor: e.currentTarget.getBoundingClientRect(),
-              current: selectValue,
-            });
-          }}
-        >
-          <span
-            className={styles.semanticTriggerSwatch}
-            style={{ background: resolved ?? 'transparent' }}
-            data-broken={resolved === null}
-            title={resolved ?? 'unresolved reference'}
+        {/* The app's standard picker, so a semantic token can take a
+            primitive (Tokens tab), a typed value, or a colour off the
+            picker. Opens on Tokens: mapping to a primitive is the norm
+            here and a literal is the exception. */}
+        <div className={styles.semanticValue}>
+          <ColorInput
+            value={effectiveValue}
+            onChange={(next) => setSemanticValue(sem.name, next, cssClass)}
+            tokens={primitiveTokens}
+            defaultTab="tokens"
+            ariaLabel={`Mapping for ${sem.name}`}
           />
-          <span className={styles.semanticTriggerLabel}>
-            {m ? `${m[1]} / ${m[2]}` : effectiveValue || '— custom —'}
-          </span>
-          <span className={styles.semanticTriggerCaret} aria-hidden="true">
-            ▾
-          </span>
-        </button>
+        </div>
         {isLightRow && (
           <Tooltip label="Delete token">
             <button
@@ -1651,88 +1646,6 @@ export const ThemePanel = ({ projectPath }: Props): JSX.Element => {
                 );
               })}
             </div>
-          </>,
-          document.body
-        )}
-      {/* Semantic palette/shade picker — a swatch + name token list styled
-          like the color picker's, portaled out of the scrollable list and
-          positioned edge-aware (clears the title bar, flips/overlays when
-          tight). */}
-      {semanticPickerFor !== null &&
-        createPortal(
-          <>
-            <div
-              className={styles.badgeMenuBackdrop}
-              onMouseDown={closeSemanticPicker}
-            />
-            {(() => {
-              const pos = computePopoverPosition(
-                semanticPickerFor.anchor,
-                {
-                  width: 240,
-                  desiredMaxHeight: 320,
-                  align: 'left',
-                  overlayWhenTight: true,
-                },
-                {
-                  width: window.innerWidth,
-                  height: window.innerHeight,
-                  top: TITLE_BAR_HEIGHT,
-                }
-              );
-              return (
-                <div
-                  className={styles.semanticMenu}
-                  role="menu"
-                  style={{
-                    left: pos.left,
-                    top: pos.top,
-                    bottom: pos.bottom,
-                    width: pos.width,
-                    maxHeight: pos.maxHeight,
-                  }}
-                >
-                  {colorModel.palettes.flatMap((p) =>
-                    p.shades.map((s) => {
-                      const key = `${p.name}:${s.shade}`;
-                      const active = key === semanticPickerFor.current;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          role="menuitem"
-                          // Stable identity for tests: the visible label is
-                          // `palette / 500`, but this mirrors the value the
-                          // old <select> used, so intent survives restyling.
-                          data-mapping={key}
-                          className={`${styles.semanticMenuItem} ${active ? styles.semanticMenuItemActive : ''}`}
-                          onClick={() => {
-                            handleSemanticMap(
-                              semanticPickerFor.semName,
-                              p.name,
-                              Number(s.shade),
-                              semanticPickerFor.cssClass
-                            );
-                            setSemanticPickerFor(null);
-                          }}
-                        >
-                          <span
-                            className={styles.semanticMenuSwatch}
-                            style={{ background: s.value }}
-                          />
-                          <span className={styles.semanticMenuName}>
-                            {p.name} / {s.shade}
-                          </span>
-                          <span className={styles.semanticMenuValue}>
-                            {s.value}
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              );
-            })()}
           </>,
           document.body
         )}

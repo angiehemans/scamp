@@ -118,9 +118,9 @@ const isEyeDropperSupported = () => {
 };
 const POPOVER_WIDTH = 240;
 const POPOVER_HEIGHT = 420;
-export const ColorInput = ({ value, onChange, onPreview, historyElementId, historyPropertyKey, presetColors, tokens, onOpenTheme, disableAlpha = false, swatchOnly = false, }) => {
+export const ColorInput = ({ value, onChange, onPreview, historyElementId, historyPropertyKey, presetColors, tokens, onOpenTheme, disableAlpha = false, swatchOnly = false, ariaLabel, defaultTab = 'color', }) => {
     const [draft, setDraft] = useState(value);
-    const [tab, setTab] = useState('color');
+    const [tab, setTab] = useState(defaultTab);
     const popover = usePopover({
         position: {
             width: POPOVER_WIDTH,
@@ -333,9 +333,9 @@ export const ColorInput = ({ value, onChange, onPreview, historyElementId, histo
                                     onOpenTheme();
                                 }, children: "+ Add Tokens" }))] })) }))] })) }));
     if (swatchOnly) {
-        return (_jsxs("div", { className: styles.colorSwatchOnly, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatchOnlyButton, "aria-label": "Pick color", onClick: popover.toggle, style: { background: resolved } }) }), pickerWrap] }));
+        return (_jsxs("div", { className: styles.colorSwatchOnly, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatchOnlyButton, "aria-label": ariaLabel ?? 'Pick color', onClick: popover.toggle, style: { background: resolved } }) }), pickerWrap] }));
     }
-    return (_jsxs("div", { className: `${styles.colorInputRow} ${styles.colorInputRowSwatch}`, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatch, "aria-label": "Pick color", onClick: popover.toggle, children: _jsx("span", { className: styles.colorSwatchInner, style: { background: resolved } }) }) }), _jsx("input", { type: "text", className: styles.colorText, value: displayValue, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
+    return (_jsxs("div", { className: `${styles.colorInputRow} ${styles.colorInputRowSwatch}`, children: [_jsx(Tooltip, { label: "Pick color", children: _jsx("button", { ref: popover.triggerRef, type: "button", className: styles.colorSwatch, "aria-label": ariaLabel ?? 'Pick color', onClick: popover.toggle, children: _jsx("span", { className: styles.colorSwatchInner, style: { background: resolved } }) }) }), _jsx("input", { type: "text", className: styles.colorText, value: displayValue, onChange: (e) => setDraft(e.target.value), onBlur: commitDraft, onKeyDown: (e) => {
                     if (e.key === 'Enter')
                         e.currentTarget.blur();
                 } }), pickerWrap] }));
