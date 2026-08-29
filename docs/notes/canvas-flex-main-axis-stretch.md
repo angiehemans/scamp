@@ -1,4 +1,4 @@
-# Canvas main-axis stretch: `width: 100%`, never `flex: 1`
+# Canvas main-axis stretch: `width: 100%` in a ROW, never `flex: 1`
 
 `elementToStyle` (`src/renderer/lib/elementToStyle.ts`) turns a
 stretch-width/height flex child into inline styles for the canvas DOM.
@@ -60,3 +60,41 @@ A decorative element like `.hero_glow` above should be
 `position: absolute`, not an in-flow flex item — in flow it consumes real
 main-axis space in the browser too. See the layout rules in the generated
 `agent.md` for the guidance agents get on this.
+
+
+## Update (2026-08-29): columns are the exception
+
+Everything above is about a flex **row**, where the main axis is width.
+It still stands, and was re-measured: with the file spelling `flex: 1`,
+the hero above lays out inner=460 against `width: 100%`'s 857. The two
+spellings are different layouts, not different spellings of one layout,
+so the generator keeps writing `width: 100%` for row main-axis fill.
+
+A flex **column** is the opposite case and now emits `flex: 1`. There the
+main axis is height, and `height: 100%` collapses to **0** against an
+indefinite parent — which is the usual `min-height: 100vh` page root.
+Measured:
+
+| column parent | `height: 100%` | `flex: 1` |
+|---|---|---|
+| indefinite (`min-height: 400`) | **0** | 400 |
+| definite (`height: 400`) | 400 | 400 |
+| definite + a 100px sibling | 300 | 300 |
+| over-full, shrinkable sibling | 187 / 213 | 350 / 50 |
+
+The two agree everywhere except the last row, where `flex: 1` lets the
+sibling keep its height and gives the fill child what is left — which is
+what the mode name promises. Against that: the first row is a real bug
+found live in `scamp-ui`'s start page, where `.body_a0b4` (wrapping the
+entire sidebar and content area) was rendering 0 tall under a
+`min-height: 100vh` column root.
+
+So the rule is per-axis-per-direction, not global:
+
+| | fill width | fill height |
+|---|---|---|
+| flex row | `width: 100%` (main) | `align-self: stretch` (cross) |
+| flex column | `width: 100%` (cross) | `flex: 1` (main) |
+
+`parseCode` maps each spelling back, and absorbs the echo so the model
+never stores a value its mode already implies.

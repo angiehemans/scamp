@@ -683,3 +683,61 @@ export default function Home() {
         expect(code.css).toMatch(/\.side_bar[^}]*align-self:\s*stretch/s);
     });
 });
+describe('parseCode — fill-height via flex: 1 in a column parent', () => {
+    const TSX = `import styles from './home.module.css';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="col_shell" className={styles.col_shell}>
+        <div data-scamp-id="body_pane" className={styles.body_pane}></div>
+      </div>
+    </div>
+  );
+}
+`;
+    const cssWith = (childDecls) => `.root {
+}
+
+.col_shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.body_pane {
+${childDecls}
+}
+`;
+    it('reads flex: 1 with no height as fill-height', () => {
+        const { elements } = parseCode(TSX, cssWith('  flex: 1;'));
+        expect(elements['pane']?.heightMode).toBe('stretch');
+        expect(elements['pane']?.customProperties).toEqual({});
+    });
+    it('leaves any other flex spelling as a custom property', () => {
+        // Narrow on purpose: only the exact value the generator emits.
+        const { elements } = parseCode(TSX, cssWith('  flex: 1 1 0%;'));
+        expect(elements['pane']?.customProperties).toEqual({ flex: '1 1 0%' });
+        expect(elements['pane']?.heightMode).toBe('auto');
+    });
+    it('does not infer fill-height when a height is declared', () => {
+        const { elements } = parseCode(TSX, cssWith('  height: 200px;\n  flex: 1;'));
+        expect(elements['pane']?.heightMode).toBe('fixed');
+    });
+    it('round-trips byte-stably', () => {
+        const css = cssWith('  flex: 1;');
+        const first = parseCode(TSX, css);
+        const code = generateCode({
+            elements: first.elements,
+            rootId: first.rootId,
+            pageName: 'home',
+        });
+        const second = parseCode(code.tsx, code.css);
+        const recode = generateCode({
+            elements: second.elements,
+            rootId: second.rootId,
+            pageName: 'home',
+        });
+        expect(recode.css).toBe(code.css);
+        expect((code.css.match(/flex:\s*1/g) ?? []).length).toBe(1);
+    });
+});

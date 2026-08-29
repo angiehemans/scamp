@@ -927,8 +927,11 @@ describe('generateCode — fill height in a flex row', () => {
     expect(css).toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
   });
 
-  it('keeps height: 100% in a flex COLUMN parent', () => {
-    // Height is the MAIN axis there, not the cross axis.
+  it('emits flex: 1 for fill height in a flex COLUMN parent', () => {
+    // Height is the MAIN axis there. `height: 100%` measured 0 against an
+    // indefinite parent — the same collapse, on the other axis. Found
+    // live in scamp-ui's start page, where the element wrapping the whole
+    // sidebar and content area was rendering 0 tall.
     const css = cssFor({
       [ROOT_ELEMENT_ID]: makeRoot(['col1']),
       col1: makeRect({
@@ -939,7 +942,36 @@ describe('generateCode — fill height in a flex row', () => {
       }),
       a1b2: makeRect({ id: 'a1b2', parentId: 'col1', heightMode: 'stretch' }),
     });
-    expect(css).toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+    expect(css).toMatch(/\.rect_a1b2[^}]*flex:\s*1/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+  });
+
+  it('does NOT emit flex: 1 for the column CROSS axis', () => {
+    // Width in a column is the cross axis; flex has nothing to say there.
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['col1']),
+      col1: makeRect({
+        id: 'col1',
+        display: 'flex',
+        flexDirection: 'column',
+        childIds: ['a1b2'],
+      }),
+      a1b2: makeRect({ id: 'a1b2', parentId: 'col1', widthMode: 'stretch' }),
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*width:\s*100%/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*flex:\s*1/s);
+  });
+
+  it('does NOT emit flex: 1 for a ROW main axis', () => {
+    // Phase 0: flex: 1 is not a neutral respelling of width: 100% there —
+    // it re-laid-out the hero in canvas-flex-main-axis-stretch.md.
+    const css = cssFor({
+      [ROOT_ELEMENT_ID]: makeRoot(['row1']),
+      row1: makeRect({ id: 'row1', display: 'flex', childIds: ['a1b2'] }),
+      a1b2: makeRect({ id: 'a1b2', parentId: 'row1', widthMode: 'stretch' }),
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*width:\s*100%/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*flex:\s*1/s);
   });
 
   it('keeps width: 100% for cross-axis fill in a column parent', () => {

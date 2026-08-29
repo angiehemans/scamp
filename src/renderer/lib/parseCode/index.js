@@ -223,6 +223,24 @@ export const parseCode = (tsx, css, options) => {
                 widthMode: hasWidth ? applied.widthMode : 'auto',
                 heightMode: hasHeight ? applied.heightMode : 'auto',
             };
+        // `flex: 1` with no height on a flex-COLUMN child is fill-height on
+        // that column's main axis — what the generator writes there. Absorbed
+        // into the mode rather than left in customProperties, or the model
+        // would carry a value the mode already implies and the round trip
+        // would compare an element that gained a custom property against one
+        // that never had it. Only the exact `flex: 1` we emit; every other
+        // flex spelling stays verbatim.
+        if (!isRoot &&
+            !hasHeight &&
+            parentFlexMainAxis(raw.parentId) === 'height' &&
+            decls.some((d) => d.prop === 'flex' && d.value.trim() === '1')) {
+            const { flex: _fill, ...rest } = finalElement.customProperties;
+            finalElement = {
+                ...finalElement,
+                heightMode: 'stretch',
+                customProperties: rest,
+            };
+        }
         // `align-self: stretch` with no height on a flex-row child IS
         // fill-height — it is what the generator writes there, because
         // `height: 100%` collapses against an indefinite container. Mapping

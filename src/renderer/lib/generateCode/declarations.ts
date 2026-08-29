@@ -58,6 +58,23 @@ export const sizeDeclarationLines = (
   //
   // Guarded on the default alignSelf so a user-set alignment is never
   // contradicted by a second align-self line.
+  // Fill-height in a flex COLUMN is the MAIN axis, and `height: 100%`
+  // collapses there for the same reason: measured 0 against an
+  // indefinite parent (the usual `min-height: 100vh` root), correct
+  // against a definite one. `flex: 1` is right in both.
+  //
+  // Unlike the row MAIN axis — where Phase 0 showed `flex: 1` is not a
+  // neutral respelling and would re-lay-out real pages — the two agree
+  // here in every case except an over-full column whose sibling is
+  // allowed to shrink (measured: 187/213 vs 350/50). That case trades a
+  // proportional squeeze for "the sibling keeps its height and fill
+  // takes what is left", which is what the mode name promises.
+  // see docs/plans/flex-sizing-contract-plan.md
+  const fillHeightAsFlex =
+    parent?.display === 'flex' &&
+    parent.flexDirection === 'column' &&
+    el.heightMode === 'stretch';
+
   const fillHeightAsAlignSelf =
     parent?.display === 'flex' &&
     parent.flexDirection !== 'column' &&
@@ -79,7 +96,13 @@ export const sizeDeclarationLines = (
     }
   }
   if (el.heightMode === 'stretch') {
-    lines.push(fillHeightAsAlignSelf ? `align-self: stretch;` : `height: 100%;`);
+    lines.push(
+      fillHeightAsAlignSelf
+        ? `align-self: stretch;`
+        : fillHeightAsFlex
+          ? `flex: 1;`
+          : `height: 100%;`
+    );
   } else if (el.heightMode === 'fit-content') {
     lines.push(`height: fit-content;`);
   } else if (el.heightMode === 'fixed') {
