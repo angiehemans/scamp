@@ -38,3 +38,29 @@ export const settleExtent = (measured, frameBox, tolerance = CONTENT_EXTENT_TOLE
  * string when there's no overflow so callers can render nothing.
  */
 export const formatOverflowLabel = (px) => px > 0 ? `+ ${px}px overflow` : '';
+/**
+ * How far a container's children spill past its content box.
+ *
+ * Zero on both axes when everything fits. Rounded, and floored at zero,
+ * so a sub-pixel layout wobble never lights an indicator.
+ *
+ * Deliberately takes measurements rather than elements: which children
+ * count, and how their edges are measured, is the caller's problem —
+ * animated elements in particular must be measured from layout geometry
+ * rather than their current transform, or the indicator flickers on and
+ * off through the animation. see docs/notes/canvas-extent-oscillation.md
+ */
+export const containerOverflow = (children, clientWidth, clientHeight) => {
+    let right = 0;
+    let bottom = 0;
+    for (const child of children) {
+        if (child.right > right)
+            right = child.right;
+        if (child.bottom > bottom)
+            bottom = child.bottom;
+    }
+    return {
+        x: overflowExtent(right, clientWidth),
+        y: overflowExtent(bottom, clientHeight),
+    };
+};

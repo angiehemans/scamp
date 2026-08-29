@@ -1,0 +1,30 @@
+/* Chrome layer for nested-container overflow. Covers the frame, never
+   eats clicks, and is stripped from exports via `data-canvas-chrome`. */
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+/* Deliberately quieter than the root boundary indicator: a nested
+   container spilling is informational, not a canvas-level problem. */
+.marker {
+  position: absolute;
+  border: 1px dashed var(--status-warn);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.label {
+  position: absolute;
+  top: -16px;
+  right: 0;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 4px;
+  white-space: nowrap;
+  border-radius: 2px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--status-warn);
+}
