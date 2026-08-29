@@ -43,6 +43,28 @@ invariant**: in Paper, nothing ever shrinks. The parent gets
 `overflow: clip` so an over-full line clips instead of renegotiating
 anyone's size. Their WYSIWYG contract is those two rules together.
 
+A second Paper export settled more than the first. Asked to build the
+exact layout that started this week — fixed sidebar, main filling the
+remainder — Paper writes:
+
+```jsx
+<div style={{ display: 'flex', gap: 16, height: '832px', overflow: 'clip',
+              alignItems: 'start', padding: '16px', width: '1280px' }}>
+  <div style={{ alignSelf: 'stretch', flexShrink: '0', width: '342px' }} />
+  <div style={{ alignSelf: 'stretch', flex: 1 }} />
+</div>
+```
+
+That is this plan's contract verbatim: `flex: 1` for Fill (rule 3),
+`flex-shrink: 0` on the fixed axis and nowhere else (rule 2), and —
+notably — `align-self: stretch` with NO height for fill-height, which
+is the spelling of reverted commit `f4fe569`. Their parent even has a
+definite height, where `height: 100%` would have worked, and they
+still choose `align-self: stretch`: it is their general rule, not a
+workaround. Their `alignItems: 'start'` container with per-child
+`align-self: stretch` overrides is also exactly the interaction the
+reverted commit guarded around.
+
 Neither tool constrains the draw itself, which is what the superseded
 plan proposed. Paper's export is evidence that the `flex-shrink: 0`
 instinct was right — the problem was applying it as one-off draw-time
@@ -111,6 +133,9 @@ to the main-axis stretch mode. Every other `flex`/`flex-grow`/
 because the canvas renders the injected stylesheet — still renders
 correctly on canvas. Narrow on purpose; widen later if agent-written
 files show common variants.
+
+Paper emits exactly `flex: 1` for this case (see Context), and no
+shrink guard on the fill child — external convergence on both rules.
 
 **Prior art to clear first:** `docs/notes/canvas-flex-main-axis-stretch.md`
 argues against `flex: 1` — but its argument is that the canvas diverged
@@ -208,10 +233,17 @@ as an idea but split out — see Q6.
    correctly, but the Size panel shows the axis as Auto rather than
    Fill). Acceptable for v1?
 
-5. **The parked fill-height half of `f4fe569`.** Did your investigation
-   reach a verdict on what broke? If it was the fill-height/`align-self`
-   change, this plan lets it stay dead. If it was the `releaseDrawnSize`
-   half (now unnecessary), fill-height could be re-proposed separately.
+5. **The parked fill-height half of `f4fe569`.** Paper's second export
+   spells fill-height exactly as that commit did (`align-self: stretch`,
+   no height), which shifts the suspicion for "broke the canvas" from
+   the spelling to the MIGRATION: on the first save after the change,
+   every existing `height: 100%` element re-emitted as
+   `align-self: stretch`, changing layouts that had been leaning on the
+   old collapsed rendering. If your investigation confirms that, the
+   re-proposal is the same emission with a deliberate migration story
+   (e.g. only newly-set Fill uses the new spelling; existing
+   `height: 100%` round-trips untouched until the user touches that
+   axis). What did you actually see break?
 
 6. **Insertion index from draw position** (draw between two children →
    land between them). Keep bundled here as a phase 5, or split into
