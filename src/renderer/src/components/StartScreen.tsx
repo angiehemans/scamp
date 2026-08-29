@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react"
 import { IconFolder, IconLayoutGrid, IconList } from "@tabler/icons-react"
 import type { ProjectData, Settings, StartScreenProject } from "@shared/types"
 import { errorMessage } from "@shared/errorMessage"
-import { formatRelativeTime } from "@store/formatHistoryLabel"
+import { formatLastOpened } from "@lib/formatLastOpened"
+import { projectDisplayName } from "@lib/projectDisplayName"
 import { basename } from "../lib/path"
 import { CreateProjectModal } from "./CreateProjectModal"
 import { AccountPanel } from "./startScreen/AccountPanel"
@@ -144,7 +145,7 @@ export const StartScreen = ({
 
     const lastOpenedLabel = (project: StartScreenProject): string =>
       project.lastOpened
-        ? formatRelativeTime(new Date(project.lastOpened).getTime(), now)
+        ? formatLastOpened(new Date(project.lastOpened).getTime(), now)
         : "Never opened"
 
     // Show only the parent folder + project name, e.g. ".../scamp-files/home".
@@ -181,7 +182,9 @@ export const StartScreen = ({
                       edge — cards then line up even when a title wraps. */}
                   <span className={styles.cardTopGroup}>
                     <span className={styles.cardTop}>
-                      <span className={styles.cardName}>{project.name}</span>
+                      <span className={styles.cardName} title={project.name}>
+                        {projectDisplayName(project.name)}
+                      </span>
                       {project.state && (
                         <span className={styles.cardState}>{project.state}</span>
                       )}
@@ -231,8 +234,8 @@ export const StartScreen = ({
               disabled={!project.exists}
               type="button"
             >
-              <span className={styles.recentName}>
-                {project.name}
+              <span className={styles.recentName} title={project.name}>
+                {projectDisplayName(project.name)}
                 {project.state && (
                   <span className={styles.recentState}>{project.state}</span>
                 )}
