@@ -146,4 +146,46 @@ test.describe('start screen: project card thumbnail', () => {
     );
     expect(height).toBeGreaterThan(0);
   });
+
+  /**
+   * The card's opener is a <button>, and the UA sheet gives it
+   * `padding: 1px 6px` plus `align-items: flex-start`. Both silently
+   * break the layout while every "it renders" assertion still passes:
+   * the padding insets the thumbnail off the card edge, and the
+   * non-stretch alignment collapses the body to shrink-to-fit, which
+   * leaves the title row's space-between nothing to distribute.
+   *
+   * Geometry is the only assertion that catches it.
+   */
+  test('the thumbnail and body span the full card width', async ({
+    window,
+    project,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await toStartScreen(window, project.dir);
+
+    const thumb = cardThumb(window);
+    await expect(thumb).toBeVisible();
+
+    const widths = await thumb.evaluate((el) => {
+      const card = el.closest('div');
+      const body = card?.querySelector('[class*="cardBody"]');
+      const top = card?.querySelector('[class*="cardTop"]');
+      if (card === null || body == null || top == null) return null;
+      return {
+        card: card.getBoundingClientRect().width,
+        thumb: el.getBoundingClientRect().width,
+        body: body.getBoundingClientRect().width,
+        top: top.getBoundingClientRect().width,
+      };
+    });
+    if (widths === null) throw new Error('card structure not found');
+
+    // Full bleed: only the card's own 1px borders separate the two.
+    expect(widths.thumb).toBeGreaterThanOrEqual(widths.card - 2);
+    // The body carries 16px of padding a side, so the title row it
+    // contains lands 32px in — and crucially not at shrink-to-fit.
+    expect(widths.body).toBeGreaterThanOrEqual(widths.card - 2);
+    expect(widths.top).toBeGreaterThanOrEqual(widths.card - 34);
+  });
 });

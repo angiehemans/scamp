@@ -287,6 +287,7 @@
 .cardGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-content: start;
   gap: 14px;
 }
 
@@ -333,11 +334,18 @@
   opacity: 0.5;
 }
 
+/* A <button>, so the UA sheet fights us twice: `padding: 1px 6px` insets
+   the thumbnail off the card edge, and `align-items: flex-start` stops
+   the column stretching its children — which collapses .cardBody to
+   shrink-to-fit and leaves .cardTop's space-between nothing to
+   distribute. Both resets are load-bearing, not tidying. */
 .cardOpen {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  padding: 0;
   background: none;
   border: none;
   text-align: left;
