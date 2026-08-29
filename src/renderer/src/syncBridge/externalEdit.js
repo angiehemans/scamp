@@ -91,6 +91,40 @@ export const makeFileChangedHandler = (ctx) => (payload) => {
             isComponent,
         });
         if (currentCode.tsx === nextCode.tsx && currentCode.css === nextCode.css) {
+            // The element tree is unchanged, so there is nothing to reload —
+            // that is what this bail is for, and it is what keeps agent edits
+            // from flickering the canvas.
+            //
+            // But `cssDuplicates` is not part of the tree. It describes the
+            // file's raw TEXT, and a declaration repeated with the same
+            // winning value regenerates to identical code — so bailing
+            // outright threw away the one signal the user has that the
+            // duplicate exists.
+            //
+            // Routed through `reloadElements` rather than a bespoke setter:
+            // that is the audited path, and it flags the update as an
+            // external load so the sync bridge treats it as "this came from
+            // disk" instead of as a user edit. Two earlier attempts with a
+            // plain store write failed exactly there — one marked the
+            // document unsaved and scheduled a write, the other left the load
+            // flags set and swallowed the user's next edit.
+            //
+            // A SHALLOW COPY of the existing elements, deliberately — not the
+            // same reference, and not `parsed.elements`.
+            //
+            // Not the same reference: the store subscription bails early on
+            // `state.elements === prev.elements`, before it reaches the
+            // branch that clears the load flags. Passing the identical
+            // reference leaves `isLoading` set forever, and every later edit
+            // is then treated as a load and never written to disk. That is
+            // the exact failure that killed two previous attempts at this,
+            // and it is invisible until you edit something afterwards.
+            //
+            // Not `parsed.elements`: that is a fresh tree of fresh element
+            // objects, so every canvas node re-renders. The copy keeps every
+            // element reference identical, so the render is a no-op —
+            // preserving the no-flicker guarantee this bail exists for.
+            state.reloadElements({ ...state.elements }, nextSource, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
             return;
         }
         // If a canvas drag is in flight (transactionDepth > 0), defer

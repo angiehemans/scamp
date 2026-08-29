@@ -44,3 +44,29 @@ field set (`TYPED_TEXT_CSS_PROPS`), so the canvas applies the same
 Symptom this fixes: changing font-weight on a text element didn't update
 the canvas (only reflected after close+reopen), because the element was
 seeded with a keyword `font-weight` that lived in `customProperties`.
+
+
+## Related: why the duplicate indicator needs a load-flagged update
+
+`cssDuplicates` is the other half of this — it records that a file
+declared the same property twice, which is exactly the case the
+"typed wins" rule above silently resolves.
+
+Surfacing it has one non-obvious constraint, worth writing down because
+three attempts hit it. `externalEdit` bails when the parsed tree
+regenerates to identical code (no reload, no flicker), and the duplicate
+information was discarded with it. Updating it has to go through
+`reloadElements` so the sync bridge sees an external load rather than a
+user edit — and it has to pass a **shallow copy** of the existing
+elements:
+
+- The same reference makes `storeSubscription` bail at
+  `state.elements === prev.elements`, *before* the branch that clears
+  `isLoading`. The flag stays set and every subsequent edit is treated as
+  a load and never written. Silent, and only visible when you edit
+  something afterwards.
+- `parsed.elements` is a fresh tree of fresh objects, so every canvas
+  node re-renders — reintroducing the flicker the bail exists to prevent.
+
+The copy keeps every element reference identical (no-op render) while
+being a different object (subscription fires, flags clear).
