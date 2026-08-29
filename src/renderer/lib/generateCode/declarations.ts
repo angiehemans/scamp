@@ -37,7 +37,32 @@ import { tagFor } from "./internal";
  * There is no risk of pinning agent-written elements that have no width:
  * those parse as `auto`, and only `fixed` emits a length here.
  */
-export const sizeDeclarationLines = (el: ScampElement): string[] => {
+export const sizeDeclarationLines = (
+  el: ScampElement,
+  parent?: ScampElement | null
+): string[] => {
+  // Cross-axis stretch in a flex ROW parent cannot be `height: 100%`.
+  // The percentage resolves against the container's height, which is
+  // `auto` in the common `min-height: 100vh` page root — indefinite — so
+  // it computes to nothing and the element collapses to 0 tall. A
+  // full-height sidebar written this way is invisible in a real browser,
+  // and (post-peel) on the canvas too. `align-self: stretch` fills the
+  // cross axis regardless of whether the container's height is definite,
+  // and it is what a person hand-writing this layout would use.
+  //
+  // The axes are NOT symmetric: a column parent's cross axis is width,
+  // and `width: 100%` resolves against the container's definite inline
+  // size — and align-self there would override the parent's align-items
+  // (center + max-width must stay centred). Same asymmetry the canvas
+  // already documents. see docs/notes/canvas-cross-axis-stretch.md
+  //
+  // Guarded on the default alignSelf so a user-set `align-self: center`
+  // is never contradicted by a second align-self line.
+  const crossStretchAsAlignSelf =
+    parent?.display === 'flex' &&
+    parent.flexDirection !== 'column' &&
+    el.heightMode === 'stretch' &&
+    el.alignSelf === 'stretch';
   const lines: string[] = [];
   if (el.widthMode === 'stretch') {
     lines.push(`width: 100%;`);
@@ -54,7 +79,7 @@ export const sizeDeclarationLines = (el: ScampElement): string[] => {
     }
   }
   if (el.heightMode === 'stretch') {
-    lines.push(`height: 100%;`);
+    lines.push(crossStretchAsAlignSelf ? `align-self: stretch;` : `height: 100%;`);
   } else if (el.heightMode === 'fit-content') {
     lines.push(`height: fit-content;`);
   } else if (el.heightMode === 'fixed') {
@@ -133,7 +158,7 @@ export const elementDeclarationLines = (
   // through the same code path.
   const BASE = isRoot ? DEFAULT_ROOT_STYLES : DEFAULT_RECT_STYLES;
 
-  lines.push(...sizeDeclarationLines(el));
+  lines.push(...sizeDeclarationLines(el, parent));
 
   // `min-height` — free-form string. Page-root defaults to `100vh`
   // (via DEFAULT_ROOT_STYLES) so generated pages have visible height

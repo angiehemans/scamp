@@ -29,7 +29,7 @@ import { type BreakpointOverride, type ScampElement } from "../element";
  * There is no risk of pinning agent-written elements that have no width:
  * those parse as `auto`, and only `fixed` emits a length here.
  */
-export declare const sizeDeclarationLines: (el: ScampElement) => string[];
+export declare const sizeDeclarationLines: (el: ScampElement, parent?: ScampElement | null) => string[];
 /**
  * Build the list of `prop: value;` lines for one element. Skips anything
  * equal to its default; appends customProperties verbatim at the end.

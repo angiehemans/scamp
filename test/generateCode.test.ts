@@ -901,3 +901,78 @@ describe('generateCode — a fixed size is never omitted as a default', () => {
     expect(css).not.toMatch(/\.rect_a1b2[^}]*height:/s);
   });
 });
+
+describe('generateCode — fill height in a flex row parent', () => {
+  const rowParent = (childIds: string[]): ScampElement =>
+    makeRect({ id: 'row1', display: 'flex', childIds, widthValue: 900, heightValue: 850 });
+
+  it('emits align-self: stretch instead of height: 100%', () => {
+    // height: 100% resolves against the container height, which is auto in
+    // the common min-height page root — indefinite — so the element
+    // collapses to 0 tall. A full-height sidebar written that way is
+    // invisible in a real browser. see docs/notes/canvas-cross-axis-stretch.md
+    const { css } = generateCode({
+      elements: {
+        [ROOT_ELEMENT_ID]: makeRoot(['row1']),
+        row1: rowParent(['a1b2']),
+        a1b2: makeRect({ id: 'a1b2', parentId: 'row1', heightMode: 'stretch' }),
+      },
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*align-self:\s*stretch/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+  });
+
+  it('keeps height: 100% for a non-flex parent', () => {
+    // An absolutely positioned child resolves the percentage against its
+    // positioned parent, which has a real height. Unchanged.
+    const { css } = generateCode({
+      elements: {
+        [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+        a1b2: makeRect({ id: 'a1b2', heightMode: 'stretch' }),
+      },
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*height:\s*100%/s);
+  });
+
+  it('keeps width: 100% for cross-axis stretch in a COLUMN parent', () => {
+    // The axes are not symmetric: width resolves against a definite inline
+    // size, and align-self there would override align-items (a centred
+    // max-width child must stay centred).
+    const { css } = generateCode({
+      elements: {
+        [ROOT_ELEMENT_ID]: makeRoot(['col1']),
+        col1: makeRect({ id: 'col1', display: 'flex', flexDirection: 'column', childIds: ['a1b2'] }),
+        a1b2: makeRect({ id: 'a1b2', parentId: 'col1', widthMode: 'stretch' }),
+      },
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    expect(css).toMatch(/\.rect_a1b2[^}]*width:\s*100%/s);
+    expect(css).not.toMatch(/\.rect_a1b2[^}]*align-self/s);
+  });
+
+  it('never contradicts a user-set align-self', () => {
+    // align-self: center + fill height is self-contradictory; the user's
+    // explicit alignment wins and no second align-self line appears.
+    const { css } = generateCode({
+      elements: {
+        [ROOT_ELEMENT_ID]: makeRoot(['row1']),
+        row1: rowParent(['a1b2']),
+        a1b2: makeRect({
+          id: 'a1b2',
+          parentId: 'row1',
+          heightMode: 'stretch',
+          alignSelf: 'center',
+        }),
+      },
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'home',
+    });
+    const matches = css.match(/align-self/g) ?? [];
+    expect(matches.length).toBeLessThanOrEqual(1);
+  });
+});

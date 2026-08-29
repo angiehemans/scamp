@@ -654,3 +654,112 @@ describe('parseCode + generateCode — duplicated names survive a round trip', (
     expect(reparsed.elements['c3d4']?.id).not.toBe(reparsed.elements['a1b2']?.id);
   });
 });
+
+describe('parseCode — fill-height round trip via align-self', () => {
+  const TSX = `import styles from './home.module.css';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="row_shell" className={styles.row_shell}>
+        <div data-scamp-id="side_bar" className={styles.side_bar}></div>
+      </div>
+    </div>
+  );
+}
+`;
+
+  // NB: the class's trailing token is the element id — `side_bar` parses
+  // to id `bar` (same trap as the tag-reset spec fixture).
+  it('reads align-self: stretch with no height as fill-height in a flex row', () => {
+    // This is what the generator writes for heightMode stretch there;
+    // without the mapping the Size panel would read "Auto" for an element
+    // that visibly fills, and the mode would drift on the next save.
+    const css = `.root {
+}
+
+.row_shell {
+  width: 900px;
+  height: 850px;
+  display: flex;
+}
+
+.side_bar {
+  width: 287px;
+  align-self: stretch;
+}
+`;
+    const { elements } = parseCode(TSX, css);
+    expect(elements['bar']?.heightMode).toBe('stretch');
+    expect(elements['bar']?.widthMode).toBe('fixed');
+    expect(elements['bar']?.widthValue).toBe(287);
+  });
+
+  it('does NOT infer fill-height when the block sets an explicit height', () => {
+    // align-self: stretch is inert once height is non-auto; the height wins.
+    const css = `.root {
+}
+
+.row_shell {
+  display: flex;
+}
+
+.side_bar {
+  height: 200px;
+  align-self: stretch;
+}
+`;
+    const { elements } = parseCode(TSX, css);
+    expect(elements['bar']?.heightMode).toBe('fixed');
+    expect(elements['bar']?.heightValue).toBe(200);
+  });
+
+  it('does NOT infer fill-height in a flex COLUMN parent', () => {
+    // Height is the main axis there; align-self governs width instead.
+    const css = `.root {
+}
+
+.row_shell {
+  display: flex;
+  flex-direction: column;
+}
+
+.side_bar {
+  align-self: stretch;
+}
+`;
+    const { elements } = parseCode(TSX, css);
+    expect(elements['bar']?.heightMode).toBe('auto');
+  });
+
+  it('round-trips: generate → parse → generate is byte-stable', () => {
+    const css = `.root {
+}
+
+.row_shell {
+  width: 900px;
+  height: 850px;
+  display: flex;
+}
+
+.side_bar {
+  width: 287px;
+  align-self: stretch;
+}
+`;
+    const first = parseCode(TSX, css);
+    const code = generateCode({
+      elements: first.elements,
+      rootId: first.rootId,
+      pageName: 'home',
+    });
+    const second = parseCode(code.tsx, code.css);
+    const recode = generateCode({
+      elements: second.elements,
+      rootId: second.rootId,
+      pageName: 'home',
+    });
+    expect(recode.css).toBe(code.css);
+    expect(second.elements['bar']?.heightMode).toBe('stretch');
+  });
+});
