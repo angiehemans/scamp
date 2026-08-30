@@ -22,7 +22,7 @@ release time.
 
 ## Releases
 
-### Unreleased
+### 0.6.5 — 2026-08-29
 
 Sign-in arrives, the start screen gets a visual refresh, and the canvas
 starts rendering your page's real stylesheet instead of an approximation
