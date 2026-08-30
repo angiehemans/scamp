@@ -74,8 +74,11 @@ export const UiPanel = (): JSX.Element => {
           has nothing meaningful to show there. */}
       {!isRoot && <ElementSection elementId={elementId} />}
       {/* Typography sits right below Element type: for a text element it's
-          the primary thing to edit, so it leads the style sections. */}
+          the primary thing to edit, so it leads the style sections. Image
+          leads for the same reason — the source and fit are what you came
+          for, not the twelfth section down past Filters. */}
       {isText && <TypographySection elementId={elementId} />}
+      {isImage && <ImageSection elementId={elementId} />}
       {showPosition && <PositionSection elementId={elementId} />}
       <SizeSection elementId={elementId} />
       {!isText && !isInput && <LayoutSection elementId={elementId} />}
@@ -84,7 +87,6 @@ export const UiPanel = (): JSX.Element => {
       <BorderSection elementId={elementId} />
       <ShadowsSection elementId={elementId} />
       <FiltersSection elementId={elementId} />
-      {isImage && <ImageSection elementId={elementId} />}
       {isSvg && <SvgSection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />
       <TransitionsSection elementId={elementId} />

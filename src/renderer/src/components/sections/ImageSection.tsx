@@ -1,6 +1,7 @@
 import { useCanvasStore } from '@store/canvasSlice';
 import { assetsDirSegment } from '@renderer/src/lib/path';
 import { Button } from '../controls/Button';
+import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SegmentedControl } from '../controls/SegmentedControl';
 import { Tooltip } from '../controls/Tooltip';
 import { Section, Row } from './Section';
@@ -51,17 +52,19 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
 
   return (
     <Section title="Image">
+      {/* Editable rather than a read-only filename: "Replace" imports from
+          the project's assets, which is no help when the image lives at a
+          URL or at a path that hasn't been imported. `src` already
+          round-trips verbatim, so anything typed here survives. */}
       <Row label="Source">
         <div className={styles.sourceRow}>
-          {element.src ? (
-            <Tooltip label={element.src}>
-              <span className={styles.sourcePath}>
-                {element.src.split('/').pop() ?? '(none)'}
-              </span>
-            </Tooltip>
-          ) : (
-            <span className={styles.sourcePath}>(none)</span>
-          )}
+          <PrefixSuffixInput
+            value={element.src ?? ''}
+            onCommit={(next) => patchElement(elementId, { src: next })}
+            placeholder="Path or URL"
+            title="Source — a project path (/assets/photo.png) or an absolute URL. Use Replace to import a file instead."
+            stopKeyPropagation
+          />
           <Button
             variant="secondary"
             size="sm"

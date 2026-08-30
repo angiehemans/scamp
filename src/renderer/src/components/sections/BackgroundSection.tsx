@@ -44,6 +44,7 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
   const activePage = useCanvasStore((s) => s.activePage);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const projectPath = useCanvasStore((s) => s.projectPath);
+  const isImage = element?.type === 'image';
   // Hide the group-toggle eye when there's nothing in this section
   // to hide. Stays visible while the group is already off so the
   // user can flip it back on without first re-adding a value.
@@ -124,16 +125,22 @@ export const BackgroundSection = ({ elementId }: Props): JSX.Element | null => {
           onOpenTheme={onOpenTheme}
         />
       </Row>
-      <Row label="">
-        <Button
-          variant="secondary"
-          size="sm"
-          fullWidth
-          onClick={() => void handleSetBackgroundImage()}
-        >
-          {bgImage ? 'Replace image' : 'Set background image'}
-        </Button>
-      </Row>
+      {/* An <img> already has a source of its own, in the Image section
+          above. Offering a *background* image here as well reads as a
+          second, competing source. Still shown once one exists, so a
+          background set elsewhere stays removable. */}
+      {(!isImage || bgImage) && (
+        <Row label="">
+          <Button
+            variant="secondary"
+            size="sm"
+            fullWidth
+            onClick={() => void handleSetBackgroundImage()}
+          >
+            {bgImage ? 'Replace image' : 'Set background image'}
+          </Button>
+        </Row>
+      )}
       {bgImage && (
         <>
           <Row label="Size">

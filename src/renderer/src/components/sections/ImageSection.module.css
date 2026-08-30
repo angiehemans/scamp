@@ -5,13 +5,11 @@
   width: 100%;
 }
 
-.sourcePath {
+/* The Source field is a PrefixSuffixInput, whose own root element we
+   can't put a class on — so the flex sizing is applied from here. */
+.sourceRow > *:first-child {
   flex: 1;
-  font-size: 11px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .altInput {
