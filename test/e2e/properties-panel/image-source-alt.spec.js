@@ -1,6 +1,7 @@
 import { test, expect } from '../fixtures/app';
 import { pageRoot } from '../fixtures/selectors';
 import { layersRowByClass } from '../fixtures/layers';
+import { drawAndSelectRect, panelSection, propertiesPanel, } from '../fixtures/panel';
 import { waitForSaved } from '../fixtures/assertions';
 /**
  * The Image section's Source and Alt fields.
@@ -85,5 +86,39 @@ test.describe('properties panel: image source and alt', () => {
         await expect
             .poll(async () => project.readTsx(), { timeout: 5_000 })
             .toContain('src="/assets/hero-banner.webp"');
+    });
+});
+test.describe('properties panel: image section placement', () => {
+    test('Image sits directly after Element, ahead of the style sections', async ({ window, }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await layersRowByClass(window, 'image_a1b2').click();
+        const titles = await propertiesPanel(window)
+            .locator('[data-panel-section]')
+            .evaluateAll((els) => els.map((el) => el.getAttribute('data-panel-section')));
+        // Source and fit are what you open the panel for; they used to sit
+        // below Background, Border, Shadows and Filters.
+        expect(titles).toContain('Image');
+        expect(titles.indexOf('Image')).toBe(titles.indexOf('Element') + 1);
+        expect(titles.indexOf('Image')).toBeLessThan(titles.indexOf('Background'));
+    });
+    test('Background offers no "Set background image" for an img', async ({ window, }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await layersRowByClass(window, 'image_a1b2').click();
+        const background = panelSection(window, 'Background');
+        await expect(background).toBeVisible();
+        // The element already has a src of its own; a second competing
+        // source in Background is the confusion being removed.
+        await expect(background.getByRole('button', { name: 'Set background image' })).toHaveCount(0);
+    });
+});
+test.describe('properties panel: non-image elements are unaffected', () => {
+    test('a rect keeps its "Set background image" button', async ({ window }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await drawAndSelectRect(window, { x: 400, y: 400 }, { x: 520, y: 500 });
+        // The button is only suppressed for <img>; hiding it everywhere
+        // would remove the feature rather than the confusion.
+        await expect(panelSection(window, 'Background').getByRole('button', {
+            name: 'Set background image',
+        })).toBeVisible();
     });
 });
