@@ -57,6 +57,71 @@ describe('canvasRenderTag', () => {
   });
 });
 
+describe('position', () => {
+  it('renders an explicit position keyword as written', () => {
+    expect(style(makeEl({ position: 'fixed', x: 40, y: 60 })).position).toBe('fixed');
+    expect(style(makeEl({ position: 'relative' })).position).toBe('relative');
+  });
+
+  it('falls back to the tree-shape default when position is auto', () => {
+    expect(style(makeEl({ position: 'auto' })).position).toBe('absolute');
+    expect(style(makeEl({ position: 'auto' }), { parentDisplay: 'flex' }).position).toBe(
+      'relative'
+    );
+  });
+
+  // A real `position: sticky` sticks to the CANVAS viewport, not the page
+  // frame, so it drifts as you pan and reads x/y as stick offsets rather
+  // than coordinates. see docs/notes/canvas-sticky-position.md
+  it('renders sticky at rest — absolute at its stored coordinates outside a layout parent', () => {
+    const s = style(makeEl({ position: 'sticky', x: 40, y: 240 }));
+    expect(s.position).toBe('absolute');
+    expect(s.left).toBe(40);
+    expect(s.top).toBe(240);
+  });
+
+  it('renders a sticky flex child in flow, with no offsets to nudge it off its slot', () => {
+    const s = style(makeEl({ position: 'sticky', x: 40, y: 240 }), {
+      parentDisplay: 'flex',
+      parentDirection: 'row',
+    });
+    expect(s.position).toBe('relative');
+    expect(s.left).toBeUndefined();
+    expect(s.top).toBeUndefined();
+  });
+
+  it('renders a sticky root as relative, matching an auto root', () => {
+    const s = style(makeEl({ id: ROOT_ELEMENT_ID, position: 'sticky', x: 0, y: 0 }));
+    expect(s.position).toBe('relative');
+    expect(s.left).toBeUndefined();
+    expect(s.top).toBeUndefined();
+  });
+
+  // `static` and `auto` are the two values that let the parent place the
+  // element, so they are the only ones whose offsets get dropped — and
+  // only where a parent is actually doing the placing. Sticky joins them
+  // by being mapped to `auto`.
+  it('drops offsets for static only inside a layout parent', () => {
+    const loose = style(makeEl({ position: 'static', x: 40, y: 60 }));
+    expect(loose.position).toBe('static');
+    expect(loose.left).toBe(40);
+
+    const inFlex = style(makeEl({ position: 'static', x: 40, y: 60 }), {
+      parentDisplay: 'flex',
+    });
+    expect(inFlex.left).toBeUndefined();
+    expect(inFlex.top).toBeUndefined();
+  });
+
+  it('keeps offsets for fixed even inside a layout parent', () => {
+    const s = style(makeEl({ position: 'fixed', x: 40, y: 60 }), {
+      parentDisplay: 'flex',
+    });
+    expect(s.left).toBe(40);
+    expect(s.top).toBe(60);
+  });
+});
+
 describe('CANVAS_SKIP_ATTRS_BY_TAG', () => {
   it('skips the side-effecting attributes per tag', () => {
     expect(CANVAS_SKIP_ATTRS_BY_TAG.a?.has('href')).toBe(true);

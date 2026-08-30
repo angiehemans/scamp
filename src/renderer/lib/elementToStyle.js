@@ -229,6 +229,9 @@ inComponentEditor = false) => {
     // alongside those branches.
     const offGroups = new Set(el.toggledOffGroups);
     const isOff = (g) => offGroups.has(g);
+    // `sticky` renders at rest on the canvas: the canvas viewport is not
+    // the page's scroll container. see docs/notes/canvas-sticky-position.md
+    const positionForCanvas = el.position === 'sticky' ? 'auto' : el.position;
     const base = {
         // Flex children render as `position: relative` so they remain a
         // positioning context for their own `position: absolute` descendants
@@ -240,20 +243,21 @@ inComponentEditor = false) => {
         // (default) keeps the original behaviour — root + flex/grid
         // children render as `relative` so absolutely-positioned
         // descendants anchor inside them; everything else is `absolute`.
-        // Any explicit value (`fixed`, `sticky`, etc.) renders as written.
-        position: el.position !== 'auto'
-            ? el.position
+        // Any explicit value (`fixed`, `relative`, etc.) renders as written;
+        // `sticky` is the one exception, mapped to `auto` above.
+        position: positionForCanvas !== 'auto'
+            ? positionForCanvas
             : isRoot
                 ? 'relative'
                 : inLayoutParent
                     ? 'relative'
                     : 'absolute',
-        left: el.position === 'static' || el.position === 'auto'
+        left: positionForCanvas === 'static' || positionForCanvas === 'auto'
             ? isRoot || inLayoutParent
                 ? undefined
                 : el.x
             : el.x,
-        top: el.position === 'static' || el.position === 'auto'
+        top: positionForCanvas === 'static' || positionForCanvas === 'auto'
             ? isRoot || inLayoutParent
                 ? undefined
                 : el.y
