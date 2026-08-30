@@ -56,12 +56,27 @@ New projects include a set of semantic tokens such as `--color-primary`,
 Each semantic row has:
 
 - The token **name**.
-- A **mapping dropdown** — grouped by palette — where you choose which
-  primitive shade this role resolves to.
-- A **resolved swatch** showing the actual color the mapping produces,
-  so you can see the result at a glance.
+- A **color control** — the same one the properties panel uses — where
+  you set what the role resolves to.
+- A **resolved swatch** showing the actual color that produces, so you
+  can see the result at a glance.
 
 Use **+ Add token** to create a custom semantic role.
+
+### Three ways to set a semantic token
+
+The color control offers all three routes:
+
+- **Map it to a primitive.** Pick a shade on the **Tokens** tab. This is
+  the norm, and it's the tab the row opens on.
+- **Type a literal value.** Enter a hex or any CSS color in the row's
+  own field. Useful for a one-off that doesn't belong in a palette.
+- **Use the picker.** Click the swatch for the full picker, including
+  the eyedropper and presets.
+
+The picker offers primitives only — a semantic token can't point at
+another semantic token, which would make a reference cycle easy to
+create by accident.
 
 ### Broken references
 

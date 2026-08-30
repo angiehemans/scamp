@@ -67,6 +67,26 @@ Any attribute you add manually in the CSS editor or externally round-trips clean
 
 Options live as a typed list on the select element — they're not drawable canvas elements. Editing them through the panel is the only way to change them.
 
+## The Image Source
+
+Select an image and the **Image** section sits directly after Element,
+at the top of the properties panel. It holds two fields:
+
+- **Source** — the image's `src`, as a text field. Type any path or an
+  absolute URL (`https://…`) and press Enter, or click away, to commit.
+  Nothing is applied per keystroke.
+- **Alt text** — the alternative text written into the generated `<img>`.
+
+**Replace** imports a file from your computer into the project's assets
+folder and points Source at it. Use Source directly when the image you
+want is already somewhere Scamp doesn't need to copy — an absolute URL,
+or a path you manage yourself.
+
+Because an `<img>` already has a source of its own, the Background
+section doesn't offer **Set background image** for one. If a background
+image is already set on an image element, the control stays available so
+you can remove it.
+
 ## Images and File Size
 
 When you bring a PNG or JPEG into a project, Scamp re-encodes it as

@@ -10,8 +10,17 @@
 
 When you open Scamp, you see the start screen with two areas:
 
-- **Sidebar** -- Contains the "New Project" button, a link to Settings, and navigation.
-- **Recent Projects** -- A list of projects you have opened before. Click any project to reopen it.
+- **Sidebar** -- The "New Project" button, navigation, a link to Settings,
+  and an [account panel](accounts.md) at the foot. Signing in is optional
+  and Scamp works fully without it.
+- **Projects** -- Cards for the projects you have opened before, each
+  showing a picture of its home page. Click any card to reopen it. Folder
+  names are shown the way you'd read them, so `my-portfolio` appears as
+  "My Portfolio" — hover to see the folder name on disk.
+
+The folder icon beside the **Projects** heading is your default projects
+folder: hover to see its path, click to choose a different one. You can
+also change or clear it in [Settings](settings.md).
 
 ## Creating Your First Project
 

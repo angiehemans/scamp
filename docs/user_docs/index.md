@@ -20,7 +20,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Animations](animations.md) — Preset keyframe animations with full timing controls
 - [Filters](filters.md) — CSS filter effects (blur, brightness, contrast, hue, backdrop) via the Filters section
 - [Linking Between Pages](linking.md) — Internal and external links via the Element section
-- [Export](export.md) — Save the current page or selected element as PNG or SVG
+- [Export](export.md) — Save a page or element as PNG or SVG, or export the whole project as static HTML + CSS
 - [Preview Mode](preview.md) — Open the project in a real Next.js dev server window
 - [Layers Panel](layers-panel.md) — The element tree: selection, collapsing branches, reordering, and nesting
 - [Code Output](code-output.md) — What Scamp generates, save status, and the live code preview
@@ -34,6 +34,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [DESIGN.md](design-md.md) — The auto-generated design document for AI agents
 - [Terminal](terminal.md) — The built-in terminal panel
 - [Settings](settings.md) — App and per-project configuration (projects folder, privacy, breakpoints, artboard, fonts)
+- [Accounts](accounts.md) — Optional sign-in, sessions, and where your sign-in is stored
 - [Undo, Redo, and History](undo-redo.md) — Keyboard shortcuts plus the visual History panel for per-page history navigation
 - [Snapshots](snapshots.md) — Durable point-in-time project backups, previewing, and restoring from the History panel
 - [Keyboard Shortcuts](keyboard-shortcuts.md) — Complete shortcut reference
