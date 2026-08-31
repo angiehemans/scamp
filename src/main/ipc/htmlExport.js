@@ -15,16 +15,23 @@ import { candidateFolderName, classifyTarget, copyAssets, exportFolderName, MAX_
  * renderer can't redirect the write somewhere else.
  */
 const dialogApprovedDirs = new Set();
+/**
+ * Last export destination, so a second export doesn't send the user back
+ * to ~/Downloads. see docs/plans/electron-upgrade-plan.md
+ */
+let lastExportDir = null;
 const chooseFolder = async () => {
     const result = await dialog.showOpenDialog({
         title: 'Choose where to put the exported site',
         buttonLabel: 'Export here',
+        ...(lastExportDir !== null ? { defaultPath: lastExportDir } : {}),
         properties: ['openDirectory', 'createDirectory'],
     });
     if (result.canceled || result.filePaths.length === 0) {
         return { canceled: true, path: null };
     }
     const chosen = result.filePaths[0] ?? '';
+    lastExportDir = path.dirname(chosen);
     dialogApprovedDirs.add(path.resolve(chosen));
     return { canceled: false, path: chosen };
 };
