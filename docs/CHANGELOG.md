@@ -22,6 +22,20 @@ release time.
 
 ## Releases
 
+### 0.6.6 — 2026-08-31
+
+**Fixed**
+
+- **Clicking an element inside a flex or grid container no longer moves
+  it.** Selecting one could send it to the end of its container, and
+  selecting the last one could lift it out into a sibling — because a
+  plain click was running the whole drag gesture. A mouse click emits no
+  movement, but a trackpad tap emits a pixel or two of jitter, which was
+  enough to resolve and commit a drop. Dragging now starts only once the
+  pointer has actually travelled, so a click selects and nothing else.
+  The same gap let a click near a container's edge reparent an
+  absolutely-positioned element; that is closed too.
+
 ### 0.6.5 — 2026-08-29
 
 Sign-in arrives, the start screen gets a visual refresh, and the canvas
