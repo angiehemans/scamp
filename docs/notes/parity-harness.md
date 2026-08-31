@@ -123,6 +123,25 @@ anything behind an interaction (`:hover`). Geometry is still where the
 structural divergences have been
 and is far less brittle.
 
+## Bumping Playwright invalidates the oracle browser
+
+The oracle is Playwright's own Chromium, launched via `chromium.launch()`
+with no `executablePath`. Playwright resolves that to one exact browser
+revision pinned to the installed `@playwright/test` version, so **every
+Playwright bump orphans the previously-downloaded Chromium** and all 17
+comparison tests fail at once with:
+
+```
+No Chromium available for the parity harness. Run `npx playwright install chromium`.
+```
+
+Run that command; nothing else needs doing. The failure looks alarming
+because it takes out the whole parity suite in one go, but it is purely
+an installed-browsers problem and says nothing about the canvas. Note
+that the `findChromium` fallback only looks for `chrome-linux64/chrome`,
+so on macOS there is no second chance — `chromium.launch()` either works
+or the suite fails.
+
 ## Adding a fixture
 
 Every parity bug that gets fixed should leave a fixture behind. Write the

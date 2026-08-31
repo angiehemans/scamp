@@ -1,6 +1,6 @@
 # Electron 31 → 44 upgrade — Plan
 
-Status: **not started**
+Status: **implemented** — on 44.1.0. See "What actually happened" at the end.
 
 ## Why now
 
@@ -299,3 +299,72 @@ change before the 45 upgrade.
 Also landing in 45: file descriptors for files inside ASAR archives
 become usable only through `fs`, which interacts with the `asarUnpack`
 list in `electron-builder.yml`.
+
+## What actually happened
+
+Landed on Electron 44.1.0 across seven commits, one per sequence step.
+Three things diverged from the plan:
+
+**`node-abi` needed an override — the one unforeseen blocker.**
+`@electron/rebuild` 4.2.0 pins `node-abi` 4.28.0, which predates
+Electron 44, so the first `npm install` after the bump died with *"Could
+not detect abi for version 44.1.0 and runtime electron"*. Fixed with an
+`overrides` entry pinning `node-abi` to `^4.35.0`. Worth remembering:
+this will recur on every Electron major until `@electron/rebuild` ships
+a matching release, and the error names the wrong culprit.
+
+**`node-pty` was not the problem it was billed as.** The plan called it
+the highest risk and expected to fall back to `1.2.0-beta.15`. Stock
+1.1.0 compiled cleanly against ABI 149 / Node 24 / C++20 on the first
+try. The beta was never needed.
+
+**The Sentry patch could be dropped entirely.** Upstream 7.17.0 carries
+the same `(sentScope.breadcrumbs || []).pop()` guard the local patch
+added, in both the cjs and esm builds, so `patches/` is now empty and
+the dependency moved to `^7.17.0`.
+
+**The Playwright bump orphaned the parity oracle.** The first full e2e
+run came back 402 passed / 18 failed, which looked like a serious
+Chromium-152 rendering regression. It wasn't: 17 of the 18 were every
+parity comparison failing identically with *"No Chromium available for
+the parity harness"*. Playwright pins its oracle browser to one revision
+per release, so bumping 1.59 -> 1.62 orphaned the downloaded copy.
+`npx playwright install chromium` fixed all 17. Written up in
+docs/notes/parity-harness.md, since it will recur on the next bump and
+the blast radius makes it look like something much worse.
+
+## Open: drag-gesture flakiness under full-suite load
+
+Three full e2e runs on 44 produced 1, 3 and 2 failures out of ~420. Every
+failure was a drag gesture that never committed — the drop silently did
+nothing, e.g. `expectNestedInTsx` finding the element still unnested —
+and **a different subset failed each run**. The same specs pass 110/110
+across five consecutive isolated runs.
+
+That rules out a systematic change in pointer-event handling: a real
+Chromium 152 behaviour change would reproduce in isolation too. It reads
+as load-dependent timing against the 5px `DRAG_ARM_DISTANCE` threshold in
+`interactions/constants.ts` — under load Chromium coalesces pending
+`pointermove`s more aggressively, and the synthetic `steps: 10` drags in
+`dragInFrame` depend on those intermediate events. see
+docs/notes/click-vs-drag-slop.md
+
+**What is not known: whether this predates the upgrade.** No e2e baseline
+was captured on Electron 31, because the Gatekeeper revocation stopped
+the app launching at all — the plan called that out and it cannot be
+closed retroactively without reinstalling 31 and ad-hoc re-signing it.
+
+Do not paper over it by turning on Playwright `retries` locally. Either
+establish the 31 baseline, or investigate the arming path directly with
+a test that drives the gesture under artificial load. Note that CI has
+never run e2e — `release.yml` only builds and packages — so this has
+never been a release gate either way.
+
+Everything else went as written. electron-vite 5 needed no config
+changes; the clipboard migration was confined to the four predicted
+typecheck errors in `clipboard.ts` and nothing else in the tree; the
+dialog `defaultPath` regressions were where the plan said they were.
+`spctl` on the 44 binary reports the ordinary ad-hoc rejection ("code
+has no resources but signature indicates they must be present") rather
+than a revocation, and `npx electron --version` launches — which was the
+point of the exercise.

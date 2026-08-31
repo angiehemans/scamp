@@ -2,6 +2,9 @@
 
 ## Installation
 
+Scamp needs macOS 13 (Ventura) or later, Windows 10 or later, or a
+64-bit Linux desktop.
+
 1. Download the Scamp installer for your platform.
 2. Run the installer and follow the on-screen prompts.
 3. Launch Scamp from your Applications folder (macOS) or Start Menu (Windows).
