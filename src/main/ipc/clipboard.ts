@@ -1,4 +1,4 @@
-import { clipboard, ipcMain } from 'electron';
+import { clipboard, ipcMain, nativeImage } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import type {
   ClipboardReadResult,
@@ -16,6 +16,30 @@ const looksLikeSvg = (text: string): boolean =>
   /^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s/>]/i.test(text);
 
 /**
+ * Pull a raster image off the clipboard as a PNG data URL, or null when
+ * the clipboard holds no image this process can decode. Non-PNG payloads
+ * go through NativeImage, which is what the removed `clipboard.readImage`
+ * did implicitly. see docs/notes/clipboard-image-paste.md
+ */
+const readClipboardImage = async (): Promise<string | null> => {
+  const items = await clipboard.read();
+  for (const item of items) {
+    const type = item.types.find((t) => t.startsWith('image/'));
+    if (type === undefined) continue;
+    const payload = await item.getType(type);
+    if (!(payload instanceof Blob)) continue;
+    const buffer = Buffer.from(await payload.arrayBuffer());
+    if (buffer.length === 0) continue;
+    if (type === 'image/png') {
+      return `data:image/png;base64,${buffer.toString('base64')}`;
+    }
+    const image = nativeImage.createFromBuffer(buffer);
+    if (!image.isEmpty()) return image.toDataURL();
+  }
+  return null;
+};
+
+/**
  * Read the OS clipboard for a canvas paste: SVG markup (text) wins, then
  * a raster image (returned as a PNG data URL), else empty. Sanitization /
  * normalization of svg happens in the renderer (lib/svg) before insert.
@@ -26,17 +50,17 @@ export const registerClipboardIpc = (): void => {
   // renderer loads from `file://` in the packaged app, which is not a
   // secure context, so the web API isn't reliably available there.
   ipcMain.handle(IPC.ClipboardWrite, async (_e, args: ClipboardWriteArgs) => {
-    clipboard.writeText(args.text);
+    await clipboard.writeText(args.text);
   });
 
   ipcMain.handle(IPC.ClipboardRead, async (): Promise<ClipboardReadResult> => {
-    const text = clipboard.readText();
+    const text = await clipboard.readText();
     if (text.length > 0 && looksLikeSvg(text)) {
       return { kind: 'svg', svg: text };
     }
-    const image = clipboard.readImage();
-    if (!image.isEmpty()) {
-      return { kind: 'image', dataUrl: image.toDataURL() };
+    const dataUrl = await readClipboardImage();
+    if (dataUrl !== null) {
+      return { kind: 'image', dataUrl };
     }
     return { kind: 'empty' };
   });
