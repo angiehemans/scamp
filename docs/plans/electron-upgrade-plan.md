@@ -360,6 +360,33 @@ a test that drives the gesture under artificial load. Note that CI has
 never run e2e — `release.yml` only builds and packages — so this has
 never been a release gate either way.
 
+## Verification actually run
+
+- `npm run typecheck` — clean on both projects.
+- `npm run test` — 2874 pass, unchanged from the Electron 31 baseline.
+- `npm run test:e2e` — 418/420, the two being the drag flakes above.
+- `npm run package` — succeeds; `node-pty` rebuilds for arm64 and every
+  `asarUnpack` entry lands (`@img`, `sharp`, `node-pty`, `detect-libc`,
+  `semver`, `imageOptimizeChild.js`).
+- The packaged build launches and stays up.
+
+Two notes on running the packaged build locally. It quits instantly if
+an installed Scamp is already running — `requestSingleInstanceLock` is
+keyed on the userData dir, so pass `--user-data-dir=<tmp>` to test a
+build alongside the installed app rather than quitting the latter.
+And local signing is currently skipped because the Developer ID cert in
+the keychain reports `CSSMERR_TP_NOT_TRUSTED` (0 valid identities); that
+predates this work and only affects local packaging, since CI imports
+the cert itself.
+
+**Still unverified — needs a human at the machine.** The clipboard
+rewrite is the least covered change in this upgrade: pasting a real
+image from the OS clipboard onto the canvas, particularly on macOS where
+the clipboard commonly offers `image/tiff` rather than `image/png` and
+exercises the NativeImage branch. Also unexercised: pasting SVG markup,
+a large image import through the sharp child process, and the Cmd+P
+preview window.
+
 Everything else went as written. electron-vite 5 needed no config
 changes; the clipboard migration was confined to the four predicted
 typecheck errors in `clipboard.ts` and nothing else in the tree; the
