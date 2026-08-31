@@ -1,6 +1,6 @@
-import { dialog, ipcMain } from 'electron';
+import { app, dialog, ipcMain } from 'electron';
 import { promises as fs } from 'fs';
-import { basename, join } from 'path';
+import { basename, dirname, join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type {
   ChooseFolderResult,
@@ -17,6 +17,7 @@ import {
   addRecentProject,
   updateRecentProjectFormat,
 } from './recentProjects';
+import { getSettings } from './settings';
 import { watchProject } from '../watcher';
 import { setSentryProjectRoot } from '../sentry';
 import { startMcpForProject } from '../mcp/lifecycle';
@@ -41,15 +42,32 @@ import { createSnapshot } from './snapshotOps';
 export { detectProjectFormat };
 export { scaffoldLegacyProject, scaffoldNextjsProject };
 
+/**
+ * Where the folder picker opens. Electron 43+ points an omitted
+ * `defaultPath` at ~/Downloads and stops the OS restoring the last-used
+ * directory, so we track it ourselves.
+ * see docs/plans/electron-upgrade-plan.md
+ */
+let lastProjectDir: string | null = null;
+
+const projectDialogDefault = async (): Promise<string> => {
+  if (lastProjectDir !== null) return lastProjectDir;
+  const { defaultProjectsFolder } = await getSettings();
+  return defaultProjectsFolder ?? app.getPath('home');
+};
+
 const chooseFolder = async (): Promise<ChooseFolderResult> => {
   const result = await dialog.showOpenDialog({
     title: 'Choose project folder',
+    defaultPath: await projectDialogDefault(),
     properties: ['openDirectory', 'createDirectory'],
   });
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true, path: null };
   }
-  return { canceled: false, path: result.filePaths[0] ?? null };
+  const chosen = result.filePaths[0] ?? null;
+  if (chosen !== null) lastProjectDir = dirname(chosen);
+  return { canceled: false, path: chosen };
 };
 
 const readProject = async (folderPath: string): Promise<ProjectData> => {

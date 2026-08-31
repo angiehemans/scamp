@@ -45,8 +45,8 @@ const chooseSavePath = async (
     try {
       await fs.mkdir(defaultDir, { recursive: true });
     } catch {
-      // If we can't create the dir, fall back to the user's home — the
-      // dialog will still open, just at a default location.
+      // If we can't create the dir, drop the defaultPath — the dialog
+      // still opens, at Electron's own default (~/Downloads since 43).
       defaultDir = undefined;
     }
   }

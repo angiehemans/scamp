@@ -30,16 +30,24 @@ import {
  */
 const dialogApprovedDirs = new Set<string>();
 
+/**
+ * Last export destination, so a second export doesn't send the user back
+ * to ~/Downloads. see docs/plans/electron-upgrade-plan.md
+ */
+let lastExportDir: string | null = null;
+
 const chooseFolder = async (): Promise<ExportHtmlChooseFolderResult> => {
   const result = await dialog.showOpenDialog({
     title: 'Choose where to put the exported site',
     buttonLabel: 'Export here',
+    ...(lastExportDir !== null ? { defaultPath: lastExportDir } : {}),
     properties: ['openDirectory', 'createDirectory'],
   });
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true, path: null };
   }
   const chosen = result.filePaths[0] ?? '';
+  lastExportDir = path.dirname(chosen);
   dialogApprovedDirs.add(path.resolve(chosen));
   return { canceled: false, path: chosen };
 };
