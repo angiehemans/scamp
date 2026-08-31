@@ -8,6 +8,15 @@ export const DEFAULT_IMAGE_SIZE = 200;
  * not drag".
  */
 export const CLICK_DRAG_THRESHOLD = 5;
+/**
+ * How far the pointer must travel from pointer-down before a move or
+ * reorder gesture may resolve a drop target. Without it a click's jitter
+ * reorders a flex child or lifts it out of its parent.
+ * see docs/notes/click-vs-drag-slop.md
+ */
+export const DRAG_ARM_DISTANCE = 5;
+/** True once the pointer has travelled far enough to count as a drag. */
+export const hasLeftClickSlop = (startX, startY, x, y) => Math.hypot(x - startX, y - startY) >= DRAG_ARM_DISTANCE;
 export const DEFAULT_NEW_RECT_SIZE = 200;
 /** Default size for an input element placed via click (not drag). */
 export const DEFAULT_NEW_INPUT_WIDTH = 240;

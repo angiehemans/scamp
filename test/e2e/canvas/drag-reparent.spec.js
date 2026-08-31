@@ -404,3 +404,99 @@ test.describe('canvas: reordering inside a grid', () => {
         expect(movedStart).toBeLessThan(firstEnd);
     });
 });
+/**
+ * Selecting is not dragging.
+ *
+ * A plain click on a flex child entered the reorder state machine, and a
+ * single jittered pointermove — routine on a Mac trackpad, rare with a
+ * mouse, which is why this only showed up in the packaged app — was
+ * enough to resolve a drop target that release then committed. Two
+ * shapes, both silent and both destructive: the child jumped to the end
+ * of its parent (the append fallback, because `flowIndicator` excludes
+ * the dragged element from sibling scanning and so finds nothing under
+ * the cursor), or it was lifted out of the parent entirely (the
+ * container's trailing edge band retargeting the drop one level up).
+ *
+ * The mouse moves 1px here deliberately: enough to fire pointermove,
+ * below the click slop that now gates both interactions.
+ */
+test.describe('canvas: a click is not a drag', () => {
+    const orderInTsx = (tsx, ids) => [...ids].sort((a, b) => tsx.indexOf(`data-scamp-id="${a}"`) - tsx.indexOf(`data-scamp-id="${b}"`));
+    /** A flex row owning three children, in a known order. */
+    const seedFlexRow = async (window, project) => {
+        await expect(pageRoot(window)).toBeVisible();
+        const flex = await drawAndSelectRect(window, { x: 300, y: 100 }, { x: 660, y: 420 });
+        // Drawn inside the box while it's still absolute, so creation order
+        // is the child order once it becomes a flex row. The rect tool
+        // reverts to select after each draw, so it's re-armed every time.
+        for (const x of [320, 410, 500]) {
+            await selectTool(window, 'r');
+            await dragInFrame(window, { x, y: 140 }, { x: x + 70, y: 300 });
+            await waitForSaved(window);
+        }
+        // Via the layers tree: the container's centre is covered by its own
+        // children by now, so a canvas click would land on one of them.
+        await layersRowByClass(window, flex).click();
+        await panelSection(window, 'Layout')
+            .getByRole('radio', { name: 'Flex row' })
+            .click();
+        await waitForSaved(window);
+        const all = await canvasElementsByPrefix(window, 'rect_').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-scamp-id') ?? ''));
+        const children = all.filter((id) => id !== flex);
+        expect(children).toHaveLength(3);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        return { flex, children: orderInTsx(tsx, children) };
+    };
+    /** Press, twitch one pixel, release — a click as a trackpad delivers it. */
+    const clickWithJitter = async (window, className) => {
+        const box = await canvasElement(window, className).boundingBox();
+        if (!box)
+            throw new Error(`no bounding box for ${className}`);
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x + 1, y + 1);
+        await window.mouse.up();
+    };
+    test('clicking the first flex child leaves the sibling order alone', async ({ window, project, }) => {
+        const { children } = await seedFlexRow(window, project);
+        await selectTool(window, 'v');
+        await clickWithJitter(window, children[0]);
+        await waitForSaved(window);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        // Before the fix this read [second, third, first] — the append
+        // fallback sent the clicked child to the end of the parent.
+        expect(orderInTsx(tsx, children)).toEqual(children);
+    });
+    test('clicking the last flex child keeps it inside the parent', async ({ window, project, }) => {
+        const { flex, children } = await seedFlexRow(window, project);
+        await selectTool(window, 'v');
+        await clickWithJitter(window, children[2]);
+        await waitForSaved(window);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        // The trailing child sits in its container's trailing edge band, so
+        // this is the click that used to escape the flex parent entirely.
+        for (const child of children)
+            expectNestedInTsx(tsx, flex, child);
+        expect(orderInTsx(tsx, children)).toEqual(children);
+    });
+    test('a deliberate drag past the slop still reorders', async ({ window, project, }) => {
+        const { children } = await seedFlexRow(window, project);
+        const target = await canvasElement(window, children[0]).boundingBox();
+        const dragged = await canvasElement(window, children[2]).boundingBox();
+        if (!target || !dragged)
+            throw new Error('missing boxes');
+        // The gate must not have cost us the feature it protects.
+        await selectTool(window, 'v');
+        await window.mouse.move(dragged.x + dragged.width / 2, dragged.y + dragged.height / 2);
+        await window.mouse.down();
+        await window.mouse.move(target.x + 2, target.y + target.height / 2, {
+            steps: 12,
+        });
+        await window.mouse.up();
+        await waitForSaved(window);
+        const { tsx } = await readPageFiles(project.dir, project.pageName);
+        expect(orderInTsx(tsx, children)[0]).toBe(children[2]);
+    });
+});

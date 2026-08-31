@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
 import { useAppLogStore } from '@store/appLogSlice';
+import { hasLeftClickSlop } from './constants';
 import { commitReparentDrop, resolveReparentDrop, slotDropCreatesCycle, } from './reparentDrop';
 /**
  * Move state machine for absolutely-positioned elements. A history
@@ -20,6 +21,13 @@ import { commitReparentDrop, resolveReparentDrop, slotDropCreatesCycle, } from '
 export const useMoveInteraction = (geometry, scale) => {
     const [move, setMove] = useState(null);
     const [crossDrop, setCrossDrop] = useState(null);
+    /**
+     * Latched once the pointer leaves the click slop. Gates only the
+     * REPARENT half of the gesture: a click's jitter must never lift an
+     * element into another container, but sub-threshold positional nudges
+     * stay available for precise placement.
+     */
+    const armedForReparent = useRef(false);
     const elements = useCanvasStore((s) => s.elements);
     const moveElement = useCanvasStore((s) => s.moveElement);
     const reorderElement = useCanvasStore((s) => s.reorderElement);
@@ -38,6 +46,7 @@ export const useMoveInteraction = (geometry, scale) => {
         // reparent can keep the element under the cursor on drop.
         const elRect = geometry.measureElementInFrame(id);
         const cursor = geometry.toFrame(e.clientX, e.clientY);
+        armedForReparent.current = false;
         setMove({
             id,
             pointerStartX: e.clientX,
@@ -67,10 +76,20 @@ export const useMoveInteraction = (geometry, scale) => {
         moveElement(move.id, Math.round(clampedX), Math.round(clampedY));
         // Resolve a reparent target under the cursor (different container).
         // Absolute elements don't reorder, so siblings are valid targets.
-        setCrossDrop(resolveReparentDrop(el, { dx: move.grabDX, dy: move.grabDY }, e.clientX, e.clientY, geometry, elements));
+        //
+        // Gated on the click slop: a click inside the container's edge band
+        // would otherwise retarget one level up and lift the element out on
+        // release. see docs/notes/click-vs-drag-slop.md
+        if (!armedForReparent.current) {
+            armedForReparent.current = hasLeftClickSlop(move.pointerStartX, move.pointerStartY, e.clientX, e.clientY);
+        }
+        setCrossDrop(armedForReparent.current
+            ? resolveReparentDrop(el, { dx: move.grabDX, dy: move.grabDY }, e.clientX, e.clientY, geometry, elements)
+            : null);
         return true;
     };
     const onEnd = () => {
+        armedForReparent.current = false;
         if (move) {
             // Refuse a slot drop that would create a component cycle (only
             // reachable while editing a component). The element keeps the
@@ -108,6 +127,7 @@ export const useMoveInteraction = (geometry, scale) => {
         setCrossDrop(null);
     };
     const cancel = () => {
+        armedForReparent.current = false;
         if (move) {
             // Put the element back where the drag started, then close the
             // transaction without an entry — an abandoned gesture shouldn't

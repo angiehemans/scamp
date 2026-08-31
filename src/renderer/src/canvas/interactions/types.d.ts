@@ -48,6 +48,9 @@ export type ResizeState = {
 export type ReorderState = {
     id: string;
     parentId: string;
+    /** Pointer position at grab time, for the click-slop gate. */
+    pointerStartX: number;
+    pointerStartY: number;
     /**
      * Frame-local offset of the cursor within the dragged child at grab
      * time — used to place the element under the cursor if it's dropped
