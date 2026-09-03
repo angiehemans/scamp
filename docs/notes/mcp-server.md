@@ -95,7 +95,7 @@ extension-provider API, and `.vscode/mcp.json` permits comments our merge
 can't preserve) and Codex (TOML; project-level support unconfirmed). Both are
 additive — the terminal copy button covers them meanwhile.
 
-## Approval
+## Approval, and the declined case
 
 A project-scoped server reports `⏸ Pending approval` in Claude Code and **does
 not connect** until approved in an interactive session. Not a dialog that
@@ -104,6 +104,46 @@ appears while you work — a state it sits in.
 Claude Code has settings that could auto-enable it. **Don't.** That's
 bypassing a trust control on the user's behalf. The `McpStatusPill` says
 approval may be needed instead.
+
+The failure mode this produced in practice: the user dismissed the prompt,
+Claude Code wrote `{"disabledMcpjsonServers": ["scamp"]}` to
+`.claude/settings.local.json`, and from then on never attempted the
+connection — while Scamp's pill stayed green because the *server* was fine.
+The agent reported "no scamp tools" and the user had no way to tell whose
+fault it was.
+
+So the pill now has three states, driven by two new fields on
+`McpStatusResult`:
+
+| State | Signal | Dot |
+|---|---|---|
+| `waiting` | server up, `agentConnected: false` | grey |
+| `connected` | `server.ts` saw a request that passed the token check (`onAuthenticatedRequest`) | green |
+| `disabled` | `detectDisabledAgents` found our key in `disabledMcpjsonServers` | amber |
+
+Detection is read fresh on every poll (4s) so it clears the moment the user
+runs `claude mcp reset-project-choices` — which is what the copy button
+hands over in the disabled state. We still don't write
+`enabledMcpjsonServers` ourselves; surfacing the state is the line.
+
+## Guidance the server itself carries
+
+Two things reach an agent that never opened `agent.md`:
+
+- **`instructions` on `initialize`** (`SERVER_INSTRUCTIONS` in `protocol.ts`).
+  Clients surface it to the model on connect. It carries the one fact that
+  got missed in practice — reusable UI is `components/<Name>/`, not a page
+  of examples — and tells the agent not to `next build` to verify.
+- **`scamp_get_component_scaffold`**, the only tool answered in main
+  without a renderer round trip. It returns the same starter files
+  `component:create` writes (`src/main/ipc/componentScaffold.ts` is the
+  single source), so an agent gets a byte-exact template rather than a
+  guess. Still read-only: the agent writes the files, as with everything
+  else.
+
+The Next.js `agent.md` template gained a matching "Scamp components"
+section; the old "Component conventions" heading — which was about *page*
+components and caused the word collision — is now "Page conventions".
 
 ## Gotchas
 

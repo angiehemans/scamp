@@ -27,6 +27,7 @@
     "src/shared/**/*",
     "test/**/*",
     "src/main/ipc/componentOps.ts",
+    "src/main/ipc/componentScaffold.ts",
     "src/main/ipc/contextOps.ts",
     "src/main/ipc/htmlExportOps.ts",
     "src/main/auth/desktopAuthFlow.ts",

@@ -329,3 +329,40 @@ describe('mcp.json', () => {
         expect(await readMcpConfig(join(dir, 'nope'))).toBeNull();
     });
 });
+describe('onAuthenticatedRequest', () => {
+    it('fires only for requests that passed the token check', async () => {
+        let seen = 0;
+        const server = await startMcpServer({
+            token: TOKEN,
+            port: (nextPort += 1),
+            onAuthenticatedRequest: () => {
+                seen += 1;
+            },
+            deps: {
+                tools: TOOL_DESCRIPTORS,
+                invoke: createToolInvoker(async () => ({ ok: true })),
+            },
+        });
+        try {
+            const ping = { jsonrpc: '2.0', id: 1, method: 'ping' };
+            const headers = { 'content-type': 'application/json' };
+            await fetch(server.url, { method: 'POST', headers, body: JSON.stringify(ping) });
+            expect(seen).toBe(0); // no token — an agent has NOT connected
+            await fetch(server.url, {
+                method: 'POST',
+                headers: { ...headers, 'x-scamp-token': 'wrong' },
+                body: JSON.stringify(ping),
+            });
+            expect(seen).toBe(0);
+            await fetch(server.url, {
+                method: 'POST',
+                headers: { ...headers, 'x-scamp-token': TOKEN },
+                body: JSON.stringify(ping),
+            });
+            expect(seen).toBe(1);
+        }
+        finally {
+            await server.close();
+        }
+    });
+});

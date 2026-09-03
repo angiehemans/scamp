@@ -26,6 +26,9 @@ const MAX_BODY_BYTES = 1_000_000;
 export type McpServerOptions = {
   deps: ProtocolDeps;
   token: string;
+  /** Fires on every request that passed the token check — the signal
+   *  that an agent is actually talking to us, not just that we're up. */
+  onAuthenticatedRequest?: () => void;
   /** Defaults to `DEFAULT_MCP_PORT`; the scan starts here. */
   port?: number;
   host?: string;
@@ -110,6 +113,7 @@ export const createRequestHandler =
       sendJson(res, 401, { error: 'missing or invalid token' });
       return;
     }
+    options.onAuthenticatedRequest?.();
 
     // We offer no server-initiated stream. Phase 0 watched real Claude Code
     // issue this GET, take the 405, and carry on — 404 would be wrong.

@@ -100,7 +100,7 @@ test.describe('MCP server, live', () => {
     expect(gitignore).toContain('.mcp.json');
   });
 
-  test('completes the handshake and lists all eight tools', async ({
+  test('completes the handshake, carries instructions, and lists every tool', async ({
     window,
     project,
   }) => {
@@ -112,12 +112,15 @@ test.describe('MCP server, live', () => {
       capabilities: { tools: {} },
       serverInfo: { name: 'scamp' },
     });
+    // The server-carried guidance — reaches an agent that skipped agent.md.
+    expect((init['result'] as { instructions: string }).instructions).toContain('components/');
 
     const list = await rpc(config, 'tools/list');
     const tools = (list['result'] as { tools: Array<{ name: string }> }).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       'scamp_get_active_page',
       'scamp_get_canvas_state',
+      'scamp_get_component_scaffold',
       'scamp_get_element_by_id',
       'scamp_get_element_tree',
       'scamp_get_selected_element',
@@ -225,11 +228,20 @@ test.describe('MCP server, live', () => {
     expect(res.status).toBe(403);
   });
 
-  test('surfaces its status in the terminal panel', async ({ window }) => {
+  test('surfaces its status in the terminal panel, and whether an agent has connected', async ({
+    window,
+    project,
+  }) => {
     await expect(pageRoot(window)).toBeVisible();
     await window.keyboard.press('ControlOrMeta+`');
     const pill = window.locator('[data-testid="mcp-status"]');
     await expect(pill).toBeVisible();
     await expect(pill).toHaveAttribute('data-running', 'true');
+
+    // One authenticated request is what turns "listening" into
+    // "connected". The pill polls, so allow it a couple of cycles.
+    const config = await readConfig(project.dir);
+    await rpc(config, 'ping');
+    await expect(pill).toHaveAttribute('data-agent', 'connected', { timeout: 10_000 });
   });
 });

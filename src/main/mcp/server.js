@@ -86,6 +86,7 @@ export const createRequestHandler = (options) => async (req, res) => {
         sendJson(res, 401, { error: 'missing or invalid token' });
         return;
     }
+    options.onAuthenticatedRequest?.();
     // We offer no server-initiated stream. Phase 0 watched real Claude Code
     // issue this GET, take the 405, and carry on — 404 would be wrong.
     if (req.method === 'GET' || req.method === 'DELETE') {

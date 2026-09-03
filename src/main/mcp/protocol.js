@@ -25,6 +25,19 @@ export const SUPPORTED_PROTOCOL_VERSIONS = [
 ];
 export const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
 export const SERVER_INFO = { name: 'scamp', version: '1.0.0' };
+/**
+ * Sent back on `initialize`. Clients surface this to the model, so it
+ * reaches an agent that never read `agent.md`. It carries the one fact
+ * that gets missed most — reusable UI belongs in `components/`, not on
+ * a page — and points at where the full rules live.
+ */
+export const SERVER_INSTRUCTIONS = [
+    'Scamp is a design tool that renders this project\'s TSX + CSS Module files live on a canvas.',
+    'Reusable UI belongs in Scamp components — `components/<Name>/<Name>.tsx` + `<Name>.module.css` — not on a page of examples.',
+    'When the user asks for components, a kit, or a library, create component folders; call scamp_get_component_scaffold for the exact starter files.',
+    'Do not run `next build`, `next dev`, or install packages to verify your work: Scamp renders files as you save them, and scamp_get_element_tree confirms they parsed.',
+    'Full rules, including the component file format, are in agent.md at the project root.',
+].join(' ');
 export const textResult = (text) => ({
     content: [{ type: 'text', text }],
 });
@@ -93,6 +106,7 @@ export const dispatch = async (msg, deps) => {
                 protocolVersion: negotiateVersion(asRecord(params)['protocolVersion']),
                 capabilities: { tools: {} },
                 serverInfo: SERVER_INFO,
+                instructions: SERVER_INSTRUCTIONS,
             });
         case 'ping':
             return success(id, {});

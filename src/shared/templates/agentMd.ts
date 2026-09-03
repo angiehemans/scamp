@@ -1163,6 +1163,13 @@ Scamp without any reorganisation.
 - Anything Scamp doesn't model in its UI controls
   (\`transform\`, \`backdrop-filter\`, \`@keyframes\`, comments, etc.)
   round-trips through your file unchanged and renders on the canvas.
+- **Reusable UI goes in \`components/<Name>/\`, not on a page.** When
+  the user asks for components, a kit, or a library, create component
+  folders — see "Scamp components". A page of examples is not a
+  component library.
+- Don't run \`next build\`, \`next dev\`, or install packages to verify
+  your work. Scamp renders files as you save them; use
+  \`scamp_get_element_tree\` to confirm they parsed.
 
 ## What Scamp does and doesn't touch
 
@@ -1235,6 +1242,8 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_get_element_tree\` — structure only; cheap, start here
 - \`scamp_get_active_page\` — which page or component is open
 - \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_get_component_scaffold\` — the exact starter files for a new
+  component; call it before creating one
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
   or typography value so you use a token instead of a literal
 - \`scamp_get_canvas_state\` — everything at once; large, and capped
@@ -1403,6 +1412,9 @@ This is a Next.js App Router project:
 - **Root / Home page**: \`app/page.tsx\` and \`app/page.module.css\`.
 - **Additional pages**: \`app/[page-name]/page.tsx\` and
   \`app/[page-name]/page.module.css\` (one folder per page).
+- **Components**: \`components/[Name]/[Name].tsx\` and
+  \`components/[Name]/[Name].module.css\` (one folder per reusable
+  component — see "Scamp components").
 - **Shared root layout**: \`app/layout.tsx\` — do not modify. The
   auto-generated layout sets \`<body style={{ margin: 0, minHeight:
   '100vh' }}>\` so the design isn't pushed off-axis by the browser's
@@ -1421,7 +1433,7 @@ Do not move, rename, or restructure these files.
 Each page exports a single default React component.
 All styles live in the co-located CSS Modules file.
 
-## Component conventions
+## Page conventions
 - Each page exports a single default React component.
 - The root element uses \`styles.root\` and \`data-scamp-id="root"\`.
 - Every other element needs both:
@@ -1461,6 +1473,128 @@ When creating new elements, prefer descriptive names:
 | \`rect_g7h8\`       | \`nav_links_g7h8\`       |
 
 - Do not add inline styles — all styles live in the CSS module.
+
+## Scamp components (reusable UI)
+
+A Scamp component is a folder under \`components/\` that any page can
+drop an instance of. Edit it once and every instance updates. This is
+what the user means by "components", "a kit", "a library", or
+"reusable" — **make component folders, not a page full of examples.**
+A page named \`components\` is not a component library: Scamp won't
+list it in the Components sidebar and nothing can reuse what's on it.
+
+Create one whenever a piece of UI will appear on more than one page,
+or whenever the user asks for one. Scamp picks the folder up the
+moment the files land — no registration, no \`scamp.config.json\` edit.
+
+### Files
+
+\`\`\`
+components/
+└── Card/
+    ├── Card.tsx
+    └── Card.module.css
+\`\`\`
+
+The name is PascalCase letters and digits only (\`Card\`, \`HeroCard\`,
+\`Button2\`). It is the folder, the file, the function, and the JSX tag,
+so it must be a valid identifier — no hyphens, no underscores.
+
+A blank component is exactly this (\`scamp_get_component_scaffold\`
+returns it for any name):
+
+\`\`\`tsx
+import styles from './Card.module.css';
+
+type CardProps = {
+  className?: string;
+};
+
+export default function Card({ className }: CardProps) {
+  return (
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
+  );
+}
+\`\`\`
+
+\`\`\`css
+.root {
+  width: 100%;
+  position: relative;
+}
+\`\`\`
+
+Inside, everything works as on a page: the root is \`data-scamp-id="root"\`
+with the \`className\` passthrough shown above, every other element has
+a matching \`data-scamp-id\` / \`className\` pair with a hex suffix, and
+all styles live in the module. Ids only need to be unique within the
+component. Never give a component root \`min-height: 100vh\` — it is
+embedded in a page, not a page.
+
+### Text props
+
+A text element whose content should vary per instance becomes a prop.
+Declare it as \`?: string\`, default it in the destructure, and reference
+it in place of the literal:
+
+\`\`\`tsx
+type ButtonProps = {
+  label?: string;
+  className?: string;
+};
+
+export default function Button({ label = "Get started", className }: ButtonProps) {
+  return (
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`}>
+      <span data-scamp-id="label_1a2b" className={styles.label_1a2b}>{label}</span>
+    </div>
+  );
+}
+\`\`\`
+
+Text that should never vary between instances stays a literal.
+
+### Slots
+
+To let a page pass whole elements in, add a \`React.ReactNode\` prop and
+render it inside an otherwise-empty container. The default slot is
+\`children\`; a named slot is any other name:
+
+\`\`\`tsx
+type CardProps = {
+  children?: React.ReactNode;
+  header?: React.ReactNode;
+  className?: string;
+};
+…
+<div data-scamp-id="body_3c4d" className={styles.body_3c4d}>{children}</div>
+\`\`\`
+
+A slot container has no children of its own.
+
+### Instancing on a page
+
+Import the component (after the \`styles\` import; component imports
+sorted alphabetically) and place a self-closing tag carrying
+\`data-scamp-instance-id\`. The id is \`inst_\` plus a hex suffix, and prop
+overrides are plain JSX attributes:
+
+\`\`\`tsx
+import styles from './page.module.css';
+import Card from '@/components/Card/Card';
+
+…
+<Card data-scamp-instance-id="inst_a1b2" title="Pricing" />
+\`\`\`
+
+The page may size an instance — \`className={styles.inst_a1b2}\` with a
+matching block holding width / height / margin only — and nothing
+else. Never style a component's internals from a page; edit the
+component. Default-slot content goes between the tags; named slots are
+passed as \`header={<…/>}\`.
+
+Showcase pages are welcome *in addition* — build them out of instances
+so the showcase and the real site share one source.
 
 ## HTML tags
 Use semantic HTML. Scamp captures the actual tag name and renders it

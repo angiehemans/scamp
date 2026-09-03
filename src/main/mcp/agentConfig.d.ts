@@ -100,3 +100,21 @@ export declare const writeAgentConfigs: (args: {
     url: string;
     token: string;
 }) => Promise<WriteReport>;
+/** Where Claude Code records the user's answer to its `.mcp.json` prompt. */
+export declare const CLAUDE_CODE_LOCAL_SETTINGS = ".claude/settings.local.json";
+/**
+ * True when a Claude Code local-settings file lists our server as
+ * disabled — what it writes when the user declines (or dismisses) the
+ * "use MCP servers from .mcp.json?" prompt. From then on it never tries
+ * to connect, while Scamp's own indicator still says "running".
+ *
+ * Pure. Anything unparseable reads as "not disabled": a broken settings
+ * file is not evidence of a decision.
+ */
+export declare const claudeCodeDisablesServer: (content: string | null) => boolean;
+/**
+ * Labels of installed agents whose own config refuses this project's
+ * server. Read fresh on every status poll so the indicator clears the
+ * moment the user resets the choice.
+ */
+export declare const detectDisabledAgents: (projectPath: string) => Promise<string[]>;

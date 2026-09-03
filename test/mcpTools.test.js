@@ -8,7 +8,7 @@ import { createToolInvoker, TOOL_DESCRIPTORS, TOOL_NAMES } from '../src/main/mcp
  */
 const invoker = (data = { ok: true }) => createToolInvoker(async () => data);
 describe('TOOL_DESCRIPTORS', () => {
-    it('exposes the eight tools from the brief', () => {
+    it('exposes the eight canvas tools from the brief plus the component scaffold', () => {
         expect(TOOL_NAMES).toEqual([
             'scamp_get_active_page',
             'scamp_get_selected_element',
@@ -17,6 +17,7 @@ describe('TOOL_DESCRIPTORS', () => {
             'scamp_get_canvas_state',
             'scamp_list_pages',
             'scamp_list_components',
+            'scamp_get_component_scaffold',
             'scamp_get_theme_tokens',
         ]);
     });
@@ -32,14 +33,30 @@ describe('TOOL_DESCRIPTORS', () => {
             expect(tool.description.length).toBeGreaterThan(40);
         }
     });
-    it('requires an id on get_element_by_id and nothing else', () => {
+    it('requires an id on get_element_by_id, a name on get_component_scaffold, and nothing else', () => {
         const byId = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_element_by_id');
         expect(byId?.inputSchema['required']).toEqual(['id']);
+        const scaffold = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_component_scaffold');
+        expect(scaffold?.inputSchema['required']).toEqual(['name']);
         for (const tool of TOOL_DESCRIPTORS) {
             if (tool.name === 'scamp_get_element_by_id')
                 continue;
+            if (tool.name === 'scamp_get_component_scaffold')
+                continue;
             expect(tool.inputSchema['required']).toBeUndefined();
         }
+    });
+    it('tells the agent to create components when list_components comes back empty', () => {
+        // The observed failure: asked for "components", an agent built pages
+        // of examples because nothing said the folder format existed.
+        const tool = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_list_components');
+        expect(tool?.description).toContain('scamp_get_component_scaffold');
+        expect(tool?.description.toLowerCase()).toContain('create');
+    });
+    it('steers get_component_scaffold away from a page of examples', () => {
+        const tool = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_component_scaffold');
+        expect(tool?.description).toContain('components/');
+        expect(tool?.description.toLowerCase()).toContain('rather than a page');
     });
     it('does not advertise variants on list_components', () => {
         // Variants aren't on main; promising the field would mislead the agent.
@@ -119,5 +136,38 @@ describe('createToolInvoker', () => {
         const out = await invoker([])('scamp_list_components', {});
         expect(out.isError).toBeUndefined();
         expect(out.content[0]?.text).toBe('[]');
+    });
+    describe('scamp_get_component_scaffold', () => {
+        it('answers without a canvas round trip', async () => {
+            const run = vi.fn(async () => null);
+            const out = await createToolInvoker(run)('scamp_get_component_scaffold', {
+                name: 'HeroCard',
+            });
+            expect(run).not.toHaveBeenCalled();
+            expect(out.isError).toBeUndefined();
+        });
+        it('returns both files at their project-relative paths, CSS first', async () => {
+            const out = await invoker()('scamp_get_component_scaffold', { name: 'HeroCard' });
+            const parsed = JSON.parse(out.content[0]?.text ?? '');
+            expect(parsed.name).toBe('HeroCard');
+            expect(parsed.files.map((f) => f.path)).toEqual([
+                'components/HeroCard/HeroCard.module.css',
+                'components/HeroCard/HeroCard.tsx',
+            ]);
+            expect(parsed.files[1]?.content).toContain('export default function HeroCard(');
+            expect(parsed.files[1]?.content).toContain('data-scamp-id="root"');
+            expect(parsed.files[0]?.content).toContain('.root {');
+        });
+        it('rejects a name that is not PascalCase letters and digits', async () => {
+            for (const name of ['hero-card', 'hero_card', 'heroCard', '', '1Card']) {
+                const out = await invoker()('scamp_get_component_scaffold', { name });
+                expect(out.isError, name).toBe(true);
+                expect(out.content[0]?.text).toContain('PascalCase');
+            }
+        });
+        it('rejects a missing or non-string name', async () => {
+            expect((await invoker()('scamp_get_component_scaffold', {})).isError).toBe(true);
+            expect((await invoker()('scamp_get_component_scaffold', { name: 42 })).isError).toBe(true);
+        });
     });
 });

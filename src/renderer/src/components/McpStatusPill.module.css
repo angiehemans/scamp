@@ -20,6 +20,16 @@
   flex: none;
 }
 
+/* Up, but nobody has called yet — deliberately quieter than green. */
+.dot[data-state='waiting'] {
+  background: var(--text-secondary);
+}
+
+/* An agent declined the server; it will not connect until reset. */
+.dot[data-state='disabled'] {
+  background: var(--status-warn);
+}
+
 .label {
   letter-spacing: 0.03em;
 }

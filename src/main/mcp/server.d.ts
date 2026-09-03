@@ -18,6 +18,9 @@ export declare const PORT_SCAN_RANGE = 10;
 export type McpServerOptions = {
     deps: ProtocolDeps;
     token: string;
+    /** Fires on every request that passed the token check — the signal
+     *  that an agent is actually talking to us, not just that we're up. */
+    onAuthenticatedRequest?: () => void;
     /** Defaults to `DEFAULT_MCP_PORT`; the scan starts here. */
     port?: number;
     host?: string;

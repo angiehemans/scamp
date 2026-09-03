@@ -47,6 +47,17 @@ In Claude Code it shows as **⏸ Pending approval** until you run
 This is a security prompt, not a bug — it's you consenting to a local
 server reading your project. Scamp deliberately doesn't bypass it.
 
+**If you decline or dismiss that prompt**, Claude Code remembers the
+answer in `.claude/settings.local.json` and never asks again — your
+agent simply has no `scamp_*` tools, with nothing to say why. Scamp
+spots this and turns its MCP indicator amber (see [Is It
+Working?](#is-it-working)). To get the prompt back, run this in the
+project folder, then restart `claude` and approve:
+
+```bash
+claude mcp reset-project-choices
+```
+
 ### What the agent can ask
 
 | Tool | Answers |
@@ -57,6 +68,7 @@ server reading your project. Scamp deliberately doesn't bypass it.
 | `scamp_get_active_page` | Which page or component is open, and its file paths |
 | `scamp_list_pages` | Every page in the project |
 | `scamp_list_components` | Every [component](components.md) and its files |
+| `scamp_get_component_scaffold` | The exact starter files for a new [component](components.md), so the agent creates real components instead of a page of examples |
 | `scamp_get_theme_tokens` | Your [design tokens](design-tokens.md), so the agent uses a token instead of a raw hex |
 | `scamp_get_canvas_state` | A broad snapshot — large, and capped |
 
@@ -119,12 +131,21 @@ useful when you're asking about the whole layout.
 ## Is It Working?
 
 Open the [Terminal](terminal.md) panel. When the server is running you'll
-see an **MCP** indicator in the panel header with a green dot. Its
-tooltip lists which agent configs Scamp registered.
+see an **MCP** indicator in the panel header. The dot tells you more
+than "running":
+
+| Dot | Meaning | What to do |
+|---|---|---|
+| **Grey** | Running, but no agent has connected yet | Nothing, if you haven't started one. If your agent is open and has no `scamp_*` tools, approve the server there. |
+| **Green** | An agent has connected this session | Nothing — it's working. |
+| **Amber** | An agent has this server *disabled* for this project (you declined its prompt) | Click the copy button — it now copies `claude mcp reset-project-choices`. Run it in the project folder, restart the agent, approve. |
+
+The tooltip spells out the current state and lists which agent
+configs Scamp registered. The copy button gives you the connect
+command in the grey and green states, and the reset command in amber.
 
 If the indicator is absent, no project is open or the server didn't
-start. If it's present but your agent has no `scamp_*` tools, you
-most likely still need to approve the server in that agent.
+start.
 
 ## Related
 

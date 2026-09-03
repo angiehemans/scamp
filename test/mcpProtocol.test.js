@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RPC } from '../src/main/mcp/jsonRpc';
-import { dispatch, errorResult, handlePayload, LATEST_PROTOCOL_VERSION, negotiateVersion, SERVER_INFO, SUPPORTED_PROTOCOL_VERSIONS, textResult, } from '../src/main/mcp/protocol';
+import { dispatch, errorResult, handlePayload, LATEST_PROTOCOL_VERSION, negotiateVersion, SERVER_INFO, SERVER_INSTRUCTIONS, SUPPORTED_PROTOCOL_VERSIONS, textResult, } from '../src/main/mcp/protocol';
 /**
  * MCP semantics. Several cases here exist because Phase 0 watched a real
  * Claude Code client do the thing — they are regression tests for observed
@@ -47,6 +47,17 @@ describe('initialize', () => {
                 serverInfo: SERVER_INFO,
             },
         });
+    });
+    it('sends instructions that reach an agent which never read agent.md', async () => {
+        // The one fact that got missed in practice: reusable UI is a folder
+        // under components/, not a page. Clients surface this string to the
+        // model on connect, so it works even when agent.md was skipped.
+        const out = await dispatch(req('initialize'), deps());
+        expect(out).toMatchObject({ result: { instructions: SERVER_INSTRUCTIONS } });
+        expect(SERVER_INSTRUCTIONS).toContain('components/<Name>/<Name>.tsx');
+        expect(SERVER_INSTRUCTIONS).toContain('scamp_get_component_scaffold');
+        expect(SERVER_INSTRUCTIONS).toContain('agent.md');
+        expect(SERVER_INSTRUCTIONS).toMatch(/next build/);
     });
     it('identifies the server as scamp so a misdirected client can tell', async () => {
         // The fixed port can in principle be taken by something else; serverInfo

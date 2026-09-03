@@ -55,6 +55,20 @@ Click **+ Add component** at the bottom of the Components list.
 Type a name. Scamp scaffolds an empty component and opens the
 component editor so you can start designing.
 
+### From an agent
+
+An [AI agent](ai-agents.md) working in your project can create
+components too — it writes the same two files, and Scamp lists the
+component the moment they appear. The agent's instructions (`agent.md`)
+explain the format, and the MCP server's `scamp_get_component_scaffold`
+tool hands it the exact starter files for any name.
+
+If an agent builds you a page full of "components" instead of real
+component folders, say so — *"make these Scamp components, not a
+page"* — and check that the Scamp MCP server is connected (see [Is It
+Working?](ai-agents.md#is-it-working)); without it, the agent has
+less telling it the format exists.
+
 ## The Component Editor
 
 Double-click a component in the sidebar — or double-click any

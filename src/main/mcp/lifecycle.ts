@@ -9,7 +9,7 @@ import type {
   McpStatusResult,
 } from '@shared/types';
 
-import { writeAgentConfigs } from './agentConfig';
+import { detectDisabledAgents, writeAgentConfigs } from './agentConfig';
 import { ensureToken, markMcpStopped, writeMcpConfig } from './mcpOps';
 import { createQueryRegistry, type QueryRegistry } from './pendingQueries';
 import { startMcpServer, type RunningMcpServer } from './server';
@@ -31,6 +31,7 @@ let running: RunningMcpServer | null = null;
 let activeProject: string | null = null;
 let activeToken: string | null = null;
 let registered: string[] = [];
+let agentSeen = false;
 
 /** Register the reply listener once, at app start. */
 export const initMcp = (win: BrowserWindow): void => {
@@ -40,7 +41,7 @@ export const initMcp = (win: BrowserWindow): void => {
     registry?.resolve(result);
   });
   ipcMain.removeHandler(IPC.McpStatus);
-  ipcMain.handle(IPC.McpStatus, (): McpStatusResult => mcpStatus());
+  ipcMain.handle(IPC.McpStatus, (): Promise<McpStatusResult> => mcpStatus());
 };
 
 const send = (payload: McpQueryArgs): void => {
@@ -65,8 +66,12 @@ export const startMcpForProject = async (projectPath: string): Promise<void> => 
   try {
     const token = await ensureToken(projectPath);
     registry = createQueryRegistry({ send });
+    agentSeen = false;
     running = await startMcpServer({
       token,
+      onAuthenticatedRequest: () => {
+        agentSeen = true;
+      },
       deps: {
         tools: TOOL_DESCRIPTORS,
         invoke: createToolInvoker((tool, args) =>
@@ -121,13 +126,16 @@ export const stopMcp = async (): Promise<void> => {
   activeProject = null;
   activeToken = null;
   registered = [];
+  agentSeen = false;
   if (project !== null) await markMcpStopped(project);
 };
 
 /** Drives the terminal indicator. */
-export const mcpStatus = (): McpStatusResult => ({
+export const mcpStatus = async (): Promise<McpStatusResult> => ({
   running: running !== null,
   url: running?.url ?? null,
   token: activeToken,
   registered: [...registered],
+  agentConnected: agentSeen,
+  disabledIn: activeProject === null ? [] : await detectDisabledAgents(activeProject),
 });

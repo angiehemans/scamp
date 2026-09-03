@@ -546,6 +546,12 @@ export type McpStatusResult = {
     token: string | null;
     /** Agent config files Scamp registered this session. */
     registered: ReadonlyArray<string>;
+    /** An agent has sent at least one authenticated request this session —
+     *  the difference between "we're listening" and "someone's talking". */
+    agentConnected: boolean;
+    /** Agents whose own config disables this server for the project: the
+     *  user declined a prompt there, and it won't connect until reset. */
+    disabledIn: ReadonlyArray<string>;
 };
 export type McpQueryResultArgs = {
     requestId: string;

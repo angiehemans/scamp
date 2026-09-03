@@ -24,6 +24,13 @@ export declare const SERVER_INFO: {
     readonly name: "scamp";
     readonly version: "1.0.0";
 };
+/**
+ * Sent back on `initialize`. Clients surface this to the model, so it
+ * reaches an agent that never read `agent.md`. It carries the one fact
+ * that gets missed most — reusable UI belongs in `components/`, not on
+ * a page — and points at where the full rules live.
+ */
+export declare const SERVER_INSTRUCTIONS: string;
 export type ToolDescriptor = {
     name: string;
     description: string;

@@ -5,9 +5,15 @@ import {
   type ToolInvoker,
   type ToolResult,
 } from './protocol';
+import {
+  COMPONENT_NAME_RE,
+  DEFAULT_COMPONENT_CSS,
+  componentRelativePaths,
+  defaultComponentTsx,
+} from '../ipc/componentScaffold';
 
 /**
- * The eight canvas tools an agent can call.
+ * The canvas tools an agent can call.
  *
  * Descriptions are written FOR THE MODEL, not for a human reader — they are
  * the only thing telling it when a tool is the right one, so they say when to
@@ -17,7 +23,8 @@ import {
  * see docs/plans/mcp-server-plan.md
  */
 
-/** Every tool takes no arguments except `get_element_by_id`. */
+/** Every tool takes no arguments except `get_element_by_id` and
+ *  `get_component_scaffold`. */
 const NO_ARGS = {
   type: 'object',
   properties: {},
@@ -74,8 +81,24 @@ export const TOOL_DESCRIPTORS: ToolDescriptor[] = [
   {
     name: 'scamp_list_components',
     description:
-      'Every reusable component in the project with its project-relative file paths. Read the returned .tsx file for a component’s props and markup.',
+      'Every reusable Scamp component in the project (`components/<Name>/`) with its project-relative file paths. Read the returned .tsx file for a component’s props and markup. If this is empty and the user asks for components, a kit, or a library, create them — call scamp_get_component_scaffold for the starter files rather than building a page of examples.',
     inputSchema: { ...NO_ARGS },
+  },
+  {
+    name: 'scamp_get_component_scaffold',
+    description:
+      'The exact starter TSX and CSS module for a new Scamp component, plus the project-relative paths to write them to. Call this before creating a component: when the user asks for components, a kit, or a library, write these folders under components/ rather than a page of examples. Scamp lists the component the moment the files exist. The name must be PascalCase letters and digits, e.g. "HeroCard".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'PascalCase component name, e.g. "Card" or "HeroCard".',
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
   },
   {
     name: 'scamp_get_theme_tokens',
@@ -114,6 +137,29 @@ const format = (tool: string, data: unknown): ToolResult => {
   return textResult(JSON.stringify(data, null, 2));
 };
 
+const componentScaffoldResult = (name: unknown): ToolResult => {
+  if (typeof name !== 'string' || !COMPONENT_NAME_RE.test(name)) {
+    return errorResult(
+      'scamp_get_component_scaffold requires a PascalCase "name" of letters and digits only, e.g. "HeroCard".'
+    );
+  }
+  const paths = componentRelativePaths(name);
+  return textResult(
+    JSON.stringify(
+      {
+        name,
+        files: [
+          { path: paths.css, content: DEFAULT_COMPONENT_CSS },
+          { path: paths.tsx, content: defaultComponentTsx(name) },
+        ],
+        note: 'Write both files (CSS first). Scamp lists the component in its sidebar as soon as they exist; no registration is needed. Then add elements inside the root exactly as you would on a page.',
+      },
+      null,
+      2
+    )
+  );
+};
+
 /**
  * Build the invoker the protocol layer calls.
  *
@@ -138,6 +184,12 @@ export const createToolInvoker = (
           'scamp_get_element_by_id requires a non-empty string "id" argument.'
         );
       }
+    }
+
+    // Answered here, not by the renderer: the scaffold is a pure
+    // function of the name and needs no canvas state.
+    if (name === 'scamp_get_component_scaffold') {
+      return componentScaffoldResult(args['name']);
     }
 
     try {

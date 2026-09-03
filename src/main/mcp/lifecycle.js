@@ -2,7 +2,7 @@ import { homedir } from 'os';
 import { basename } from 'path';
 import { ipcMain } from 'electron';
 import { IPC } from '@shared/ipcChannels';
-import { writeAgentConfigs } from './agentConfig';
+import { detectDisabledAgents, writeAgentConfigs } from './agentConfig';
 import { ensureToken, markMcpStopped, writeMcpConfig } from './mcpOps';
 import { createQueryRegistry } from './pendingQueries';
 import { startMcpServer } from './server';
@@ -22,6 +22,7 @@ let running = null;
 let activeProject = null;
 let activeToken = null;
 let registered = [];
+let agentSeen = false;
 /** Register the reply listener once, at app start. */
 export const initMcp = (win) => {
     mainWindow = win;
@@ -53,8 +54,12 @@ export const startMcpForProject = async (projectPath) => {
     try {
         const token = await ensureToken(projectPath);
         registry = createQueryRegistry({ send });
+        agentSeen = false;
         running = await startMcpServer({
             token,
+            onAuthenticatedRequest: () => {
+                agentSeen = true;
+            },
             deps: {
                 tools: TOOL_DESCRIPTORS,
                 invoke: createToolInvoker((tool, args) => registry === null
@@ -105,13 +110,16 @@ export const stopMcp = async () => {
     activeProject = null;
     activeToken = null;
     registered = [];
+    agentSeen = false;
     if (project !== null)
         await markMcpStopped(project);
 };
 /** Drives the terminal indicator. */
-export const mcpStatus = () => ({
+export const mcpStatus = async () => ({
     running: running !== null,
     url: running?.url ?? null,
     token: activeToken,
     registered: [...registered],
+    agentConnected: agentSeen,
+    disabledIn: activeProject === null ? [] : await detectDisabledAgents(activeProject),
 });

@@ -165,11 +165,16 @@ test.describe('MCP server, live', () => {
         });
         expect(res.status).toBe(403);
     });
-    test('surfaces its status in the terminal panel', async ({ window }) => {
+    test('surfaces its status in the terminal panel, and whether an agent has connected', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await window.keyboard.press('ControlOrMeta+`');
         const pill = window.locator('[data-testid="mcp-status"]');
         await expect(pill).toBeVisible();
         await expect(pill).toHaveAttribute('data-running', 'true');
+        // One authenticated request is what turns "listening" into
+        // "connected". The pill polls, so allow it a couple of cycles.
+        const config = await readConfig(project.dir);
+        await rpc(config, 'ping');
+        await expect(pill).toHaveAttribute('data-agent', 'connected', { timeout: 10_000 });
     });
 });

@@ -12,4 +12,4 @@ export declare const initMcp: (win: BrowserWindow) => void;
 export declare const startMcpForProject: (projectPath: string) => Promise<void>;
 export declare const stopMcp: () => Promise<void>;
 /** Drives the terminal indicator. */
-export declare const mcpStatus: () => McpStatusResult;
+export declare const mcpStatus: () => Promise<McpStatusResult>;
