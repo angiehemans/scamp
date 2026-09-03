@@ -10,6 +10,7 @@ import * as path from 'path';
 import { promises as fs } from 'fs';
 
 import { dismissSentryPrompt, stubOpenDialog } from '../fixtures/app';
+import { OZONE_ARGS } from '../fixtures/launchArgs';
 
 /**
  * App-level settings live on the Start Screen, so this spec launches
@@ -36,7 +37,7 @@ const test = base.extend<AppFixtures>({
   },
   app: async ({ userDataDir }, use) => {
     const app = await electron.launch({
-      args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`],
+      args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`, ...OZONE_ARGS],
       env: {
         ...process.env,
         SCAMP_E2E: '1',

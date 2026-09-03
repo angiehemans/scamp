@@ -68,6 +68,7 @@
     "src/main/devServer/portAlloc.ts",
     "src/main/devServer/readyDetector.ts",
     "src/main/pendingWrites.ts",
-    "src/main/sentry.ts"
+    "src/main/sentry.ts",
+    "src/main/ozone.ts"
   ]
 }

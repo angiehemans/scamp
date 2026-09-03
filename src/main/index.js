@@ -35,6 +35,28 @@ import { installIdForConsent } from './installId';
 import { isOptedIn } from './ipc/settingsOps';
 import { buildApplicationMenu } from './menu';
 import { fixPathFromLoginShell } from './fixPath';
+import { resolveOzonePlatform } from './ozone';
+// Chromium picks its ozone backend before this script runs, so
+// `commandLine.appendSwitch` is too late — the flag has to be on the
+// real process command line. Relaunch once with it appended. The
+// relaunched process sees the flag in its own argv, so
+// `resolveOzonePlatform` returns null there and it never loops.
+//
+// Packaged only: under `npm run dev` electron-vite exits when this
+// process does, taking the Vite server with it, and Playwright
+// attaches to the process it spawned. Both pass the flag at launch
+// instead. see docs/notes/linux-wayland-ozone.md
+const ozonePlatform = resolveOzonePlatform({
+    platform: process.platform,
+    argv: process.argv,
+    override: process.env['SCAMP_OZONE_PLATFORM'],
+});
+if (ozonePlatform !== null && app.isPackaged) {
+    app.relaunch({
+        args: process.argv.slice(1).concat([`--ozone-platform=${ozonePlatform}`]),
+    });
+    app.exit(0);
+}
 const TEST_BOOTSTRAP = {
     e2e: process.env['SCAMP_E2E'] === '1',
     autoOpenProjectPath: process.env['SCAMP_E2E'] === '1'

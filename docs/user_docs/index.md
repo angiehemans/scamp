@@ -34,6 +34,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [DESIGN.md](design-md.md) — The auto-generated design document for AI agents
 - [Terminal](terminal.md) — The built-in terminal panel
 - [Settings](settings.md) — App and per-project configuration (projects folder, privacy, breakpoints, artboard, fonts)
+- [Linux](linux.md) — Wayland vs. XWayland, display scaling caveats, and Linux troubleshooting
 - [Accounts](accounts.md) — Optional sign-in, sessions, and where your sign-in is stored
 - [Undo, Redo, and History](undo-redo.md) — Keyboard shortcuts plus the visual History panel for per-page history navigation
 - [Snapshots](snapshots.md) — Durable point-in-time project backups, previewing, and restoring from the History panel

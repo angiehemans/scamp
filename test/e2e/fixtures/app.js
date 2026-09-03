@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { promises as fs } from 'fs';
 import { createTestProject, } from './project';
+import { OZONE_ARGS } from './launchArgs';
 /**
  * Replace `dialog.showOpenDialog` in the main process so the next call
  * resolves to `filePaths: [filePath]` without opening a native dialog.
@@ -119,7 +120,7 @@ export const test = base.extend({
     app: async ({ project }, use) => {
         const userDataDir = await makeUserDataDir();
         const app = await electron.launch({
-            args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`],
+            args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`, ...OZONE_ARGS],
             env: {
                 ...process.env,
                 SCAMP_E2E: '1',

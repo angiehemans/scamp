@@ -8,6 +8,7 @@ import {
   type CreateTestProjectOptions,
   type TestProject,
 } from './project';
+import { OZONE_ARGS } from './launchArgs';
 
 /**
  * Replace `dialog.showOpenDialog` in the main process so the next call
@@ -167,7 +168,7 @@ export const test = base.extend<ScampFixtures & ScampOptions>({
   app: async ({ project }, use) => {
     const userDataDir = await makeUserDataDir();
     const app = await electron.launch({
-      args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`],
+      args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`, ...OZONE_ARGS],
       env: {
         ...process.env,
         SCAMP_E2E: '1',
