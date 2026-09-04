@@ -15,7 +15,7 @@ describe('save status — pending writes tracker', () => {
         const tracker = createPendingWriteTracker((p) => sent.push(p), 400);
         tracker.register(TSX, 'write-1', true);
         const result = tracker.consume(TSX);
-        expect(result).toEqual({ suppressChanged: true });
+        expect(result).toEqual({ writeId: 'write-1', suppressChanged: true });
         expect(sent).toEqual([{ writeId: 'write-1', path: TSX }]);
         expect(tracker.size()).toBe(0);
     });
@@ -75,7 +75,9 @@ describe('save status — pending writes tracker', () => {
         const tracker = createPendingWriteTracker((p) => sent.push(p), 400);
         tracker.register(CSS, 'patch-1', false);
         const result = tracker.consume(CSS);
-        expect(result).toEqual({ suppressChanged: false });
+        // The writeId rides along so `emitChange` can tag the broadcast as
+        // Scamp's own write — the CSS panel's patch must not pause sync.
+        expect(result).toEqual({ writeId: 'patch-1', suppressChanged: false });
         expect(sent).toEqual([{ writeId: 'patch-1', path: CSS }]);
     });
     it('acks the earlier writeId when the same path re-registers, then acks the newer one on consume', () => {
