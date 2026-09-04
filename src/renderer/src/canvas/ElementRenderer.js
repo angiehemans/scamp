@@ -1,5 +1,5 @@
 import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
-import { createElement, useEffect, useRef, } from 'react';
+import { createElement, useEffect, useMemo, useRef, } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { instanceClassPrefix } from '@lib/generateHtml';
@@ -360,6 +360,21 @@ export const ElementRenderer = ({ elementId }) => {
             return undefined;
         return s.componentTrees[rawEl.componentName];
     });
+    // The component's elements, resolved at the ACTIVE breakpoint. The
+    // subtree used to render the definition's raw (desktop) fields, so an
+    // inner root got an inline `width: fit-content` that masked its own
+    // `@media` rule — the canvas showed the desktop size at Mobile while the
+    // preview filled. Same cascade the page's own elements go through.
+    // see docs/notes/components-data-model.md — "Instance wrapper sizing"
+    const resolvedComponentElements = useMemo(() => {
+        if (!componentTreeForInstance)
+            return undefined;
+        const out = {};
+        for (const [id, el] of Object.entries(componentTreeForInstance.elements)) {
+            out[id] = resolveElementAtBreakpoint(el, activeBreakpointId, breakpoints);
+        }
+        return out;
+    }, [componentTreeForInstance, activeBreakpointId, breakpoints]);
     const requestComponentNavigation = useCanvasStore((s) => s.requestComponentNavigation);
     // Phase 6: per-instance inline editing. The pair is non-null when
     // a prop-text inside SOME instance is in contentEditable mode.
@@ -479,8 +494,8 @@ export const ElementRenderer = ({ elementId }) => {
         // element in the same slot (main axis → `flex: 1`, cross axis → the
         // per-axis rule), so an instance and an equivalent stretch rectangle lay
         // out identically. see docs/notes/components-data-model.md
-        const instanceRoot = componentTreeForInstance
-            ? componentTreeForInstance.elements[componentTreeForInstance.rootId]
+        const instanceRoot = componentTreeForInstance && resolvedComponentElements
+            ? resolvedComponentElements[componentTreeForInstance.rootId]
             : undefined;
         const wrapperProps = {
             'data-element-id': element.id,
@@ -507,8 +522,25 @@ export const ElementRenderer = ({ elementId }) => {
                     fontFamily: 'var(--font-ui)',
                 }, children: ["Missing component: ", element.componentName ?? '(unnamed)'] }));
         }
-        const root = instanceRoot;
-        const isEmptyComponent = root !== undefined && isScaffoldRoot(root);
+        // The scaffold check reads the definition as written, not as resolved.
+        const rawRoot = componentTreeForInstance.elements[componentTreeForInstance.rootId];
+        const isEmptyComponent = rawRoot !== undefined && isScaffoldRoot(rawRoot);
+        // A page-sized axis: the generated CSS puts the page's size on the
+        // component ROOT (via the forwarded className, doubled selector). On
+        // the canvas that size is on the WRAPPER, so the root must fill the
+        // wrapper on that axis or it keeps hugging inside a box the page
+        // sized. Resolved instance fields, so a per-breakpoint size counts.
+        const root = instanceRoot
+            ? {
+                ...instanceRoot,
+                ...(element.widthMode !== 'auto'
+                    ? { widthMode: 'stretch', widthCustom: undefined }
+                    : {}),
+                ...(element.heightMode !== 'auto'
+                    ? { heightMode: 'stretch', heightCustom: undefined }
+                    : {}),
+            }
+            : undefined;
         // Only honour the edit target when it points at THIS instance.
         const editingPropForThis = editingInstanceProp && editingInstanceProp.instanceId === element.id
             ? editingInstanceProp.propName
@@ -560,8 +592,8 @@ export const ElementRenderer = ({ elementId }) => {
                 empty: false,
             };
         };
-        const inner = root
-            ? renderComponentSubtree(root, componentTreeForInstance.elements, 
+        const inner = root && resolvedComponentElements
+            ? renderComponentSubtree(root, resolvedComponentElements, 
             // Pass page-side layout context so flex/grid still applies.
             parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, classNameFor(element), editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected, renderSlot)
             : null;

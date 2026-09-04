@@ -6,6 +6,7 @@ import {
   PointerEvent,
   createElement,
   useEffect,
+  useMemo,
   useRef,
 } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
@@ -459,6 +460,20 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     if (!rawEl.componentName) return undefined;
     return s.componentTrees[rawEl.componentName];
   });
+  // The component's elements, resolved at the ACTIVE breakpoint. The
+  // subtree used to render the definition's raw (desktop) fields, so an
+  // inner root got an inline `width: fit-content` that masked its own
+  // `@media` rule — the canvas showed the desktop size at Mobile while the
+  // preview filled. Same cascade the page's own elements go through.
+  // see docs/notes/components-data-model.md — "Instance wrapper sizing"
+  const resolvedComponentElements = useMemo(() => {
+    if (!componentTreeForInstance) return undefined;
+    const out: Record<string, ScampElement> = {};
+    for (const [id, el] of Object.entries(componentTreeForInstance.elements)) {
+      out[id] = resolveElementAtBreakpoint(el, activeBreakpointId, breakpoints);
+    }
+    return out;
+  }, [componentTreeForInstance, activeBreakpointId, breakpoints]);
   const requestComponentNavigation = useCanvasStore(
     (s) => s.requestComponentNavigation
   );
@@ -601,9 +616,10 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     // element in the same slot (main axis → `flex: 1`, cross axis → the
     // per-axis rule), so an instance and an equivalent stretch rectangle lay
     // out identically. see docs/notes/components-data-model.md
-    const instanceRoot = componentTreeForInstance
-      ? componentTreeForInstance.elements[componentTreeForInstance.rootId]
-      : undefined;
+    const instanceRoot =
+      componentTreeForInstance && resolvedComponentElements
+        ? resolvedComponentElements[componentTreeForInstance.rootId]
+        : undefined;
     const wrapperProps = {
       'data-element-id': element.id,
       'data-scamp-instance-id': element.instanceId ?? '',
@@ -643,8 +659,25 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
         </div>
       );
     }
-    const root = instanceRoot;
-    const isEmptyComponent = root !== undefined && isScaffoldRoot(root);
+    // The scaffold check reads the definition as written, not as resolved.
+    const rawRoot = componentTreeForInstance.elements[componentTreeForInstance.rootId];
+    const isEmptyComponent = rawRoot !== undefined && isScaffoldRoot(rawRoot);
+    // A page-sized axis: the generated CSS puts the page's size on the
+    // component ROOT (via the forwarded className, doubled selector). On
+    // the canvas that size is on the WRAPPER, so the root must fill the
+    // wrapper on that axis or it keeps hugging inside a box the page
+    // sized. Resolved instance fields, so a per-breakpoint size counts.
+    const root: ScampElement | undefined = instanceRoot
+      ? {
+          ...instanceRoot,
+          ...(element.widthMode !== 'auto'
+            ? { widthMode: 'stretch' as const, widthCustom: undefined }
+            : {}),
+          ...(element.heightMode !== 'auto'
+            ? { heightMode: 'stretch' as const, heightCustom: undefined }
+            : {}),
+        }
+      : undefined;
     // Only honour the edit target when it points at THIS instance.
     const editingPropForThis =
       editingInstanceProp && editingInstanceProp.instanceId === element.id
@@ -705,10 +738,11 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
         empty: false,
       };
     };
-    const inner = root
+    const inner =
+      root && resolvedComponentElements
       ? renderComponentSubtree(
           root,
-          componentTreeForInstance.elements,
+          resolvedComponentElements,
           // Pass page-side layout context so flex/grid still applies.
           parentDisplay,
           parentDirection,

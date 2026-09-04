@@ -116,6 +116,31 @@ props. Two fields carry the model (`lib/element/types.ts`):
   which slot of the owning instance it fills. Absent = the default `children`
   slot.
 
+#### Breakpoints inside an instance
+
+The subtree renders the definition's elements **resolved at the active
+breakpoint** (`resolveElementAtBreakpoint`, the same cascade the page's
+own elements go through), not the raw fields. It used to render the raw
+ones, so a component root with `width: fit-content` at desktop and a
+`@media (max-width: 390px) { .root { width: 100% } }` rule kept an
+inline `width: fit-content` at Mobile that masked the `@container` copy
+of that rule — the canvas showed the desktop width while the preview
+filled. The wrapper's `instanceStretchStyle` reads the resolved root
+too, so a root that is `stretch` only at Mobile stretches the wrapper
+there.
+
+#### A page-sized axis fills the wrapper
+
+On disk the page's size lands on the component ROOT — the forwarded
+`className`, doubled selector. On the canvas that size is on the
+wrapper, so for each axis the (resolved) instance sizes, the inner root
+is rendered as `stretch` and fills the wrapper; a hugging root inside a
+300px wrapper would otherwise stay at its content width while the
+browser showed 300px. Axes the page leaves `auto` keep the root's own
+mode. `test/e2e/components/instance-breakpoint-size.spec.ts` pins all
+three cases: the component's own media rule, a per-breakpoint page size,
+and a desktop page size.
+
 ### Codegen (`generateCode/tsx.ts`)
 
 - `collectSlots` walks a component in document order; the props type unions text
