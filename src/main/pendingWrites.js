@@ -37,7 +37,7 @@ export const createPendingWriteTracker = (send, expiryMs) => {
         clearTimeout(entry.timer);
         pending.delete(path);
         send({ writeId: entry.writeId, path });
-        return { suppressChanged: entry.suppressChanged };
+        return { writeId: entry.writeId, suppressChanged: entry.suppressChanged };
     };
     return {
         register,

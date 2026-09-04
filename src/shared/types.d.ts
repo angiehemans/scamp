@@ -420,6 +420,13 @@ export type FileChangedPayload = {
     path: string;
     tsxContent: string | null;
     cssContent: string | null;
+    /**
+     * Set when the change is one of Scamp's own registered writes that
+     * deliberately let the broadcast through (the CSS panel's `file:patch`).
+     * The renderer reloads from it but must not treat it as an external
+     * edit — no quiet window, no "Paused". see docs/notes/save-status-machine.md
+     */
+    ownWriteId?: string;
 };
 /**
  * Emitted by main when an imported SVG's asset file changes on disk

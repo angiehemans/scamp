@@ -47,20 +47,29 @@ export const makeFileChangedHandler =
     // through `dispatchPageWrite` so the protection should too.
     externalEditTracker.markPair(target.tsxPath, target.cssPath);
 
-    // Phase 3.2: open / extend the quiet window. Agents typically
-    // write the same file multiple times in a burst; the window
-    // absorbs the rest of the burst so we don't race the in-between
-    // writes. Each chokidar event rolls the deadline forward, so a
-    // long agent task keeps Scamp paused until the agent settles.
-    ctx.quietWindow.extend();
-    ctx.cancelWriteTimer();
-    // Reset the canvas-changed-during-quiet flag at the start of
-    // (or extension to) the quiet window. We're now watching for
-    // canvas edits arriving DURING this window — anything before
-    // doesn't count.
-    ctx.canvasChangedDuringQuiet = false;
-    useSaveStatusStore.getState().markPaused('external-edit');
-    ctx.scheduleQuietResume();
+    // Scamp's own CSS-panel patch comes back through this same event
+    // on purpose — the panel relies on the reload — but it is not an
+    // external edit. Treating it as one paused sync for 2.5s after
+    // every Cmd+S ("an external editor is writing…") and then resumed,
+    // which read as "nothing was saved". Main tags it; reload only.
+    // see docs/notes/save-status-machine.md
+    const isOwnWrite = payload.ownWriteId !== undefined;
+    if (!isOwnWrite) {
+      // Phase 3.2: open / extend the quiet window. Agents typically
+      // write the same file multiple times in a burst; the window
+      // absorbs the rest of the burst so we don't race the in-between
+      // writes. Each chokidar event rolls the deadline forward, so a
+      // long agent task keeps Scamp paused until the agent settles.
+      ctx.quietWindow.extend();
+      ctx.cancelWriteTimer();
+      // Reset the canvas-changed-during-quiet flag at the start of
+      // (or extension to) the quiet window. We're now watching for
+      // canvas edits arriving DURING this window — anything before
+      // doesn't count.
+      ctx.canvasChangedDuringQuiet = false;
+      useSaveStatusStore.getState().markPaused('external-edit');
+      ctx.scheduleQuietResume();
+    }
 
     // External editors (Claude Code, vim, etc.) can trigger chokidar
     // mid-write — the file content may be truncated or malformed. Guard

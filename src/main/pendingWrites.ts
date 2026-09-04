@@ -22,7 +22,7 @@ export type PendingWriteTracker = {
    * emits the ack via the sender and returns whether the
    * `file:changed` broadcast should be suppressed.
    */
-  consume: (path: string) => { suppressChanged: boolean } | null;
+  consume: (path: string) => { writeId: string; suppressChanged: boolean } | null;
   /** Size accessor for tests. */
   size: () => number;
 };
@@ -73,7 +73,7 @@ export const createPendingWriteTracker = (
     clearTimeout(entry.timer);
     pending.delete(path);
     send({ writeId: entry.writeId, path });
-    return { suppressChanged: entry.suppressChanged };
+    return { writeId: entry.writeId, suppressChanged: entry.suppressChanged };
   };
 
   return {

@@ -182,6 +182,10 @@ const emitChange = async (changedPath) => {
         path: changedPath,
         tsxContent,
         cssContent,
+        // A consumed entry that reached here is an own write that asked for
+        // the broadcast (a CSS-panel patch). Say so, or the renderer pauses
+        // sync for its own save. see docs/notes/save-status-machine.md
+        ...(consumed !== null ? { ownWriteId: consumed.writeId } : {}),
     };
     mainWindow.webContents.send(IPC.FileChanged, payload);
 };

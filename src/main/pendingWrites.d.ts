@@ -20,6 +20,7 @@ export type PendingWriteTracker = {
      * `file:changed` broadcast should be suppressed.
      */
     consume: (path: string) => {
+        writeId: string;
         suppressChanged: boolean;
     } | null;
     /** Size accessor for tests. */

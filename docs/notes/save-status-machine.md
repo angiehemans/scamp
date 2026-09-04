@@ -121,6 +121,23 @@ Two layered guards, both in `syncBridge.ts` (rationale in
   the user's pending change, or — if disk diverged and the user didn't
   edit — leaves the agent's change alone and goes `diverged`.
 
+### The CSS panel's own patch is not an external edit
+
+`file:patch` registers its pending write with `suppressChanged = false`
+on purpose: the panel needs the resulting `file:changed` reload to
+refresh the canvas from the file. But that event used to run the whole
+external-edit path — quiet window, `markPaused('external-edit')`, the
+"an external editor is writing" copy — for 2.5 s after every Cmd+S,
+before the ack flipped it to Saved. To the user that read as "nothing
+was saved, the file was edited externally", and then it saved.
+
+Now `pending.consume` returns the `writeId`, `emitChange` attaches it to
+the broadcast as `ownWriteId`, and `makeFileChangedHandler` reloads
+without touching the quiet window when it is present. The ack then
+confirms the patch as usual. The late-echo guard and the tracker
+mark/clear are unchanged. `test/e2e/properties-panel/css-save-no-pause.spec.ts`
+asserts the indicator never shows Paused around a CSS-panel save.
+
 ## Conflict (optimistic concurrency) — ordering
 
 `checkWriteConflict` (`fileConflict.ts`) is the main-side guard. It
