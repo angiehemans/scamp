@@ -29,3 +29,64 @@
 .lockButtonActive:hover {
   color: var(--accent);
 }
+
+/* "Don't shrink" — sits in the row grid beside the Basis input, so it
+   takes the input's height and a real border like the panel's other
+   buttons. Pressed state matches the Reverse toggle in Layout. */
+.shrinkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: var(--control-h);
+  width: 100%;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.shrinkButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.shrinkButtonActive,
+.shrinkButtonActive:hover {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}
+
+/* "Advanced" disclosure holding the flex / grid child controls. Same
+   header treatment as the grid track-list accordion. Tertiary, not
+   secondary: it sits *inside* a section whose heading is secondary, and a
+   subordinate label must read dimmer than the one above it. */
+.advancedHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  font-family: inherit;
+}
+
+.advancedHeader:hover {
+  color: var(--text-primary);
+}
+
+.advancedLabel {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}

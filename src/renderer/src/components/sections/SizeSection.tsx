@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react';
-import { IconLink, IconLinkOff } from '@tabler/icons-react';
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconLink,
+  IconLinkOff,
+} from '@tabler/icons-react';
 import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { EnumSelect } from '../controls/EnumSelect';
+import { NumberInput } from '../controls/NumberInput';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SizeTypeSelect } from '../controls/SizeTypeSelect';
 import type {
   GridSelfAlign,
   HeightMode,
+  SelfAlign,
   WidthMode,
 } from '@lib/element';
+import { shrinkGuardPatch } from '@lib/flexChild';
 import { parseSizeValue } from '@lib/parsers';
 import {
   combineTypedWithType,
@@ -50,6 +58,17 @@ const GRID_SELF_OPTIONS: ReadonlyArray<{ value: GridSelfAlign; label: string }> 
   { value: 'center', label: 'Center' },
   { value: 'end', label: 'End' },
   { value: 'stretch', label: 'Stretch' },
+];
+
+// `align-self` for a flex or grid child. `Auto` is CSS's own initial
+// value — inherit the parent's `align-items` — and emits nothing.
+const SELF_ALIGN_OPTIONS: ReadonlyArray<{ value: SelfAlign; label: string }> = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'start', label: 'Start' },
+  { value: 'center', label: 'Center' },
+  { value: 'end', label: 'End' },
+  { value: 'stretch', label: 'Stretch' },
+  { value: 'baseline', label: 'Baseline' },
 ];
 
 /**
@@ -156,6 +175,24 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
     if (!el?.parentId) return false;
     return s.elements[el.parentId]?.display === 'grid';
   });
+  // …and whether it is a flex container, plus its direction — drives the
+  // flex-item controls and the px-means-don't-shrink rule. Two primitive
+  // selectors rather than one object so the store's identity check holds.
+  const parentIsFlex = useCanvasStore((s) => {
+    const el = s.elements[elementId];
+    if (!el?.parentId) return false;
+    return s.elements[el.parentId]?.display === 'flex';
+  });
+  const parentDirection = useCanvasStore((s) => {
+    const el = s.elements[elementId];
+    if (!el?.parentId) return undefined;
+    return s.elements[el.parentId]?.flexDirection;
+  });
+  // The flex / grid child controls live under an "Advanced" disclosure so
+  // the common case — W and H — stays uncluttered. Closed by default; the
+  // section stays mounted across selection changes, so it holds while the
+  // user works through siblings.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   if (!element) return null;
 
   const measured = useMeasuredSize(elementId, element.widthMode, element.heightMode);
@@ -210,13 +247,29 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
   // A committed W/H edit that lands a non-fixed mode drops the lock (a
   // stretch/auto axis can't be ratio-locked). When locked+fixed, the
   // paired dimension is recomputed inside `lockedSizePatch`.
+  //
+  // A px size typed into the parent's flex MAIN axis also sets the
+  // don't-shrink guard, and leaving px clears it — "the size you typed
+  // is the size you get", the same promise the draw tool makes.
+  // see docs/notes/draw-into-flex-parent.md
+  const flexParent = parentIsFlex
+    ? { display: 'flex' as const, flexDirection: parentDirection ?? 'row' }
+    : undefined;
   const handleCommitWidth = (raw: string): void => {
-    if (parseSizeValue(raw).mode !== 'fixed') clearRatioLock(elementId);
-    patchElement(elementId, lockedSizePatch(element, 'width', raw, activeRatio));
+    const mode = parseSizeValue(raw).mode;
+    if (mode !== 'fixed') clearRatioLock(elementId);
+    patchElement(elementId, {
+      ...lockedSizePatch(element, 'width', raw, activeRatio),
+      ...shrinkGuardPatch(element, flexParent, 'width', mode),
+    });
   };
   const handleCommitHeight = (raw: string): void => {
-    if (parseSizeValue(raw).mode !== 'fixed') clearRatioLock(elementId);
-    patchElement(elementId, lockedSizePatch(element, 'height', raw, activeRatio));
+    const mode = parseSizeValue(raw).mode;
+    if (mode !== 'fixed') clearRatioLock(elementId);
+    patchElement(elementId, {
+      ...lockedSizePatch(element, 'height', raw, activeRatio),
+      ...shrinkGuardPatch(element, flexParent, 'height', mode),
+    });
   };
   // Picking a type from the right-side menu converts the current value to
   // that type (seeded with the axis's current number) and commits it.
@@ -280,6 +333,10 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
         'gridRow',
         'alignSelf',
         'justifySelf',
+        'flexGrow',
+        'flexShrink',
+        'flexBasis',
+        'order',
       ]}
       cssProperties={[
         'width',
@@ -289,6 +346,11 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
         'grid-row',
         'align-self',
         'justify-self',
+        'flex-grow',
+        'flex-shrink',
+        'flex-basis',
+        'flex',
+        'order',
       ]}
     >
       <Row label="">
@@ -370,9 +432,9 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
             />
           </Row>
           <Row label="">
-            <EnumSelect<GridSelfAlign>
+            <EnumSelect<SelfAlign>
               value={element.alignSelf}
-              options={GRID_SELF_OPTIONS}
+              options={SELF_ALIGN_OPTIONS}
               onChange={(value) => patchElement(elementId, { alignSelf: value })}
               title="Align self"
             />
@@ -381,6 +443,89 @@ export const SizeSection = ({ elementId }: Props): JSX.Element | null => {
               options={GRID_SELF_OPTIONS}
               onChange={(value) => patchElement(elementId, { justifySelf: value })}
               title="Justify self"
+            />
+          </Row>
+        </>
+      )}
+      {(parentIsFlex || parentIsGrid) && (
+        <button
+          type="button"
+          className={styles.advancedHeader}
+          aria-expanded={advancedOpen}
+          aria-label="Advanced"
+          onClick={() => setAdvancedOpen((o) => !o)}
+        >
+          {advancedOpen ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+          <span className={styles.advancedLabel}>Advanced</span>
+        </button>
+      )}
+      {advancedOpen && parentIsGrid && (
+        <Row label="">
+          <NumberInput
+            prefix="Order"
+            title="order — visual position among siblings; lower first"
+            value={element.order}
+            onChange={(value) => patchElement(elementId, { order: value ?? 0 })}
+          />
+        </Row>
+      )}
+      {advancedOpen && parentIsFlex && (
+        <>
+          <Row label="">
+            <NumberInput
+              prefix="Grow"
+              title="flex-grow — share of leftover space this child takes (0 = none)"
+              value={element.flexGrow}
+              min={0}
+              onChange={(value) => patchElement(elementId, { flexGrow: value ?? 0 })}
+            />
+            <NumberInput
+              prefix="Shrink"
+              title="flex-shrink — how readily this child gives up space when the line overflows (0 = never)"
+              value={element.flexShrink}
+              min={0}
+              onChange={(value) => patchElement(elementId, { flexShrink: value ?? 1 })}
+            />
+          </Row>
+          <Row label="">
+            <PrefixSuffixInput
+              prefix="Basis"
+              title="flex-basis — starting size before grow / shrink (auto, 200px, 0%, var(--w))"
+              value={element.flexBasis}
+              placeholder="auto"
+              onCommit={(value) => {
+                const v = value.trim();
+                patchElement(elementId, { flexBasis: v === 'auto' ? '' : v });
+              }}
+            />
+            <button
+              type="button"
+              className={`${styles.shrinkButton} ${
+                element.flexShrink === 0 ? styles.shrinkButtonActive : ''
+              }`}
+              onClick={() =>
+                patchElement(elementId, {
+                  flexShrink: element.flexShrink === 0 ? 1 : 0,
+                })
+              }
+              aria-pressed={element.flexShrink === 0}
+              title="Don't shrink — keep this size even when the line overflows (flex-shrink: 0)"
+            >
+              Don’t shrink
+            </button>
+          </Row>
+          <Row label="">
+            <EnumSelect<SelfAlign>
+              value={element.alignSelf}
+              options={SELF_ALIGN_OPTIONS}
+              onChange={(value) => patchElement(elementId, { alignSelf: value })}
+              title="Align self — this child's cross-axis alignment; Auto follows the parent"
+            />
+            <NumberInput
+              prefix="Order"
+              title="order — visual position among siblings; lower first"
+              value={element.order}
+              onChange={(value) => patchElement(elementId, { order: value ?? 0 })}
             />
           </Row>
         </>

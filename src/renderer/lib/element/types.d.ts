@@ -36,9 +36,24 @@ export type PropertyGroup = 'background' | 'border' | 'shadow' | 'typography' | 
  * round-trip.
  */
 export type DisplayMode = 'none' | 'flex' | 'grid';
-export type FlexDirection = 'row' | 'column';
-export type AlignItems = 'flex-start' | 'center' | 'flex-end' | 'stretch';
-export type JustifyContent = 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around';
+export type FlexDirection = 'row' | 'column' | 'row-reverse' | 'column-reverse';
+export type FlexWrap = 'nowrap' | 'wrap' | 'wrap-reverse';
+export type AlignItems = 'flex-start' | 'center' | 'flex-end' | 'stretch' | 'baseline';
+export type JustifyContent = 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly';
+/**
+ * `align-content` — how wrapped lines pack along the cross axis. Only
+ * meaningful when `flexWrap` is not `nowrap`. `'normal'` is CSS's own
+ * initial value and emits nothing.
+ */
+export type AlignContent = 'normal' | 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly' | 'stretch';
+/**
+ * `align-self`, for a flex OR grid child. `'auto'` is CSS's initial value
+ * — inherit the parent's `align-items` — and emits nothing. Stored in the
+ * short spelling; the generator writes `flex-start` / `flex-end` under a
+ * flex parent and `start` / `end` under a grid one, and the parser accepts
+ * both everywhere.
+ */
+export type SelfAlign = 'auto' | 'start' | 'center' | 'end' | 'stretch' | 'baseline';
 /**
  * Used for grid-only alignment controls (`justify-items`,
  * `align-self`, `justify-self`). Modern CSS accepts the same short
@@ -340,6 +355,10 @@ export type ScampElement = {
     gap: SpaceValue;
     alignItems: AlignItems;
     justifyContent: JustifyContent;
+    flexWrap: FlexWrap;
+    /** Cross-axis packing of wrapped lines. Ignored by the browser (and by
+     *  the panel) unless `flexWrap` is set. */
+    alignContent: AlignContent;
     /**
      * Grid-only container fields. Free-text template strings (so
      * `repeat(3, 1fr)`, `auto-fill`, `minmax(...)`, etc. round-trip
@@ -359,8 +378,19 @@ export type ScampElement = {
      */
     gridColumn: string;
     gridRow: string;
-    alignSelf: GridSelfAlign;
+    alignSelf: SelfAlign;
     justifySelf: GridSelfAlign;
+    /**
+     * Flex-item fields — applied when this element's PARENT is a flex
+     * container. `flexBasis` is free text (`200px`, `0%`, `auto`,
+     * `var(--w)`) with `''` meaning auto / unset. `order` also applies to
+     * grid items. The drawn-size guard is `flexShrink: 0`, stored here so
+     * the file carries it — see docs/notes/draw-into-flex-parent.md.
+     */
+    flexGrow: number;
+    flexShrink: number;
+    flexBasis: string;
+    order: number;
     /** Per-side `[top, right, bottom, left]`. Each side is a
      *  `SpaceValue` — px or `var(--token)`. See `spaceValue.ts`. */
     padding: SpaceTuple;

@@ -10,6 +10,11 @@ export type GridCell = {
  * assignment flips with `direction`:
  *   - row:    horizontal (col) = justify (main), vertical (row) = align (cross)
  *   - column: vertical (row) = justify (main), horizontal (col) = align (cross)
+ *
+ * The reverse directions map by AXIS, not by where the browser draws the
+ * items: in `row-reverse` the left column still means `flex-start`, which
+ * renders on the right. Mirroring the grid would make the same cell mean
+ * different CSS depending on a toggle elsewhere in the panel.
  */
 export declare const cellToFlexAlign: (col: CellIndex, row: CellIndex, direction: FlexDirection) => {
     alignItems: AlignItems;

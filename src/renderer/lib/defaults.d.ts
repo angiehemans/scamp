@@ -14,6 +14,8 @@ export declare const DEFAULT_RECT_STYLES: {
     gap: number;
     alignItems: "stretch";
     justifyContent: "flex-start";
+    flexWrap: "nowrap";
+    alignContent: "normal";
     gridTemplateColumns: string;
     gridTemplateRows: string;
     columnGap: number;
@@ -21,8 +23,12 @@ export declare const DEFAULT_RECT_STYLES: {
     justifyItems: "stretch";
     gridColumn: string;
     gridRow: string;
-    alignSelf: "stretch";
+    alignSelf: "auto";
     justifySelf: "stretch";
+    flexGrow: number;
+    flexShrink: number;
+    flexBasis: string;
+    order: number;
     padding: SpaceTuple;
     margin: SpaceTuple;
     widthMode: "fixed";
@@ -83,6 +89,8 @@ export declare const DEFAULT_ROOT_STYLES: {
     gap: number;
     alignItems: "stretch";
     justifyContent: "flex-start";
+    flexWrap: "nowrap";
+    alignContent: "normal";
     gridTemplateColumns: string;
     gridTemplateRows: string;
     columnGap: number;
@@ -90,8 +98,12 @@ export declare const DEFAULT_ROOT_STYLES: {
     justifyItems: "stretch";
     gridColumn: string;
     gridRow: string;
-    alignSelf: "stretch";
+    alignSelf: "auto";
     justifySelf: "stretch";
+    flexGrow: number;
+    flexShrink: number;
+    flexBasis: string;
+    order: number;
     padding: SpaceTuple;
     margin: SpaceTuple;
     widthMode: "stretch";
@@ -152,6 +164,8 @@ export declare const DEFAULT_COMPONENT_ROOT_STYLES: {
     gap: number;
     alignItems: "stretch";
     justifyContent: "flex-start";
+    flexWrap: "nowrap";
+    alignContent: "normal";
     gridTemplateColumns: string;
     gridTemplateRows: string;
     columnGap: number;
@@ -159,8 +173,12 @@ export declare const DEFAULT_COMPONENT_ROOT_STYLES: {
     justifyItems: "stretch";
     gridColumn: string;
     gridRow: string;
-    alignSelf: "stretch";
+    alignSelf: "auto";
     justifySelf: "stretch";
+    flexGrow: number;
+    flexShrink: number;
+    flexBasis: string;
+    order: number;
     padding: SpaceTuple;
     margin: SpaceTuple;
     widthMode: "stretch";

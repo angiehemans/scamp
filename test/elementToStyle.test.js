@@ -358,3 +358,44 @@ describe('elementToStyle — background values', () => {
         expect(s.background).toBeUndefined();
     });
 });
+describe('flex child — align-self and the reverse directions (flex-controls plan)', () => {
+    it('fills the cross axis with align-self: stretch only while alignSelf is unset', () => {
+        const unset = style(makeEl({ heightMode: 'stretch', alignSelf: 'auto' }), {
+            parentDisplay: 'flex',
+            parentDirection: 'row',
+        });
+        expect(unset['alignSelf']).toBe('stretch');
+        expect(unset['height']).toBeUndefined();
+    });
+    it('lets a user-set align-self win, as the generated CSS does', () => {
+        // The generator writes `height: 100%` + `align-self: center` here; an
+        // inline `stretch` would have overridden the stylesheet's `center`.
+        const centred = style(makeEl({ heightMode: 'stretch', alignSelf: 'center' }), {
+            parentDisplay: 'flex',
+            parentDirection: 'row',
+        });
+        expect(centred['alignSelf']).toBeUndefined();
+        expect(centred['height']).toBe('100%');
+    });
+    it('treats row-reverse as a horizontal main axis', () => {
+        const s = style(makeEl({ widthMode: 'stretch' }), {
+            parentDisplay: 'flex',
+            parentDirection: 'row-reverse',
+        });
+        expect(s['minWidth']).toBe(0);
+        expect(s['minHeight']).toBeUndefined();
+    });
+    it('treats column-reverse as a vertical main axis', () => {
+        const s = style(makeEl({ heightMode: 'stretch' }), {
+            parentDisplay: 'flex',
+            parentDirection: 'column-reverse',
+        });
+        expect(s['minHeight']).toBe(0);
+        expect(s['alignSelf']).toBeUndefined();
+        expect(s['height']).toBe('100%');
+    });
+    it('applies a grid child’s align-self inline unless it is auto', () => {
+        expect(style(makeEl({ alignSelf: 'auto' }), { parentDisplay: 'grid' })['alignSelf']).toBeUndefined();
+        expect(style(makeEl({ alignSelf: 'end' }), { parentDisplay: 'grid' })['alignSelf']).toBe('end');
+    });
+});

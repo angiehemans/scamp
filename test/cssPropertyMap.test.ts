@@ -74,7 +74,7 @@ describe('cssToScampProperty', () => {
       expect(apply('flex-direction', 'column')).toEqual({ flexDirection: 'column' });
     });
     it('refuses unsupported directions (preserved via customProperties)', () => {
-      expect(apply('flex-direction', 'row-reverse')).toBeNull();
+      expect(apply('flex-direction', 'diagonal')).toBeNull();
     });
   });
 
@@ -105,7 +105,7 @@ describe('cssToScampProperty', () => {
       expect(apply('align-items', 'center')).toEqual({ alignItems: 'center' });
     });
     it('refuses unsupported values', () => {
-      expect(apply('align-items', 'baseline')).toBeNull();
+      expect(apply('align-items', 'middle')).toBeNull();
     });
   });
 
@@ -116,7 +116,7 @@ describe('cssToScampProperty', () => {
       });
     });
     it('refuses unsupported values', () => {
-      expect(apply('justify-content', 'space-evenly')).toBeNull();
+      expect(apply('justify-content', 'left')).toBeNull();
     });
   });
 
@@ -667,5 +667,98 @@ describe('isMappedProperty', () => {
   });
   it('returns false for an unknown property', () => {
     expect(isMappedProperty('mask-image')).toBe(false);
+  });
+});
+
+describe('flex container properties (flex-controls plan)', () => {
+  const apply = (prop: string, value: string): Partial<ScampElement> | null => {
+    const fn = cssToScampProperty[prop];
+    if (!fn) throw new Error(`No mapper for ${prop}`);
+    return fn(value);
+  };
+
+  it('accepts all four flex-direction values', () => {
+    expect(apply('flex-direction', 'row-reverse')).toEqual({ flexDirection: 'row-reverse' });
+    expect(apply('flex-direction', 'column-reverse')).toEqual({ flexDirection: 'column-reverse' });
+    expect(apply('flex-direction', 'diagonal')).toBeNull();
+  });
+
+  it('maps flex-wrap and refuses anything else', () => {
+    expect(apply('flex-wrap', 'wrap')).toEqual({ flexWrap: 'wrap' });
+    expect(apply('flex-wrap', 'wrap-reverse')).toEqual({ flexWrap: 'wrap-reverse' });
+    expect(apply('flex-wrap', 'nowrap')).toEqual({ flexWrap: 'nowrap' });
+    expect(apply('flex-wrap', 'yes')).toBeNull();
+  });
+
+  it('accepts baseline and the start/end spellings on align-items', () => {
+    // These used to silently degrade into customProperties.
+    expect(apply('align-items', 'baseline')).toEqual({ alignItems: 'baseline' });
+    expect(apply('align-items', 'start')).toEqual({ alignItems: 'flex-start' });
+    expect(apply('align-items', 'end')).toEqual({ alignItems: 'flex-end' });
+  });
+
+  it('accepts space-evenly on justify-content', () => {
+    expect(apply('justify-content', 'space-evenly')).toEqual({ justifyContent: 'space-evenly' });
+    expect(apply('justify-content', 'end')).toEqual({ justifyContent: 'flex-end' });
+    expect(apply('justify-content', 'left')).toBeNull();
+  });
+
+  it('maps every align-content value, normalising start/end', () => {
+    expect(apply('align-content', 'space-between')).toEqual({ alignContent: 'space-between' });
+    expect(apply('align-content', 'start')).toEqual({ alignContent: 'flex-start' });
+    expect(apply('align-content', 'stretch')).toEqual({ alignContent: 'stretch' });
+    expect(apply('align-content', 'normal')).toEqual({ alignContent: 'normal' });
+    expect(apply('align-content', 'middle')).toBeNull();
+  });
+});
+
+describe('flex item properties (flex-controls plan)', () => {
+  const apply = (prop: string, value: string): Partial<ScampElement> | null => {
+    const fn = cssToScampProperty[prop];
+    if (!fn) throw new Error(`No mapper for ${prop}`);
+    return fn(value);
+  };
+
+  it('accepts both spellings and the flex-only values on align-self', () => {
+    expect(apply('align-self', 'flex-start')).toEqual({ alignSelf: 'start' });
+    expect(apply('align-self', 'flex-end')).toEqual({ alignSelf: 'end' });
+    expect(apply('align-self', 'start')).toEqual({ alignSelf: 'start' });
+    expect(apply('align-self', 'auto')).toEqual({ alignSelf: 'auto' });
+    expect(apply('align-self', 'baseline')).toEqual({ alignSelf: 'baseline' });
+    expect(apply('align-self', 'stretch')).toEqual({ alignSelf: 'stretch' });
+    expect(apply('align-self', 'left')).toBeNull();
+  });
+
+  it('reads flex-grow and flex-shrink as non-negative numbers', () => {
+    expect(apply('flex-grow', '1')).toEqual({ flexGrow: 1 });
+    expect(apply('flex-grow', '2.5')).toEqual({ flexGrow: 2.5 });
+    expect(apply('flex-shrink', '0')).toEqual({ flexShrink: 0 });
+    expect(apply('flex-grow', '-1')).toBeNull();
+    expect(apply('flex-shrink', 'none')).toBeNull();
+  });
+
+  it('stores flex-basis verbatim, with auto as the empty default', () => {
+    expect(apply('flex-basis', '200px')).toEqual({ flexBasis: '200px' });
+    expect(apply('flex-basis', 'var(--card-w)')).toEqual({ flexBasis: 'var(--card-w)' });
+    expect(apply('flex-basis', 'auto')).toEqual({ flexBasis: '' });
+    expect(apply('flex-basis', '')).toBeNull();
+  });
+
+  it('expands the flex shorthand into all three longhands', () => {
+    expect(apply('flex', '1 1 200px')).toEqual({ flexGrow: 1, flexShrink: 1, flexBasis: '200px' });
+    expect(apply('flex', 'none')).toEqual({ flexGrow: 0, flexShrink: 0, flexBasis: '' });
+    expect(apply('flex', '1 1 1 1')).toBeNull();
+  });
+
+  it('reads order as an integer, negative allowed', () => {
+    expect(apply('order', '2')).toEqual({ order: 2 });
+    expect(apply('order', '-1')).toEqual({ order: -1 });
+    expect(apply('order', '1.5')).toBeNull();
+  });
+
+  it('advertises every new property as mapped', () => {
+    for (const prop of ['flex-wrap', 'align-content', 'flex', 'flex-grow', 'flex-shrink', 'flex-basis', 'order']) {
+      expect(isMappedProperty(prop), prop).toBe(true);
+    }
   });
 });

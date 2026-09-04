@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
-import type { HeightMode, WidthMode } from './element';
+import type { FlexDirection, HeightMode, WidthMode } from './element';
+import { isColumnDirection } from './flexAxis';
 
 /**
  * Styles the canvas wrapper of a component instance needs in order to
@@ -24,7 +25,7 @@ export const instanceStretchStyle = (
   rootWidthMode: WidthMode | undefined,
   rootHeightMode: HeightMode | undefined,
   parentDisplay: 'flex' | 'grid' | 'none' | undefined,
-  parentDirection: 'row' | 'column' | undefined
+  parentDirection: FlexDirection | undefined
 ): CSSProperties => {
   const widthStretch = instanceWidthMode === 'auto' && rootWidthMode === 'stretch';
   const heightStretch =
@@ -39,7 +40,7 @@ export const instanceStretchStyle = (
   }
 
   // Default flex-direction is row, so an absent direction means width is main.
-  const widthIsMain = parentDirection !== 'column';
+  const widthIsMain = !isColumnDirection(parentDirection);
   const out: CSSProperties = {};
   // Main axis: the generated CSS says `100%`, so the wrapper says `100%`.
   // `flex: 1` would be basis 0 and diverge from the browser as soon as the

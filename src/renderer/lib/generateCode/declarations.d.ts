@@ -29,6 +29,14 @@ import { type BreakpointOverride, type ScampElement } from "../element";
  * There is no risk of pinning agent-written elements that have no width:
  * those parse as `auto`, and only `fixed` emits a length here.
  */
+/**
+ * How a `stretch` height is written for a flex child, if specially at all:
+ * `flex: 1` on a column's main axis, `align-self: stretch` on a row's
+ * cross axis — but only while `alignSelf` is unset (or already stretch),
+ * so a user-set alignment is never contradicted by a second line. Shared
+ * with the flex-item block below, which must not repeat that line.
+ */
+export declare const fillHeightKind: (el: ScampElement, parent?: ScampElement | null) => "flex" | "align-self" | null;
 export declare const sizeDeclarationLines: (el: ScampElement, parent?: ScampElement | null) => string[];
 /**
  * Build the list of `prop: value;` lines for one element. Skips anything
@@ -57,4 +65,6 @@ mustEstablishPositioningContext?: boolean) => string[];
  * the mode+value combination. When only `widthMode` is in the
  * override, the value falls back to the element's base value.
  */
-export declare const breakpointOverrideLines: (override: BreakpointOverride, element: ScampElement) => string[];
+export declare const breakpointOverrideLines: (override: BreakpointOverride, element: ScampElement, 
+/** Decides the `align-self` spelling; omitted by callers without one. */
+parent?: ScampElement | null) => string[];

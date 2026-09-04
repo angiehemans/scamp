@@ -41,7 +41,8 @@
   --text-primary: #e0e0e0;
   /* Slightly dimmer — labels, non-active text, icons. */
   --text-secondary: #888;
-  /* Even dimmer — placeholder, disabled, row separators fade. */
+  /* Even dimmer — placeholder, disabled, row separators fade, and
+     sub-labels nested under a secondary heading (e.g. "Advanced"). */
   --text-tertiary: #555;
   /* Pure white — used sparingly on colored accents. */
   --text-inverse: #fff;

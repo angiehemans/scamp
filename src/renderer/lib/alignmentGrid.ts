@@ -6,6 +6,7 @@
 // each axis). Distribution (`space-between` / `space-around`) and
 // `stretch` have no cell — the panel keeps its dropdowns for those.
 import type { AlignItems, FlexDirection, JustifyContent } from './element';
+import { isColumnDirection } from './flexAxis';
 
 /** Grid coordinate: 0 = first, 1 = middle, 2 = last. */
 export type CellIndex = 0 | 1 | 2;
@@ -33,13 +34,18 @@ const packedIndex = (value: string): CellIndex | null => {
  * assignment flips with `direction`:
  *   - row:    horizontal (col) = justify (main), vertical (row) = align (cross)
  *   - column: vertical (row) = justify (main), horizontal (col) = align (cross)
+ *
+ * The reverse directions map by AXIS, not by where the browser draws the
+ * items: in `row-reverse` the left column still means `flex-start`, which
+ * renders on the right. Mirroring the grid would make the same cell mean
+ * different CSS depending on a toggle elsewhere in the panel.
  */
 export const cellToFlexAlign = (
   col: CellIndex,
   row: CellIndex,
   direction: FlexDirection
 ): { alignItems: AlignItems; justifyContent: JustifyContent } => {
-  if (direction === 'column') {
+  if (isColumnDirection(direction)) {
     return { justifyContent: PACKED[row], alignItems: PACKED[col] };
   }
   return { justifyContent: PACKED[col], alignItems: PACKED[row] };
@@ -60,7 +66,7 @@ export const flexAlignToCell = (
   const alignIdx = packedIndex(alignItems);
   const justifyIdx = packedIndex(justifyContent);
   if (alignIdx === null || justifyIdx === null) return null;
-  if (direction === 'column') {
+  if (isColumnDirection(direction)) {
     return { col: alignIdx, row: justifyIdx };
   }
   return { col: justifyIdx, row: alignIdx };

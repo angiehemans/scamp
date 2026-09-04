@@ -1,8 +1,9 @@
 # The flex sizing contract — Plan
 
 Status: **Phases 1-3 landed, with one rule inverted by the parity
-harness — see "Rule 2 reversal" below. Remaining: the explicit
-don't-shrink control (Angie's own proposal), which is what actually
+harness — see "Rule 2 reversal" below. The explicit don't-shrink
+control landed 2026-09-04 as a typed `flexShrink` field with the
+px-means-don't-shrink rule (`docs/plans/flex-controls-plan.md`), which
 closes this.**
 
 Earlier status: **Phase 0 complete — results below changed the design.** Rule 3's

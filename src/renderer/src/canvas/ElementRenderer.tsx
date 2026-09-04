@@ -9,7 +9,7 @@ import {
   useRef,
 } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { type ScampElement } from '@lib/element';
+import { type FlexDirection, type ScampElement } from '@lib/element';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { instanceClassPrefix } from '@lib/generateHtml';
 import {
@@ -58,7 +58,7 @@ const renderComponentSubtree = (
   element: ScampElement,
   elementsMap: Record<string, ScampElement>,
   parentDisplay: 'flex' | 'grid' | 'none' | undefined,
-  parentDirection: 'row' | 'column' | undefined,
+  parentDirection: FlexDirection | undefined,
   propOverrides: Record<string, string>,
   tokens: ReadonlyArray<ThemeToken>,
   projectDir: string | null,

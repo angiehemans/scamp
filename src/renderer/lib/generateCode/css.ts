@@ -67,11 +67,12 @@ const collectElementsDfs = (
  */
 const stateBlockFor = (
   el: ScampElement,
+  parent: ScampElement | null,
   state: ElementStateName,
   override: StateOverride
 ): string | null => {
   if (Object.keys(override).length === 0) return null;
-  const lines = breakpointOverrideLines(override as BreakpointOverride, el);
+  const lines = breakpointOverrideLines(override as BreakpointOverride, el, parent);
   if (lines.length === 0) return null;
   const body = lines.map((line) => line.length === 0 ? "" : `  ${line}`).join('\n');
   return `.${classNameFor(el)}:${state} {\n${body}\n}`;
@@ -125,7 +126,7 @@ const elementCssChunks = (
     for (const state of ELEMENT_STATES) {
       const override = overrides[state];
       if (!override) continue;
-      const block = stateBlockFor(el, state, override);
+      const block = stateBlockFor(el, parent, state, override);
       if (block !== null) chunks.push(block);
     }
   }
@@ -188,7 +189,8 @@ export const generateCss = (
         ? sizeOverrideOnly(el.breakpointOverrides?.[bp.id])
         : el.breakpointOverrides?.[bp.id];
       if (!overrideHasAny(override)) continue;
-      const lines = breakpointOverrideLines(override, el);
+      const parent = el.parentId ? elements[el.parentId] ?? null : null;
+      const lines = breakpointOverrideLines(override, el, parent);
       if (lines.length === 0) continue;
       const body = lines.map((line) => line.length === 0 ? "" : `    ${line}`).join('\n');
       const cls = classNameFor(el);

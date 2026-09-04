@@ -106,7 +106,7 @@ describe('MCP HTTP server', () => {
         it('lists every tool with a schema', async () => {
             const res = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
             const body = await res.json();
-            expect(body.result.tools).toHaveLength(8);
+            expect(body.result.tools).toHaveLength(9);
             expect(body.result.tools[0]).toHaveProperty('inputSchema');
         });
         it('calls a tool and returns text content', async () => {

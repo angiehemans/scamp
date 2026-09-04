@@ -5,6 +5,7 @@
 // index for flow targets, drop point for absolute targets — lives here so
 // neither hook duplicates it. see docs/plans/canvas-drag-reparent-plan.md
 import type { ScampElement } from '@lib/element';
+import { isColumnDirection } from '@lib/flexAxis';
 import { wouldCreateComponentCycle } from '@lib/componentUsage';
 
 import { resolveDropZone } from '@lib/dropZones';
@@ -85,7 +86,7 @@ const flowAxisIsHorizontal = (
   sibling: { x: number; y: number; w: number; h: number },
   cursor: { x: number; y: number }
 ): boolean => {
-  if (parent.display !== 'grid') return parent.flexDirection === 'row';
+  if (parent.display !== 'grid') return !isColumnDirection(parent.flexDirection);
   if (sibling.w <= 0 || sibling.h <= 0) return false;
   const dx = Math.abs(cursor.x - (sibling.x + sibling.w / 2)) / sibling.w;
   const dy = Math.abs(cursor.y - (sibling.y + sibling.h / 2)) / sibling.h;
@@ -145,7 +146,7 @@ export const flowIndicator = (
   if (!containerRect) return null;
   const cr = containerRect;
   const rect =
-    parent.display === 'flex' && parent.flexDirection === 'row'
+    parent.display === 'flex' && !isColumnDirection(parent.flexDirection)
       ? { x: cr.x + cr.w - LINE, y: cr.y, w: LINE, h: cr.h }
       : { x: cr.x, y: cr.y + cr.h - LINE, w: cr.w, h: LINE };
   return { rect, newIndex: parent.childIds.length, containerRect };

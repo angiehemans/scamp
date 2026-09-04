@@ -70,7 +70,7 @@ test.describe('MCP server, live', () => {
         const gitignore = await fs.readFile(join(project.dir, '.gitignore'), 'utf-8');
         expect(gitignore).toContain('.mcp.json');
     });
-    test('completes the handshake and lists all eight tools', async ({ window, project, }) => {
+    test('completes the handshake, carries instructions, and lists every tool', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         const config = await readConfig(project.dir);
         const init = await rpc(config, 'initialize', { protocolVersion: '2025-06-18' });
@@ -78,11 +78,14 @@ test.describe('MCP server, live', () => {
             capabilities: { tools: {} },
             serverInfo: { name: 'scamp' },
         });
+        // The server-carried guidance — reaches an agent that skipped agent.md.
+        expect(init['result'].instructions).toContain('components/');
         const list = await rpc(config, 'tools/list');
         const tools = list['result'].tools;
         expect(tools.map((t) => t.name).sort()).toEqual([
             'scamp_get_active_page',
             'scamp_get_canvas_state',
+            'scamp_get_component_scaffold',
             'scamp_get_element_by_id',
             'scamp_get_element_tree',
             'scamp_get_selected_element',

@@ -62,11 +62,20 @@ input creators — everything that commits an exact drawn size. Text is left
 alone: it hugs its content, and pinning it against shrinking changes how
 it wraps, which is a different decision.
 
-It goes through `customProperties` rather than a new typed field. That
-means it is emitted verbatim into the generated CSS, so the preview and
-any browser agree with the canvas; it round-trips through `parseCode` as
-an unknown property with no new mapping and no risk to the round-trip
-invariant; and it stays visible and removable in the CSS panel.
+The guard is the typed `flexShrink` field (it began life as a
+`customProperties` entry, before flex-item fields existed — see
+`docs/plans/flex-controls-plan.md`). It is written to the file as
+`flex-shrink: 0`, so the preview and any browser agree with the canvas;
+it round-trips through `parseCode` like any other declaration; and the
+Size panel shows it as the **Don't shrink** toggle in the flex-child
+block, where it can be switched off.
+
+The Size panel applies the same rule the other way round: typing a px
+size into a flex child's main axis sets the guard, and switching that
+axis to Fill / Hug / Auto clears it (`shrinkGuardPatch`). "The size you
+gave it is the size you get" holds whether the size came from a drag or
+from the keyboard. Only a guard Scamp set (`0`) is ever cleared; a
+hand-written `flex-shrink: 0.5` is the user's.
 
 Grid parents are excluded — a grid item is sized by its track and already
 honours an explicit width.
@@ -74,8 +83,8 @@ honours an explicit width.
 **The trade-off, stated plainly:** these boxes no longer participate in
 flex shrinking, so they will not narrow when their container does. That is
 the correct default for a drawing tool and the wrong default for a
-responsive layout. Deleting the one line in the CSS panel restores normal
-flex behaviour.
+responsive layout. Untick **Don't shrink** (or set Shrink to 1) to
+restore normal flex behaviour.
 
 ## The third half: measuring the parent, not asking the model
 

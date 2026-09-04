@@ -52,10 +52,10 @@ const collectElementsDfs = (elements, rootId) => {
  * `BreakpointOverride`'s fields, and the lines emitter only acts on
  * keys actually present in the object.
  */
-const stateBlockFor = (el, state, override) => {
+const stateBlockFor = (el, parent, state, override) => {
     if (Object.keys(override).length === 0)
         return null;
-    const lines = breakpointOverrideLines(override, el);
+    const lines = breakpointOverrideLines(override, el, parent);
     if (lines.length === 0)
         return null;
     const body = lines.map((line) => line.length === 0 ? "" : `  ${line}`).join('\n');
@@ -99,7 +99,7 @@ const elementCssChunks = (el, parent, mustEstablishPositioningContext = false) =
             const override = overrides[state];
             if (!override)
                 continue;
-            const block = stateBlockFor(el, state, override);
+            const block = stateBlockFor(el, parent, state, override);
             if (block !== null)
                 chunks.push(block);
         }
@@ -147,7 +147,8 @@ export const generateCss = (elements, rootId, breakpoints, customMediaBlocks, pa
                 : el.breakpointOverrides?.[bp.id];
             if (!overrideHasAny(override))
                 continue;
-            const lines = breakpointOverrideLines(override, el);
+            const parent = el.parentId ? elements[el.parentId] ?? null : null;
+            const lines = breakpointOverrideLines(override, el, parent);
             if (lines.length === 0)
                 continue;
             const body = lines.map((line) => line.length === 0 ? "" : `    ${line}`).join('\n');

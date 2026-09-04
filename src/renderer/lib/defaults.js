@@ -20,6 +20,8 @@ export const DEFAULT_RECT_STYLES = {
     // `justify-content` genuinely defaults to `flex-start` in CSS, so this
     // one already agreed.
     justifyContent: 'flex-start',
+    flexWrap: 'nowrap',
+    alignContent: 'normal',
     gridTemplateColumns: '',
     gridTemplateRows: '',
     columnGap: 0,
@@ -27,8 +29,15 @@ export const DEFAULT_RECT_STYLES = {
     justifyItems: 'stretch',
     gridColumn: '',
     gridRow: '',
-    alignSelf: 'stretch',
+    // `auto` is CSS's initial value (inherit the parent's `align-items`).
+    // `stretch` is a real, different value once the parent isn't
+    // stretching, so it can't double as "unset".
+    alignSelf: 'auto',
     justifySelf: 'stretch',
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: '',
+    order: 0,
     padding: [0, 0, 0, 0],
     margin: [0, 0, 0, 0],
     widthMode: 'fixed',
@@ -83,6 +92,8 @@ export const DEFAULT_ROOT_STYLES = {
     // `justify-content` genuinely defaults to `flex-start` in CSS, so this
     // one already agreed.
     justifyContent: 'flex-start',
+    flexWrap: 'nowrap',
+    alignContent: 'normal',
     gridTemplateColumns: '',
     gridTemplateRows: '',
     columnGap: 0,
@@ -90,8 +101,15 @@ export const DEFAULT_ROOT_STYLES = {
     justifyItems: 'stretch',
     gridColumn: '',
     gridRow: '',
-    alignSelf: 'stretch',
+    // `auto` is CSS's initial value (inherit the parent's `align-items`).
+    // `stretch` is a real, different value once the parent isn't
+    // stretching, so it can't double as "unset".
+    alignSelf: 'auto',
     justifySelf: 'stretch',
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: '',
+    order: 0,
     padding: [0, 0, 0, 0],
     margin: [0, 0, 0, 0],
     widthMode: 'stretch',

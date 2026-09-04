@@ -81,3 +81,23 @@ describe('flexAlignToCell', () => {
         expect(flexAlignToCell('stretch', 'flex-start', 'column')).toBeNull();
     });
 });
+describe('reverse directions map by axis, not by where the browser draws', () => {
+    it('row-reverse is the row mapping', () => {
+        for (const col of CELLS) {
+            for (const row of CELLS) {
+                expect(cellToFlexAlign(col, row, 'row-reverse')).toEqual(cellToFlexAlign(col, row, 'row'));
+            }
+        }
+    });
+    it('column-reverse is the column mapping', () => {
+        for (const col of CELLS) {
+            for (const row of CELLS) {
+                expect(cellToFlexAlign(col, row, 'column-reverse')).toEqual(cellToFlexAlign(col, row, 'column'));
+            }
+        }
+    });
+    it('inverts the same way', () => {
+        expect(flexAlignToCell('flex-end', 'center', 'row-reverse')).toEqual(flexAlignToCell('flex-end', 'center', 'row'));
+        expect(flexAlignToCell('flex-end', 'center', 'column-reverse')).toEqual(flexAlignToCell('flex-end', 'center', 'column'));
+    });
+});

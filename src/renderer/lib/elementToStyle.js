@@ -6,6 +6,7 @@
 import { classifyBackgroundValue } from "./backgroundValue";
 import { customPropsToStyle } from "./customProps";
 import { ROOT_ELEMENT_ID } from "./element";
+import { isColumnDirection } from "./flexAxis";
 import { tagFor } from "./generateCode";
 import { CUSTOM_PROP_TO_GROUP } from "./propertyGroups";
 import { formatSpaceShorthand, isZeroSpaceTuple } from "./spaceValue";
@@ -137,7 +138,9 @@ inComponentEditor = false) => {
     const inFlexParent = parentDisplay === 'flex';
     const inGridParent = parentDisplay === 'grid';
     const inLayoutParent = inFlexParent || inGridParent;
-    const isRow = parentDirection !== 'column'; // default flex direction is row
+    // Axis, not literal direction: `row-reverse` is still a horizontal main
+    // axis. An absent direction reads as row, CSS's default.
+    const isRow = !isColumnDirection(parentDirection);
     // 'auto' produces `undefined` so the rendered element inherits the
     // browser default — exactly what an absent CSS declaration would do.
     // For 'fixed' mode, `widthCustom` (verbatim CSS like `100vh`,
@@ -215,7 +218,12 @@ inComponentEditor = false) => {
         //     centre the item) and pin the item to the start edge instead —
         //     diverging from the browser/preview. see
         //     docs/notes/canvas-cross-axis-stretch.md
-        if (el.heightMode === 'stretch' && widthIsMain) {
+        // Only while `alignSelf` is unset (or already stretch): a user-set
+        // `center` must win here as it does in the generated CSS, which then
+        // writes `height: 100%` + `align-self: center` instead.
+        if (el.heightMode === 'stretch' &&
+            widthIsMain &&
+            (el.alignSelf === 'auto' || el.alignSelf === 'stretch')) {
             flexProps.alignSelf = 'stretch';
             effectiveHeight = undefined;
         }
@@ -336,7 +344,7 @@ inComponentEditor = false) => {
             base.gridColumn = el.gridColumn;
         if (el.gridRow.length > 0)
             base.gridRow = el.gridRow;
-        if (el.alignSelf !== 'stretch')
+        if (el.alignSelf !== 'auto')
             base.alignSelf = el.alignSelf;
         if (el.justifySelf !== 'stretch')
             base.justifySelf = el.justifySelf;

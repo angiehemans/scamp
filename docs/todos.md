@@ -10,7 +10,15 @@ Roughly ordered by how much they cost per day of ignoring them.
 
 ## 1. `preserveDrawnSize` is inconsistent, by decision deferred
 
-**Status:** parked by Angie on 2026-08-29 after the options were laid
+**Status: resolved 2026-09-04** with the flex-controls work
+(`docs/plans/flex-controls-plan.md`). Angie chose the first option —
+**px means don't-shrink** — and the guard moved to a typed `flexShrink`
+field: `preserveDrawnSize` sets it on draw, `shrinkGuardPatch` sets it
+when a px size is typed into the main axis and clears it on Fill / Hug /
+Auto, and the Size panel shows it as **Don't shrink**. Stored in the
+file, never derived. Original write-up kept below for the reasoning.
+
+Previously: parked by Angie on 2026-08-29 after the options were laid
 out — "leave this as is for now, so far I love how it works".
 
 The `flex-shrink: 0` guard is written when you **draw** a fixed box into

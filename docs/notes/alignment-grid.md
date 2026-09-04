@@ -63,3 +63,15 @@ edge. `alignment-grid.spec.ts` covers the values a click emits.
 
 Tolerance is 0.6px — tight enough to catch a reintroduced pixel nudge. A loose
 tolerance passes for both the bug and the fix and guards nothing.
+
+## Reverse directions map by axis
+
+`row-reverse` and `column-reverse` (added with
+`docs/plans/flex-controls-plan.md`) do not mirror the grid. The left
+column still means `justify-content: flex-start` in a row, even though
+the browser now draws that item on the right. Mirroring would make the
+same cell mean different CSS depending on the Reverse toggle elsewhere
+in the panel; Figma makes the same call. `lib/alignmentGrid.ts` and the
+control both ask `isColumnDirection()` and otherwise ignore the
+modifier, and the preview band is laid out along the plain axis so the
+bars don't flip either.

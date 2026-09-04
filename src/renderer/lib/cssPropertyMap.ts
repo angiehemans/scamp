@@ -8,6 +8,7 @@ import {
   parseSizeValue,
   parseSpaceValueOrNull,
   parseTransitionShorthand,
+  parseFlexShorthand,
 } from './parsers';
 import { isBlendMode } from './blendModes';
 import type { ScampElement } from './element';
@@ -51,6 +52,28 @@ const POSITIONS: ReadonlySet<string> = new Set([
  * Adding canvas support for a new CSS property = add an entry here + add
  * an emitter case in `generateCode`.
  */
+/** `start` / `end` → the `flex-*` spelling the container fields store. */
+const flexSpelling = (v: string): string => {
+  const t = v.trim();
+  if (t === 'start') return 'flex-start';
+  if (t === 'end') return 'flex-end';
+  return t;
+};
+
+/** `flex-start` / `flex-end` → the short spelling `alignSelf` stores. */
+const selfSpelling = (v: string): string => {
+  const t = v.trim();
+  if (t === 'flex-start') return 'start';
+  if (t === 'flex-end') return 'end';
+  return t;
+};
+
+const nonNegativeNumberOrNull = (v: string): number | null => {
+  const t = v.trim();
+  if (!/^(?:\d+|\d*\.\d+)$/.test(t)) return null;
+  return Number(t);
+};
+
 export const cssToScampProperty: Record<string, Mapper> = {
   background: (v) => ({ backgroundColor: v }),
   'background-color': (v) => ({ backgroundColor: v }),
@@ -89,7 +112,10 @@ export const cssToScampProperty: Record<string, Mapper> = {
     return null;
   },
   'flex-direction': (v) => {
-    if (v === 'row' || v === 'column') return { flexDirection: v };
+    const t = v.trim();
+    if (t === 'row' || t === 'column' || t === 'row-reverse' || t === 'column-reverse') {
+      return { flexDirection: t };
+    }
     return null;
   },
   gap: (v) => {
@@ -103,20 +129,50 @@ export const cssToScampProperty: Record<string, Mapper> = {
     return { gap: sv };
   },
   'align-items': (v) => {
-    if (v === 'flex-start' || v === 'center' || v === 'flex-end' || v === 'stretch') {
-      return { alignItems: v };
+    const t = flexSpelling(v);
+    if (
+      t === 'flex-start' ||
+      t === 'center' ||
+      t === 'flex-end' ||
+      t === 'stretch' ||
+      t === 'baseline'
+    ) {
+      return { alignItems: t };
     }
     return null;
   },
   'justify-content': (v) => {
+    const t = flexSpelling(v);
     if (
-      v === 'flex-start' ||
-      v === 'center' ||
-      v === 'flex-end' ||
-      v === 'space-between' ||
-      v === 'space-around'
+      t === 'flex-start' ||
+      t === 'center' ||
+      t === 'flex-end' ||
+      t === 'space-between' ||
+      t === 'space-around' ||
+      t === 'space-evenly'
     ) {
-      return { justifyContent: v };
+      return { justifyContent: t };
+    }
+    return null;
+  },
+  'flex-wrap': (v) => {
+    const t = v.trim();
+    if (t === 'nowrap' || t === 'wrap' || t === 'wrap-reverse') return { flexWrap: t };
+    return null;
+  },
+  'align-content': (v) => {
+    const t = flexSpelling(v);
+    if (
+      t === 'normal' ||
+      t === 'flex-start' ||
+      t === 'center' ||
+      t === 'flex-end' ||
+      t === 'space-between' ||
+      t === 'space-around' ||
+      t === 'space-evenly' ||
+      t === 'stretch'
+    ) {
+      return { alignContent: t };
     }
     return null;
   },
@@ -322,11 +378,46 @@ export const cssToScampProperty: Record<string, Mapper> = {
   },
   'grid-column': (v) => ({ gridColumn: v.trim() }),
   'grid-row': (v) => ({ gridRow: v.trim() }),
+  // Accepts the flex spellings too (`flex-start` → `start`): the field is
+  // shared by flex and grid children and stores the short form.
   'align-self': (v) => {
-    if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {
-      return { alignSelf: v };
+    const t = selfSpelling(v);
+    if (
+      t === 'auto' ||
+      t === 'start' ||
+      t === 'center' ||
+      t === 'end' ||
+      t === 'stretch' ||
+      t === 'baseline'
+    ) {
+      return { alignSelf: t };
     }
     return null;
+  },
+  'flex-grow': (v) => {
+    const n = nonNegativeNumberOrNull(v);
+    return n === null ? null : { flexGrow: n };
+  },
+  'flex-shrink': (v) => {
+    const n = nonNegativeNumberOrNull(v);
+    return n === null ? null : { flexShrink: n };
+  },
+  'flex-basis': (v) => {
+    const t = v.trim();
+    if (t.length === 0) return null;
+    return { flexBasis: t === 'auto' ? '' : t };
+  },
+  // The shorthand expands to all three longhands; anything it can't
+  // reduce stays verbatim. `parseCode` then folds the exact fill-height
+  // `flex: 1` back into `heightMode` — see the absorption there.
+  flex: (v) => {
+    const parsed = parseFlexShorthand(v);
+    return parsed === null ? null : { ...parsed };
+  },
+  order: (v) => {
+    const t = v.trim();
+    if (!/^-?\d+$/.test(t)) return null;
+    return { order: Number(t) };
   },
   'justify-self': (v) => {
     if (v === 'start' || v === 'center' || v === 'end' || v === 'stretch') {

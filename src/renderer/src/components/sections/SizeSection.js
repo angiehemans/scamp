@@ -1,11 +1,13 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
-import { IconLink, IconLinkOff } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconLink, IconLinkOff, } from '@tabler/icons-react';
 import { useCanvasStore, selectIsRatioLocked } from '@store/canvasSlice';
 import { useResolvedElement } from '@store/useResolvedElement';
 import { EnumSelect } from '../controls/EnumSelect';
+import { NumberInput } from '../controls/NumberInput';
 import { PrefixSuffixInput } from '../controls/PrefixSuffixInput';
 import { SizeTypeSelect } from '../controls/SizeTypeSelect';
+import { shrinkGuardPatch } from '@lib/flexChild';
 import { parseSizeValue } from '@lib/parsers';
 import { combineTypedWithType, rawForType, sizeTypeLabel, sizeTypeOf, } from '@lib/sizeType';
 import { lockedSizePatch } from '@lib/aspectRatio';
@@ -32,6 +34,16 @@ const GRID_SELF_OPTIONS = [
     { value: 'center', label: 'Center' },
     { value: 'end', label: 'End' },
     { value: 'stretch', label: 'Stretch' },
+];
+// `align-self` for a flex or grid child. `Auto` is CSS's own initial
+// value — inherit the parent's `align-items` — and emits nothing.
+const SELF_ALIGN_OPTIONS = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'start', label: 'Start' },
+    { value: 'center', label: 'Center' },
+    { value: 'end', label: 'End' },
+    { value: 'stretch', label: 'Stretch' },
+    { value: 'baseline', label: 'Baseline' },
 ];
 /**
  * Measure the actual rendered size of an element on the canvas.
@@ -124,6 +136,26 @@ export const SizeSection = ({ elementId }) => {
             return false;
         return s.elements[el.parentId]?.display === 'grid';
     });
+    // …and whether it is a flex container, plus its direction — drives the
+    // flex-item controls and the px-means-don't-shrink rule. Two primitive
+    // selectors rather than one object so the store's identity check holds.
+    const parentIsFlex = useCanvasStore((s) => {
+        const el = s.elements[elementId];
+        if (!el?.parentId)
+            return false;
+        return s.elements[el.parentId]?.display === 'flex';
+    });
+    const parentDirection = useCanvasStore((s) => {
+        const el = s.elements[elementId];
+        if (!el?.parentId)
+            return undefined;
+        return s.elements[el.parentId]?.flexDirection;
+    });
+    // The flex / grid child controls live under an "Advanced" disclosure so
+    // the common case — W and H — stays uncluttered. Closed by default; the
+    // section stays mounted across selection changes, so it holds while the
+    // user works through siblings.
+    const [advancedOpen, setAdvancedOpen] = useState(false);
     if (!element)
         return null;
     const measured = useMeasuredSize(elementId, element.widthMode, element.heightMode);
@@ -174,15 +206,31 @@ export const SizeSection = ({ elementId }) => {
     // A committed W/H edit that lands a non-fixed mode drops the lock (a
     // stretch/auto axis can't be ratio-locked). When locked+fixed, the
     // paired dimension is recomputed inside `lockedSizePatch`.
+    //
+    // A px size typed into the parent's flex MAIN axis also sets the
+    // don't-shrink guard, and leaving px clears it — "the size you typed
+    // is the size you get", the same promise the draw tool makes.
+    // see docs/notes/draw-into-flex-parent.md
+    const flexParent = parentIsFlex
+        ? { display: 'flex', flexDirection: parentDirection ?? 'row' }
+        : undefined;
     const handleCommitWidth = (raw) => {
-        if (parseSizeValue(raw).mode !== 'fixed')
+        const mode = parseSizeValue(raw).mode;
+        if (mode !== 'fixed')
             clearRatioLock(elementId);
-        patchElement(elementId, lockedSizePatch(element, 'width', raw, activeRatio));
+        patchElement(elementId, {
+            ...lockedSizePatch(element, 'width', raw, activeRatio),
+            ...shrinkGuardPatch(element, flexParent, 'width', mode),
+        });
     };
     const handleCommitHeight = (raw) => {
-        if (parseSizeValue(raw).mode !== 'fixed')
+        const mode = parseSizeValue(raw).mode;
+        if (mode !== 'fixed')
             clearRatioLock(elementId);
-        patchElement(elementId, lockedSizePatch(element, 'height', raw, activeRatio));
+        patchElement(elementId, {
+            ...lockedSizePatch(element, 'height', raw, activeRatio),
+            ...shrinkGuardPatch(element, flexParent, 'height', mode),
+        });
     };
     // Picking a type from the right-side menu converts the current value to
     // that type (seeded with the axis's current number) and commits it.
@@ -220,6 +268,10 @@ export const SizeSection = ({ elementId }) => {
             'gridRow',
             'alignSelf',
             'justifySelf',
+            'flexGrow',
+            'flexShrink',
+            'flexBasis',
+            'order',
         ], cssProperties: [
             'width',
             'height',
@@ -228,6 +280,11 @@ export const SizeSection = ({ elementId }) => {
             'grid-row',
             'align-self',
             'justify-self',
+            'flex-grow',
+            'flex-shrink',
+            'flex-basis',
+            'flex',
+            'order',
         ], children: [_jsxs(Row, { label: "", children: [_jsx(PrefixSuffixInput, { prefix: "W", title: isWidthFixed
                             ? 'Width — type a number, or any CSS length (100vh, calc(...)). Set the unit on the right.'
                             : 'Width — computed (border-box). Type a number to make it fixed, or change the type on the right.', value: widthFieldValue, placeholder: isWidthFixed ? undefined : sizeTypeLabel(widthType), onCommit: (raw) => handleCommitWidth(combineTypedWithType(raw, widthType)), ...(STEPPABLE_TYPES.has(widthType)
@@ -236,5 +293,10 @@ export const SizeSection = ({ elementId }) => {
                             ? 'Height — type a number, or any CSS length (100vh, calc(...)). Set the unit on the right.'
                             : 'Height — computed (border-box). Type a number to make it fixed, or change the type on the right.', value: heightFieldValue, placeholder: isHeightFixed ? undefined : sizeTypeLabel(heightType), onCommit: (raw) => handleCommitHeight(combineTypedWithType(raw, heightType)), ...(STEPPABLE_TYPES.has(heightType)
                             ? { onArrow: makeArrowHandler(heightType, heightNumber, handleCommitHeight) }
-                            : {}), computed: !isHeightFixed, suffix: _jsx(SizeTypeSelect, { value: heightType, orientation: "vertical", onSelect: handleSelectHeightType, ...(disabledTypes ? { disabledTypes } : {}), ariaLabel: "Height type" }) })] }), parentIsGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Col", title: "grid-column", value: element.gridColumn, placeholder: "span 2", onCommit: (value) => patchElement(elementId, { gridColumn: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Row", title: "grid-row", value: element.gridRow, placeholder: "1 / 3", onCommit: (value) => patchElement(elementId, { gridRow: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self" }), _jsx(EnumSelect, { value: element.justifySelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifySelf: value }), title: "Justify self" })] })] }))] }));
+                            : {}), computed: !isHeightFixed, suffix: _jsx(SizeTypeSelect, { value: heightType, orientation: "vertical", onSelect: handleSelectHeightType, ...(disabledTypes ? { disabledTypes } : {}), ariaLabel: "Height type" }) })] }), parentIsGrid && (_jsxs(_Fragment, { children: [_jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Col", title: "grid-column", value: element.gridColumn, placeholder: "span 2", onCommit: (value) => patchElement(elementId, { gridColumn: value.trim() }) }) }), _jsx(Row, { label: "", children: _jsx(PrefixSuffixInput, { prefix: "Row", title: "grid-row", value: element.gridRow, placeholder: "1 / 3", onCommit: (value) => patchElement(elementId, { gridRow: value.trim() }) }) }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: SELF_ALIGN_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self" }), _jsx(EnumSelect, { value: element.justifySelf, options: GRID_SELF_OPTIONS, onChange: (value) => patchElement(elementId, { justifySelf: value }), title: "Justify self" })] })] })), (parentIsFlex || parentIsGrid) && (_jsxs("button", { type: "button", className: styles.advancedHeader, "aria-expanded": advancedOpen, "aria-label": "Advanced", onClick: () => setAdvancedOpen((o) => !o), children: [advancedOpen ? _jsx(IconChevronDown, { size: 13 }) : _jsx(IconChevronRight, { size: 13 }), _jsx("span", { className: styles.advancedLabel, children: "Advanced" })] })), advancedOpen && parentIsGrid && (_jsx(Row, { label: "", children: _jsx(NumberInput, { prefix: "Order", title: "order \u2014 visual position among siblings; lower first", value: element.order, onChange: (value) => patchElement(elementId, { order: value ?? 0 }) }) })), advancedOpen && parentIsFlex && (_jsxs(_Fragment, { children: [_jsxs(Row, { label: "", children: [_jsx(NumberInput, { prefix: "Grow", title: "flex-grow \u2014 share of leftover space this child takes (0 = none)", value: element.flexGrow, min: 0, onChange: (value) => patchElement(elementId, { flexGrow: value ?? 0 }) }), _jsx(NumberInput, { prefix: "Shrink", title: "flex-shrink \u2014 how readily this child gives up space when the line overflows (0 = never)", value: element.flexShrink, min: 0, onChange: (value) => patchElement(elementId, { flexShrink: value ?? 1 }) })] }), _jsxs(Row, { label: "", children: [_jsx(PrefixSuffixInput, { prefix: "Basis", title: "flex-basis \u2014 starting size before grow / shrink (auto, 200px, 0%, var(--w))", value: element.flexBasis, placeholder: "auto", onCommit: (value) => {
+                                    const v = value.trim();
+                                    patchElement(elementId, { flexBasis: v === 'auto' ? '' : v });
+                                } }), _jsx("button", { type: "button", className: `${styles.shrinkButton} ${element.flexShrink === 0 ? styles.shrinkButtonActive : ''}`, onClick: () => patchElement(elementId, {
+                                    flexShrink: element.flexShrink === 0 ? 1 : 0,
+                                }), "aria-pressed": element.flexShrink === 0, title: "Don't shrink \u2014 keep this size even when the line overflows (flex-shrink: 0)", children: "Don\u2019t shrink" })] }), _jsxs(Row, { label: "", children: [_jsx(EnumSelect, { value: element.alignSelf, options: SELF_ALIGN_OPTIONS, onChange: (value) => patchElement(elementId, { alignSelf: value }), title: "Align self \u2014 this child's cross-axis alignment; Auto follows the parent" }), _jsx(NumberInput, { prefix: "Order", title: "order \u2014 visual position among siblings; lower first", value: element.order, onChange: (value) => patchElement(elementId, { order: value ?? 0 }) })] })] }))] }));
 };

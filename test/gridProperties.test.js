@@ -26,9 +26,15 @@ const makeRoot = (childIds = []) => ({
     columnGap: 0,
     rowGap: 0,
     justifyItems: 'stretch',
+    flexWrap: 'nowrap',
+    alignContent: 'normal',
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: '',
+    order: 0,
     gridColumn: '',
     gridRow: '',
-    alignSelf: 'stretch',
+    alignSelf: 'auto',
     justifySelf: 'stretch',
     padding: [0, 0, 0, 0],
     margin: [0, 0, 0, 0],
@@ -78,8 +84,10 @@ describe('grid: generator (container)', () => {
             customMediaBlocks: [],
         });
         expect(css).not.toContain('grid-template-columns');
-        expect(css).not.toContain('column-gap');
         expect(css).not.toContain('display: grid');
+        // Per-axis gaps are not grid-only: a file that sets `column-gap` on a
+        // non-grid element keeps it, exactly as `gap` always did.
+        expect(css).toContain('column-gap: 16px;');
     });
     it('emits display: grid + non-empty grid fields when display is grid', () => {
         const elements = {
@@ -180,7 +188,7 @@ describe('grid: generator (item)', () => {
         expect(css).toContain('align-self: center;');
         expect(css).toContain('justify-self: end;');
     });
-    it('does not emit grid-item fields when parent is not grid', () => {
+    it('emits only the flex-item fields when parent is flex, never grid placement', () => {
         const elements = {
             [ROOT_ELEMENT_ID]: makeRoot(['p1']),
             p1: makeRect('p1', ROOT_ELEMENT_ID, { display: 'flex' }),
@@ -198,7 +206,9 @@ describe('grid: generator (item)', () => {
             customMediaBlocks: [],
         });
         expect(css).not.toContain('grid-column');
-        expect(css).not.toContain('align-self');
+        // `align-self` is a flex-item property too — under a flex parent it
+        // is emitted, in the flex spelling. (It used to be silently dropped.)
+        expect(css).toContain('align-self: center;');
     });
     it('omits position: absolute / left / top for grid children', () => {
         const elements = {

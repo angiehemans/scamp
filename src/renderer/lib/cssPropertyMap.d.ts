@@ -18,16 +18,6 @@ export type ScampPropertyDelta = Partial<ScampElement>;
  * → the generator emits it back byte-equivalent.
  */
 type Mapper = (value: string) => ScampPropertyDelta | null;
-/**
- * The single source of truth for "what CSS properties does scamp understand".
- *
- * The parser uses this to overlay parsed values onto a defaults baseline;
- * the generator uses the *keys* of this map (indirectly, via what it knows
- * how to emit) to decide what gets emitted vs. relegated to customProperties.
- *
- * Adding canvas support for a new CSS property = add an entry here + add
- * an emitter case in `generateCode`.
- */
 export declare const cssToScampProperty: Record<string, Mapper>;
 export declare const isMappedProperty: (name: string) => boolean;
 export {};

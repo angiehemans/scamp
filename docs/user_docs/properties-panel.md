@@ -48,10 +48,17 @@ from the `viewBox`) — see [Elements → SVG](elements.md#svg).
 
 ### Layout
 
-- Toggle between **Block** and **Flex** display.
-- For flex containers: **Direction** (row/column), **Align**, **Justify**, and **Gap**.
-- The **Gap** input (and **C-gap** / **R-gap** in Grid mode) shows a
-  token icon on the right — see [Spacing Tokens](#spacing-tokens) below.
+- Pick **Block**, **Flex row**, **Flex column**, or **Grid**.
+- For flex containers: the **Reverse** toggle (`row-reverse` /
+  `column-reverse`), the 3×3 alignment grid, **Align** (including
+  Baseline), **Justify** (including Evenly), **Gap**, and a **Wrap** row.
+  Turn on Wrap and you also get **Align content** and separate **Row gap**
+  / **Column gap** inputs. Full detail in [Flex Layout](flex-layout.md).
+- When the selected element's *parent* is flex or grid, the Size section
+  gains an **Advanced** disclosure holding the child controls — for flex,
+  Grow, Shrink, **Don't shrink**, Basis, Align self, Order.
+- The gap inputs show a token icon on the right — see
+  [Spacing Tokens](#spacing-tokens) below.
 
 ### Spacing
 

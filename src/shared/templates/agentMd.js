@@ -680,11 +680,14 @@ Use any CSS property you'd use in a real stylesheet. Scamp renders
 
 Internally Scamp routes a small set of properties (\`background\`,
 \`border\`, \`border-radius\`, \`color\`, \`display\`, \`flex-direction\`,
-\`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
+\`flex-wrap\`, \`align-items\`, \`justify-content\`, \`align-content\`,
+\`gap\`, \`row-gap\`, \`column-gap\`, \`width\`, \`height\`,
 \`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
 \`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
 \`font-family\`, \`transition\`, \`box-shadow\`, \`mix-blend-mode\`,
-\`background-blend-mode\`, plus the grid container/item set) into
+\`background-blend-mode\`, the grid container/item set, and the
+flex-item set — \`flex\`, \`flex-grow\`, \`flex-shrink\`, \`flex-basis\`,
+\`align-self\`, \`order\`) into
 typed fields it can later expose via UI controls. Everything else
 (\`transform\`, \`backdrop-filter\`, \`filter\`, \`clip-path\`,
 \`isolation\`, animations, gradients, \`@keyframes\`, …) round-trips
@@ -751,18 +754,24 @@ and aren't editable from the panel — they render correctly but the
 typed controls go blank. Stick to px or \`var(--token)\` if you want
 the user to be able to tweak the value on canvas.
 
-**Flex children — layout lives on the parent, not on each child.**
-The typed-properties list covers parent-side flex (\`display\`,
-\`flex-direction\`, \`gap\`, \`align-items\`, \`justify-content\`). It
-does NOT include \`flex\`, \`flex-grow\`, \`flex-shrink\`,
-\`flex-basis\`, or \`align-self\` on the child. Per-child flex
-declarations work in the browser but are invisible to the panel.
+**Flex, on both sides.** The whole flex vocabulary is typed and
+editable: on the parent, \`flex-direction\` (all four values),
+\`flex-wrap\`, \`align-items\`, \`justify-content\`, \`align-content\`,
+\`gap\` / \`row-gap\` / \`column-gap\`; on the child, \`flex-grow\`,
+\`flex-shrink\`, \`flex-basis\`, \`align-self\`, \`order\`. The
+\`flex\` shorthand is read on the way in (\`flex: 1 1 200px\`, \`flex:
+none\`) and expanded; Scamp writes the longhands back.
 
-- ❌ \`flex: 1 1 200px;\` on every card — preserved verbatim, not editable.
-- ✅ Parent: \`display: flex; flex-wrap: wrap; gap: var(--space-md);\`.
-  Children: \`width: 320px;\` (or whatever fixed width). The parent's
-  wrap + gap handles the responsive break, and the user can drag
-  card widths on canvas.
+- ✅ Parent: \`display: flex; flex-wrap: wrap; row-gap: var(--space-md);\`.
+  Children: \`flex: 1 1 320px;\` — every field lands in the Size panel.
+- Prefer a px, %, or \`var(--token)\` basis over \`calc(...)\`, which
+  renders but shows as a bare string in the panel.
+- \`flex-shrink: 0\` is how Scamp keeps a fixed-size child from being
+  squashed; the panel shows it as **Don't shrink**. Setting a px size
+  on a flex child's main axis adds it, and Fill / Hug / Auto removes it.
+- \`flex: 1\` on a heightless child of a flex COLUMN means fill-height
+  to Scamp — it maps to the Size panel's **Fill** on the height, not to
+  the grow field. Write it when that's what you mean.
 
 For "stretch this child to fill the row," the parent's default
 \`align-items: stretch\` already does it — no per-child override.
@@ -1930,11 +1939,14 @@ Use any CSS property you'd use in a real stylesheet. Scamp renders
 
 Internally Scamp routes a small set of properties (\`background\`,
 \`border\`, \`border-radius\`, \`color\`, \`display\`, \`flex-direction\`,
-\`align-items\`, \`justify-content\`, \`gap\`, \`width\`, \`height\`,
+\`flex-wrap\`, \`align-items\`, \`justify-content\`, \`align-content\`,
+\`gap\`, \`row-gap\`, \`column-gap\`, \`width\`, \`height\`,
 \`padding\`, \`margin\`, \`opacity\`, \`position\`, \`font-size\`,
 \`font-weight\`, \`text-align\`, \`line-height\`, \`letter-spacing\`,
 \`font-family\`, \`transition\`, \`box-shadow\`, \`mix-blend-mode\`,
-\`background-blend-mode\`, plus the grid container/item set) into
+\`background-blend-mode\`, the grid container/item set, and the
+flex-item set — \`flex\`, \`flex-grow\`, \`flex-shrink\`, \`flex-basis\`,
+\`align-self\`, \`order\`) into
 typed fields it can later expose via UI controls. Everything else
 (\`transform\`, \`backdrop-filter\`, \`filter\`, \`clip-path\`,
 \`isolation\`, animations, gradients, \`@keyframes\`, …) round-trips
@@ -2001,18 +2013,24 @@ and aren't editable from the panel — they render correctly but the
 typed controls go blank. Stick to px or \`var(--token)\` if you want
 the user to be able to tweak the value on canvas.
 
-**Flex children — layout lives on the parent, not on each child.**
-The typed-properties list covers parent-side flex (\`display\`,
-\`flex-direction\`, \`gap\`, \`align-items\`, \`justify-content\`). It
-does NOT include \`flex\`, \`flex-grow\`, \`flex-shrink\`,
-\`flex-basis\`, or \`align-self\` on the child. Per-child flex
-declarations work in the browser but are invisible to the panel.
+**Flex, on both sides.** The whole flex vocabulary is typed and
+editable: on the parent, \`flex-direction\` (all four values),
+\`flex-wrap\`, \`align-items\`, \`justify-content\`, \`align-content\`,
+\`gap\` / \`row-gap\` / \`column-gap\`; on the child, \`flex-grow\`,
+\`flex-shrink\`, \`flex-basis\`, \`align-self\`, \`order\`. The
+\`flex\` shorthand is read on the way in (\`flex: 1 1 200px\`, \`flex:
+none\`) and expanded; Scamp writes the longhands back.
 
-- ❌ \`flex: 1 1 200px;\` on every card — preserved verbatim, not editable.
-- ✅ Parent: \`display: flex; flex-wrap: wrap; gap: var(--space-md);\`.
-  Children: \`width: 320px;\` (or whatever fixed width). The parent's
-  wrap + gap handles the responsive break, and the user can drag
-  card widths on canvas.
+- ✅ Parent: \`display: flex; flex-wrap: wrap; row-gap: var(--space-md);\`.
+  Children: \`flex: 1 1 320px;\` — every field lands in the Size panel.
+- Prefer a px, %, or \`var(--token)\` basis over \`calc(...)\`, which
+  renders but shows as a bare string in the panel.
+- \`flex-shrink: 0\` is how Scamp keeps a fixed-size child from being
+  squashed; the panel shows it as **Don't shrink**. Setting a px size
+  on a flex child's main axis adds it, and Fill / Hug / Auto removes it.
+- \`flex: 1\` on a heightless child of a flex COLUMN means fill-height
+  to Scamp — it maps to the Size panel's **Fill** on the height, not to
+  the grow field. Write it when that's what you mean.
 
 For "stretch this child to fill the row," the parent's default
 \`align-items: stretch\` already does it — no per-child override.

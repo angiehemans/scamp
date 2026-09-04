@@ -1,5 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { cellToFlexAlign, flexAlignToCell, } from '@lib/alignmentGrid';
+import { isColumnDirection } from '@lib/flexAxis';
 import { Tooltip } from './Tooltip';
 import styles from './AlignmentGrid.module.css';
 const INDICES = [0, 1, 2];
@@ -50,7 +51,7 @@ const crossPlacement = (alignItems) => {
  */
 export const AlignmentGrid = ({ direction, alignItems, justifyContent, onChange, }) => {
     const active = flexAlignToCell(alignItems, justifyContent, direction);
-    const isRow = direction === 'row';
+    const isRow = !isColumnDirection(direction);
     const main = mainPlacement(justifyContent);
     const cross = crossPlacement(alignItems);
     const stretched = cross === 'stretch';
@@ -72,7 +73,9 @@ export const AlignmentGrid = ({ direction, alignItems, justifyContent, onChange,
             : { gridRow: `${mainPos + 1}`, gridColumn: crossTrack };
     };
     const bandStyle = {
-        flexDirection: direction,
+        // Axis only — the preview maps by axis, so a reversed direction
+        // doesn't mirror the bars. see docs/notes/alignment-grid.md
+        flexDirection: isRow ? 'row' : 'column',
         gap: isRow ? GAP_ROW : GAP_COLUMN,
         alignItems: stretched ? 'stretch' : alignItems,
         ...(isRow

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { HeightMode, WidthMode } from './element';
+import type { FlexDirection, HeightMode, WidthMode } from './element';
 /**
  * Styles the canvas wrapper of a component instance needs in order to
  * inherit a `stretch` component ROOT.
@@ -16,4 +16,4 @@ import type { HeightMode, WidthMode } from './element';
  * `elementToStyle` so an instance and a plain stretch rectangle in the same
  * slot lay out identically. see docs/notes/components-data-model.md
  */
-export declare const instanceStretchStyle: (instanceWidthMode: WidthMode, instanceHeightMode: HeightMode, rootWidthMode: WidthMode | undefined, rootHeightMode: HeightMode | undefined, parentDisplay: "flex" | "grid" | "none" | undefined, parentDirection: "row" | "column" | undefined) => CSSProperties;
+export declare const instanceStretchStyle: (instanceWidthMode: WidthMode, instanceHeightMode: HeightMode, rootWidthMode: WidthMode | undefined, rootHeightMode: HeightMode | undefined, parentDisplay: "flex" | "grid" | "none" | undefined, parentDirection: FlexDirection | undefined) => CSSProperties;

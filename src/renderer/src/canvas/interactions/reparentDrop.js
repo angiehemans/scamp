@@ -1,3 +1,4 @@
+import { isColumnDirection } from '@lib/flexAxis';
 import { wouldCreateComponentCycle } from '@lib/componentUsage';
 import { resolveDropZone } from '@lib/dropZones';
 import { elementIdOf } from './canvasHitTest';
@@ -57,7 +58,7 @@ export const NO_DRAGGED_ID = '';
  */
 const flowAxisIsHorizontal = (parent, sibling, cursor) => {
     if (parent.display !== 'grid')
-        return parent.flexDirection === 'row';
+        return !isColumnDirection(parent.flexDirection);
     if (sibling.w <= 0 || sibling.h <= 0)
         return false;
     const dx = Math.abs(cursor.x - (sibling.x + sibling.w / 2)) / sibling.w;
@@ -110,7 +111,7 @@ draggedId, clientX, clientY, geometry) => {
     if (!containerRect)
         return null;
     const cr = containerRect;
-    const rect = parent.display === 'flex' && parent.flexDirection === 'row'
+    const rect = parent.display === 'flex' && !isColumnDirection(parent.flexDirection)
         ? { x: cr.x + cr.w - LINE, y: cr.y, w: LINE, h: cr.h }
         : { x: cr.x, y: cr.y + cr.h - LINE, w: cr.w, h: LINE };
     return { rect, newIndex: parent.childIds.length, containerRect };

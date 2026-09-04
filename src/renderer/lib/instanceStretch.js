@@ -1,3 +1,4 @@
+import { isColumnDirection } from './flexAxis';
 /**
  * Styles the canvas wrapper of a component instance needs in order to
  * inherit a `stretch` component ROOT.
@@ -26,7 +27,7 @@ export const instanceStretchStyle = (instanceWidthMode, instanceHeightMode, root
         };
     }
     // Default flex-direction is row, so an absent direction means width is main.
-    const widthIsMain = parentDirection !== 'column';
+    const widthIsMain = !isColumnDirection(parentDirection);
     const out = {};
     // Main axis: the generated CSS says `100%`, so the wrapper says `100%`.
     // `flex: 1` would be basis 0 and diverge from the browser as soon as the

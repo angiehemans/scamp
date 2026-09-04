@@ -6,6 +6,7 @@ import {
   type CellIndex,
 } from '@lib/alignmentGrid';
 import type { AlignItems, FlexDirection, JustifyContent } from '@lib/element';
+import { isColumnDirection } from '@lib/flexAxis';
 
 import { Tooltip } from './Tooltip';
 import styles from './AlignmentGrid.module.css';
@@ -83,7 +84,7 @@ export const AlignmentGrid = ({
   onChange,
 }: Props): JSX.Element => {
   const active = flexAlignToCell(alignItems, justifyContent, direction);
-  const isRow = direction === 'row';
+  const isRow = !isColumnDirection(direction);
   const main = mainPlacement(justifyContent);
   const cross = crossPlacement(alignItems);
   const stretched = cross === 'stretch';
@@ -108,7 +109,9 @@ export const AlignmentGrid = ({
   };
 
   const bandStyle: CSSProperties = {
-    flexDirection: direction,
+    // Axis only — the preview maps by axis, so a reversed direction
+    // doesn't mirror the bars. see docs/notes/alignment-grid.md
+    flexDirection: isRow ? 'row' : 'column',
     gap: isRow ? GAP_ROW : GAP_COLUMN,
     alignItems: stretched ? 'stretch' : alignItems,
     ...(isRow

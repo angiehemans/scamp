@@ -789,10 +789,14 @@ ${childDecls}
     expect(elements['pane']?.customProperties).toEqual({});
   });
 
-  it('leaves any other flex spelling as a custom property', () => {
-    // Narrow on purpose: only the exact value the generator emits.
+  it('expands any other flex spelling into the typed fields, never the mode', () => {
+    // Narrow on purpose: only the exact `flex: 1` becomes fill-height.
+    // Everything else is a real grow/shrink/basis the panel can edit.
     const { elements } = parseCode(TSX, cssWith('  flex: 1 1 0%;'));
-    expect(elements['pane']?.customProperties).toEqual({ flex: '1 1 0%' });
+    expect(elements['pane']?.customProperties).toEqual({});
+    expect(elements['pane']?.flexGrow).toBe(1);
+    expect(elements['pane']?.flexShrink).toBe(1);
+    expect(elements['pane']?.flexBasis).toBe('0%');
     expect(elements['pane']?.heightMode).toBe('auto');
   });
 

@@ -5,6 +5,7 @@ import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, f
 import { CUSTOM_PROP_TO_GROUP } from "../propertyGroups";
 import { formatSpaceShorthand, formatSpaceValue, isZeroSpaceTuple, spaceValueEquals } from "../spaceValue";
 import { getTagDefaultPadding, paddingEquals } from "../tagDefaults";
+import { isColumnDirection, selfAlignForParent } from "../flexAxis";
 import { tagFor } from "./internal";
 /**
  * The `width:` / `height:` lines for one element, measured against the
@@ -36,6 +37,20 @@ import { tagFor } from "./internal";
  * There is no risk of pinning agent-written elements that have no width:
  * those parse as `auto`, and only `fixed` emits a length here.
  */
+/**
+ * How a `stretch` height is written for a flex child, if specially at all:
+ * `flex: 1` on a column's main axis, `align-self: stretch` on a row's
+ * cross axis — but only while `alignSelf` is unset (or already stretch),
+ * so a user-set alignment is never contradicted by a second line. Shared
+ * with the flex-item block below, which must not repeat that line.
+ */
+export const fillHeightKind = (el, parent) => {
+    if (parent?.display !== 'flex' || el.heightMode !== 'stretch')
+        return null;
+    if (isColumnDirection(parent.flexDirection))
+        return 'flex';
+    return el.alignSelf === 'auto' || el.alignSelf === 'stretch' ? 'align-self' : null;
+};
 export const sizeDeclarationLines = (el, parent) => {
     // Fill-height in a flex ROW cannot be `height: 100%`.
     //
@@ -66,13 +81,9 @@ export const sizeDeclarationLines = (el, parent) => {
     // proportional squeeze for "the sibling keeps its height and fill
     // takes what is left", which is what the mode name promises.
     // see docs/plans/flex-sizing-contract-plan.md
-    const fillHeightAsFlex = parent?.display === 'flex' &&
-        parent.flexDirection === 'column' &&
-        el.heightMode === 'stretch';
-    const fillHeightAsAlignSelf = parent?.display === 'flex' &&
-        parent.flexDirection !== 'column' &&
-        el.heightMode === 'stretch' &&
-        el.alignSelf === 'stretch';
+    const fill = fillHeightKind(el, parent);
+    const fillHeightAsFlex = fill === 'flex';
+    const fillHeightAsAlignSelf = fill === 'align-self';
     const lines = [];
     if (el.widthMode === 'stretch') {
         lines.push(`width: 100%;`);
@@ -239,6 +250,22 @@ mustEstablishPositioningContext = false) => {
             if (el.justifyContent !== BASE.justifyContent) {
                 lines.push(`justify-content: ${el.justifyContent};`);
             }
+            if (el.flexWrap !== BASE.flexWrap) {
+                lines.push(`flex-wrap: ${el.flexWrap};`);
+            }
+            if (el.alignContent !== BASE.alignContent) {
+                lines.push(`align-content: ${el.alignContent};`);
+            }
+            // Per-axis gaps are real on a flex container too (the row gap
+            // between wrapped lines is the usual reason). Each emits from its
+            // own field, as the grid branch does — they used to be parsed and
+            // then silently dropped here. see docs/plans/flex-controls-plan.md
+            if (!spaceValueEquals(el.columnGap, BASE.columnGap)) {
+                lines.push(`column-gap: ${formatSpaceValue(el.columnGap)};`);
+            }
+            if (!spaceValueEquals(el.rowGap, BASE.rowGap)) {
+                lines.push(`row-gap: ${formatSpaceValue(el.rowGap)};`);
+            }
         }
     }
     // Grid-item declarations — apply when this element's PARENT is a
@@ -252,11 +279,37 @@ mustEstablishPositioningContext = false) => {
             lines.push(`grid-row: ${el.gridRow};`);
         }
         if (el.alignSelf !== BASE.alignSelf) {
-            lines.push(`align-self: ${el.alignSelf};`);
+            lines.push(`align-self: ${selfAlignForParent(el.alignSelf, 'grid')};`);
         }
         if (el.justifySelf !== BASE.justifySelf) {
             lines.push(`justify-self: ${el.justifySelf};`);
         }
+    }
+    // Flex-item declarations — apply when this element's PARENT is a flex
+    // container. Longhands only: the shorthand is read on the way in and
+    // never written, so the fill-height `flex: 1` above stays the one
+    // shorthand in a file. `align-self` is skipped when the fill line has
+    // already written it.
+    if (parent && parent.display === 'flex') {
+        if (el.flexGrow !== BASE.flexGrow) {
+            lines.push(`flex-grow: ${el.flexGrow};`);
+        }
+        if (el.flexShrink !== BASE.flexShrink) {
+            lines.push(`flex-shrink: ${el.flexShrink};`);
+        }
+        if (el.flexBasis.trim().length > 0) {
+            lines.push(`flex-basis: ${el.flexBasis};`);
+        }
+        if (el.alignSelf !== BASE.alignSelf &&
+            fillHeightKind(el, parent) !== 'align-self') {
+            lines.push(`align-self: ${selfAlignForParent(el.alignSelf, 'flex')};`);
+        }
+    }
+    // `order` is a flex AND grid item property.
+    if (parent &&
+        (parent.display === 'flex' || parent.display === 'grid') &&
+        el.order !== BASE.order) {
+        lines.push(`order: ${el.order};`);
     }
     // Padding — emit when it differs from the tag's effective
     // default. For most tags that's `[0,0,0,0]`, so we omit when
@@ -489,7 +542,9 @@ const collectEmittedPropNames = (lines) => {
  * the mode+value combination. When only `widthMode` is in the
  * override, the value falls back to the element's base value.
  */
-export const breakpointOverrideLines = (override, element) => {
+export const breakpointOverrideLines = (override, element, 
+/** Decides the `align-self` spelling; omitted by callers without one. */
+parent = null) => {
     const lines = [];
     const has = (k) => Object.prototype.hasOwnProperty.call(override, k);
     // Same two-buffer pattern as `elementDeclarationLines`. Toggled-
@@ -587,6 +642,12 @@ export const breakpointOverrideLines = (override, element) => {
     if (has('justifyContent') && override.justifyContent) {
         lines.push(`justify-content: ${override.justifyContent};`);
     }
+    if (has('flexWrap') && override.flexWrap) {
+        lines.push(`flex-wrap: ${override.flexWrap};`);
+    }
+    if (has('alignContent') && override.alignContent) {
+        lines.push(`align-content: ${override.alignContent};`);
+    }
     // Grid container fields — emit only when overridden at this
     // breakpoint. Empty template strings emit `none` to clear an
     // inherited grid template; the user can opt out of the grid by
@@ -620,10 +681,24 @@ export const breakpointOverrideLines = (override, element) => {
             lines.push(`grid-row: ${v};`);
     }
     if (has('alignSelf') && override.alignSelf) {
-        lines.push(`align-self: ${override.alignSelf};`);
+        lines.push(`align-self: ${selfAlignForParent(override.alignSelf, parent?.display)};`);
     }
     if (has('justifySelf') && override.justifySelf) {
         lines.push(`justify-self: ${override.justifySelf};`);
+    }
+    // Flex item fields. An explicit empty basis clears an inherited one.
+    if (has('flexGrow') && override.flexGrow !== undefined) {
+        lines.push(`flex-grow: ${override.flexGrow};`);
+    }
+    if (has('flexShrink') && override.flexShrink !== undefined) {
+        lines.push(`flex-shrink: ${override.flexShrink};`);
+    }
+    if (has('flexBasis') && override.flexBasis !== undefined) {
+        const v = override.flexBasis.trim();
+        lines.push(`flex-basis: ${v.length > 0 ? v : 'auto'};`);
+    }
+    if (has('order') && override.order !== undefined) {
+        lines.push(`order: ${override.order};`);
     }
     if (has('padding') && override.padding) {
         lines.push(`padding: ${formatSpaceShorthand(override.padding)};`);

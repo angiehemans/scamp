@@ -1,3 +1,4 @@
+import { isColumnDirection } from './flexAxis';
 /**
  * The three packed values, ordered to match grid indices 0/1/2. Flex
  * uses the `flex-*` spelling on both axes.
@@ -13,9 +14,14 @@ const packedIndex = (value) => {
  * assignment flips with `direction`:
  *   - row:    horizontal (col) = justify (main), vertical (row) = align (cross)
  *   - column: vertical (row) = justify (main), horizontal (col) = align (cross)
+ *
+ * The reverse directions map by AXIS, not by where the browser draws the
+ * items: in `row-reverse` the left column still means `flex-start`, which
+ * renders on the right. Mirroring the grid would make the same cell mean
+ * different CSS depending on a toggle elsewhere in the panel.
  */
 export const cellToFlexAlign = (col, row, direction) => {
-    if (direction === 'column') {
+    if (isColumnDirection(direction)) {
         return { justifyContent: PACKED[row], alignItems: PACKED[col] };
     }
     return { justifyContent: PACKED[col], alignItems: PACKED[row] };
@@ -32,7 +38,7 @@ export const flexAlignToCell = (alignItems, justifyContent, direction) => {
     const justifyIdx = packedIndex(justifyContent);
     if (alignIdx === null || justifyIdx === null)
         return null;
-    if (direction === 'column') {
+    if (isColumnDirection(direction)) {
         return { col: alignIdx, row: justifyIdx };
     }
     return { col: justifyIdx, row: alignIdx };

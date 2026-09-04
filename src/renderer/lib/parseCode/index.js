@@ -1,5 +1,6 @@
 // parseCode/index.ts — split out of parseCode.ts (4.4).
 import { ELEMENT_STATES, ROOT_ELEMENT_ID } from "../element";
+import { DEFAULT_RECT_STYLES } from '../defaults';
 import { requireAt, requireGroup } from "../safeAccess";
 import { applyDeclarations, applyDeclarationsAsOverride, applyDeclarationsAsStateOverride, makeBaseline, makeRoot } from "./apply";
 import { parseCssDeclarations } from "./css";
@@ -234,10 +235,17 @@ export const parseCode = (tsx, css, options) => {
             !hasHeight &&
             parentFlexMainAxis(raw.parentId) === 'height' &&
             decls.some((d) => d.prop === 'flex' && d.value.trim() === '1')) {
+            // The `flex` mapper has already expanded the shorthand into the
+            // typed longhands; fold those back to their defaults too, or the
+            // generator would write `flex: 1` for the mode AND `flex-grow: 1`
+            // for the fields.
             const { flex: _fill, ...rest } = finalElement.customProperties;
             finalElement = {
                 ...finalElement,
                 heightMode: 'stretch',
+                flexGrow: DEFAULT_RECT_STYLES.flexGrow,
+                flexShrink: DEFAULT_RECT_STYLES.flexShrink,
+                flexBasis: DEFAULT_RECT_STYLES.flexBasis,
                 customProperties: rest,
             };
         }
@@ -250,7 +258,13 @@ export const parseCode = (tsx, css, options) => {
             !hasHeight &&
             parentFlexMainAxis(raw.parentId) === 'width' &&
             decls.some((d) => d.prop === 'align-self' && d.value.trim() === 'stretch')) {
-            finalElement = { ...finalElement, heightMode: 'stretch' };
+            // The mode owns the declaration; the typed field goes back to
+            // `auto` so the generator writes `align-self: stretch` once.
+            finalElement = {
+                ...finalElement,
+                heightMode: 'stretch',
+                alignSelf: DEFAULT_RECT_STYLES.alignSelf,
+            };
         }
         // Fold in any breakpoint overrides for this element's class.
         const overrides = {};
