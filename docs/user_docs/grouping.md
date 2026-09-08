@@ -1,39 +1,53 @@
-# Grouping Elements
+# Group elements
 
 Group selected elements into a flex container to organize your layout.
 
-## How to group
+## Group elements
 
-1. Select two or more sibling elements (shift-click or marquee select).
-2. Press **Cmd+G** (Mac) or **Ctrl+G** (Windows/Linux).
+1. Select two or more sibling elements, by Shift-clicking them or by
+   dragging a marquee around them.
+2. Press **Cmd+G** (macOS) or **Ctrl+G** (Windows and Linux).
 
-A new rectangle wraps the selected elements. The group:
-- Becomes a **flex container** (`display: flex`, `flex-direction: row`) by default
-- Uses `fit-content` for both width and height so it hugs its children
-- Inherits a default gap of `8px` between children
-- Is inserted at the position of the first selected element in the parent's child order
+A new rectangle wraps the selected elements. The group has the
+following properties:
 
-The grouped children have their `x`/`y` reset to `0` because flex layout owns their placement.
+- It's a flex container (`display: flex` and `flex-direction: row`) by
+  default.
+- It uses `fit-content` for both width and height, so it hugs its
+  children.
+- It has a default gap of `8px` between children.
+- It's inserted at the position of the first selected element in the
+  parent's child order.
 
-## How to ungroup
+The grouped children have their `x` and `y` reset to `0`, because the
+flex layout owns their placement.
 
-Select a group and press **Cmd+Shift+G** to ungroup. The group wrapper is removed and its children are promoted to the grandparent, preserving their order.
+## Ungroup elements
 
-If the group was inside a non-flex parent, children are translated to the group's stored position so they appear roughly where the group was.
+Select a group and press **Cmd+Shift+G**. Scamp removes the group
+wrapper and promotes its children to the grandparent, preserving their
+order.
+
+If the group was inside a non-flex parent, Scamp moves the children to
+the group's stored position, so they appear roughly where the group was.
 
 ## Rules
 
-- You can only group **siblings** — elements that share the same parent.
-- You cannot group the page root.
-- Groups are just regular rectangles with `display: flex`. You can change their layout, background, border, and other properties like any other element.
-- Groups can be nested — group elements that are already inside a group.
-- [Renaming](element-naming.md) a group works the same as any other element.
+- You can group only siblings—elements that share the same parent.
+- You can't group the page root.
+- Groups are ordinary rectangles with `display: flex`. You can change
+  their layout, background, border, and other properties like any other
+  element.
+- You can nest groups by grouping elements that are already inside a
+  group.
+- [Renaming](element-naming.md) a group works the same as renaming any
+  other element.
 
 ## Keyboard shortcuts
 
 | Action | Shortcut |
 |---|---|
-| Group selection | **Cmd+G** / **Ctrl+G** |
-| Ungroup | **Cmd+Shift+G** / **Ctrl+Shift+G** |
+| Group the selection | **Cmd+G** or **Ctrl+G** |
+| Ungroup | **Cmd+Shift+G** or **Ctrl+Shift+G** |
 
-See [Keyboard Shortcuts](keyboard-shortcuts.md) for the full reference.
+For the full reference, see [Keyboard shortcuts](keyboard-shortcuts.md).

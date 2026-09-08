@@ -1,63 +1,79 @@
 # Animations
 
-Apply CSS keyframe animations to any element from a curated preset library. Scamp writes the `animation` shorthand on your element's class and the matching `@keyframes` block at the bottom of the CSS module — no hand-written keyframes, no copy-paste from Stack Overflow.
+Apply CSS keyframe animations to any element from a curated preset
+library. Scamp writes the `animation` shorthand on your element's class
+and the matching `@keyframes` block at the bottom of the CSS module—no
+hand-written keyframes required.
 
-## Adding an Animation
+## Add an animation
 
-Select any element. The **Animation** section appears in the [Properties Panel](properties-panel.md). Click the picker dropdown to open a searchable list grouped by category.
+1. Select an element. The **Animation** section appears in the
+   [properties panel](properties-panel.md).
+2. Click the picker to open a searchable list grouped by category, and
+   then select a preset.
 
-### Preset Library
+### The preset library
 
 **Entrances**
-- `fade-in` — opacity 0 → 1
-- `fade-in-up` — fade plus rise from below
-- `fade-in-down` — fade plus drop from above
-- `slide-in-left` — translate from left edge
-- `slide-in-right` — translate from right edge
-- `scale-in` — scale 0.95 + fade up to full size
-- `bounce-in` — scale overshoot on entry
+- `fade-in`: Opacity 0 to 1
+- `fade-in-up`: Fade plus a rise from below
+- `fade-in-down`: Fade plus a drop from above
+- `slide-in-left`: Translate from the left edge
+- `slide-in-right`: Translate from the right edge
+- `scale-in`: Scale from 0.95 and fade up to full size
+- `bounce-in`: Scale overshoot on entry
 
 **Exits**
-- `fade-out` — opacity 1 → 0
-- `fade-out-up` — fade plus rise out
-- `slide-out-left` — translate to left edge
-- `slide-out-right` — translate to right edge
-- `scale-out` — scale + fade down
+- `fade-out`: Opacity 1 to 0
+- `fade-out-up`: Fade plus a rise out
+- `slide-out-left`: Translate to the left edge
+- `slide-out-right`: Translate to the right edge
+- `scale-out`: Scale and fade down
 
 **Attention**
-- `pulse` — scale 1 → 1.05 → 1, loops
-- `shake` — rapid horizontal oscillation
-- `bounce` — vertical bounce loop
-- `spin` — full rotation loop
-- `ping` — scale + opacity pulse for notification dots
+- `pulse`: Scale 1 to 1.05 to 1, looping
+- `shake`: Rapid horizontal oscillation
+- `bounce`: Vertical bounce loop
+- `spin`: Full rotation loop
+- `ping`: Scale and opacity pulse, for notification dots
 
 **Subtle**
-- `float` — gentle vertical drift, loops
-- `wiggle` — subtle rotational oscillation
+- `float`: Gentle vertical drift, looping
+- `wiggle`: Subtle rotational oscillation
 
-Pick a preset and Scamp populates the animation property controls with sensible defaults and writes the `animation` shorthand to your element's class. The matching `@keyframes` block is appended to the bottom of the CSS module if it isn't already there — one copy per file regardless of how many elements use it.
+When you select a preset, Scamp fills the animation controls with
+sensible defaults and writes the `animation` shorthand to your element's
+class. Scamp appends the matching `@keyframes` block to the bottom of the
+CSS module if it isn't there already—one copy per file, regardless of
+how many elements use it.
 
-## Animation Property Controls
+## Animation controls
 
-Once a preset is applied, fine-tune with these controls (paired side-by-side in the panel):
+After you apply a preset, fine-tune it with these controls, which appear
+in pairs in the panel:
 
 | Control | What it does | Default |
 |---|---|---|
-| **Duration** | How long one cycle takes. Number input + ms / s. | `300ms` |
-| **Easing** | The timing curve. Dropdown: `ease`, `linear`, `ease-in`, `ease-out`, `ease-in-out`. | `ease` |
-| **Delay** | Wait before the animation starts. Number input + ms / s. | `0ms` |
-| **Iteration** | Number of times to play. Number input with a dropdown caret to switch to **Infinite** (∞). | `1` |
-| **Direction** | Dropdown: `normal`, `reverse`, `alternate`, `alternate-reverse`. | `normal` |
-| **Fill mode** | What styles apply before / after the animation runs. Dropdown: `none`, `forwards`, `backwards`, `both`. | `forwards` |
-| **Play state** | Toggle: Running / Paused. Useful for prototyping a paused-state mockup. | `running` |
+| **Duration** | How long one cycle takes. A number input with an ms/s unit toggle. | `300ms` |
+| **Easing** | The timing curve: `ease`, `linear`, `ease-in`, `ease-out`, or `ease-in-out`. | `ease` |
+| **Delay** | How long to wait before the animation starts. A number input with an ms/s unit toggle. | `0ms` |
+| **Iteration** | How many times to play. A number input with a list to switch to **Infinite** (∞). | `1` |
+| **Direction** | `normal`, `reverse`, `alternate`, or `alternate-reverse`. | `normal` |
+| **Fill mode** | Which styles apply before and after the animation runs: `none`, `forwards`, `backwards`, or `both`. | `forwards` |
+| **Play state** | A Running/Paused toggle. Useful for prototyping a paused-state mockup. | `running` |
 
-## Canvas Preview
+## Canvas preview
 
-A **▶ Play** button in the Animation section triggers the animation once on the canvas, so you can preview the motion without switching to [Preview mode](preview.md). Animations don't loop on the canvas during editing — that would be distracting while you're laying out a page.
+The **▶ Play** button in the Animation section runs the animation once
+on the canvas, so you can preview the motion without switching to
+[preview mode](preview.md). Animations don't loop on the canvas while
+you edit; that would be distracting while you lay out a page.
 
-For continuously-looping animations (`pulse`, `spin`, `float`, etc.), the play button shows one cycle. Open Preview to see the looping behaviour in real time.
+For looping animations (`pulse`, `spin`, `float`, and so on), the play
+button shows one cycle. Open the preview to see the looping behavior in
+real time.
 
-## What the Generated CSS Looks Like
+## The generated CSS
 
 A card with a `fade-in-up` entrance:
 
@@ -78,11 +94,15 @@ A card with a `fade-in-up` entrance:
 }
 ```
 
-`@keyframes` blocks live at the bottom of the file, after the per-element class blocks. Multiple elements using the same preset share one `@keyframes` block — Scamp deduplicates by name.
+`@keyframes` blocks live at the bottom of the file, after the per-element
+class blocks. Multiple elements that use the same preset share one
+`@keyframes` block; Scamp deduplicates by name.
 
-## Per-State Animations
+## Per-state animations
 
-You can apply different animations per [element state](element-states.md). Switch to **Hover** in the State Switcher, pick an animation from the preset dropdown, and Scamp emits:
+You can apply different animations per [element state](element-states.md).
+In the state switcher, select **Hover**, select an animation from the
+preset list, and Scamp emits the following:
 
 ```css
 .icon_button_b001:hover {
@@ -90,21 +110,36 @@ You can apply different animations per [element state](element-states.md). Switc
 }
 ```
 
-A `shake` on hover, a `pulse` on focus — useful for attention-grabbing micro-interactions tied to user input.
+A `shake` on hover or a `pulse` on focus works well for attention-getting
+micro-interactions tied to user input.
 
-## Custom Keyframes
+## Custom keyframes
 
-The picker covers the curated preset library. If you (or an AI agent) hand-write a `@keyframes` block in your CSS file, it round-trips through Scamp unchanged — the block stays in the file and any element with `animation: <your-name> ...` continues to work. The picker just doesn't include your custom name in the dropdown.
+The picker covers the curated preset library. If you or an AI agent
+hand-writes a `@keyframes` block in your CSS file, it round-trips through
+Scamp unchanged: the block stays in the file, and any element with
+`animation: <your-name> ...` continues to work. The picker doesn't
+include your custom name in the list.
 
-A first-class custom keyframes editor is on the backlog.
+A custom keyframes editor is on the backlog.
 
-## Reduced Motion
+## Reduced motion
 
-For accessibility, consider wrapping animation declarations in `@media (prefers-reduced-motion: no-preference)` so users with vestibular sensitivities aren't hit with motion they didn't ask for. Scamp preserves these media queries verbatim in your CSS — write them by hand in CSS mode of the [Properties Panel](properties-panel.md).
+For accessibility, consider wrapping animation declarations in
+`@media (prefers-reduced-motion: no-preference)`, so that users with
+vestibular sensitivities don't get motion they didn't ask for. Scamp
+preserves these media queries exactly as written in your CSS; write
+them by hand in the CSS mode of the [properties panel](properties-panel.md).
 
 ## Tips
 
-- For attention loops on a notification dot, use `ping` — it's a subtle pulse that doesn't distract.
-- Pair entrance animations (`fade-in-up`, `scale-in`) with `forwards` fill mode so the element stays in its final state after the animation completes.
-- Long-running loops (`spin`, `float`) on multiple elements add up to noticeable battery drain on mobile — keep them sparse.
-- See [Transitions](transitions.md) for the simpler "smooth state change" version, and [Element States](element-states.md) for hover / active / focus styling.
+- For an attention loop on a notification dot, use `ping`. It's a
+  subtle pulse that doesn't distract.
+- Pair entrance animations (`fade-in-up` and `scale-in`) with the
+  `forwards` fill mode, so the element stays in its final state after
+  the animation completes.
+- Long-running loops (`spin` and `float`) on multiple elements add up to
+  noticeable battery drain on mobile. Keep them sparse.
+- For the simpler smooth-state-change version, see
+  [Transitions](transitions.md); for hover, active, and focus styling,
+  see [Element states](element-states.md).

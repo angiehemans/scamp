@@ -1,9 +1,9 @@
-# Undo, Redo, and History
+# Undo, redo, and history
 
-Scamp tracks every change you make so you can step backward and
-forward through your edit history — either one step at a time
-with keyboard shortcuts, or by clicking any entry in the History
-panel to jump straight to that point.
+Scamp tracks every change you make, so you can step backward and forward
+through your edit history—one step at a time with keyboard shortcuts,
+or by clicking an entry in the History panel to jump straight to that
+point.
 
 ## Shortcuts
 
@@ -11,110 +11,105 @@ panel to jump straight to that point.
 |---|---|
 | Undo (back one step) | **Cmd+Z** |
 | Redo (forward one step) | **Cmd+Shift+Z** |
-| Jump to History | **Cmd+Shift+H** |
+| Open the History panel | **Cmd+Shift+H** |
 
-## The History Panel
+## The History panel
 
 The left sidebar is an icon rail with sections for **Pages**,
 **Components**, **Design System**, **History**, and **Settings**. Click
-the **History** icon — or press **Cmd+Shift+H** — to see a list of every
+the **History** icon, or press **Cmd+Shift+H**, to see a list of every
 change in the current session for the active page.
 
-Each entry shows:
+Each entry shows the following:
 
-- A short description of the change (e.g. "Changed background —
-  hero-card_a1b2", "Moved rect_a1b2", "Drew rectangle").
-- A relative timestamp ("just now", "3 min ago"). Hover the entry
-  for the absolute time.
+- A short description of the change, such as "Changed background —
+  hero-card_a1b2", "Moved rect_a1b2", or "Drew rectangle".
+- A relative timestamp, such as "just now" or "3 min ago". Hold the
+  pointer over the entry to see the absolute time.
 
-### Navigating
+### Navigate history
 
-- **Click any entry** to jump straight to that point in history.
-  The canvas, properties panel, and underlying files all update
-  immediately.
-- Entries above the current cursor are in the past (solid text);
-  the **current** entry is highlighted with a left-border accent
-  and a leading bullet.
-- Entries below the current cursor are the redo stack (greyed
-  out, after a dashed "undone" divider). Click any of them to
-  jump forward.
-- A new edit while you're mid-history discards the greyed-out
-  entries — standard linear history, no branching.
+- Click any entry to jump to that point in history. The canvas, the
+  properties panel, and the underlying files all update immediately.
+- Entries above the current position are in the past and appear in
+  solid text. The current entry is highlighted with a left-border
+  accent and a leading bullet.
+- Entries below the current position are the redo stack. They appear
+  dimmed, after a dashed "undone" divider. Click any of them to jump
+  forward.
+- A new edit while you're partway through history discards the dimmed
+  entries. History is linear; there's no branching.
 
 ### Empty state
 
-A page with no edits yet shows "No changes made in this session".
-The list populates from your first action.
+A page with no edits yet shows "No changes made in this session". The
+list fills from your first action.
 
-## What Is Tracked
+## What Scamp tracks
 
-- Drawing rectangles, adding text, adding images, adding inputs
+- Drawing rectangles, and adding text, images, and inputs
 - Moving and resizing elements
-- Changing any property (colors, sizes, spacing, borders,
-  filters, shadows, etc.) — each property edit becomes one entry
+- Changing any property—colors, sizes, spacing, borders, filters,
+  shadows, and so on. Each property edit is one entry.
 - Deleting, duplicating, and pasting elements
 - Grouping and ungrouping
-- Renaming elements (shown as "Renamed old to new")
+- Renaming elements, shown as "Renamed old to new"
 - Adding, deleting, and renaming pages
-- Raw-CSS-panel commits
-- External file edits (see *External edits* below)
+- Commits from the CSS editor
+- External file edits (see [External edits](#external-edits))
 
 ### Coalesced edits
 
-Rapid same-element / same-property changes within 500 ms collapse
-into a single entry — dragging a slider from `100` to `47` doesn't
-create 53 history entries.
+Rapid changes to the same property of the same element within 500 ms
+collapse into a single entry, so dragging a slider from `100` to `47`
+doesn't create 53 entries.
 
-Dragging a canvas element (move or resize) also commits a single
-entry on mouseup, not one per pixel.
+Dragging a canvas element to move or resize it also commits a single
+entry when you release, not one per pixel.
 
-## Per-Page History
+## Per-page history
 
 Each page has its own independent history. Switching pages doesn't
-clear anything — navigate back and your previous edits are still
-there to undo, redo, or click into.
+clear anything; navigate back, and your previous edits are still there
+to undo, redo, or click into.
 
-History is **session-only**: it lives in memory and clears when
-you close the app.
+History is session-only. It lives in memory and clears when you close
+the app.
 
-## External Edits
+## External edits
 
-When you (or an AI agent) edit a CSS or TSX file outside Scamp,
-the change appears in the history as a single entry labeled
-**"External edit detected"**. The canvas reloads to match the
-file.
+When you or an AI agent edits a CSS or TSX file outside Scamp, the
+change appears in the history as a single entry labeled **External edit
+detected**. The canvas reloads to match the file.
 
-- **Cmd+Z right after an external edit** undoes back to the
-  state before the agent's change. The file is rewritten to match
-  that earlier state.
-- The agent's change is preserved as a forward step — you can
-  redo to re-apply it.
+- Press **Cmd+Z** right after an external edit to undo back to the state
+  before the agent's change. Scamp rewrites the file to match that
+  earlier state.
+- The agent's change is preserved as a forward step, so you can redo to
+  re-apply it.
 
-This is a behaviour change from earlier versions: external edits
-used to wipe the undo stack. They now compose like any other
-action.
+This is a change from earlier versions, in which external edits cleared
+the undo stack. They now compose like any other action.
 
-## History Limit
+## History limit
 
-Scamp keeps up to **50 entries per page** of history. Once you
-exceed 50 changes on a page, the oldest entries are discarded
-to keep memory bounded.
+Scamp keeps up to 50 entries per page. After 50 changes on a page, Scamp
+discards the oldest entries to keep memory bounded.
 
-## Drag Interactions
+## Drag interactions
 
-The History panel is display-only while you're actively dragging
-something on the canvas (a move, a resize, a slider). Clicks on
-history entries are ignored mid-drag. Once you release, the
-panel becomes interactive again — and the drag itself shows up
-as a single entry.
+The History panel is display-only while you're dragging something on
+the canvas—a move, a resize, or a slider. Clicks on entries are ignored
+during a drag. When you release, the panel becomes interactive again,
+and the drag appears as a single entry.
 
 ## Tips
 
-- For a risky change, glance at the History panel beforehand:
-  the current cursor entry is your "known good" rollback target.
-- Element renames update history entry labels retroactively. If
-  you rename `rect_a1b2` to `hero-card`, every past entry
-  referencing that element re-labels to use the new name.
-- Working with an AI agent? Watch the History panel as edits
-  arrive — each agent change is one labelled entry you can step
-  back through if it goes sideways.
+- Before a risky change, glance at the History panel. The current entry
+  is your known-good rollback target.
+- Renaming an element updates history labels retroactively. If you
+  rename `rect_a1b2` to `hero-card`, every past entry that references
+  that element uses the new name.
+- When you work with an AI agent, watch the History panel as edits
+  arrive. Each agent change is one labeled entry that you can step back
+  through if it goes wrong.

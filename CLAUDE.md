@@ -281,6 +281,45 @@ it('round-trips cleanly: generateCode → parseCode reproduces original state', 
 
 ---
 
+## Documentation Style
+
+User-facing prose — everything in `docs/user_docs/`, `docs/CHANGELOG.md`,
+and copy that ships in the app (tooltips, banners, empty states, error
+messages) — follows the
+[Google developer documentation style guide](https://developers.google.com/style).
+When you write or edit any of it, apply the guide. The rules that come
+up most:
+
+- **Sentence case** for headings and titles (`## Add a transform`, not
+  `## Adding A Transform`). Task headings are bare infinitives ("Add",
+  "Change", "Export"), never gerunds ("Adding").
+- **Second person, present tense, active voice.** "You can…", "Scamp
+  writes…". No "we", no "will" for things the software does now.
+- **Steps are numbered imperatives, context first:** "In the sidebar,
+  click **New Project**." One action per step.
+- **Bold UI element names** as they appear on screen; **code font** for
+  filenames, values, CSS properties, and anything the user types.
+- **Verbs for UI:** *click* a button, *select* an item from a list or
+  menu, *hold the pointer over* for hover, *press* a key. Don't use
+  "hit", "hover", or "dropdown" (say "list" or "menu").
+- **Punctuation:** serial commas; em dashes with no surrounding spaces
+  (`word—word`); no spaced hyphens as dashes.
+- **Avoid:** "please", "simply", "just", "easy", "e.g." (use "for
+  example"), "etc." (use "and so on"), "via" (use "through"),
+  exclamation marks, and marketing language.
+- **Notices** use `**Note:**`, `**Tip:**`, or `**Caution:**` on their
+  own paragraph. Never stack two notices.
+- **Link text describes the destination** ("see [Breakpoints](…)"), not
+  "click here".
+- **Release notes** (`docs/CHANGELOG.md`): sentence case, present tense,
+  second person, one bolded lead sentence per entry that states the
+  user-visible change, then the why.
+
+Internal docs (`docs/notes/`, `docs/plans/`) are exempt but should lean
+the same way.
+
+---
+
 ## What Not to Do
 
 - Don't add dependencies without a good reason — keep the bundle lean

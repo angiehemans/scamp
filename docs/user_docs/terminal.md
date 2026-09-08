@@ -1,38 +1,49 @@
 # Terminal
 
-Scamp includes a built-in terminal so you can run commands without leaving the app.
+Scamp includes a built-in terminal, so you can run commands without
+leaving the app.
 
-## Opening the Terminal
+## Open the terminal
 
-Press **Ctrl+`** (backtick) to toggle the terminal panel, or click the
-terminal icon on the right of the canvas toolbar. Press again to hide it.
+To show or hide the terminal panel, press **Ctrl+`** (backtick), or
+click the terminal icon on the right of the canvas toolbar.
 
-## Using the Terminal
+## Use the terminal
 
-The terminal opens in your project directory by default. Use it to:
+The terminal opens in your project directory. Use it to do the
+following:
 
-- Run AI agents or CLI tools — see [Working with AI Agents](ai-agents.md)
-- Execute git commands
+- Run AI agents or command-line tools. See
+  [Work with AI agents](ai-agents.md).
+- Run git commands.
 
-## The MCP Indicator
+## The MCP indicator
 
-When a project is open, the panel header shows an **MCP** pill with a
-green dot — Scamp's [MCP server](ai-agents.md) is running and your agent
-can query the live canvas. Its tooltip lists which agent configs Scamp
-registered.
+When a project is open, the panel header shows an **MCP** pill. Its dot
+tells you whether Scamp's [MCP server](ai-agents.md) is running and
+whether an agent is connected; its tooltip lists the agent
+configurations that Scamp registered. For the meaning of each color, see
+[Is it working?](ai-agents.md#is-it-working).
 
-The copy button beside it puts a connect command on your clipboard, for
-agents Scamp can't configure automatically (VS Code, Codex) or for a
-session that was already running when you opened the project.
+The copy button beside the pill copies a connect command to your
+clipboard, for agents that Scamp can't configure automatically (VS Code
+and Codex), or for a session that was already running when you opened
+the project.
 
-## Multiple Tabs
+## Multiple tabs
 
-You can open up to **3 terminal tabs**. Each tab runs an independent shell session. Use this to run a dev server in one tab and an agent in another.
+You can open up to three terminal tabs. Each tab runs an independent
+shell session, so you can run a dev server in one tab and an agent in
+another.
 
 ## Persistence
 
-The terminal keeps running when the panel is hidden. Hide the panel with Ctrl+` and your processes continue in the background. Reopen the panel to see their output.
+The terminal keeps running while the panel is hidden. Hide the panel
+with **Ctrl+`**, and your processes continue in the background. Reopen
+the panel to see their output.
 
-## Error Recovery
+## Error recovery
 
-If a terminal fails to start (for example, due to a shell configuration issue), Scamp will attempt to recover automatically. Close the tab and open a new one if issues persist.
+If a terminal fails to start—for example, because of a shell
+configuration issue—Scamp tries to recover automatically. If the
+problem persists, close the tab and open a new one.

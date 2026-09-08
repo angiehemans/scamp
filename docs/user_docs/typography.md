@@ -1,52 +1,57 @@
 # Typography
 
-Text elements have dedicated typographic controls in the [Properties Panel](properties-panel.md).
-For defining reusable **text styles** and managing fonts project-wide,
-see [Text Styles](text-styles.md).
+Text elements have dedicated typographic controls in the
+[properties panel](properties-panel.md). To define reusable text styles
+and manage fonts for the whole project, see [Text styles](text-styles.md).
 
-## Creating Text
+## Create text
 
-Press **T** to activate the text tool, then click and drag on the [canvas](canvas.md) to place a text element.
+Press **T** to select the text tool, and then drag on the
+[canvas](canvas.md) to place a text element.
 
 When a text element is selected, the **Typography** section leads the
-Properties panel — it sits directly below the Element type, since it's
-the primary thing you'll edit on text.
+properties panel, directly below the Element section, because it's the
+main thing you edit on text.
 
-## Applying a Text Style
+## Apply a text style
 
-The **Text style** dropdown applies a whole named style (H1, Body, …) to
-the element at once — setting its family, size, weight, line height, and
-letter spacing together. Define these styles in the Design System panel;
-see [Text Styles](text-styles.md).
+The **Text style** list applies a whole named style (H1, Body, and so
+on) to the element at once, setting its family, size, weight, line
+height, and letter spacing together. Define these styles in the Design
+System panel; see [Text styles](text-styles.md).
 
-## Font Controls
+## Font controls
 
-- **Font Family** -- A searchable picker that includes Google Fonts and web-safe system fonts. Fonts are loaded from Google Fonts via CDN, so you need an internet connection for non-system fonts.
-- **Font Size** -- Numeric input in pixels. A token icon on the
-  right opens a picker of size tokens declared in `theme.css`
-  (`--text-lg`, etc.) — see [Design System](design-system.md).
-- **Font Weight** -- An editable dropdown. Pick a named weight (100 Thin
+- **Font Family**: A searchable picker that includes Google Fonts and
+  web-safe system fonts. Scamp loads fonts from the Google Fonts CDN, so
+  you need an internet connection for non-system fonts.
+- **Font Size**: A numeric input in pixels. The token icon on the right
+  opens a picker of the size tokens declared in `theme.css`, such as
+  `--text-lg`. See [Design system](design-system.md).
+- **Font Weight**: An editable list. Select a named weight (100 Thin
   through 900 Black), or type any value from 1 to 1000 for variable
-  fonts. See [Text Styles](text-styles.md#choosing-a-font-weight).
-- **Text Color** -- Opens the [Color Picker](color-picker.md).
+  fonts. See [Choose a font weight](text-styles.md#choose-a-font-weight).
+- **Text Color**: Opens the [color picker](color-picker.md).
 
-## Alignment and Spacing
+## Alignment and spacing
 
-- **Text Align** -- Three icon buttons: **L** (left), **C** (center), **R** (right).
-- **Line Height** -- Numeric input. The token-picker icon offers
-  any bare-number tokens declared in `theme.css` (e.g.
-  `--line-height-body: 1.5;`).
-- **Letter Spacing** -- Numeric input for spacing between
-  characters. Shares the length-token picker with font-size.
+- **Text Align**: Three icon buttons: **L** (left), **C** (center), and
+  **R** (right).
+- **Line Height**: A numeric input. The token-picker icon offers any
+  bare-number tokens declared in `theme.css`, such as
+  `--line-height-body: 1.5;`.
+- **Letter Spacing**: A numeric input for the spacing between
+  characters. It shares the length-token picker with font size.
 
-## HTML Tag Selector
+## HTML tag
 
-Choose the semantic HTML tag for your text element:
+Choose the semantic HTML tag for the text element: `p`, `h1` through
+`h6`, `span`, and more. The tag you select appears in the generated TSX,
+which determines how your content is structured in the final code.
 
-- `p`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `span`, and more.
+## How fonts work
 
-The tag you select is what appears in the generated TSX output. This affects how your content is structured in the final code.
-
-## How Fonts Work
-
-When you select a Google Font, Scamp adds a CDN link to load it. The font renders both on the canvas and in the generated code. Web-safe fonts (Arial, Georgia, monospace families, etc.) work offline without any CDN dependency.
+When you select a Google Font, Scamp adds a CDN link to load it. The
+font renders both on the canvas and in the generated code. Web-safe
+fonts—Arial, Georgia, the monospace families, and so on—work offline
+without a CDN dependency.

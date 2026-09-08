@@ -1,33 +1,53 @@
 # Transitions
 
-Add CSS transitions to any element from the [Properties Panel](properties-panel.md) so hover, active, and focus changes animate smoothly. Transitions ride along with whatever state changes you've defined in the [Element States](element-states.md) panel — no JavaScript, no media queries, no hand-written CSS.
+Add CSS transitions to any element from the
+[properties panel](properties-panel.md), so that hover, active, and
+focus changes animate smoothly. Transitions apply to whatever state
+changes you define in [Element states](element-states.md)—no
+JavaScript, media queries, or hand-written CSS required.
 
-## Adding a Transition
+## Add a transition
 
-Select any element. The **Transitions** section appears in the properties panel. Click **+ Add transition** to add a row. Each row has four controls:
+1. Select an element. The **Transitions** section appears in the
+   properties panel.
+2. Click **+ Add transition**.
+
+Each row has four controls:
 
 | Control | What it does |
 |---|---|
-| **Property** | Which CSS property to transition. Dropdown: `all`, `opacity`, `transform`, `background`, `color`, `border`, `width`, `height`. Default `all`. |
-| **Duration** | How long the transition takes. Number input + ms / s unit toggle. Default `200ms`. |
-| **Easing** | The timing curve. Dropdown: `ease`, `linear`, `ease-in`, `ease-out`, `ease-in-out`, plus a `Custom…` option for `cubic-bezier(...)`. |
-| **Delay** | How long to wait before the transition starts. Number input + ms / s. Default `0ms`. |
+| **Property** | The CSS property to transition. Options: `all`, `opacity`, `transform`, `background`, `color`, `border`, `width`, and `height`. Default: `all`. |
+| **Duration** | How long the transition takes. A number input with an ms/s unit toggle. Default: `200ms`. |
+| **Easing** | The timing curve. Options: `ease`, `linear`, `ease-in`, `ease-out`, and `ease-in-out`, plus **Custom…** for `cubic-bezier(...)`. |
+| **Delay** | How long to wait before the transition starts. A number input with an ms/s unit toggle. Default: `0ms`. |
 
-Each row has a **×** button to remove it. You can stack as many rows as you need — they emit as a single comma-separated `transition` shorthand.
+To remove a row, click its **×** button. You can add as many rows as
+you need; Scamp emits them as one comma-separated `transition`
+shorthand.
 
-## Custom Easing
+## Custom easing
 
-Pick **Custom…** in the Easing dropdown to open a four-point editor. Type the four cubic-bezier control points (e.g. `0.4, 0, 0.2, 1` for Material's standard easing) and Scamp emits `cubic-bezier(0.4, 0, 0.2, 1)` in your CSS. Hand-written `cubic-bezier(...)` values in your file round-trip through this same control.
+In the **Easing** list, select **Custom…** to open a four-point editor.
+Type the four cubic-bezier control points—for example, `0.4, 0, 0.2, 1`
+for Material's standard easing—and Scamp emits
+`cubic-bezier(0.4, 0, 0.2, 1)` in your CSS. Hand-written
+`cubic-bezier(...)` values in your file round-trip through the same
+control.
 
-## Where Transitions Show Up
+## Where transitions appear
 
-Transitions are static on the canvas — there's no animation player here. They animate when:
+Transitions are static on the canvas; there's no animation player.
+They animate in the following situations:
 
-- The user hovers, clicks, or focuses an element with [state overrides](element-states.md). The transition smooths the property change between Default and the active state.
-- A property updates programmatically (typing in an input, JS toggling a class).
-- You open [Preview mode](preview.md). Real React in a real browser, transitions fire as expected.
+- A user hovers over, clicks, or focuses an element that has
+  [state overrides](element-states.md). The transition smooths the
+  property change between the default and the active state.
+- A property updates programmatically, such as when a user types in an
+  input or JavaScript toggles a class.
+- You open [preview mode](preview.md). Transitions run in a real
+  browser as expected.
 
-## What the Generated CSS Looks Like
+## The generated CSS
 
 Two transition rows on one element emit one shorthand:
 
@@ -37,10 +57,17 @@ Two transition rows on one element emit one shorthand:
 }
 ```
 
-Hand-written `transition` declarations in your CSS round-trip back into the panel — both shorthand and longhand (`transition-property`, `transition-duration`, etc.) forms are recognised. See [Bidirectional Sync](bidirectional-sync.md).
+Hand-written `transition` declarations in your CSS round-trip back into
+the panel. Scamp recognizes both the shorthand and the longhand forms
+(`transition-property`, `transition-duration`, and so on). See
+[Bidirectional sync](bidirectional-sync.md).
 
 ## Tips
 
-- Transitions live on the **default** styles. They apply to every state change automatically — that's how CSS transitions work.
-- For the smoothest feel on hover lifts, transition `transform` and `opacity` rather than `top`/`left` (browsers can compose those on the GPU).
-- See [Element States](element-states.md) to wire up the hover / active / focus styles that transitions animate to.
+- Transitions live on the default styles. They apply to every state
+  change automatically, which is how CSS transitions work.
+- For the smoothest hover lifts, transition `transform` and `opacity`
+  rather than `top` or `left`, because browsers can compose those on the
+  GPU.
+- To set up the hover, active, and focus styles that transitions animate
+  to, see [Element states](element-states.md).

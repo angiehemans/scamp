@@ -1,6 +1,6 @@
-# Keyboard Shortcuts
+# Keyboard shortcuts
 
-Complete reference of keyboard shortcuts in Scamp.
+A complete reference of the keyboard shortcuts in Scamp.
 
 ## Tools
 
@@ -10,15 +10,15 @@ Complete reference of keyboard shortcuts in Scamp.
 | **R** | Rectangle tool |
 | **T** | Text tool |
 | **I** | Image tool |
-| **F** | Input tool (forms, textarea, select) |
+| **F** | Input tool (forms, textarea, and select) |
 
 ## Actions
 
 | Shortcut | Action |
 |---|---|
-| **Cmd+D** | Duplicate selected element |
-| **Delete** / **Backspace** | Delete selected element |
-| **Cmd+G** | Group selected elements |
+| **Cmd+D** | Duplicate the selected element |
+| **Delete** or **Backspace** | Delete the selected element |
+| **Cmd+G** | Group the selected elements |
 | **Cmd+Shift+G** | Ungroup the selected group |
 | **Cmd+C** | Copy the selection |
 | **Cmd+X** | Cut the selection (one undo step) |
@@ -28,8 +28,8 @@ Complete reference of keyboard shortcuts in Scamp.
 | **Cmd+Z** | Undo |
 | **Cmd+Shift+Z** | Redo |
 | **Cmd+S** | Save (commits CSS editor changes) |
-| **Arrow keys** | Nudge the selected element by 1px |
-| **Shift+Arrow** | Nudge by 10px |
+| **Arrow keys** | Nudge the selected element by 1 px |
+| **Shift+Arrow** | Nudge by 10 px |
 
 ## Zoom
 
@@ -43,18 +43,21 @@ Complete reference of keyboard shortcuts in Scamp.
 
 | Shortcut | Action |
 |---|---|
-| **Ctrl+`** | Toggle built-in terminal |
-| **Cmd+P** | Open [Preview Mode](preview.md) |
+| **Ctrl+`** | Show or hide the built-in terminal |
+| **Cmd+P** | Open [preview mode](preview.md) |
 
-## Panel Actions
+## Panel actions
 
 | Shortcut | Action |
 |---|---|
-| **Right-click a section override dot** | Reset every override in that section at the active [breakpoint](breakpoints.md) |
-| **Right-click an element → Copy context for agent** | Same as Cmd+Shift+C, for the element you clicked |
+| Right-click a section's override dot | Reset every override in that section at the active [breakpoint](breakpoints.md) |
+| Right-click an element and select **Copy context for agent** | Same as **Cmd+Shift+C**, for the element you clicked |
 
 ## Notes
 
-- On Windows/Linux, replace **Cmd** with **Ctrl**.
-- Tool shortcuts (V, R, T, I, F) only activate when you are not focused on a text input or the CSS editor.
-- See individual feature pages for context on each shortcut: [Canvas](canvas.md), [Undo/Redo](undo-redo.md), [Terminal](terminal.md), [Breakpoints](breakpoints.md), [AI Agents](ai-agents.md).
+- On Windows and Linux, replace **Cmd** with **Ctrl**.
+- Tool shortcuts (**V**, **R**, **T**, **I**, and **F**) work only when a
+  text input or the CSS editor doesn't have focus.
+- For context on each shortcut, see the feature pages: [Canvas](canvas.md),
+  [Undo, redo, and history](undo-redo.md), [Terminal](terminal.md),
+  [Breakpoints](breakpoints.md), and [Work with AI agents](ai-agents.md).

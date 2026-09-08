@@ -1,26 +1,44 @@
-# Preview Mode
+# Preview mode
 
-Open your project in a real browser preview window powered by Next.js. Real React, real CSS Modules, real hot module reload — every transition, animation, hover state, link, and form input behaves exactly as it would in production.
+Open your project in a real browser preview window powered by Next.js.
+Real React, real CSS Modules, and real hot module reload: every
+transition, animation, hover state, link, and form input behaves exactly
+as it does in production.
 
-## Opening Preview
+## Open the preview
 
-Click the **▶ Preview** button in the project toolbar (top-right, between the Terminal toggle and the Save indicator), or press **⌘P** / **Ctrl+P**.
+In the project toolbar, click **▶ Preview** (top right, between the
+Terminal toggle and the Save indicator), or press **Cmd+P** or
+**Ctrl+P**.
 
-A new window opens at the current page. The first time you preview a project, Scamp runs `npm install` automatically — a one-time setup, usually 30–90 seconds. Subsequent opens reuse `node_modules` and start the dev server in a second or two.
+A new window opens at the current page. The first time you preview a
+project, Scamp runs `npm install` automatically. This one-time setup
+usually takes 30–90 seconds. Later opens reuse `node_modules` and start
+the dev server in a second or two.
 
-The preview is gated on the **Next.js project format**. Legacy-format projects show the Preview button disabled with a tooltip pointing at the migration banner. See [Bidirectional Sync](bidirectional-sync.md) for the migration flow.
+The preview requires the Next.js project format. In legacy-format
+projects, the **Preview** button is disabled, and its tooltip points to
+the migration banner. For the migration flow, see
+[Bidirectional sync](bidirectional-sync.md).
 
-## How It Works
+## How the preview works
 
-The preview runs a real `next dev` server spawned by Scamp. It points at your project folder — the same files you're editing on the canvas — and serves them at `localhost:<port>`. The preview window embeds that URL in a webview, so what you see is the actual deployed page, not a screenshot or simulation.
+Scamp spawns a real `next dev` server that points at your project
+folder—the same files you edit on the canvas—and serves them at
+`localhost:<port>`. The preview window embeds that URL in a webview, so
+what you see is the actual page, not a screenshot or a simulation.
 
-This means:
+As a result:
 
-- **HMR (hot module reload)** picks up canvas edits in milliseconds. Edit a button's color in Scamp, see it update in the preview window without reloading.
-- **Real interactions** work: hover, focus, click, transitions, animations, links, forms.
-- **Your project is a standalone runnable app.** You can `npm run dev` from your terminal outside Scamp and get the same preview.
+- Hot module reload (HMR) picks up canvas edits in milliseconds. Edit a
+  button's color in Scamp, and it updates in the preview window without
+  a reload.
+- Real interactions work: hover, focus, click, transitions, animations,
+  links, and forms.
+- Your project is a standalone, runnable app. Run `npm run dev` from a
+  terminal outside Scamp to get the same preview.
 
-## The Preview Toolbar
+## The preview toolbar
 
 ```
 [ ← ]  [ → ]  [ ↺ ]  [  http://localhost:3001/about  ]  [ ⧉ ]  [ status ]  [ ⚙ ]  [ Mobile · Tablet · Desktop · Fullscreen · custom ]
@@ -28,63 +46,87 @@ This means:
 
 | Control | What it does |
 |---|---|
-| **←** / **→** | Navigate browser history (back / forward) |
-| **↺** | Reload the page (or restart the dev server if it crashed) |
+| **←** and **→** | Navigate the browser history (back and forward) |
+| **↺** | Reload the page, or restart the dev server if it crashed |
 | URL bar | Read-only display of the current page URL |
-| **⧉** | Copy URL to clipboard |
-| Status chip | Shows `Idle`, `Installing…`, `Starting…`, `Ready`, or `Crashed` |
-| **⚙** | Open browser DevTools attached to the preview |
+| **⧉** | Copy the URL to the clipboard |
+| Status chip | Shows **Idle**, **Installing…**, **Starting…**, **Ready**, or **Crashed** |
+| **⚙** | Open the browser DevTools attached to the preview |
 | Viewport selector | Resize the preview to common widths |
 
-### Viewport Sizes
+### Viewport sizes
 
 The viewport selector pins the preview content to a specific width:
 
-- **Mobile** — 390px
-- **Tablet** — 768px
-- **Desktop** — 1440px
-- **Fullscreen** — fills the preview window
-- **Custom** — type any pixel value
+- **Mobile**: 390 px
+- **Tablet**: 768 px
+- **Desktop**: 1440 px
+- **Fullscreen**: Fills the preview window
+- **Custom**: Any pixel value you type
 
-The preview window itself stays the same size; the viewport sits inside it, centered, simulating that screen size. Useful for verifying responsive [Breakpoints](breakpoints.md) at the exact widths your CSS targets.
+The preview window itself stays the same size; the viewport sits inside
+it, centered, to simulate that screen size. Use it to verify responsive
+[breakpoints](breakpoints.md) at the exact widths your CSS targets.
 
-## Server Lifecycle
+## Server lifecycle
 
 | State | What's happening |
 |---|---|
-| **Idle** | No server running. The preview hasn't started yet. |
-| **Installing…** | First-time `npm install`. A spinner shows install progress. |
-| **Starting…** | `next dev` is booting. Usually 2–5 seconds. |
-| **Ready** | Server is up. The preview shows the live page. |
-| **Crashed** | The dev server exited unexpectedly. The Restart button replaces the reload button — click it to spawn a fresh server. |
+| **Idle** | No server is running. The preview hasn't started yet. |
+| **Installing…** | The first-time `npm install` is running. A spinner shows progress. |
+| **Starting…** | `next dev` is starting, which usually takes 2–5 seconds. |
+| **Ready** | The server is up. The preview shows the live page. |
+| **Crashed** | The dev server exited unexpectedly. A **Restart** button replaces the reload button; click it to start a fresh server. |
 
-One server runs per project at a time. Closing the preview window leaves the server running until the project itself is closed (so reopening preview is instant). Closing the project stops the server.
+One server runs per project at a time. Closing the preview window leaves
+the server running until you close the project, so reopening the
+preview is immediate. Closing the project stops the server.
 
-## External Links
+## External links
 
-Links inside the preview that navigate within your project (e.g. `<a href="/dashboard">`) work like normal browser navigation — back/forward through the toolbar history. Links to external URLs (`https://...`, `mailto:`, `tel:`) open in your **system browser** rather than inside the preview window. The preview is scoped to your project; external destinations belong elsewhere.
+Links inside the preview that navigate within your project, such as
+`<a href="/dashboard">`, work like normal browser navigation, with back
+and forward through the toolbar history. Links to external URLs
+(`https://...`, `mailto:`, and `tel:`) open in your system browser
+rather than inside the preview window. The preview is scoped to your
+project; external destinations belong elsewhere.
 
-This routing happens automatically — see [Linking Between Pages](linking.md) for how to set up internal and external links.
+This routing happens automatically. For how to set up internal and
+external links, see [Links between pages](linking.md).
 
 ## DevTools
 
-Click the **⚙** button in the preview toolbar to open Chrome DevTools attached to the preview's webview. Inspect the live DOM, debug network requests, profile performance — everything you'd expect in a browser-side debugger.
+In the preview toolbar, click **⚙** to open Chrome DevTools attached to
+the preview's webview. Inspect the live DOM, debug network requests,
+profile performance—everything you expect from a browser debugger.
 
 ## Errors
 
-If your TSX has a syntax error, Next.js's error overlay takes over the preview area with a stack trace pointing at the file and line number. Fix the error in your file or via the [Properties Panel](properties-panel.md), and the preview hot-reloads automatically.
+If your TSX has a syntax error, the Next.js error overlay takes over the
+preview area with a stack trace that points at the file and line. Fix
+the error in your file or in the [properties panel](properties-panel.md),
+and the preview hot-reloads automatically.
 
-If the dev server fails to start (port collision, broken `package.json`, etc.), the preview shows a Crashed state with the recent log output and a Restart button.
+If the dev server fails to start—because of a port collision, a broken
+`package.json`, and so on—the preview shows the **Crashed** state with
+the recent log output and a **Restart** button.
 
-## What's NOT in the Preview
+## What the preview doesn't include
 
 - The canvas's selection chrome and overlays.
 - Scamp's panel chrome.
-- Mock data substitution (planned — pages will eventually accept a `[page-name].data.json` sibling for design-time content).
+- Mock data substitution. This is planned: pages are expected to accept
+  a `[page-name].data.json` sibling for design-time content.
 
 ## Tips
 
-- **⌘P** opens the preview. **⌘P** with the preview already open focuses the existing window — don't worry about spawning duplicates.
+- **Cmd+P** opens the preview. If the preview is already open, **Cmd+P**
+  focuses the existing window; it never opens a duplicate.
 - The preview window remembers its position and size between sessions.
-- For the closest match between canvas and preview, make sure your project's `theme.css` has the auto-generated browser reset block — it's what keeps margins and form chrome consistent across the two surfaces. See [Themes](themes.md).
-- If the preview is blank but the page has content, check that `--font-sans` and the box-sizing reset are in `theme.css`. Older projects pick these up on next open via auto-migration.
+- For the closest match between the canvas and the preview, make sure
+  your project's `theme.css` has the generated browser reset block. It
+  keeps margins and form chrome consistent across the two surfaces. See
+  [Themes](themes.md).
+- If the preview is blank but the page has content, check that
+  `--font-sans` and the box-sizing reset are in `theme.css`. Older
+  projects pick these up on the next open through auto-migration.

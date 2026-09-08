@@ -1,40 +1,51 @@
-# Element Naming
+# Element naming
 
-Every element in Scamp has a name that maps to its CSS class in the generated code.
+Every element in Scamp has a name that maps to its CSS class in the
+generated code.
 
-## Default Names
+## Default names
 
-- Rectangles are named `rect_` followed by a short ID (e.g. `rect_a1b2`).
-- Text elements are named `text_` followed by a short ID (e.g. `text_c3d4`).
+- Rectangles are named `rect_` followed by a short ID, such as
+  `rect_a1b2`.
+- Text elements are named `text_` followed by a short ID, such as
+  `text_c3d4`.
 
-## Renaming an Element
+## Rename an element
 
-1. Double-click the element's name in the [Layers Panel](layers-panel.md).
-2. Type your new name.
-3. Press **Enter** to confirm.
+1. In the [layers panel](layers-panel.md), double-click the element's
+   name.
+2. Type the new name.
+3. Press **Enter**.
 
-Your name is converted to a valid CSS class prefix. For example, "Hero Card" becomes `hero_card_a1b2` in the generated CSS. The short ID suffix is always appended to ensure uniqueness.
+Scamp converts the name to a valid CSS class prefix. For example, "Hero
+Card" becomes `hero_card_a1b2` in the generated CSS. Scamp always
+appends the short ID, so every class is unique.
 
-## Display
+## How names appear
 
-In the layers panel, names are shown in title case for readability (e.g. "Hero Card"), regardless of how they appear in the CSS output.
+In the layers panel, names appear in title case for readability—for
+example, "Hero Card"—regardless of how they appear in the CSS output.
 
-## Clearing a Name
+## Clear a name
 
-Delete all text in the name field and press Enter. The element reverts to its default `rect_` or `text_` prefix.
+Delete all of the text in the name field and press **Enter**. The
+element reverts to its default `rect_` or `text_` prefix.
 
-## Duplicating a Named Element
+## Duplicate a named element
 
-Duplicating keeps the name and changes only the ID suffix, so `menu_a1b2`
-duplicates to `menu_c3d4`. Both elements show as "Menu" in the layers
-panel and get their own CSS class block with identical styles. This
-applies to **Cmd+D**, paste, and the right-click **Duplicate** item, and
-it works recursively — named children inside a duplicated element keep
-their names too.
+Duplicating keeps the name and changes only the ID suffix, so
+`menu_a1b2` duplicates to `menu_c3d4`. Both elements appear as "Menu" in
+the layers panel, and each gets its own CSS class block with identical
+styles. This applies to **Cmd+D**, paste, and the right-click
+**Duplicate** command, and it works recursively: named children inside a
+duplicated element keep their names too.
 
-Elements without a name still duplicate to the default `rect_` / `text_`
+Elements without a name duplicate to the default `rect_` or `text_`
 prefix.
 
-## Round-Trip Behavior
+## Round-trip behavior
 
-Element names are stored in the generated files and survive round-trips. If you rename an element, save, and reopen the project, the name persists. External edits to the class name in the CSS file are also reflected back on the canvas.
+Element names are stored in the generated files and survive round trips.
+If you rename an element, save, and reopen the project, the name
+persists. External edits to the class name in the CSS file also appear
+on the canvas.

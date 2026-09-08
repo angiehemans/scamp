@@ -1,87 +1,130 @@
 # Canvas
 
-The canvas is your main workspace — a scrollable viewport where you draw elements that become real code. A floating toolbar sits above it with the drawing tools, and a page-size control pins to the top of every artboard.
+The canvas is your main workspace: a scrollable viewport where you draw
+elements that become real code. A floating toolbar above it holds the
+drawing tools, and a page-size control is pinned to the top of every
+artboard.
 
-## Drawing Elements
+## Draw elements
 
-- Press **R** to activate the rectangle tool. Click and drag to draw a rectangle.
-- Press **T** to activate the text tool. Click to place a text element.
-- Press **I** to activate the image tool. Pick a file, then draw a frame.
-- Press **F** to activate the input tool. Click and drag to place a form input.
+- Press **R** to select the rectangle tool, and then drag to draw a
+  rectangle.
+- Press **T** to select the text tool, and then click to place a text
+  element.
+- Press **I** to select the image tool, choose a file, and then draw a
+  frame.
+- Press **F** to select the input tool, and then drag to place a form
+  input.
 - Press **V** to switch back to the select tool.
 
-See [Elements](elements.md) for the full list of HTML tags each tool can produce and how to change an element's tag after placing it.
+For the full list of HTML tags each tool can produce, and how to change
+an element's tag after you place it, see [Elements](elements.md).
 
-## Selecting Elements
+## Select elements
 
-- Click any element to select it. Its properties appear in the [Properties Panel](properties-panel.md).
+- Click an element to select it. Its properties appear in the
+  [properties panel](properties-panel.md).
 - Click empty canvas space to deselect.
-- Click the **page-name badge** above the canvas to select the page root — a Figma-style shortcut to edit page-level styles (background, flex layout, padding).
+- Click the page-name badge above the canvas to select the page root—a
+  shortcut for editing page-level styles such as background, flex
+  layout, and padding.
 - Selected elements show resize handles at their corners and edges.
 
-## Moving and Resizing
+## Move and resize elements
 
-- **Move** — Click and drag a selected element to reposition it.
-- **Resize** — Drag any handle on a selected element to change its size.
-- **Nudge** — Arrow keys move by 1px; **Shift+Arrow** moves by 10px.
+- **Move**: Drag a selected element to reposition it.
+- **Resize**: Drag any handle on a selected element to change its size.
+- **Nudge**: Press an arrow key to move by 1 px, or **Shift+Arrow** to
+  move by 10 px.
 
-Drags and resizes clamp to the visible page, so an element can't disappear off-screen. When you're editing at a non-desktop [breakpoint](breakpoints.md), these actions write to that breakpoint's override instead of the base styles.
+Drags and resizes clamp to the visible page, so an element can't
+disappear off screen. When you edit at a non-desktop
+[breakpoint](breakpoints.md), these actions write to that breakpoint's
+override instead of the base styles.
 
-## Duplicating and Deleting
+## Duplicate and delete elements
 
-- **Cmd+D** — Duplicate the selected element. Right-click → **Duplicate**
-  does the same thing.
-- **Delete** or **Backspace** — Remove the selected element.
+- **Cmd+D** duplicates the selected element. Right-clicking and
+  selecting **Duplicate** does the same thing.
+- **Delete** or **Backspace** removes the selected element.
 
 A duplicate keeps the original's [name](element-naming.md) and gets a new
 ID suffix, so `menu_a1b2` duplicates to `menu_c3d4`.
 
-## Copying and Pasting
+## Copy and paste elements
 
-- **Cmd+C** copies the selection; **Cmd+X** cuts it. Both are also on the
-  right-click menu.
-- **Cmd+V** pastes into the selected element, or alongside it when that
-  element can't hold children (text, images, inputs). With nothing
+- **Cmd+C** copies the selection, and **Cmd+X** cuts it. Both are also on
+  the right-click menu.
+- **Cmd+V** pastes into the selected element, or beside it when that
+  element can't hold children (text, images, and inputs). With nothing
   selected, the paste goes into the page.
-- **Cmd+Shift+V** pastes *in place*, at the position the elements were
+- **Cmd+Shift+V** pastes in place, at the position the elements were
   copied from, rather than offset from it.
-- Right-click the canvas and choose **Paste** to drop the elements where
+- Right-click the canvas and select **Paste** to drop the elements where
   you clicked.
 
-The clipboard lasts for the whole session and survives switching pages —
-copy a nav on one page and paste it onto another. Pasted elements get new
-IDs but keep their names.
+The clipboard lasts for the whole session and survives switching pages,
+so you can copy a nav on one page and paste it onto another. Pasted
+elements get new IDs but keep their names.
 
-Copying with the **page** selected — right-click empty canvas, or select
-the page row in the layers panel — takes everything on it, which is the
+Copying with the page selected—right-click empty canvas, or select the
+page row in the layers panel—takes everything on it, which is the
 quickest way to clone a whole page's contents onto a new one.
 
-## Canvas Size
+## Canvas size
 
-The canvas-size control sits just above the canvas, to the right of the page-name badge. It shows the current width (e.g. `Desktop · 1440`) and opens a popover with:
+The canvas-size control sits above the canvas, to the right of the
+page-name badge. It shows the current width, such as `Desktop · 1440`,
+and opens a popover with the following:
 
-- **Breakpoints** — preset buttons for each project breakpoint. Clicking one resizes the canvas AND switches the active breakpoint for editing. See [Breakpoints](breakpoints.md) for the full responsive workflow.
-- **Custom width** — type any width between 100 and 4000 pixels. Custom widths drop the active breakpoint back to Desktop so edits target the base CSS.
-- **Clip content** — hide anything that extends past the canvas edge, so the artboard behaves like `overflow: hidden`. See [Overflow and Boundaries](#overflow-and-boundaries) below.
-- **Fixed height** — pin the artboard to an exact height (e.g. `900`) to simulate a specific screen. Off by default, the page grows with its content.
+- **Breakpoints**: Preset buttons for each project breakpoint. Clicking
+  one resizes the canvas and switches the active breakpoint for editing.
+  For the full responsive workflow, see [Breakpoints](breakpoints.md).
+- **Custom width**: Any width from 100 to 4000 pixels. A custom width
+  drops the active breakpoint back to Desktop, so edits target the base
+  CSS.
+- **Clip content**: Hides anything that extends past the canvas edge, so
+  the artboard behaves like `overflow: hidden`. See
+  [Overflow and boundaries](#overflow-and-boundaries).
+- **Fixed height**: Pins the artboard to an exact height, such as `900`,
+  to simulate a specific screen. Off by default; the page grows with its
+  content.
 
-Canvas width lives in your project's `scamp.config.json` — it's a design-tool preference, not part of your page's CSS.
+Canvas width lives in your project's `scamp.config.json`. It's a
+design-tool preference, not part of your page's CSS.
 
-## Overflow and Boundaries
+## Overflow and boundaries
 
-The canvas edge is a real viewport boundary, which matters most when you design a desktop layout and then shrink to a mobile width.
+The canvas edge is a real viewport boundary, which matters most when you
+design a desktop layout and then shrink to a mobile width.
 
-- **Overflow indicator** (default) — when any element spills past the canvas width, a faint **amber** dashed line marks the edge with a label of how much overflows (e.g. `+ 240px`). The same appears on the bottom edge when **Fixed height** is on and content runs past it.
-- **Clip content** — flip it on (in the canvas-size popover) and everything beyond the boundary is hidden, so you see exactly what a viewport of that size shows. The indicator disappears because nothing spills anymore.
-- The clip setting is **remembered per breakpoint** — turning it on at mobile width doesn't force it on at desktop, and vice-versa.
+- **Overflow indicator** (default): When any element spills past the
+  canvas width, a faint amber dashed line marks the edge, with a label
+  that shows how much overflows, such as `+ 240px`. The same indicator
+  appears on the bottom edge when **Fixed height** is on and content runs
+  past it.
+- **Clip content**: Turn it on in the canvas-size popover, and everything
+  beyond the boundary is hidden, so you see exactly what a viewport of
+  that size shows. The indicator disappears because nothing spills.
+- The clip setting is remembered per breakpoint. Turning it on at a
+  mobile width doesn't force it on at desktop, and vice versa.
 
-A common mobile workflow: switch the canvas to a mobile width (e.g. 390px), watch the amber indicator show how far your desktop content overflows, turn **Clip content** on to see the visible frame, then apply [breakpoint](breakpoints.md) overrides until the content fits and the indicator shrinks away.
+A common mobile workflow: switch the canvas to a mobile width such as
+390 px, watch the amber indicator show how far your desktop content
+overflows, turn on **Clip content** to see the visible frame, and then
+apply [breakpoint](breakpoints.md) overrides until the content fits and
+the indicator disappears.
 
-The indicator, the clip toggle, and fixed height are **canvas viewing aids only** — none of them touch your CSS or page files. (One knock-on: a PNG/PDF [export](export.md) taken with clip on captures just the visible canvas area.)
+The indicator, the clip toggle, and fixed height are canvas viewing aids
+only; none of them touch your CSS or page files. One consequence: a PNG
+or PDF [export](export.md) taken with clip on captures only the visible
+canvas area.
 
-## Scrolling and Zoom
+## Scroll and zoom
 
-The scrollbars are at the artboard edges. Scroll in any direction — the floating element toolbar stays pinned at the top, and the canvas content moves freely behind it. This matches Figma, Sketch, and other design tools.
+The scrollbars are at the artboard edges. Scroll in any direction; the
+floating element toolbar stays pinned at the top, and the canvas content
+moves freely behind it, as in Figma, Sketch, and other design tools.
 
 | Shortcut | Action |
 |---|---|
@@ -89,9 +132,11 @@ The scrollbars are at the artboard edges. Scroll in any direction — the floati
 | **Cmd+-** | Zoom out one step |
 | **Cmd+0** | Reset zoom to fit |
 
-Blank projects show a 1440×900 white page by default. As you add content, the page grows vertically — tall pages scroll inside the artboard like a real browser window.
+A blank project shows a 1440×900 white page by default. As you add
+content, the page grows vertically. Tall pages scroll inside the artboard
+like a real browser window.
 
-## Keyboard Shortcut Summary
+## Keyboard shortcut summary
 
 | Key | Tool |
 |---|---|
@@ -101,4 +146,4 @@ Blank projects show a 1440×900 white page by default. As you add content, the p
 | **I** | Image |
 | **F** | Input |
 
-For the full list, see [Keyboard Shortcuts](keyboard-shortcuts.md).
+For the full list, see [Keyboard shortcuts](keyboard-shortcuts.md).

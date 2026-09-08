@@ -1,15 +1,15 @@
-# Code Output
+# Code output
 
 Scamp generates real, production-ready code files as you design.
 
-## What Gets Generated
+## What Scamp generates
 
 Each page produces two files:
 
-- **`pagename.tsx`** — A React component with JSX markup.
-- **`pagename.module.css`** — A CSS Module with scoped class names.
+- `pagename.tsx`: A React component with JSX markup.
+- `pagename.module.css`: A CSS Module with scoped class names.
 
-### TSX Structure
+### TSX structure
 
 ```tsx
 <div data-scamp-id="root" className={styles.root}>
@@ -26,14 +26,19 @@ Each page produces two files:
 </div>
 ```
 
-- Each element gets a `data-scamp-id` attribute matching its CSS class name.
-- Class names follow the pattern `prefix_shortid` (`rect_`, `text_`, `img_`, or `input_`).
-- The HTML tag is whatever you chose in the Element section — Scamp emits it directly. See [Elements](elements.md).
-- Tag-specific attributes (`href`, `target`, `controls`, `placeholder`, etc.) round-trip verbatim.
+- Each element gets a `data-scamp-id` attribute that matches its CSS
+  class name.
+- Class names follow the pattern `prefix_shortid`, where the prefix is
+  `rect_`, `text_`, `img_`, or `input_`.
+- The HTML tag is whatever you chose in the Element section; Scamp emits
+  it directly. See [Elements](elements.md).
+- Tag-specific attributes (`href`, `target`, `controls`, `placeholder`,
+  and so on) round-trip exactly as written.
 
-### CSS Structure
+### CSS structure
 
-Only properties that differ from defaults are emitted. An element with a white background and no border produces minimal CSS:
+Scamp emits only the properties that differ from the defaults. An
+element with a white background and no border produces minimal CSS:
 
 ```css
 .rect_a1b2 {
@@ -42,11 +47,14 @@ Only properties that differ from defaults are emitted. An element with a white b
 }
 ```
 
-Unknown CSS properties (added via the CSS editor or externally) are preserved in a `customProperties` block and round-trip through saves.
+Unknown CSS properties, whether added through the CSS editor or outside
+Scamp, are preserved as custom properties and round-trip through saves.
 
-### Responsive Overrides
+### Responsive overrides
 
-Styles you set while a non-desktop [breakpoint](breakpoints.md) is active land inside `@media (max-width: Npx)` blocks at the BOTTOM of the CSS module, widest first:
+Styles you set while a non-desktop [breakpoint](breakpoints.md) is
+active land inside `@media (max-width: Npx)` blocks at the bottom of the
+CSS module, widest first:
 
 ```css
 .rect_a1b2 {
@@ -67,31 +75,43 @@ Styles you set while a non-desktop [breakpoint](breakpoints.md) is active land i
 }
 ```
 
-Unknown `@media` queries (e.g. `min-width`, `prefers-color-scheme`) are preserved verbatim after the known breakpoint blocks.
+Unknown `@media` queries, such as `min-width` and `prefers-color-scheme`,
+are preserved exactly as written after the known breakpoint blocks.
 
-## Live Code Preview
+## Live code preview
 
-The bottom panel shows a read-only live preview of the generated TSX and CSS for the current page. It updates as you make changes on the canvas.
+The bottom panel shows a read-only preview of the generated TSX and CSS
+for the current page. It updates as you make changes on the canvas.
 
-Selecting an element highlights it in both panes and scrolls it into view — its JSX tag on the left, and every CSS rule that styles it on the right, including state variants like `:hover` and any `@media` overrides. Selecting a [component instance](components.md) highlights only the TSX, since instances have no CSS class of their own.
+Selecting an element highlights it in both panes and scrolls it into
+view: its JSX tag on the left, and every CSS rule that styles it on the
+right, including state variants like `:hover` and any `@media`
+overrides. Selecting a [component instance](components.md) highlights
+only the TSX, because instances have no CSS class of their own.
 
-## Save Status
+## Save status
 
-A small indicator in the toolbar tracks whether the canvas is in sync with disk:
+An indicator in the toolbar tracks whether the canvas is in sync with
+disk:
 
 | State | Meaning |
 |---|---|
-| **✓ Saved** | Canvas state matches what's on disk |
-| **↑ Saving…** | Debounced write in progress |
-| **● Unsaved** | Edits made, waiting for the debounce to fire |
-| **⚠ Save failed** | The last write failed — click **Retry** to try again |
+| **✓ Saved** | The canvas matches what's on disk. |
+| **↑ Saving…** | A debounced write is in progress. |
+| **● Unsaved** | You made edits, and the debounce hasn't fired yet. |
+| **⚠ Save failed** | The last write failed. Click **Retry** to try again. |
 
-Most of the time you'll only see Saved — writes happen in ~200ms and succeed silently.
+Most of the time you see only **Saved**: writes happen in about 200 ms
+and succeed silently.
 
-## Sync Behavior
+## Sync behavior
 
-- **Debounced writes** — Scamp waits briefly after your last change before writing to disk, avoiding excessive file I/O.
-- **Atomic file writes** — Files are written atomically to prevent partial reads by external tools.
-- **Background format migrations** — When Scamp opens an older project that uses the pre-canvas-rework root sizing, it silently rewrites `.root` to the new format on first open. A one-time banner lets you know.
+- **Debounced writes**: Scamp waits briefly after your last change before
+  writing to disk, which avoids excessive file I/O.
+- **Atomic file writes**: Scamp writes files atomically, so external
+  tools never read a partial file.
+- **Background format migrations**: When Scamp opens an older project
+  that uses the pre-canvas-rework root sizing, it silently rewrites
+  `.root` to the new format on first open. A one-time banner tells you.
 
-For details on external editing, see [Bidirectional Sync](bidirectional-sync.md).
+For external editing, see [Bidirectional sync](bidirectional-sync.md).

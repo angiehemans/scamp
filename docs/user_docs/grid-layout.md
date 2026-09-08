@@ -1,50 +1,65 @@
-# Grid Layout
+# Grid layout
 
-CSS Grid lets you build complex two-dimensional layouts — cards in a 3-column row, dashboards with header / sidebar / main, image galleries — without writing CSS by hand. Scamp's Layout section in the [Properties Panel](properties-panel.md) supports Grid alongside Flex, with grid-item placement controls on direct children.
+CSS Grid lets you build two-dimensional layouts—cards in a three-column
+row, dashboards with a header, sidebar, and main area, image
+galleries—without writing CSS by hand. The Layout section of the
+[properties panel](properties-panel.md) supports Grid alongside Flex,
+with grid-item placement controls on direct children.
 
-## Turning a Container Into a Grid
+## Turn a container into a grid
 
-Select any rectangle element. In the **Layout** section, the Display control has three options:
+1. Select a rectangle element.
+2. In the **Layout** section, select **Grid**.
 
-- **None** — block layout. Children are positioned absolutely.
-- **Flex** — flex layout (one-dimensional, see Flex docs in the [Properties Panel](properties-panel.md)).
-- **Grid** — CSS Grid.
+The display control has four options:
 
-Pick **Grid** and the panel swaps the Flex controls for Grid controls.
+- **Block**: Block layout. Children are positioned absolutely.
+- **Flex row** and **Flex column**: One-dimensional flex layout. See
+  [Flex layout](flex-layout.md).
+- **Grid**: CSS Grid.
 
-## Grid Container Controls
+Selecting **Grid** swaps the Flex controls for the Grid controls.
 
-| Control | What it accepts | Maps to |
-|---|---|---|
-| **Columns** | Free-text. Any valid `grid-template-columns` value: `1fr 1fr`, `repeat(3, 1fr)`, `200px 1fr`, `repeat(auto-fill, minmax(200px, 1fr))`. | `grid-template-columns` |
-| **Rows** | Free-text. Any valid `grid-template-rows` value. | `grid-template-rows` |
-| **Column gap** | Number input (px). | `column-gap` |
-| **Row gap** | Number input (px). | `row-gap` |
-| **Align items** | Segmented: Start / Center / End / Stretch. | `align-items` |
-| **Justify items** | Segmented: Start / Center / End / Stretch. | `justify-items` |
-
-The Columns and Rows fields are free-text because Grid's syntax is too rich for a click-only UI — `minmax`, `auto-fill`, `auto-fit`, named line refs, and explicit pixel sizes all work.
-
-## Grid Item Controls
-
-When you select an element whose **parent** is a grid container, additional controls appear in the Size section:
+## Grid container controls
 
 | Control | What it accepts | Maps to |
 |---|---|---|
-| **Col** (Column span) | Free-text. `span 2`, `1 / 3`, `main-start / main-end`. | `grid-column` |
-| **Row** (Row span) | Free-text. Same forms as Column. | `grid-row` |
-| **Align self** | Segmented: Start / Center / End / Stretch. | `align-self` |
-| **Justify self** | Segmented: Start / Center / End / Stretch. | `justify-self` |
+| **Columns** | Free text: any valid `grid-template-columns` value, such as `1fr 1fr`, `repeat(3, 1fr)`, `200px 1fr`, or `repeat(auto-fill, minmax(200px, 1fr))` | `grid-template-columns` |
+| **Rows** | Free text: any valid `grid-template-rows` value | `grid-template-rows` |
+| **Column gap** | A number input, in px | `column-gap` |
+| **Row gap** | A number input, in px | `row-gap` |
+| **Align items** | Start, Center, End, or Stretch | `align-items` |
+| **Justify items** | Start, Center, End, or Stretch | `justify-items` |
 
-Children with no Col / Row value flow with auto-placement (the browser fills empty grid cells in source order).
+The **Columns** and **Rows** fields are free text because Grid's syntax
+is too rich for a click-only UI: `minmax`, `auto-fill`, `auto-fit`,
+named line references, and explicit pixel sizes all work.
 
-## The Grid Overlay
+## Grid item controls
 
-When a grid container is selected, Scamp draws a subtle dashed overlay on the canvas showing every column and row line. The overlay updates live as you change the Columns / Rows / gap values, so you can see exactly how the engine is laying out cells before you place children.
+When you select an element whose parent is a grid container, additional
+controls appear in the Size section:
 
-## What the Generated CSS Looks Like
+| Control | What it accepts | Maps to |
+|---|---|---|
+| **Col** (column span) | Free text: `span 2`, `1 / 3`, or `main-start / main-end` | `grid-column` |
+| **Row** (row span) | Free text, in the same forms as **Col** | `grid-row` |
+| **Align self** | Auto, Start, Center, End, Stretch, or Baseline | `align-self` |
+| **Justify self** | Start, Center, End, or Stretch | `justify-self` |
 
-A 3-column card row with 24px gap:
+Children with no **Col** or **Row** value flow with auto-placement: the
+browser fills empty grid cells in source order.
+
+## The grid overlay
+
+When a grid container is selected, Scamp draws a dashed overlay on the
+canvas that shows every column and row line. The overlay updates live as
+you change the **Columns**, **Rows**, and gap values, so you can see
+exactly how the engine lays out cells before you place children.
+
+## The generated CSS
+
+A three-column card row with a 24 px gap:
 
 ```css
 .cards_g100 {
@@ -59,15 +74,29 @@ A 3-column card row with 24px gap:
 }
 ```
 
-Hand-written grid CSS rounds-trip back through the panel — Scamp recognises the full set of grid properties (`display: grid`, `grid-template-columns`, `grid-template-rows`, `column-gap`, `row-gap`, `grid-column`, `grid-row`, `align-items`, `justify-items`, `align-self`, `justify-self`).
+Hand-written grid CSS round-trips back through the panel. Scamp
+recognizes the full set of grid properties: `display: grid`,
+`grid-template-columns`, `grid-template-rows`, `column-gap`, `row-gap`,
+`grid-column`, `grid-row`, `align-items`, `justify-items`, `align-self`,
+and `justify-self`.
 
-## Auto-Placement
+## Auto-placement
 
-You don't have to place every child explicitly. With `grid-template-columns: repeat(3, 1fr)` and four children, the browser places the first three in row 1 and the fourth in row 2 column 1. Scamp doesn't override this — auto-placement is just CSS.
+You don't have to place every child explicitly. With
+`grid-template-columns: repeat(3, 1fr)` and four children, the browser
+places the first three in row 1 and the fourth in row 2, column 1. Scamp
+doesn't override this; auto-placement is plain CSS.
 
 ## Tips
 
-- For responsive card grids, try `repeat(auto-fill, minmax(240px, 1fr))` — children wrap to a new row whenever the container can't fit another 240px column.
-- The Align Self / Justify Self controls only appear when the parent is grid — in flex parents, the equivalent is on the parent (`align-items` / `justify-content`).
-- Use [Breakpoints](breakpoints.md) to switch from a multi-column grid to a single column on mobile: at the mobile breakpoint, change `grid-template-columns` to `1fr`.
-- Grid items can also be resized and laid out by hand (drag, resize) but most of the time `grid-column` / `grid-row` is what you want.
+- For responsive card grids, try `repeat(auto-fill, minmax(240px, 1fr))`.
+  Children wrap to a new row whenever the container can't fit another
+  240 px column.
+- The **Align self** and **Justify self** controls appear only when the
+  parent is a grid. In flex parents, see the flex-child controls in
+  [Flex layout](flex-layout.md).
+- Use [breakpoints](breakpoints.md) to switch from a multi-column grid to
+  a single column on mobile: at the mobile breakpoint, change
+  **Columns** to `1fr`.
+- You can also drag and resize grid items by hand, but most of the time
+  `grid-column` and `grid-row` are what you want.
