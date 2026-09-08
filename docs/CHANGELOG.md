@@ -22,6 +22,68 @@ release time.
 
 ## Releases
 
+### 0.7.0 (2026-09-08)
+
+Electron 44, the full flex vocabulary in the panel, a Transform section,
+and better guidance for coding agents.
+
+**Added**
+
+- **Every flex control, in the Layout and Size sections.** Layout gains
+  **Wrap**, a **Reverse** toggle on its own row, **Align content**, and
+  separate **Row gap** and **Column gap** inputs. When an element sits in
+  a flex container, the Size section gains an **Advanced** disclosure
+  with **Grow**, **Shrink**, **Don't shrink**, **Basis**, **Align self**,
+  and **Order**. Everything is written as longhand CSS, and hand-written
+  flex CSS round-trips back into the panel, including the `flex`
+  shorthand. Drawing a box into a flex container, or typing a pixel size
+  on its main axis, turns **Don't shrink** on so the box keeps the size
+  you gave it. See [Flex layout](user_docs/flex-layout.md).
+- **A Transform section.** Add translate, rotate, scale, and skew
+  functions in order, and set the transform origin from nine presets or
+  any CSS value. Hand-written `transform` lists parse into the same rows.
+  See [Transforms](user_docs/transforms.md).
+- **Agents learn to create Scamp components.** The MCP server now
+  describes itself on connect, and a new `scamp_get_component_scaffold`
+  tool hands an agent the exact starter files for a component, so it
+  writes real component folders instead of a page of examples.
+  `agent.md` gains a Scamp components section and page conventions.
+- **The MCP indicator says what's wrong.** The dot in the terminal header
+  is gray until an agent connects, green after one has, and amber when
+  Claude Code has the server disabled for this project because you
+  declined its prompt. In the amber state the copy button copies the
+  command that brings the prompt back. See
+  [Work with AI agents](user_docs/ai-agents.md).
+- **A Linux page in the user docs** that explains the Wayland behavior
+  below and how to opt out. See [Linux](user_docs/linux.md).
+
+**Changed**
+
+- **Electron 31 to 44**, with electron-vite 5, Vite 7, and Node 24. The
+  clipboard and folder pickers are updated for the new APIs: choosing a
+  project folder now starts from your default projects folder and
+  remembers the last pick, rather than opening on Downloads.
+- **On Linux, Scamp runs through XWayland by default.** Electron 44
+  crashes on startup under the native Wayland backend on some systems,
+  so Scamp asks for X11 and restarts itself once at launch. Set
+  `SCAMP_OZONE_PLATFORM=auto` to opt back into native Wayland.
+- **User docs and this changelog follow the Google developer
+  documentation style guide.** Sentence-case headings, second person,
+  present tense, and task headings as imperatives.
+
+**Fixed**
+
+- **Long page and component lists scroll inside their sidebar section**,
+  the way the layers list does, instead of scrolling the whole window.
+- **Saving from the CSS panel with Cmd+S no longer pauses sync.** The
+  app's own write was being reported back as an external edit, which
+  showed a "nothing was saved" warning and paused syncing until the
+  quiet window passed.
+- **Component instances fill at every breakpoint.** An instance whose
+  width was set to Fill at the Mobile breakpoint stayed at its desktop
+  size on the canvas, while the preview filled correctly. The canvas now
+  resolves the component's elements at the active breakpoint.
+
 ### 0.6.6 (2026-08-31)
 
 **Fixed**
