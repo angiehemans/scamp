@@ -20,6 +20,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Transitions](transitions.md) — Smooth state changes via the Transitions section
 - [Animations](animations.md) — Preset keyframe animations with full timing controls
 - [Filters](filters.md) — CSS filter effects (blur, brightness, contrast, hue, backdrop) via the Filters section
+- [Transforms](transforms.md) — Translate, rotate, scale and skew, plus the transform origin, via the Transform section
 - [Linking Between Pages](linking.md) — Internal and external links via the Element section
 - [Export](export.md) — Save a page or element as PNG or SVG, or export the whole project as static HTML + CSS
 - [Preview Mode](preview.md) — Open the project in a real Next.js dev server window

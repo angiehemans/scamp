@@ -13,6 +13,7 @@ import { SvgSection } from './sections/SvgSection';
 import { VisibilitySection } from './sections/VisibilitySection';
 import { ShadowsSection } from './sections/ShadowsSection';
 import { FiltersSection } from './sections/FiltersSection';
+import { TransformSection } from './sections/TransformSection';
 import { TransitionsSection } from './sections/TransitionsSection';
 import { AnimationSection } from './sections/AnimationSection';
 import { ExportSection } from './sections/ExportSection';
@@ -87,6 +88,7 @@ export const UiPanel = (): JSX.Element => {
       <BorderSection elementId={elementId} />
       <ShadowsSection elementId={elementId} />
       <FiltersSection elementId={elementId} />
+      <TransformSection elementId={elementId} />
       {isSvg && <SvgSection elementId={elementId} />}
       <VisibilitySection elementId={elementId} />
       <TransitionsSection elementId={elementId} />

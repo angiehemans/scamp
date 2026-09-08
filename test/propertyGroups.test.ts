@@ -11,7 +11,7 @@ import {
 } from '@lib/propertyGroups';
 
 describe('PropertyGroup taxonomy', () => {
-  it('lists exactly the eight togglable groups', () => {
+  it('lists exactly the nine togglable groups', () => {
     expect([...ALL_PROPERTY_GROUPS].sort()).toEqual([
       'animation',
       'background',
@@ -19,6 +19,7 @@ describe('PropertyGroup taxonomy', () => {
       'border',
       'filters',
       'shadow',
+      'transform',
       'transitions',
       'typography',
     ]);

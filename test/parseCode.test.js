@@ -101,10 +101,10 @@ describe('parseCode — CSS overlay', () => {
     });
     it('captures unmapped properties in customProperties', () => {
         const tsx = `<div data-scamp-id="root" className={styles.root}><div data-scamp-id="a1b2" className={styles.rect_a1b2} /></div>`;
-        const css = `.rect_a1b2 { transform: rotate(2deg); will-change: opacity; }`;
+        const css = `.rect_a1b2 { clip-path: circle(50%); will-change: opacity; }`;
         const { elements } = parseCode(tsx, css);
         expect(elements['a1b2']?.customProperties).toEqual({
-            transform: 'rotate(2deg)',
+            'clip-path': 'circle(50%)',
             'will-change': 'opacity',
         });
     });
@@ -294,11 +294,11 @@ describe('parseCode — root handling', () => {
       width: 1440px;
       height: 900px;
       position: relative;
-      transform: scale(1.05);
+      clip-path: inset(2px);
     }`;
         const { elements } = parseCode(tsx, css);
         expect(elements[ROOT_ELEMENT_ID]?.customProperties).toEqual({
-            transform: 'scale(1.05)',
+            'clip-path': 'inset(2px)',
         });
     });
     it('parses a custom root min-height into the typed field, not customProperties', () => {

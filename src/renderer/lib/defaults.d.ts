@@ -1,4 +1,4 @@
-import type { BoxShadowDef, FilterDef, PropertyGroup } from './element';
+import type { BoxShadowDef, FilterDef, PropertyGroup, TransformDef } from './element';
 import type { SpaceTuple } from './spaceValue';
 /**
  * Default style values applied to every newly-created rectangle.
@@ -48,6 +48,8 @@ export declare const DEFAULT_RECT_STYLES: {
     boxShadows: ReadonlyArray<BoxShadowDef>;
     filters: ReadonlyArray<FilterDef>;
     backdropFilters: ReadonlyArray<FilterDef>;
+    transforms: ReadonlyArray<TransformDef>;
+    transformOrigin: string;
     transitions: ReadonlyArray<{
         property: string;
         durationMs: number;
@@ -131,6 +133,8 @@ export declare const DEFAULT_ROOT_STYLES: {
     boxShadows: ReadonlyArray<BoxShadowDef>;
     filters: ReadonlyArray<FilterDef>;
     backdropFilters: ReadonlyArray<FilterDef>;
+    transforms: ReadonlyArray<TransformDef>;
+    transformOrigin: string;
     transitions: ReadonlyArray<{
         property: string;
         durationMs: number;
@@ -198,6 +202,8 @@ export declare const DEFAULT_COMPONENT_ROOT_STYLES: {
     boxShadows: ReadonlyArray<BoxShadowDef>;
     filters: ReadonlyArray<FilterDef>;
     backdropFilters: ReadonlyArray<FilterDef>;
+    transforms: ReadonlyArray<TransformDef>;
+    transformOrigin: string;
     transitions: ReadonlyArray<{
         property: string;
         durationMs: number;

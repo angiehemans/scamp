@@ -58,6 +58,8 @@ const makeRoot = (childIds = []) => ({
     boxShadows: [],
     filters: [],
     backdropFilters: [],
+    transforms: [],
+    transformOrigin: '',
     toggledOffGroups: [],
     transitions: [],
     inlineFragments: [],

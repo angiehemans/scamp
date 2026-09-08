@@ -30,6 +30,7 @@ export const ALL_PROPERTY_GROUPS: ReadonlyArray<PropertyGroup> = [
   'border',
   'filters',
   'shadow',
+  'transform',
   'transitions',
   'typography',
 ];
@@ -69,6 +70,7 @@ export const GROUP_FIELDS: Record<
   ],
   filters: ['filters', 'backdropFilters'],
   blend: ['mixBlendMode', 'backgroundBlendMode'],
+  transform: ['transforms', 'transformOrigin'],
   transitions: ['transitions'],
   animation: ['animation'],
 };

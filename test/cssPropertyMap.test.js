@@ -713,3 +713,23 @@ describe('flex item properties (flex-controls plan)', () => {
         }
     });
 });
+describe('transform (transform section)', () => {
+    const apply = (prop, value) => {
+        const fn = cssToScampProperty[prop];
+        if (!fn)
+            throw new Error(`No mapper for ${prop}`);
+        return fn(value);
+    };
+    it('maps transform into the typed list and refuses what it cannot represent', () => {
+        expect(apply('transform', 'rotate(45deg)')).toEqual({ transforms: [{ kind: 'rotate', angle: 45 }] });
+        expect(apply('transform', 'matrix(1,0,0,1,0,0)')).toBeNull();
+    });
+    it('stores transform-origin verbatim and refuses an empty value', () => {
+        expect(apply('transform-origin', ' top left ')).toEqual({ transformOrigin: 'top left' });
+        expect(apply('transform-origin', '')).toBeNull();
+    });
+    it('advertises both as mapped', () => {
+        expect(isMappedProperty('transform')).toBe(true);
+        expect(isMappedProperty('transform-origin')).toBe(true);
+    });
+});

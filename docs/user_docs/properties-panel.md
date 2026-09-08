@@ -125,6 +125,15 @@ See [Themes](themes.md) for the full token model.
   partially transparent background.
 - Full details in [Filters](filters.md).
 
+### Transform
+
+- A row of CSS `transform` functions applied in order: translate,
+  rotate, scale, skew. "+ Add transform" appends a no-op row; each
+  row has a kind dropdown and the inputs that kind needs.
+- An **Origin** row sets `transform-origin` — nine presets or any
+  CSS value.
+- Full details in [Transforms](transforms.md).
+
 ### Visibility
 
 - **Opacity** — 0–100% number input.

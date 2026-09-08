@@ -1,7 +1,7 @@
 // generateCode/declarations.ts — split out of generateCode.ts (4.5).
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from "../defaults";
 import { ROOT_ELEMENT_ID } from "../element";
-import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, formatTransitionShorthand } from "../parsers";
+import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, formatTransformList, formatTransitionShorthand } from "../parsers";
 import { CUSTOM_PROP_TO_GROUP } from "../propertyGroups";
 import { formatSpaceShorthand, formatSpaceValue, isZeroSpaceTuple, spaceValueEquals } from "../spaceValue";
 import { getTagDefaultPadding, paddingEquals } from "../tagDefaults";
@@ -400,6 +400,12 @@ mustEstablishPositioningContext = false) => {
     if (el.backdropFilters.length > 0) {
         emit('filters', `backdrop-filter: ${formatFilterList(el.backdropFilters)};`);
     }
+    if (el.transforms.length > 0) {
+        emit('transform', `transform: ${formatTransformList(el.transforms)};`);
+    }
+    if (el.transformOrigin.trim().length > 0) {
+        emit('transform', `transform-origin: ${el.transformOrigin.trim()};`);
+    }
     // SVG paint — set via the SvgSection on tag==='svg'. The fill/stroke
     // property on the wrapper recolours the shapes inside (it inherits and
     // overrides their presentation attributes — the standard svg recolour
@@ -776,6 +782,21 @@ parent = null) => {
         else {
             emit('filters', `filter: ${formatFilterList(override.filters)};`);
         }
+    }
+    // Transform — an empty list at a state or breakpoint emits
+    // `transform: none` to clear an inherited one; an empty origin clears
+    // to the CSS initial. Same convention as filters and shadows.
+    if (has('transforms') && override.transforms !== undefined) {
+        if (override.transforms.length === 0) {
+            emit('transform', 'transform: none;');
+        }
+        else {
+            emit('transform', `transform: ${formatTransformList(override.transforms)};`);
+        }
+    }
+    if (has('transformOrigin') && override.transformOrigin !== undefined) {
+        const v = override.transformOrigin.trim();
+        emit('transform', `transform-origin: ${v.length > 0 ? v : '50% 50%'};`);
     }
     if (has('backdropFilters') && override.backdropFilters !== undefined) {
         if (override.backdropFilters.length === 0) {

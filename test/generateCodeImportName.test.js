@@ -48,6 +48,8 @@ const makeRoot = () => ({
     boxShadows: [],
     filters: [],
     backdropFilters: [],
+    transforms: [],
+    transformOrigin: '',
     toggledOffGroups: [],
     transitions: [],
     inlineFragments: [],

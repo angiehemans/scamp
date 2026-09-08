@@ -27,6 +27,8 @@ const makeRoot = () => ({
     boxShadows: [],
     filters: [],
     backdropFilters: [],
+    transforms: [],
+    transformOrigin: '',
     toggledOffGroups: [],
 });
 describe('scaffoldNextjsProject', () => {

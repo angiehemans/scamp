@@ -9,3 +9,4 @@ export * from "./filter";
 export * from "./color";
 export * from "./size";
 export * from "./flex";
+export * from "./transform";

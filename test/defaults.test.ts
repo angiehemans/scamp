@@ -43,6 +43,8 @@ describe('DEFAULT_RECT_STYLES', () => {
       boxShadows: [],
       filters: [],
       backdropFilters: [],
+      transforms: [],
+      transformOrigin: '',
       toggledOffGroups: [],
       transitions: [],
       inlineFragments: [],

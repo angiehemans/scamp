@@ -9,6 +9,7 @@ import {
   parseSpaceValueOrNull,
   parseTransitionShorthand,
   parseFlexShorthand,
+  parseTransformList,
 } from './parsers';
 import { isBlendMode } from './blendModes';
 import type { ScampElement } from './element';
@@ -349,6 +350,16 @@ export const cssToScampProperty: Record<string, Mapper> = {
     const parsed = parseFilterList(v);
     if (parsed === null) return null;
     return { backdropFilters: parsed };
+  },
+  transform: (v) => {
+    const parsed = parseTransformList(v);
+    if (parsed === null) return null;
+    return { transforms: parsed };
+  },
+  'transform-origin': (v) => {
+    const t = v.trim();
+    if (t.length === 0) return null;
+    return { transformOrigin: t };
   },
 
   // ---- Grid ----

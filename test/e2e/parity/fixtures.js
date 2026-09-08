@@ -152,6 +152,58 @@ export const PARITY_FIXTURES = [
 `,
     },
     {
+        name: 'transform-rotate-translate-origin',
+        why: 'Typed transforms leave the inline layer for the stylesheet. A rotated box and a translated one change their painted bounding boxes without touching layout — the untransformed sibling must not move, and the rotated box must pivot around the origin the CSS names, not the centre.',
+        tsx: page(`    <div data-scamp-id="root" className={styles.root}>
+      <div data-scamp-id="row_t001" className={styles.row_t001}>
+        <div data-scamp-id="spun_t002" className={styles.spun_t002} />
+        <div data-scamp-id="moved_t003" className={styles.moved_t003} />
+        <div data-scamp-id="still_t004" className={styles.still_t004} />
+      </div>
+    </div>`),
+        html: `    <div class="root">
+      <div class="row_t001">
+        <div class="spun_t002"></div>
+        <div class="moved_t003"></div>
+        <div class="still_t004"></div>
+      </div>
+    </div>`,
+        css: `.root {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+}
+
+.row_t001 {
+  width: 100%;
+  display: flex;
+  gap: 40px;
+  padding: 60px;
+}
+
+.spun_t002 {
+  width: 120px;
+  height: 80px;
+  background: #445566;
+  transform: rotate(30deg);
+  transform-origin: top left;
+}
+
+.moved_t003 {
+  width: 120px;
+  height: 80px;
+  background: #667788;
+  transform: translate(24px, -16px) scale(1.25);
+}
+
+.still_t004 {
+  width: 120px;
+  height: 80px;
+  background: #8899aa;
+}
+`,
+    },
+    {
         name: 'nested-flex-with-gap-and-padding',
         why: 'Plain layout sanity: gap, padding, borders and nesting all resolving the same on both sides. The border is here for its layout effect — it offsets children and, under border-box, reduces the content width.',
         tsx: page(`    <div data-scamp-id="root" className={styles.root}>

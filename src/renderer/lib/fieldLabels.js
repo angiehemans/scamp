@@ -49,6 +49,8 @@ export const FIELD_LABELS = {
     backgroundBlendMode: 'background-blend-mode',
     filters: 'filter',
     backdropFilters: 'backdrop-filter',
+    transforms: 'transform',
+    transformOrigin: 'transform-origin',
     transitions: 'transition',
     animation: 'animation',
     customProperties: 'custom CSS',

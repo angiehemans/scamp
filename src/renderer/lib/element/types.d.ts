@@ -27,7 +27,7 @@ export type HeightMode = 'fixed' | 'stretch' | 'fit-content' | 'auto';
  * Sizing, Layout, and Visibility are deliberately NOT togglable
  * — see `propertyGroups.ts`'s module doc for the rationale.
  */
-export type PropertyGroup = 'background' | 'border' | 'shadow' | 'typography' | 'filters' | 'blend' | 'transitions' | 'animation';
+export type PropertyGroup = 'background' | 'border' | 'shadow' | 'typography' | 'filters' | 'blend' | 'transform' | 'transitions' | 'animation';
 /**
  * `display` values the panel models directly. `'none'` here is the
  * "block" mode (no flex / no grid layout) — visibility:none is a
@@ -236,6 +236,30 @@ export type FilterKind = 'blur' | 'brightness' | 'contrast' | 'grayscale' | 'hue
 export type FilterDef = {
     kind: FilterKind;
     value: number;
+};
+/**
+ * One function in a `transform` list. Translate offsets are CSS lengths
+ * kept verbatim (`10px`, `-50%`, `var(--x)`) because percentages are the
+ * common case for centring; angles are degrees; scale factors are plain
+ * numbers. The axis-specific spellings (`translateX`, `scaleY`, …) parse
+ * into these two-axis forms and are written back as such.
+ */
+export type TransformKind = 'translate' | 'rotate' | 'scale' | 'skew';
+export type TransformDef = {
+    kind: 'translate';
+    x: string;
+    y: string;
+} | {
+    kind: 'rotate';
+    angle: number;
+} | {
+    kind: 'scale';
+    x: number;
+    y: number;
+} | {
+    kind: 'skew';
+    x: number;
+    y: number;
 };
 /**
  * One `@keyframes` rule on a page, preserved at the page level
@@ -509,6 +533,10 @@ export type ScampElement = {
      * touch `backdropFilters`.
      */
     backdropFilters: ReadonlyArray<FilterDef>;
+    /** Ordered `transform` function list; empty emits nothing. */
+    transforms: ReadonlyArray<TransformDef>;
+    /** `transform-origin`, verbatim. `''` is the CSS initial (`50% 50%`). */
+    transformOrigin: string;
     /**
      * Ordered list of CSS transitions. Empty by default. Emitted as a
      * single `transition: a, b, c` shorthand when non-empty; the

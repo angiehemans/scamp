@@ -1,5 +1,5 @@
 // see docs/notes/round-trip-contract.md — why both sides must read these
-import type { BoxShadowDef, FilterDef, PropertyGroup } from './element';
+import type { BoxShadowDef, FilterDef, PropertyGroup, TransformDef } from './element';
 import type { SpaceTuple } from './spaceValue';
 
 /**
@@ -61,6 +61,8 @@ export const DEFAULT_RECT_STYLES = {
   boxShadows: [] as ReadonlyArray<BoxShadowDef>,
   filters: [] as ReadonlyArray<FilterDef>,
   backdropFilters: [] as ReadonlyArray<FilterDef>,
+  transforms: [] as ReadonlyArray<TransformDef>,
+  transformOrigin: '',
   transitions: [] as ReadonlyArray<{
     property: string;
     durationMs: number;
@@ -152,6 +154,8 @@ export const DEFAULT_ROOT_STYLES = {
   boxShadows: [] as ReadonlyArray<BoxShadowDef>,
   filters: [] as ReadonlyArray<FilterDef>,
   backdropFilters: [] as ReadonlyArray<FilterDef>,
+  transforms: [] as ReadonlyArray<TransformDef>,
+  transformOrigin: '',
   transitions: [] as ReadonlyArray<{
     property: string;
     durationMs: number;

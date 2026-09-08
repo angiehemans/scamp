@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_PROPERTY_GROUPS, CUSTOM_PROP_TO_GROUP, FIELD_TO_GROUP, GROUP_CUSTOM_PROPS, GROUP_FIELDS, canonicalizeGroupList, isPropertyGroup, } from '@lib/propertyGroups';
 describe('PropertyGroup taxonomy', () => {
-    it('lists exactly the eight togglable groups', () => {
+    it('lists exactly the nine togglable groups', () => {
         expect([...ALL_PROPERTY_GROUPS].sort()).toEqual([
             'animation',
             'background',
@@ -9,6 +9,7 @@ describe('PropertyGroup taxonomy', () => {
             'border',
             'filters',
             'shadow',
+            'transform',
             'transitions',
             'typography',
         ]);

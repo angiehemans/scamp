@@ -1,4 +1,4 @@
-import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parseFilterList, parsePaddingShorthandOrNull, parsePxOrNull, parseSizeValue, parseSpaceValueOrNull, parseTransitionShorthand, parseFlexShorthand, } from './parsers';
+import { parseBorderRadiusShorthandOrNull, parseBorderShorthand, parseBoxShadowShorthand, parseFilterList, parsePaddingShorthandOrNull, parsePxOrNull, parseSizeValue, parseSpaceValueOrNull, parseTransitionShorthand, parseFlexShorthand, parseTransformList, } from './parsers';
 import { isBlendMode } from './blendModes';
 const POSITIONS = new Set([
     'static',
@@ -339,6 +339,18 @@ export const cssToScampProperty = {
         if (parsed === null)
             return null;
         return { backdropFilters: parsed };
+    },
+    transform: (v) => {
+        const parsed = parseTransformList(v);
+        if (parsed === null)
+            return null;
+        return { transforms: parsed };
+    },
+    'transform-origin': (v) => {
+        const t = v.trim();
+        if (t.length === 0)
+            return null;
+        return { transformOrigin: t };
     },
     // ---- Grid ----
     'grid-template-columns': (v) => {

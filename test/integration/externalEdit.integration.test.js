@@ -54,6 +54,8 @@ const makeRoot = (childIds = []) => ({
     boxShadows: [],
     filters: [],
     backdropFilters: [],
+    transforms: [],
+    transformOrigin: '',
     toggledOffGroups: [],
     transitions: [],
     inlineFragments: [],
@@ -167,7 +169,7 @@ describe('external edit integration', () => {
       width: 200px;
       height: 200px;
       background: #222;
-      transform: rotate(3deg);
+      clip-path: circle(40%);
       position: absolute;
       left: 0;
       top: 0;
@@ -176,7 +178,7 @@ describe('external edit integration', () => {
         await fs.writeFile(cssPath, patched, 'utf-8');
         const parsed = parseCode(await fs.readFile(tsxPath, 'utf-8'), await fs.readFile(cssPath, 'utf-8'));
         expect(parsed.elements['a1b2']?.customProperties).toEqual({
-            transform: 'rotate(3deg)',
+            'clip-path': 'circle(40%)',
         });
         // The mapped properties still applied
         expect(parsed.elements['a1b2']?.backgroundColor).toBe('#222');
