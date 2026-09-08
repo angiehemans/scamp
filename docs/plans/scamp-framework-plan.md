@@ -291,7 +291,9 @@ the view never imports from the app.
 
 ## The framework itself
 
-Working name `scamp` (the package), with three commands.
+Published as `@scamp/framework`, with three commands. (`scamp` on npm is
+an unrelated RabbitMQ client from 2021, so the working name can't ship;
+see "Repositories and packaging".)
 
 | Piece | Built on | What Scamp adds |
 |---|---|---|
@@ -331,6 +333,67 @@ building a backend-heavy app on Next keeps the Scamp files and writes
 Next route files against them — exactly what the Noise app did, minus
 the copying. This is the answer to lock-in and it should be a stated
 promise in the docs and in `agent.md`.
+
+## Repositories and packaging
+
+The framework lives in **its own repository**, published to npm, and
+both the Electron app and user projects consume it as an ordinary
+dependency. The plan implied this; it's a decision, so it's stated.
+
+### Why a separate repo
+
+- **User projects can only depend on a published package.** A project's
+  `package.json` can't point at the Electron repo, so the framework has
+  to be an npm package regardless. Publishing from inside the app repo
+  would tie every framework release to an app release, and the two move
+  at different speeds.
+- **The licenses differ.** The app is BSL. The framework ends up inside
+  every user's shipped app, and the standalone story only works if it's
+  MIT or Apache. Two licenses in one repo is confusing; two repos is
+  clean.
+- **The size target depends on it.** "Small enough to read in an
+  afternoon" is only true when the package is visible on its own, not
+  buried under Electron, node-pty, patch-package, and the shim system.
+- **Its tests don't want Electron.** Vite, Hono, and build-mode tests
+  run in plain Node and should not add to the app's CI.
+
+A monorepo would make contract changes atomic across both sides, which
+matters most in phase 1. Still separate: the contract grows by adding
+fields, the app tolerates a slightly newer framework, and converting
+two repos into a workspace later is cheap where splitting one is not.
+
+### Packages and names
+
+| Package | Contents | Status on npm |
+|---|---|---|
+| `@scamp/framework` | `scamp dev` / `build` / `preview`, file routing, `load()`, `/_views`, the Hono app, `scamp/runtime` helpers, exported templates | free |
+| `create-scamp` | `npm create scamp` — scaffolds a project from the framework's exported template | free |
+| `@scamp/adapter-*` | Deploy adapters, one package each, added as they land (phases 4–5) | — |
+
+Claim the `@scamp` npm org before anything else ships. The scope also
+gives the runtime and adapters natural homes if they ever split out.
+
+### The contract between the two repos
+
+The coupling surface is small and explicit. Keep it that way, and
+version it.
+
+| Contract | What it covers | Owner |
+|---|---|---|
+| **Files** | `views/`, `routes/`, `components/`, `design/theme.css`; the binding grammar (`bind`, `on`, `repeat`, `showIf`); the `_scamp` view metadata; the render-mode declaration | framework repo (documented there; the app's parser and generator implement it) |
+| **CLI** | `scamp dev` port and readiness output; the `/_views/<Name>` preview route; request-log format; the migration report shape | framework repo |
+| **Templates** | The project template and the component template, exported as `@scamp/framework/templates` so `create-scamp` and the app's **New project** produce identical files from one source | framework repo |
+| **Compatibility** | The app declares a supported framework range; new projects are scaffolded pinned inside it; the app checks the installed version on open and offers an upgrade, in the style of the Next migration report | app repo |
+
+Bump the contract version whenever a table row changes shape; the app
+reads it from the framework's `package.json` on project open.
+
+### What the app does not do
+
+It does not bundle the framework. Today `devServerManager` installs Next
+into a project on first preview; the framework arrives the same way,
+just smaller. The app needs the package itself only as a devDependency,
+for the parity harness and the e2e specs that run `scamp dev`.
 
 ## The canvas stays a view
 
@@ -480,7 +543,7 @@ Per file, mechanical, and reversible from the snapshot it takes first:
 | `components/**` | unchanged — already the right shape; the `className` passthrough and text props carry over as-is |
 | `app/theme.css`, `DESIGN.md` | `design/` |
 | `app/layout.tsx`, `next.config.ts` | removed; the framework owns the document shell |
-| `package.json` | `next`/`react`/`react-dom` swapped for `scamp`/`preact`; scripts rewritten; every other dependency kept |
+| `package.json` | `next`/`react`/`react-dom` swapped for `@scamp/framework`/`preact`; scripts rewritten; every other dependency kept |
 | `public/assets/**`, `scamp.config.json`, `.gitignore`, `agent.md`, `CLAUDE.md` | kept; `agent.md` refreshed to the new template on the next open, as it is today |
 | `.scamp/` | kept — snapshots, thumbnails, and the MCP registration are format-independent |
 
@@ -532,8 +595,10 @@ e2e suite runs the core specs against both formats.
    with the earlier `app/<name>/page.tsx` wrapper. This proves the
    binding model where projects already are and is a prerequisite for
    everything after.
-2. **`scamp dev` as a preview backend.** Vite + Preact + Hono: routing,
-   `load()`, `/_views`. Wire it into `devServerManager`. Measure cold
+2. **`scamp dev` as a preview backend.** Create the framework repo and
+   claim the `@scamp` npm org first (see "Repositories and
+   packaging"). Vite + Preact + Hono: routing, `load()`, `/_views`.
+   Wire it into `devServerManager`. Measure cold
    start, install size, and run the parity harness against it.
 3. **`scamp build` with rendering modes and islands, `npm create scamp`,
    docs.** The standalone story. Static and client modes first; server
@@ -579,6 +644,9 @@ framework never ships.
   updated" promise that local-first depends on.
 
 ## Open questions
+
+Settled: the framework is its own repo and npm package, `@scamp/framework`
+— see "Repositories and packaging".
 
 1. **`views/` or co-located?** `views/` makes views route-independent,
    which is the point. Recommendation: `views/`.
