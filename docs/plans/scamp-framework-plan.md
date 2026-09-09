@@ -178,8 +178,11 @@ parser, the same breakpoint and state handling.
 
 A route file exports the component and, optionally, a `load()` that
 runs on the server (or at build time, for a static site) and hands the
-component its `data`. Handlers are ordinary hooks — there is no
-server/client component boundary to negotiate.
+component its `data`. `load()` receives a **framework-defined context**
+— `params`, `request`, and `env` — never a Hono context, so a route
+file imports nothing from Hono and stays portable (see "The server
+layer"). Handlers are ordinary hooks — there is no server/client
+component boundary to negotiate.
 
 ```tsx
 import { useState } from 'preact/hooks';
@@ -187,10 +190,10 @@ import Lobby from '@/views/Lobby/Lobby';
 import { useGameState } from '@/features/useGameState';
 import { useCopy } from '@/features/ui/useCopy';
 import { loadGame } from '@/lib/game';
-import type { RouteProps } from 'scamp/runtime';
+import type { LoadContext, RouteProps } from 'scamp/runtime';
 
-export async function load({ params }: { params: { token: string } }) {
-  return { game: await loadGame(params.token) };
+export async function load({ params, env }: LoadContext<{ token: string }>) {
+  return { game: await loadGame(env.DB, params.token) };
 }
 
 export default function LobbyRoute({ params, data }: RouteProps<typeof load>) {
@@ -291,7 +294,7 @@ the view never imports from the app.
 
 ## The framework itself
 
-Published as `@scamp/framework`, with three commands. (`scamp` on npm is
+Published as `@scamp/framework`, with four commands. (`scamp` on npm is
 an unrelated RabbitMQ client from 2021, so the working name can't ship;
 see "Repositories and packaging".)
 
@@ -300,8 +303,9 @@ see "Repositories and packaging".)
 | `scamp dev` | Vite dev server, Preact preset, **Hono** | file-based routing over `routes/` (`[param]`, `[...rest]`, `(group)`), `load()` executed in the Hono app that also serves Vite's assets, the `@/` alias, `design/theme.css` injection, a `/_views/<Name>` route that renders any view with its defaults (the preview target — a built-in Storybook) |
 | `scamp build` | Vite build | per-route rendering mode (see "Rendering modes"): static routes prerendered, server routes bundled into the Hono app, client routes shipped as an SPA entry; islands hydration with Preact |
 | `scamp preview` | Vite preview + Hono | serves the build the way an adapter would |
+| `scamp add <recipe>` | the exported templates | applies an optional recipe to an existing project — `drizzle` first (see "The data layer"); adapters may follow |
 | Runtime helpers (`scamp/runtime`) | Preact + a small router | `RouteProps`, `Link`, `useParams`, `navigate` — a few hundred lines |
-| Server layer (`routes/api/*.ts`, `load()`) | Hono | one `Request → Response` surface for API routes, loaders, and SSR, so the same code runs on Cloudflare, Node, Bun, Deno, or Vercel. See "The server layer". |
+| Server layer (`routes/api/*.ts`, `load()`) | Hono | one `Request → Response` surface for API routes, loaders, and SSR, so the same code runs on Cloudflare, Node, Bun, Deno, or Vercel. Route files never import it: `load()` gets a framework context, and an API route can be a plain handler. See "The server layer". |
 | Deploy adapters | Hono adapters | static first; Cloudflare Workers/Pages, then Node, Vercel, Netlify — thin, because Hono already runs on all of them |
 
 Size target: the framework package small enough to read in an afternoon.
@@ -417,34 +421,58 @@ a reason to reopen the iframe.
 
 Hono is the framework's one server surface, and it runs the same code
 on Cloudflare Workers, Node, Bun, Deno, and Vercel — the property a
-framework with adapters needs. It appears in three places:
+framework with adapters needs. It is a dependency of the framework,
+**not of a project's code**: a project with only static routes and no
+`load()` never runs it (the build is HTML and CSS, the deploy is a
+folder), and a project that does use it never has to import it.
 
-- **`load()`** runs inside a Hono app. In dev that app also serves
-  Vite's assets; in production it is the server bundle. Loaders are
-  not a separate feature — they are how `scamp dev` and server-rendered
-  routes work.
-- **`routes/api/*.ts`** are Hono handlers: one `Request → Response`
-  export per file, with Hono's routing, middleware (sessions, auth,
-  CORS, validation), and its typed client. The Noise app's
-  `app/api/games/[token]/…` tree ports to this shape almost line for
-  line.
+- **`load()`** runs inside a Hono app — in dev the same app serves
+  Vite's assets; in production it is the server bundle — but the route
+  file sees only a framework context:
+
+  ```ts
+  type LoadContext<P = Record<string, string>> = {
+    params: P;          // route params
+    request: Request;   // the standard Request: URL, headers, cookies
+    env: Env;           // bindings and secrets; each adapter fills it
+  };
+  ```
+
+  `env` is how D1, KV, a Postgres URL, or any secret reaches a loader,
+  on every target: the Cloudflare adapter passes the Worker bindings,
+  the Node adapter passes `process.env` plus anything the adapter
+  config declares. Projects augment `Env` in a `scamp-env.d.ts` so
+  `env.DB` is typed. Because `load()` never touches Hono, the same
+  function can be lifted into a Next or Remix loader with one wrapper.
+
+- **`routes/api/*.ts`** export one handler per file. The default form
+  is a plain function over the standard types, which the framework
+  mounts; it needs no import:
 
   ```ts
   // routes/api/games/[token]/start.ts
-  import { Hono } from 'hono';
   import { startGame } from '@/lib/game';
 
-  export default new Hono().post('/', async (c) => {
-    const { token } = c.req.param();
-    const game = await startGame(c.env.DB, token);
-    return c.json({ game });
-  });
+  export const POST = async ({ params, env }: LoadContext<{ token: string }>) => {
+    const game = await startGame(env.DB, params.token);
+    return Response.json({ game });
+  };
   ```
 
-- **Typed fetches.** Hono's client (`hc`) gives route files a type-safe
-  client for their own API, so a `load()` calling `/api/games/:token`
-  gets the response type without a hand-written contract — one fewer
-  shape for an agent to guess.
+  Exporting a Hono app instead is the opt-in for routing inside the
+  file, middleware (sessions, auth, CORS, validation), and Hono's typed
+  client. The Noise app's `app/api/games/[token]/…` tree ports to
+  either shape almost line for line.
+
+  ```ts
+  import { Hono } from 'hono';
+  export default new Hono().post('/', async (c) => { /* … */ });
+  ```
+
+- **Typed fetches.** For projects that export Hono apps, Hono's client
+  (`hc`) gives route files a type-safe client for their own API, so a
+  `load()` calling `/api/games/:token` gets the response type without
+  a hand-written contract — one fewer shape for an agent to guess.
 
 ### Full-stack in Scamp's UI, precisely
 
@@ -461,6 +489,71 @@ route** writes a `routes/<path>.tsx` whose `load()` returns the view's
 sample data, typed, and the agent's job is to replace the sample with a
 real query. The design defines the data shape; the backend fills it.
 That is the full-stack story a designer can drive.
+
+## The data layer
+
+The framework bundles no ORM and no database driver, for the same
+reason it bundles no runtime: none of Scamp's value lives there, and
+the good options are mature and small. What it does is make **one path
+easy**, and that path is Drizzle.
+
+Why Drizzle: TypeScript-first, schema as code, no runtime beyond the
+driver, and it runs on every target the adapters list — Cloudflare D1,
+Postgres (Neon, Supabase, plain `pg`), SQLite (libsql or
+better-sqlite3), and Bun. Prisma needs driver adapters on Workers and
+carries a runtime; Kysely is a fine alternative if someone wants a
+query builder without schema-as-code, and nothing below prevents it.
+
+### The recipe
+
+`npm create scamp` and Scamp's **New project** ask one optional
+question — *Database: none · SQLite (Drizzle) · Postgres (Drizzle) ·
+Cloudflare D1 (Drizzle)* — and the same recipe is available later as
+`scamp add drizzle` for a project that started without one. Choosing
+one writes:
+
+| File | Contents |
+|---|---|
+| `db/schema.ts` | Drizzle tables; starts with one example table so the shape is visible |
+| `lib/db.ts` | `db(env)` — builds the client from `env` (`env.DB` for D1, `env.DATABASE_URL` for Postgres, a local file path for SQLite), so the same call works in dev and on every adapter |
+| `drizzle.config.ts` | Dialect and paths for `drizzle-kit` |
+| `.dev.vars` | The local connection value, gitignored |
+| `package.json` | `db:generate`, `db:migrate`, `db:studio` scripts |
+| `scamp-env.d.ts` | The `Env` augmentation, so `env.DB` is typed in `load()` and API routes |
+| `agent.md` | A **Database** section: where the schema lives, how to query in `load()`, how to write in an API route, and the migration commands |
+
+Local dev defaults to SQLite on disk for the SQLite and D1 choices
+(D1 is SQLite, so the schema is identical and `wrangler` takes over on
+deploy) and to the `DATABASE_URL` in `.dev.vars` for Postgres.
+
+### Where it sits in the split
+
+`load()` reads through `db(env)`; API routes write through it; the
+route file maps rows to the view's props. **The view's props are not
+the schema.** A `Lobby` wants `{ id, label, status }`; the `players`
+table has `seat`, `name`, and `claimed_at`. The mapping belongs in the
+route file — that is "compute in logic, bind in the view" applied to
+data, and it keeps a redesign from ever touching a migration.
+
+```tsx
+export async function load({ params, env }: LoadContext<{ token: string }>) {
+  const rows = await db(env).query.players.findMany({
+    where: eq(players.gameToken, params.token),
+  });
+  return { players: rows };
+}
+```
+
+**Generate route** stays as described: it writes a `load()` that
+returns the view's sample data, typed. With a database present it
+also drops a commented Drizzle query in the same shape, so an agent's
+job is to uncomment and finish it.
+
+### What Scamp's UI does
+
+Nothing new. The database is code the developer or agent owns, listed
+under Routes alongside API routes, with `db:*` scripts runnable from the
+terminal panel. Scamp does not become a schema editor.
 
 ## Rendering modes, per route
 
@@ -507,7 +600,7 @@ the file.
 | Discovery | `views/` joins `components/`; `app/` is gone; `routes/` is never scanned. |
 | Preview | `scamp dev` replaces `next dev`; view preview at `/_views/<Name>`; request logs from the Hono app in the app-log view. |
 | Routes | A **Routes** list beside Views: each route's file, its render mode (segmented control), and its API routes. **Generate route** writes a `routes/<path>.tsx` whose `load()` returns the view's sample data, typed. |
-| Scaffold + migrate | New projects always get the layout above. Existing Next.js projects keep working unchanged and migrate on request — see "Migration, and the Next.js projects". |
+| Scaffold + migrate | New projects always get the layout above, with the optional database choice from "The data layer". Existing Next.js projects keep working unchanged and migrate on request — see "Migration, and the Next.js projects". |
 | `agent.md` | One new section: the three-file contract, the binding grammar, "compute in logic, bind in the view", that route files are never regenerated, and the portability promise. |
 
 ## Migration, and the Next.js projects
@@ -605,9 +698,9 @@ e2e suite runs the core specs against both formats.
    mode lands with the first adapter. **New projects switch to the Scamp
    structure here; the migration banner ships alongside**, so nobody is
    on a format Scamp can't take them off of.
-4. **API routes, Generate route, and the Cloudflare adapter** — the
-   full-stack story, where the Noise app went. The Routes list in the
-   sidebar and request logs come with it.
+4. **API routes, Generate route, the Drizzle recipe, and the Cloudflare
+   adapter** — the full-stack story, where the Noise app went. The
+   Routes list in the sidebar and request logs come with it.
 5. **Further adapters** (Node, Vercel, Netlify) as demand shows.
 
 Each phase is shippable on its own. Phase 1 is valuable even if the
@@ -646,7 +739,10 @@ framework never ships.
 ## Open questions
 
 Settled: the framework is its own repo and npm package, `@scamp/framework`
-— see "Repositories and packaging".
+— see "Repositories and packaging". Also settled: `load()` and plain
+API handlers receive a framework `LoadContext` with `env`, never a Hono
+context (see "The server layer"); no ORM is bundled, and Drizzle is the
+one-question recipe (see "The data layer").
 
 1. **`views/` or co-located?** `views/` makes views route-independent,
    which is the point. Recommendation: `views/`.
@@ -661,10 +757,7 @@ Settled: the framework is its own repo and npm package, `@scamp/framework`
 5. **Components get the same four row kinds?** Yes — a `BuzzerButton`
    with an `onPress` prop is why the Noise app rebuilt its buzzer by
    hand, and views and components share the machinery.
-6. **How does `c.env` (D1, KV, secrets) reach `load()` on non-Cloudflare
-   targets?** Hono's adapters normalise most of it; the framework should
-   expose one `env` on `RouteProps` and let each adapter fill it.
-7. **Should the migration offer to port `app/api/**` handlers to Hono?**
+6. **Should the migration offer to port `app/api/**` handlers to Hono?**
    The shapes are close enough for a best-effort rewrite that flags
    every `NextResponse` and `params` use. Recommendation: offer it,
    marked as a guess, with the originals kept until the user deletes
