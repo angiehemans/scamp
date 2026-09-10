@@ -157,34 +157,29 @@ four-hour check.
 
 ## 1.4 Verify on a Mac
 
-You need a Mac with **no** Scamp installed, or one where you're willing
-to remove it for the test.
-
-**Start from 0.7.0.**
-
-1. If Scamp is installed, quit it and drag `/Applications/Scamp.app` to
-   the Trash.
-2. Clear the updater's cache so the test starts clean. In Terminal:
-
-   ```bash
-   rm -rf ~/Library/Caches/scamp-updater ~/Library/Application\ Support/Caches/scamp-updater
-   ```
-
-3. Download `Scamp-0.7.0-arm64.dmg` from
-   `https://github.com/angiehemans/scamp/releases/tag/v0.7.0` and
-   install it to `/Applications`.
+Use a Mac that has 0.7.0 installed from the GitHub release, the way
+any user's machine is. Updating from what's already installed is the
+real test.
 
 **Take the bridge update from GitHub.**
 
-4. Launch Scamp. The updater checks on launch and downloads in the
+1. Launch Scamp. The updater checks on launch and downloads in the
    background. Within a minute or two, the update banner offers
    **Restart and install**. Click it.
-5. After the restart, open **Settings** and confirm the version reads
+
+   If no update appears, check `~/Library/Logs/Scamp/main.log` for
+   `[updater]` lines. A local dev build, a version other than 0.7.0, or
+   a half-downloaded update in the cache are the usual reasons. To reset:
+   quit Scamp, run
+   `rm -rf ~/Library/Caches/scamp-updater ~/Library/Application\ Support/Caches/scamp-updater`,
+   install `Scamp-0.7.0-arm64.dmg` from the v0.7.0 GitHub release over
+   the existing app, and launch again.
+2. After the restart, open **Settings** and confirm the version reads
    **0.7.1**.
 
 **Confirm the bridge points at R2.** This is the check that matters.
 
-6. In Terminal:
+3. In Terminal:
 
    ```bash
    cat /Applications/Scamp.app/Contents/Resources/app-update.yml
@@ -203,7 +198,7 @@ to remove it for the test.
 
 **Confirm the feed is complete.**
 
-7. In the repo folder on your machine:
+4. In the repo folder on your machine:
 
    ```bash
    npm run verify:feed
@@ -215,13 +210,13 @@ to remove it for the test.
 
 **Take the next update from R2.**
 
-8. Ask me for `v0.7.2`. It can be a real release or a throwaway with a
+5. Ask me for `v0.7.2`. It can be a real release or a throwaway with a
    one-line changelog entry; I bump, tag, and you push and publish as in
    1.3.
-9. On the test Mac, quit and relaunch Scamp (or wait up to four hours).
+6. On the test Mac, quit and relaunch Scamp (or wait up to four hours).
    Accept the update when the banner appears. Confirm **Settings** reads
    **0.7.2**.
-10. Prove GitHub wasn't involved:
+7. Prove GitHub wasn't involved:
 
     ```bash
     gh release view v0.7.2 --json assets \
