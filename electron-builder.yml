@@ -39,13 +39,20 @@ asarUnpack:
   - "**/out/main/imageOptimizeChild.js"
 
 # Auto-update feed. electron-builder writes an `app-update.yml` into the
-# package pointing at these GitHub Releases; electron-updater reads it at
-# runtime to discover new versions. The repo is public, so no token is
-# baked into the binary. See docs/notes/auto-update.md.
+# package from the FIRST entry only (publishConfigs[0]), and
+# electron-updater reads exactly one provider with no fallback — so the
+# order here decides which feed installed apps poll. `generic` (our R2
+# bucket) must stay first. The `github` entry still receives every
+# release: that copy is how installs from before the R2 feed find the
+# next version. electron-builder uploads nothing for `generic`; the
+# release workflow copies the artifacts to R2 itself.
+# see docs/notes/update-feed-migration.md
 publish:
-  provider: github
-  owner: angiehemans
-  repo: scamp
+  - provider: generic
+    url: https://updates.scamp.club
+  - provider: github
+    owner: angiehemans
+    repo: scamp
 
 mac:
   category: public.app-category.developer-tools

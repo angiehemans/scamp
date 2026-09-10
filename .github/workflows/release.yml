@@ -1,9 +1,11 @@
 name: Release
 
 # Pushing a version tag (e.g. `v1.1.0`) builds all three platform
-# targets, signs + notarizes them, and publishes to GitHub Releases.
+# targets, signs + notarizes them, publishes to GitHub Releases, and
+# copies the installers + updater metadata to the R2 update feed.
 # electron-updater clients pick the new version up on their next launch
-# or 4-hour check. See docs/notes/auto-update.md and Part 2.8 of
+# or 4-hour check. See docs/notes/auto-update.md,
+# docs/notes/update-feed-migration.md, and Part 2.8 of
 # docs/plans/auto-update-prd.md.
 on:
   push:
@@ -87,3 +89,64 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      # R2 is the feed baked into the app (`generic` is first in
+      # electron-builder.yml's publish list), and electron-builder uploads
+      # nothing for a generic provider — so copy this runner's artifacts
+      # ourselves. Installers and blockmaps go first and `latest*.yml`
+      # last, so the feed never names a file that isn't there yet. The
+      # same files land under `archive/<version>/` for download links and
+      # rollback. Missing secrets FAIL the job on purpose: a release that
+      # reaches GitHub but not R2 would leave every migrated install
+      # stuck with an update error.
+      - name: Upload to R2
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          # AWS CLI 2.23+ sends CRC checksum headers by default, which R2
+          # rejects; `when_required` restores the pre-2.23 behaviour.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          for v in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_ENDPOINT R2_BUCKET; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::$v is not set — add it under Settings > Secrets > Actions"
+              exit 1
+            fi
+          done
+          version="$(node -p "require('./package.json').version")"
+          cd dist
+          shopt -s nullglob
+          put() {
+            aws s3 cp "$1" "s3://$R2_BUCKET/$2" --endpoint-url "$R2_ENDPOINT" --no-progress
+          }
+          for f in *.dmg *.dmg.blockmap *.zip *.zip.blockmap *.exe *.exe.blockmap *.AppImage *.deb; do
+            put "$f" "$f"
+            put "$f" "archive/$version/$f"
+          done
+          for y in latest*.yml; do
+            put "$y" "$y"
+            put "$y" "archive/$version/$y"
+          done
+
+  # Runs once all three uploads are in: fetches every latest*.yml from
+  # the public feed URL and checks each file it names is reachable, the
+  # right size, and range-capable (blockmap deltas need ranges).
+  verify-feed:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Verify update feed
+        env:
+          UPDATE_FEED_URL: ${{ vars.UPDATE_FEED_URL }}
+          EXPECTED_VERSION: ${{ github.ref_name }}
+        run: node scripts/verify-update-feed.mjs

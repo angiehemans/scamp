@@ -1,8 +1,12 @@
 # Auto-update
 
-Scamp ships background auto-updates via **electron-updater** with
-**GitHub Releases** (`angiehemans/scamp`, public repo) as the feed. Full
-product context and the one-time signing prerequisites live in
+Scamp ships background auto-updates via **electron-updater**. The feed
+baked into the app is the **R2 bucket at `https://updates.scamp.club`**
+(the `generic` provider); releases are also published to **GitHub
+Releases** (`angiehemans/scamp`) for installs that predate the R2 feed —
+see [`update-feed-migration.md`](./update-feed-migration.md) for why
+there are two and when the GitHub one goes away. Full product context
+and the one-time signing prerequisites live in
 `docs/plans/auto-update-prd.md`; this note captures the runtime wiring.
 
 ## Flow
@@ -43,14 +47,22 @@ Dismissing the banner does **not** cancel the update —
 - `electron.vite.config.ts` keeps `electron-updater` + `electron-log`
   **external** — both are CJS with dynamic requires that don't survive
   Rollup bundling; they load from `node_modules` inside the asar.
-- `electron-builder.yml` carries the `publish` block (electron-builder
-  writes `app-update.yml` into the package from it) plus mac hardened
-  runtime / entitlements / `notarize: true`. Signing identities are
+- `electron-builder.yml` carries the `publish` list — `generic` (R2)
+  first, `github` second. electron-builder writes `app-update.yml` into
+  the package from the **first entry only**, so the order is
+  load-bearing. It also holds the mac hardened runtime / entitlements /
+  `notarize: true`. Signing identities are
   **not** hardcoded — mac auto-discovers the Developer ID cert from the
   keychain and win reads `CSC_LINK` / `CSC_KEY_PASSWORD`. Both skip
   cleanly when absent, so unsigned local `npm run package` builds work.
 - `.github/workflows/release.yml` runs on `v*` tags: imports certs,
-  builds the matrix, and publishes with `--publish always`.
+  builds the matrix, publishes to GitHub with `--publish always`, then
+  copies each runner's installers, blockmaps, and `latest*.yml` to R2
+  with the AWS CLI (installers first, yml last, plus an
+  `archive/<version>/` copy). The step fails hard when the `R2_*`
+  secrets are missing. A final `verify-feed` job runs
+  `scripts/verify-update-feed.mjs` (`npm run verify:feed`) against
+  `vars.UPDATE_FEED_URL`.
 - The Windows runner is pinned to **`windows-2022`**, not
   `windows-latest`. `windows-latest` migrated to a newer Visual Studio
   that the node-gyp bundled with Node 20 can't detect, so the `node-pty`

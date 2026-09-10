@@ -22,6 +22,17 @@ release time.
 
 ## Releases
 
+### 0.7.1 (2026-09-10)
+
+**Changed**
+
+- **Updates now come from Scamp's own update server.** Nothing changes
+  in how you use the app: it still checks for updates on launch and
+  every four hours, and installs them the same way. Under the hood, this
+  version switches the update feed from GitHub Releases to
+  `updates.scamp.club`, so future releases keep reaching you wherever
+  the source code lives.
+
 ### 0.7.0 (2026-09-08)
 
 Electron 44, the full flex vocabulary in the panel, a Transform section,

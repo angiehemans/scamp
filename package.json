@@ -1,6 +1,6 @@
 {
   "name": "scamp",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Local-first design tool. Draw, get real TSX + CSS.",
   "main": "./out/main/index.js",
   "author": {
@@ -29,7 +29,8 @@
     "test:e2e:nobuild": "playwright test",
     "test:e2e:ui": "npm run build && playwright test --ui",
     "test:e2e:headed": "npm run build && playwright test --headed",
-    "package": "npm run build && electron-builder --config electron-builder.yml"
+    "package": "npm run build && electron-builder --config electron-builder.yml",
+    "verify:feed": "node scripts/verify-update-feed.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",

@@ -2,7 +2,15 @@
 
 Goal: make `angiehemans/scamp` **fully private** without stranding installed
 copies. Runtime wiring this modifies is described in
-[`auto-update.md`](./auto-update.md).
+[`auto-update.md`](./auto-update.md). The step-by-step version of phases 1–2,
+split into manual and in-repo tasks, is `docs/plans/update-feed-r2-plan.md`
+and `docs/plans/update-feed-r2-manual-steps.md`.
+
+**Where this stands (2026-09-10):** Phase 1 is done — the bucket is public
+at `https://updates.scamp.club`. The bridge release (Phase 2) is `v0.7.1`:
+`electron-builder.yml` publishes `generic` first and `github` second, and
+`release.yml` copies artifacts to R2 and verifies the feed. Phase 3
+(measure) starts once `v0.7.1` is verified on a real machine.
 
 ## Why it needs a migration at all
 
@@ -68,10 +76,21 @@ scamp_<v>_amd64.deb
 HTTPS is mandatory on macOS. Range requests must work for blockmap differential
 downloads — R2 supports them.
 
-**Verify before shipping anything:** publish a build to R2 only, install the
-current release on a clean machine, point it at the new feed with a
-`dev-app-update.yml`, and watch it update. Prove the feed works before any user
-depends on it.
+**How the upload works:** electron-builder uploads nothing for a `generic`
+provider (`PublishManager.scheduleUpload` returns early), so `release.yml`
+copies each runner's artifacts with the AWS CLI against the R2 S3 endpoint —
+installers and blockmaps first, `latest*.yml` last, plus a copy under
+`archive/<version>/`. The AWS CLI needs
+`AWS_REQUEST_CHECKSUM_CALCULATION=when_required` (2.23+ sends CRC headers R2
+rejects). A `verify-feed` job then runs `scripts/verify-update-feed.mjs`,
+which fetches the three yml files, checks the version against the tag, and
+does a ranged GET on every listed file (206, size matches, ranges work).
+
+**Verify before anyone depends on it:** the bridge release doesn't need R2 to
+work — existing installs fetch it from GitHub. R2 has to work for the release
+*after* the bridge, so the real-machine check (install the previous release,
+take the bridge from GitHub, read the bundle's `app-update.yml`, then take the
+next release from R2) sits between them.
 
 ## Phase 2 — the bridge release
 
