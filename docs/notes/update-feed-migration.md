@@ -86,6 +86,16 @@ rejects). A `verify-feed` job then runs `scripts/verify-update-feed.mjs`,
 which fetches the three yml files, checks the version against the tag, and
 does a ranged GET on every listed file (206, size matches, ranges work).
 
+**Edge caching is a trap.** Cloudflare caches objects served through the R2
+custom domain (`cache-control: max-age=14400`), and electron-updater adds its
+`?noCache=` query only to the `latest*.yml` fetch — installer and blockmap URLs
+are requested bare (`Provider.resolveFiles` doesn't pass the flag). Re-upload a
+file under the same name, as a release re-run does, and any edge that already
+served it keeps handing out the old bytes until the TTL expires, which fails
+the updater's sha512 check. The fix is a zone Cache Rule that bypasses cache
+for the feed hostname; `verify-update-feed.mjs` compares the bare URL against
+a cache-busted one and reports "stale edge cache" when they differ.
+
 **Verify before anyone depends on it:** the bridge release doesn't need R2 to
 work — existing installs fetch it from GitHub. R2 has to work for the release
 *after* the bridge, so the real-machine check (install the previous release,

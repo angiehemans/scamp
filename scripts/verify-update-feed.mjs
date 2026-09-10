@@ -28,14 +28,38 @@ const parseUpdateInfo = (text) => {
   return { version, files };
 };
 
+const rangedTotal = async (url) => {
+  const res = await fetch(url, { headers: { range: 'bytes=0-0' } });
+  return {
+    status: res.status,
+    total: Number(res.headers.get('content-range')?.split('/')[1] ?? NaN),
+    cache: res.headers.get('cf-cache-status'),
+  };
+};
+
+// Fetch the bare URL — what electron-updater actually requests, since it
+// cache-busts only the yml — and a cache-busted copy that reaches the
+// origin. A size that differs between the two is a stale edge cache: the
+// object was re-uploaded under the same name and Cloudflare still serves
+// the old bytes, which fails the updater's sha512 check.
 const checkFile = async (name, size) => {
-  const res = await fetch(`${feedUrl}/${encodeURIComponent(name)}`, {
-    headers: { range: 'bytes=0-0' },
-  });
-  const total = Number(res.headers.get('content-range')?.split('/')[1] ?? NaN);
+  const url = `${feedUrl}/${encodeURIComponent(name)}`;
+  const edge = await rangedTotal(url);
   const problems = [];
-  if (res.status !== 206) problems.push(`status ${res.status} (want 206 for a ranged GET)`);
-  if (size !== null && total !== size) problems.push(`size ${total} (yml says ${size})`);
+  if (edge.status !== 206) {
+    problems.push(`status ${edge.status} (want 206 for a ranged GET)`);
+    return problems;
+  }
+  if (size !== null && edge.total !== size) {
+    const origin = await rangedTotal(`${url}?noCache=${Date.now().toString(32)}`);
+    if (origin.total === size) {
+      problems.push(
+        `stale edge cache: serving ${edge.total} bytes (cf-cache-status ${edge.cache}), origin has ${size} — purge this URL in Cloudflare or wait for the TTL`
+      );
+    } else {
+      problems.push(`size ${edge.total} (yml says ${size})`);
+    }
+  }
   return problems;
 };
 

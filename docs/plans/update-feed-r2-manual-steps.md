@@ -56,6 +56,16 @@ need in the next steps: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`.
 5. Wait for the domain's status to read **Active**. This usually takes a
    minute or two.
 
+6. Turn edge caching off for the feed. Open the `scamp.club` zone under
+   **Websites**, then **Caching** → **Cache Rules** → **Create rule**.
+   Name it `updates feed - bypass`, set the match to **Hostname equals
+   `updates.scamp.club`**, set **Cache eligibility** to **Bypass cache**,
+   and deploy it. Without this, Cloudflare caches installers for four
+   hours, and electron-updater doesn't cache-bust installer downloads,
+   so a release re-run that re-uploads a file under the same name serves
+   stale bytes from the edge and fails the updater's checksum. R2 egress
+   is free, so caching buys nothing here.
+
 Leave **R2.dev subdomain** disabled. It's rate-limited and not meant for
 production traffic, and the updater must never see that URL.
 
@@ -269,4 +279,5 @@ repo) can start.
 | The **Upload to R2** step fails with `NoSuchBucket` | `R2_BUCKET` or `R2_ENDPOINT` is wrong | Compare with the bucket name and the endpoint on the token page |
 | `app-update.yml` says `github` | Publish order is wrong | Tell me; it's a one-line fix and a new release |
 | The 0.7.1 machine shows an update error banner | The feed is incomplete or unreachable | Run `npm run verify:feed` and paste the output |
+| `verify:feed` reports **stale edge cache** | A file was re-uploaded under the same name and Cloudflare still serves the old copy | Purge those URLs: zone → **Caching** → **Configuration** → **Purge Cache** → **Custom purge** → paste the URLs. Then add the bypass Cache Rule from 1.1 if it's missing |
 | The update downloads but won't install on macOS | Signing identity changed | Stop. Confirm the same Developer ID cert and notarization secrets are in CI |
