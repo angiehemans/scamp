@@ -137,9 +137,14 @@ jobs:
           put() {
             aws s3 cp "$1" "s3://$R2_BUCKET/$2" --endpoint-url "$R2_ENDPOINT" --no-progress
           }
+          # electron-builder names the Windows installer "Scamp Setup x.y.z.exe"
+          # on disk but lists it as "Scamp-Setup-x.y.z.exe" in latest.yml
+          # (the same URL-safe name it uploads to GitHub), and the updater
+          # fetches the yml's name — so the object key must use dashes.
           for f in *.dmg *.dmg.blockmap *.zip *.zip.blockmap *.exe *.exe.blockmap *.AppImage *.deb; do
-            put "$f" "$f"
-            put "$f" "archive/$version/$f"
+            key="${f// /-}"
+            put "$f" "$key"
+            put "$f" "archive/$version/$key"
           done
           for y in latest*.yml; do
             put "$y" "$y"
