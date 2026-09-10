@@ -119,6 +119,18 @@ jobs:
               exit 1
             fi
           done
+          # Preflight with one tiny object so a wrong endpoint, bucket, or
+          # a read-only token fails here with a clear message instead of
+          # partway through a multipart upload of an installer.
+          if ! aws s3api head-bucket --bucket "$R2_BUCKET" --endpoint-url "$R2_ENDPOINT" 2>preflight.err; then
+            echo "::error::R2 preflight failed — check R2_ENDPOINT (no bucket in the path) and R2_BUCKET: $(cat preflight.err)"
+            exit 1
+          fi
+          if ! echo "$GITHUB_RUN_ID" | aws s3 cp - "s3://$R2_BUCKET/.ci-preflight" --endpoint-url "$R2_ENDPOINT" 2>preflight.err; then
+            echo "::error::R2 preflight write failed — the token needs Object Read & Write on this bucket: $(cat preflight.err)"
+            exit 1
+          fi
+          aws s3 rm "s3://$R2_BUCKET/.ci-preflight" --endpoint-url "$R2_ENDPOINT" --quiet
           version="$(node -p "require('./package.json').version")"
           cd dist
           shopt -s nullglob
