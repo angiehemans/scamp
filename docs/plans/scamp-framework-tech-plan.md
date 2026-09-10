@@ -5,8 +5,8 @@ Status: **plan, nothing built.** Companion to
 This document turns it into an order of work. Every phase is tagged
 with the repository it lands in:
 
-- **[framework]** — the new `scamp-framework` repository, publishing
-  `@scamp/framework` and `create-scamp` to npm. MIT.
+- **[framework]** — the new `scampjs` repository, publishing
+  `scampjs` and `create-scampjs` to npm. MIT.
 - **[app]** — this repository, the Electron app.
 
 The two repos share one contract (files, CLI, templates, compatibility
@@ -14,19 +14,24 @@ range — see "Repositories and packaging" in the framework plan). Each
 phase below says which contract version it produces or consumes, so the
 repos can move at different speeds without guessing.
 
+The framework repository is `scampdesign/scampjs`; its `CONTRACT.md` is
+the home of the contract between the two repos. Package names were
+settled there on 2026-09-10: `scampjs`, `create-scampjs`, and
+`@scampjs/adapter-*` (the `@scamp` scope is held by another npm user).
+
 ## The order, in one table
 
 | # | Phase | Repo | Depends on | Ships to users as |
 |---|---|---|---|---|
 | 0 | Bootstrap the framework repo | framework | — | nothing yet |
 | 1 | Views and bindings on today's Next output | app | — | a Scamp release: Data tab grows, `views/` appears, projects still run on Next |
-| 2 | `scamp dev` | framework | 0, contract from 1 | `@scamp/framework` 0.1 (dev server only) |
+| 2 | `scamp dev` | framework | 0, contract from 1 | `scampjs` 0.1 (dev server only) |
 | 3 | Preview through `scamp dev` | app | 2 | a Scamp release: previews start in under a second |
-| 4 | `scamp build`, rendering modes, islands, `create-scamp` | framework | 2 | `@scamp/framework` 0.2, `create-scamp` |
+| 4 | `scamp build`, rendering modes, islands, `create-scampjs` | framework | 2 | `scampjs` 0.2, `create-scampjs` |
 | 5 | New projects on the Scamp structure; Next migration | app | 3, 4 | a Scamp release: the format switch |
-| 6 | API routes, the Drizzle recipe, the Cloudflare adapter | framework | 4 | `@scamp/framework` 0.3, `@scamp/adapter-cloudflare` |
+| 6 | API routes, the Drizzle recipe, the Cloudflare adapter | framework | 4 | `scampjs` 0.3, `@scampjs/adapter-cloudflare` |
 | 7 | Full-stack in Scamp's UI | app | 5, 6 | a Scamp release: Routes list, Generate route, request logs |
-| 8 | Further adapters | framework | 6 | `@scamp/adapter-node`, `-vercel`, `-netlify` |
+| 8 | Further adapters | framework | 6 | `@scampjs/adapter-node`, `-vercel`, `-netlify` |
 
 Phases 0 and 1 run in parallel. So do 2 and the tail of 1, 4 and 3,
 6 and 5. The app never blocks on the framework for more than one phase,
@@ -36,17 +41,17 @@ and the framework never needs the app to be released first.
 
 Goal: a publishable, empty package with the contract written down.
 
-- Claim the `@scamp` npm org and the `create-scamp` name. Create the
-  `scamp-framework` repository, MIT license.
-- Repo layout: `packages/framework` (`@scamp/framework`),
-  `packages/create-scamp`, `packages/adapter-*` later; npm workspaces.
+- Claim the `@scampjs` npm org and the `create-scampjs` name. Create the
+  `scampjs` repository, MIT license.
+- Repo layout: `packages/framework` (`scampjs`),
+  `packages/create-scampjs`, `packages/adapter-*` later; npm workspaces.
   Plain Node + TypeScript + Vitest; no Electron anywhere.
 - `CONTRACT.md` at the root: the file contract (`views/`, `routes/`,
   `components/`, `design/theme.css`, the binding grammar, the `_scamp`
   view metadata, the render-mode export), the CLI contract (readiness
   line, `/_views/<Name>`, request-log format), and the templates
   export. Version it: `contract: 0` until phase 2 ships `1`.
-- The `Env` and `LoadContext` types, exported from `@scamp/framework/runtime`
+- The `Env` and `LoadContext` types, exported from `scampjs/runtime`
   even before anything runs, so phase 1's `agent.md` can point at them.
 - CI: lint, typecheck, unit tests, and a dry-run publish on tags.
 - Done when: `npm publish --dry-run` succeeds and `CONTRACT.md` matches
@@ -111,7 +116,7 @@ through the existing `app/<name>/page.tsx` wrapper.
   still read for Next projects. `routes/` is never scanned.
 - `ProjectFormat` gains `'scamp'` in `src/shared/types.ts`, and
   `detectProjectFormat` (`src/main/ipc/projectFormat.ts`) reads it from
-  `views/` plus a `@scamp/framework` dependency. Nothing creates a
+  `views/` plus a `scampjs` dependency. Nothing creates a
   `scamp` project yet; this is so phase 3 doesn't touch detection.
 
 ### Agent guidance
@@ -138,7 +143,7 @@ target for the app. Produces **contract 1**.
 - Vite plugin: file-based routing over `routes/` (`[param]`,
   `[...rest]`, `(group)`), the `@/` alias, `design/theme.css`
   injection, and the document shell (there is no `layout.tsx`).
-- Runtime (`@scamp/framework/runtime`): `RouteProps`, `LoadContext`,
+- Runtime (`scampjs/runtime`): `RouteProps`, `LoadContext`,
   `Link`, `useParams`, `navigate`, on Preact. A few hundred lines.
 - Hono app: serves Vite's assets in dev, runs `load()` with a
   `LoadContext` (`params`, `request`, `env`) built by the dev adapter
@@ -149,11 +154,11 @@ target for the app. Produces **contract 1**.
 - Readiness: one stable line on stdout (`scamp dev ready http://127.0.0.1:<port>`)
   that the app's ready detector matches; a `--port` flag; a
   `--json` log mode for the app's request-log view.
-- Templates export (`@scamp/framework/templates`): the project
+- Templates export (`scampjs/templates`): the project
   template (`views/`, `routes/index.tsx`, `design/`, `package.json`
   scripts, `agent.md` stub) and the component and view templates, so
-  the app scaffolds from the same source as `create-scamp`.
-- Publish `@scamp/framework` 0.1 with `contract: 1` in `package.json`.
+  the app scaffolds from the same source as `create-scampjs`.
+- Publish `scampjs` 0.1 with `contract: 1` in `package.json`.
 - Done when: a project scaffolded from the templates runs, `/_views/`
   renders every view, and a `load()` reads `env`.
 
@@ -173,7 +178,7 @@ instead of Next, and the parity harness runs against it.
   framework's `package.json` and shows the existing-style banner when
   the project is outside the range.
 - Scaffold: `src/main/ipc/projectScaffold.ts` gains a `scamp` branch
-  that writes from `@scamp/framework/templates`, behind a flag until
+  that writes from `scampjs/templates`, behind a flag until
   phase 5. The app takes the framework as a devDependency for tests
   only; it is never bundled.
 - Parity: `test/e2e/parity/` learns to serve fixtures through
@@ -183,7 +188,7 @@ instead of Next, and the parity harness runs against it.
   cold-start and install-size numbers are recorded in
   `docs/notes/framework-preview.md`.
 
-## Phase 4 — `scamp build`, rendering modes, islands, `create-scamp` [framework]
+## Phase 4 — `scamp build`, rendering modes, islands, `create-scampjs` [framework]
 
 Goal: the standalone story. Someone with no Scamp installed can create,
 build, and deploy a project.
@@ -199,13 +204,13 @@ build, and deploy a project.
 - `scamp preview`: serve the build as an adapter would.
 - The static adapter (a folder) is built in; `server` mode is gated on
   phase 6's first adapter and errors clearly until then.
-- `create-scamp`: `npm create scamp`, using the templates export, with
+- `create-scampjs`: `npm create scampjs`, using the templates export, with
   the optional database question wired but only `none` available until
   phase 6.
 - Docs site from `docs/website/scamp-framework.md` plus reference
   pages for routing, `load()`, rendering modes, and the file contract.
-- Publish `@scamp/framework` 0.2 and `create-scamp` 0.1.
-- Done when: `npm create scamp && npm run build` produces a folder that
+- Publish `scampjs` 0.2 and `create-scampjs` 0.1.
+- Done when: `npm create scampjs && npm run build` produces a folder that
   serves correctly from any static host, with zero JavaScript on a
   route without events.
 
@@ -253,12 +258,12 @@ Goal: the full-stack story, where the Noise app went.
   templates export. First recipe `drizzle`, with the SQLite, Postgres,
   and D1 variants: writes `db/schema.ts`, `lib/db.ts`, `drizzle.config.ts`,
   `.dev.vars`, the `db:*` scripts, the `Env` augmentation, and the
-  **Database** section of `agent.md`. `create-scamp` enables the
+  **Database** section of `agent.md`. `create-scampjs` enables the
   database question.
-- `@scamp/adapter-cloudflare`: Workers and Pages; `env` from bindings;
+- `@scampjs/adapter-cloudflare`: Workers and Pages; `env` from bindings;
   `server` routes run per request; `static` routes to Pages assets.
-- Publish `@scamp/framework` 0.3, `create-scamp` 0.2,
-  `@scamp/adapter-cloudflare` 0.1. Contract bumps to `2` (API handler
+- Publish `scampjs` 0.3, `create-scampjs` 0.2,
+  `@scampjs/adapter-cloudflare` 0.1. Contract bumps to `2` (API handler
   shapes and the `Database` section of the file contract).
 - Done when: a project with a D1-backed `load()` and a plain `POST`
   handler deploys to Cloudflare from `scamp build`, and the same
@@ -289,7 +294,7 @@ backend builder.
 
 ## Phase 8 — further adapters [framework]
 
-`@scamp/adapter-node`, `-vercel`, `-netlify`, as demand shows. Each is
+`@scampjs/adapter-node`, `-vercel`, `-netlify`, as demand shows. Each is
 thin: Hono already runs there; the adapter fills `env` and maps
 `static`, `server`, and `client` routes to the host's model. No app
 changes.

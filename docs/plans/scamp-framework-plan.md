@@ -7,6 +7,11 @@ Three decisions were settled in discussion on 2026-09-08 and are folded
 in below: the canvas stays a view (no iframe), the server layer is Hono,
 and rendering mode is chosen per route.
 
+The framework repository is `scampdesign/scampjs`; its `CONTRACT.md` is
+the home of the contract between the two repos. Package names were
+settled there on 2026-09-10: `scampjs`, `create-scampjs`, and
+`@scampjs/adapter-*` (the `@scamp` scope is held by another npm user).
+
 ## The idea, in one paragraph
 
 A Scamp page becomes three files with one owner each — **structure**
@@ -190,7 +195,7 @@ import Lobby from '@/views/Lobby/Lobby';
 import { useGameState } from '@/features/useGameState';
 import { useCopy } from '@/features/ui/useCopy';
 import { loadGame } from '@/lib/game';
-import type { LoadContext, RouteProps } from 'scamp/runtime';
+import type { LoadContext, RouteProps } from 'scampjs/runtime';
 
 export async function load({ params, env }: LoadContext<{ token: string }>) {
   return { game: await loadGame(env.DB, params.token) };
@@ -294,7 +299,7 @@ the view never imports from the app.
 
 ## The framework itself
 
-Published as `@scamp/framework`, with four commands. (`scamp` on npm is
+Published as `scampjs`, with four commands. (`scamp` on npm is
 an unrelated RabbitMQ client from 2021, so the working name can't ship;
 see "Repositories and packaging".)
 
@@ -304,7 +309,7 @@ see "Repositories and packaging".)
 | `scamp build` | Vite build | per-route rendering mode (see "Rendering modes"): static routes prerendered, server routes bundled into the Hono app, client routes shipped as an SPA entry; islands hydration with Preact |
 | `scamp preview` | Vite preview + Hono | serves the build the way an adapter would |
 | `scamp add <recipe>` | the exported templates | applies an optional recipe to an existing project — `drizzle` first (see "The data layer"); adapters may follow |
-| Runtime helpers (`scamp/runtime`) | Preact + a small router | `RouteProps`, `Link`, `useParams`, `navigate` — a few hundred lines |
+| Runtime helpers (`scampjs/runtime`) | Preact + a small router | `RouteProps`, `Link`, `useParams`, `navigate` — a few hundred lines |
 | Server layer (`routes/api/*.ts`, `load()`) | Hono | one `Request → Response` surface for API routes, loaders, and SSR, so the same code runs on Cloudflare, Node, Bun, Deno, or Vercel. Route files never import it: `load()` gets a framework context, and an API route can be a plain handler. See "The server layer". |
 | Deploy adapters | Hono adapters | static first; Cloudflare Workers/Pages, then Node, Vercel, Netlify — thin, because Hono already runs on all of them |
 
@@ -322,7 +327,7 @@ hundreds of megabytes to a few dozen packages. Preview of a view opens
 
 ### Standalone use
 
-`npm create scamp` scaffolds the layout above without Scamp installed.
+`npm create scampjs` scaffolds the layout above without Scamp installed.
 Anyone who wants the separation of concerns — structure, styles, logic
 in three files, sample data as defaults — can use it as a plain
 framework, and open the project in Scamp later, or never.
@@ -370,11 +375,11 @@ two repos into a workspace later is cheap where splitting one is not.
 
 | Package | Contents | Status on npm |
 |---|---|---|
-| `@scamp/framework` | `scamp dev` / `build` / `preview`, file routing, `load()`, `/_views`, the Hono app, `scamp/runtime` helpers, exported templates | free |
-| `create-scamp` | `npm create scamp` — scaffolds a project from the framework's exported template | free |
-| `@scamp/adapter-*` | Deploy adapters, one package each, added as they land (phases 4–5) | — |
+| `scampjs` | `scamp dev` / `build` / `preview`, file routing, `load()`, `/_views`, the Hono app, `scampjs/runtime` helpers, exported templates | free |
+| `create-scampjs` | `npm create scampjs` — scaffolds a project from the framework's exported template | free |
+| `@scampjs/adapter-*` | Deploy adapters, one package each, added as they land (phases 4–5) | — |
 
-Claim the `@scamp` npm org before anything else ships. The scope also
+Claim the `@scampjs` npm org before anything else ships. The scope also
 gives the runtime and adapters natural homes if they ever split out.
 
 ### The contract between the two repos
@@ -386,7 +391,7 @@ version it.
 |---|---|---|
 | **Files** | `views/`, `routes/`, `components/`, `design/theme.css`; the binding grammar (`bind`, `on`, `repeat`, `showIf`); the `_scamp` view metadata; the render-mode declaration | framework repo (documented there; the app's parser and generator implement it) |
 | **CLI** | `scamp dev` port and readiness output; the `/_views/<Name>` preview route; request-log format; the migration report shape | framework repo |
-| **Templates** | The project template and the component template, exported as `@scamp/framework/templates` so `create-scamp` and the app's **New project** produce identical files from one source | framework repo |
+| **Templates** | The project template and the component template, exported as `scampjs/templates` so `create-scampjs` and the app's **New project** produce identical files from one source | framework repo |
 | **Compatibility** | The app declares a supported framework range; new projects are scaffolded pinned inside it; the app checks the installed version on open and offers an upgrade, in the style of the Next migration report | app repo |
 
 Bump the contract version whenever a table row changes shape; the app
@@ -506,7 +511,7 @@ query builder without schema-as-code, and nothing below prevents it.
 
 ### The recipe
 
-`npm create scamp` and Scamp's **New project** ask one optional
+`npm create scampjs` and Scamp's **New project** ask one optional
 question — *Database: none · SQLite (Drizzle) · Postgres (Drizzle) ·
 Cloudflare D1 (Drizzle)* — and the same recipe is available later as
 `scamp add drizzle` for a project that started without one. Choosing
@@ -636,7 +641,7 @@ Per file, mechanical, and reversible from the snapshot it takes first:
 | `components/**` | unchanged — already the right shape; the `className` passthrough and text props carry over as-is |
 | `app/theme.css`, `DESIGN.md` | `design/` |
 | `app/layout.tsx`, `next.config.ts` | removed; the framework owns the document shell |
-| `package.json` | `next`/`react`/`react-dom` swapped for `@scamp/framework`/`preact`; scripts rewritten; every other dependency kept |
+| `package.json` | `next`/`react`/`react-dom` swapped for `scampjs`/`preact`; scripts rewritten; every other dependency kept |
 | `public/assets/**`, `scamp.config.json`, `.gitignore`, `agent.md`, `CLAUDE.md` | kept; `agent.md` refreshed to the new template on the next open, as it is today |
 | `.scamp/` | kept — snapshots, thumbnails, and the MCP registration are format-independent |
 
@@ -689,11 +694,11 @@ e2e suite runs the core specs against both formats.
    binding model where projects already are and is a prerequisite for
    everything after.
 2. **`scamp dev` as a preview backend.** Create the framework repo and
-   claim the `@scamp` npm org first (see "Repositories and
+   claim the `@scampjs` npm org first (see "Repositories and
    packaging"). Vite + Preact + Hono: routing, `load()`, `/_views`.
    Wire it into `devServerManager`. Measure cold
    start, install size, and run the parity harness against it.
-3. **`scamp build` with rendering modes and islands, `npm create scamp`,
+3. **`scamp build` with rendering modes and islands, `npm create scampjs`,
    docs.** The standalone story. Static and client modes first; server
    mode lands with the first adapter. **New projects switch to the Scamp
    structure here; the migration banner ships alongside**, so nobody is
@@ -738,7 +743,7 @@ framework never ships.
 
 ## Open questions
 
-Settled: the framework is its own repo and npm package, `@scamp/framework`
+Settled: the framework is its own repo and npm package, `scampjs`
 — see "Repositories and packaging". Also settled: `load()` and plain
 API handlers receive a framework `LoadContext` with `env`, never a Hono
 context (see "The server layer"); no ORM is bundled, and Drizzle is the

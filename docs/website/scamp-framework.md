@@ -18,7 +18,7 @@ with one owner each, so a designer, a developer, and a coding agent can
 work on the same screen without stepping on each other.
 
 ```bash
-npm create scamp
+npm create scampjs
 ```
 
 Three kilobytes of runtime. A build you can read in an afternoon. Files
@@ -342,7 +342,7 @@ HTML and CSS, so the simplest deploy is copying a folder.
 ## Get started
 
 ```bash
-npm create scamp
+npm create scampjs
 cd my-project
 npm run dev
 ```
@@ -357,7 +357,7 @@ npm run dev
 ## Questions people ask
 
 **Do I need Scamp to use this?**
-No. `npm create scamp` scaffolds a project with no design tool involved.
+No. `npm create scampjs` scaffolds a project with no design tool involved.
 Write views by hand if you like; the conventions are the value. Open the
 project in Scamp later, or never.
 
