@@ -91,9 +91,10 @@ my-project/
   package.json               ← "dev": "scamp dev", "build": "scamp build"
 ```
 
-A view is a component that happens to be page-sized; the sidebar lists
-**Views** and **Components** and the only difference is the canvas
-default (page width vs. hug). `app/` disappears.
+A view is a component that happens to be page-sized — it is a page's
+design. The sidebar lists **Pages** (each backed by a view) and
+**Components**, and the only difference between the two file kinds is
+the canvas default (page width vs. hug). `app/` disappears.
 
 ## Worked example: the lobby
 

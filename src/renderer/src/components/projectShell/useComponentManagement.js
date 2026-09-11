@@ -302,6 +302,28 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
             setRenamingComponent(false);
         }
     };
+    const handleAddView = async (slug) => {
+        const viewName = viewNameForPage(slug);
+        if (project.components.some((c) => c.name === viewName)) {
+            throw new Error(`A component named "${viewName}" already uses this name.`);
+        }
+        const created = await window.scamp.createComponent({
+            projectPath: project.path,
+            componentName: viewName,
+            kind: 'view',
+            wrapperSlug: wrapperSlugFor(viewName),
+        });
+        flushPendingPageWrite();
+        persistActiveSource();
+        onProjectChange?.((prev) => ({
+            ...prev,
+            components: [...prev.components, created],
+        }));
+        openComponent(created.name, null, 'view');
+    };
+    const handleRenameView = async (viewName, newSlug) => {
+        await handleRenameComponent(viewName, viewNameForPage(newSlug));
+    };
     const requestConvertPageToView = (pageName) => {
         setConvertPageError(null);
         setConvertingPage(pageName);
@@ -411,6 +433,8 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
         }
     };
     return {
+        handleAddView,
+        handleRenameView,
         convertingPage,
         setConvertingPage,
         convertPageBusy,

@@ -185,9 +185,10 @@ describe('getElementTree', () => {
 describe('listPages', () => {
     it('derives nextjs paths, with home at the app root', () => {
         expect(listPages(build())).toEqual([
-            { name: 'home', tsx: 'app/page.tsx', css: 'app/page.module.css' },
+            { name: 'home', kind: 'page', tsx: 'app/page.tsx', css: 'app/page.module.css' },
             {
                 name: 'dashboard',
+                kind: 'page',
                 tsx: 'app/dashboard/page.tsx',
                 css: 'app/dashboard/page.module.css',
             },
@@ -195,8 +196,20 @@ describe('listPages', () => {
     });
     it('derives flat paths for legacy projects', () => {
         expect(listPages(build({ projectFormat: 'legacy' }))).toEqual([
-            { name: 'home', tsx: 'home.tsx', css: 'home.module.css' },
-            { name: 'dashboard', tsx: 'dashboard.tsx', css: 'dashboard.module.css' },
+            { name: 'home', kind: 'page', tsx: 'home.tsx', css: 'home.module.css' },
+            { name: 'dashboard', kind: 'page', tsx: 'dashboard.tsx', css: 'dashboard.module.css' },
+        ]);
+    });
+    it('lists a view as a page by its route slug, pointing at views/', () => {
+        expect(listPages(build({ pageNames: ['home'], viewNames: ['CheckoutFlow'] }))).toEqual([
+            { name: 'home', kind: 'page', tsx: 'app/page.tsx', css: 'app/page.module.css' },
+            {
+                name: 'checkout-flow',
+                kind: 'view',
+                view: 'CheckoutFlow',
+                tsx: 'views/CheckoutFlow/CheckoutFlow.tsx',
+                css: 'views/CheckoutFlow/CheckoutFlow.module.css',
+            },
         ]);
     });
     it('returns an empty list when the project has no pages', () => {

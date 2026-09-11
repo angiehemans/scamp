@@ -35,7 +35,7 @@ export const SERVER_INSTRUCTIONS = [
     'Scamp is a design tool that renders this project\'s TSX + CSS Module files live on a canvas.',
     'Reusable UI belongs in Scamp components — `components/<Name>/<Name>.tsx` + `<Name>.module.css` — not on a page of examples.',
     'When the user asks for components, a kit, or a library, create component folders; call scamp_get_component_scaffold for the exact starter files.',
-    'A view (`views/<Name>/`) is a page-sized component with the same file shape; scamp_list_views lists them. Edit the view, never its `app/<slug>/page.tsx` wrapper page, which Scamp regenerates.',
+    'A page whose design lives under `views/<Name>/` (kind `view` in scamp_list_pages) is edited there; its `app/<slug>/page.tsx` is a one-line wrapper Scamp regenerates — never edit the wrapper.',
     'Do not run `next build`, `next dev`, or install packages to verify your work: Scamp renders files as you save them, and scamp_get_element_tree confirms they parsed.',
     'Full rules, including the component file format, are in agent.md at the project root.',
 ].join(' ');

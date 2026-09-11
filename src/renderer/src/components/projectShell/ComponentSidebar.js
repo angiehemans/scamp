@@ -5,14 +5,14 @@ import { ComponentNameInput } from '../ComponentNameInput';
 import { ComponentSidebarItem } from '../ComponentSidebarItem';
 import styles from '../ProjectShell.module.css';
 /** The Components section of the left sidebar: list + inline add/rename. */
-export const ComponentSidebar = ({ kind, components: allComponents, projectPath, componentEdit, componentEditError, renamingComponent, creatingComponent, activeComponent, setComponentEdit, setComponentEditError, handleAddComponent, handleRenameComponent, openComponent, openComponentMenu, }) => {
+export const ComponentSidebar = ({ components: allComponents, projectPath, componentEdit, componentEditError, renamingComponent, creatingComponent, activeComponent, setComponentEdit, setComponentEditError, handleAddComponent, handleRenameComponent, openComponent, openComponentMenu, }) => {
+    const kind = 'component';
+    // Views (a page's design) live in the Pages list; they share this
+    // namespace (see componentOps), so the inline input rejects a name
+    // either list already uses.
     const components = allComponents.filter((c) => componentKindOf(c) === kind);
-    const title = kind === 'view' ? 'Views' : 'Components';
-    const addLabel = kind === 'view' ? '+ Add View' : '+ Add Component';
-    // Names are one namespace across both kinds (see componentOps), so the
-    // inline input rejects a duplicate from either list.
     const allNames = allComponents.map((c) => c.name);
-    return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: title }), _jsxs("ul", { className: styles.pageList, children: [components.map((component) => {
+    return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Components" }), _jsxs("ul", { className: styles.pageList, children: [components.map((component) => {
                         const isRenaming = componentEdit !== null &&
                             'rename' in componentEdit &&
                             componentEdit.rename === component.name;
@@ -30,9 +30,7 @@ export const ComponentSidebar = ({ kind, components: allComponents, projectPath,
                                 // is under the cursor. The canvas interaction layer
                                 // reads this mime to tell a component-drag apart from
                                 // any other drag.
-                                // A view is page-sized and never an instance, so it can't
-                                // be dragged onto a page.
-                                draggable: kind === 'component', onDragStart: (e) => {
+                                onDragStart: (e) => {
                                     e.dataTransfer.setData(COMPONENT_DRAG_MIME, component.name);
                                     e.dataTransfer.effectAllowed = 'copy';
                                 } }) }, component.name));
@@ -42,5 +40,5 @@ export const ComponentSidebar = ({ kind, components: allComponents, projectPath,
                             }, error: componentEditError, busy: creatingComponent }) }))] }), componentEdit === null && (_jsx("button", { className: styles.addPageButton, onClick: () => {
                     setComponentEditError(null);
                     setComponentEdit({ new: kind });
-                }, type: "button", children: addLabel }))] }));
+                }, type: "button", children: "+ Add Component" }))] }));
 };

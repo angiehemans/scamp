@@ -21,6 +21,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 // frame stay here.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { viewSlugFor } from '@shared/templates';
+import { componentKindOf } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
@@ -86,11 +87,17 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         // Defined by useComponentManagement below; routed through a ref
         // because the page menu is built before that hook runs.
         onConvertPageToView: (name) => convertPageRef.current?.(name),
+        // Views need the Next.js layout (views/ beside app/); a legacy project
+        // keeps creating flat pages.
+        onCreatePageAsView: project.format === 'nextjs'
+            ? (slug) => addViewRef.current?.(slug) ?? Promise.resolve()
+            : undefined,
     });
     const convertPageRef = useRef(null);
+    const addViewRef = useRef(null);
     // Components sidebar inline-edit / context-menu state + the multi-file
     // add / rename / delete handlers.
-    const { componentEdit, setComponentEdit, componentEditError, setComponentEditError, creatingComponent, renamingComponent, handleAddComponent, handleRenameComponent, openComponentMenu, componentMenu, closeComponentMenu, requestDeleteComponent, deletingComponent, setDeletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, requestConvertPageToView, handleConfirmConvertPage, } = useComponentManagement({
+    const { componentEdit, setComponentEdit, componentEditError, setComponentEditError, creatingComponent, renamingComponent, handleAddComponent, handleRenameComponent, openComponentMenu, componentMenu, closeComponentMenu, requestDeleteComponent, deletingComponent, setDeletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, handleAddView, handleRenameView, convertingPage, setConvertingPage, convertPageBusy, convertPageError, requestConvertPageToView, handleConfirmConvertPage, } = useComponentManagement({
         project,
         onProjectChange,
         activeComponent,
@@ -101,6 +108,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         persistActiveSource,
     });
     convertPageRef.current = requestConvertPageToView;
+    addViewRef.current = handleAddView;
     const bottomPanel = useCanvasStore((s) => s.bottomPanel);
     const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
     const sidebarSection = useCanvasStore((s) => s.sidebarSection);
@@ -160,14 +168,14 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // with a tooltip pointing at the migration banner.
     const projectFormatForPreview = useCanvasStore((s) => s.projectFormat);
     const projectPathForPreview = useCanvasStore((s) => s.projectPath);
-    const canPreview = projectFormatForPreview === 'nextjs' &&
-        projectPathForPreview.length > 0 &&
-        activePageName !== null;
     // A view previews at its wrapper page's route; anything else at the
     // active page.
     const previewPageName = activeComponent !== null && activeComponent.kind === 'view'
         ? viewSlugFor(activeComponent.name)
         : activePageName;
+    const canPreview = projectFormatForPreview === 'nextjs' &&
+        projectPathForPreview.length > 0 &&
+        previewPageName !== null;
     const openPreview = useCallback(() => {
         if (!canPreview || previewPageName === null)
             return;
@@ -240,5 +248,11 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                         }, onOpenSettings: () => {
                             setShowThemePanel(false);
                             setShowProjectSettings(true);
-                        }, designSystemOpen: showThemePanel, settingsOpen: showProjectSettings }), _jsxs("div", { className: styles.bodyContent, children: [_jsx("aside", { className: styles.sidebar, children: showThemePanel ? (_jsx(ThemeSectionNav, {})) : (_jsxs(_Fragment, { children: [sidebarSection === 'history' && (_jsx(HistoryPanel, { projectPath: project.path })), sidebarSection === 'pages' && (_jsxs(_Fragment, { children: [_jsx(PageSidebar, { pages: project.pages, existingPageNames: existingPageNames, pageEdit: pageEdit, pageEditError: pageEditError, pageEditBusy: pageEditBusy, isEditingPage: isEditingPage, activePageName: activePageName, activeComponent: activeComponent, setPageEdit: setPageEdit, setPageEditError: setPageEditError, resetPageEdit: resetPageEdit, handleAddPage: handleAddPage, handleDuplicatePage: handleDuplicatePage, handleRenamePage: handleRenamePage, openPageMenu: openPageMenu, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })), (sidebarSection === 'components' || sidebarSection === 'views') && (_jsxs(_Fragment, { children: [_jsx(ComponentSidebar, { kind: sidebarSection === 'views' ? 'view' : 'component', components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] }))] })) }), showThemePanel ? (_jsx(ThemePanel, { projectPath: project.path })) : (_jsxs(_Fragment, { children: [_jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor }), _jsx(PropertiesPanel, {})] })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) }))] })] }), bottomPanel === 'code' && _jsx(CodePanel, { showTheme: showThemePanel }), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), _jsx(ProjectModals, { components: project.components, instanceFlows: instanceFlows, pageMenu: pageMenu, buildMenuItems: buildMenuItems, closePageMenu: closePageMenu, deletingPageName: deletingPageName, deletePageError: deletePageError, handleDeletePage: handleDeletePage, setDeletingPageName: setDeletingPageName, setDeletePageError: setDeletePageError, componentMenu: componentMenu, closeComponentMenu: closeComponentMenu, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, requestDeleteComponent: requestDeleteComponent, convertingPage: convertingPage, setConvertingPage: setConvertingPage, convertPageBusy: convertPageBusy, convertPageError: convertPageError, handleConfirmConvertPage: handleConfirmConvertPage, deletingComponent: deletingComponent, componentDeleteBusy: componentDeleteBusy, handleConfirmDeleteComponent: handleConfirmDeleteComponent, setDeletingComponent: setDeletingComponent })] }));
+                        }, designSystemOpen: showThemePanel, settingsOpen: showProjectSettings }), _jsxs("div", { className: styles.bodyContent, children: [_jsx("aside", { className: styles.sidebar, children: showThemePanel ? (_jsx(ThemeSectionNav, {})) : (_jsxs(_Fragment, { children: [sidebarSection === 'history' && (_jsx(HistoryPanel, { projectPath: project.path })), sidebarSection === 'pages' && (_jsxs(_Fragment, { children: [_jsx(PageSidebar, { pages: project.pages, views: project.components.filter((c) => componentKindOf(c) === 'view'), existingPageNames: existingPageNames, pageEdit: pageEdit, pageEditError: pageEditError, pageEditBusy: pageEditBusy, isEditingPage: isEditingPage, activePageName: activePageName, activeComponent: activeComponent, setPageEdit: setPageEdit, setPageEditError: setPageEditError, resetPageEdit: resetPageEdit, handleAddPage: handleAddPage, handleDuplicatePage: handleDuplicatePage, handleRenamePage: handleRenamePage, openPageMenu: openPageMenu, openView: (name) => openComponent(name, null, 'view'), openViewMenu: openComponentMenu, handleRenameView: async (name, slug) => {
+                                                        await handleRenameView(name, slug);
+                                                        resetPageEdit();
+                                                    }, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })), sidebarSection === 'components' && (_jsxs(_Fragment, { children: [_jsx(ComponentSidebar, { components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] }))] })) }), showThemePanel ? (_jsx(ThemePanel, { projectPath: project.path })) : (_jsxs(_Fragment, { children: [_jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor }), _jsx(PropertiesPanel, {})] })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) }))] })] }), bottomPanel === 'code' && _jsx(CodePanel, { showTheme: showThemePanel }), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), _jsx(ProjectModals, { components: project.components, instanceFlows: instanceFlows, pageMenu: pageMenu, buildMenuItems: buildMenuItems, closePageMenu: closePageMenu, deletingPageName: deletingPageName, deletePageError: deletePageError, handleDeletePage: handleDeletePage, setDeletingPageName: setDeletingPageName, setDeletePageError: setDeletePageError, componentMenu: componentMenu, closeComponentMenu: closeComponentMenu, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, requestDeleteComponent: requestDeleteComponent, startRenameView: (name) => {
+                    setPageEditError(null);
+                    setPageEdit({ rename: viewSlugFor(name) });
+                }, convertingPage: convertingPage, setConvertingPage: setConvertingPage, convertPageBusy: convertPageBusy, convertPageError: convertPageError, handleConfirmConvertPage: handleConfirmConvertPage, deletingComponent: deletingComponent, componentDeleteBusy: componentDeleteBusy, handleConfirmDeleteComponent: handleConfirmDeleteComponent, setDeletingComponent: setDeletingComponent })] }));
 };

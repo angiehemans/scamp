@@ -29,6 +29,10 @@ export type UseComponentManagement = {
     setDeletingComponent: Dispatch<SetStateAction<DeletingComponent | null>>;
     componentDeleteBusy: boolean;
     handleConfirmDeleteComponent: () => Promise<void>;
+    /** "+ Add Page": a view named from the slug, plus its route wrapper. Throws on failure. */
+    handleAddView: (slug: string) => Promise<void>;
+    /** Rename a view by its route slug (the Pages list's spelling). */
+    handleRenameView: (viewName: string, newSlug: string) => Promise<void>;
     /** The page a "Convert to view" confirm dialog is open for. */
     convertingPage: string | null;
     setConvertingPage: Dispatch<SetStateAction<string | null>>;

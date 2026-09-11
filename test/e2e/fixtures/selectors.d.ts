@@ -32,10 +32,12 @@ export declare const canvasElementsByPrefix: (page: Page, prefix: string) => Loc
 export declare const componentSidebarItem: (page: Page, name: string) => Locator;
 /** "+ Add Component" sidebar button. Scoped to the components section. */
 export declare const addComponentButton: (page: Page) => Locator;
-/** Sidebar view button by PascalCase name. Scoped to the views list. */
-export declare const viewSidebarItem: (page: Page, name: string) => Locator;
-/** "+ Add View" sidebar button. */
-export declare const addViewButton: (page: Page) => Locator;
+/** The Pages list: legacy pages and views together, by route slug. */
+export declare const pagesList: (page: Page) => Locator;
+/** Sidebar page button by route slug (a legacy page or a view). */
+export declare const pageSidebarItem: (page: Page, slug: string) => Locator;
+/** "+ Add Page" sidebar button. */
+export declare const addPageButton: (page: Page) => Locator;
 /** Currently-open context menu surface (PageContextMenu / ElementContextMenu). */
 export declare const contextMenu: (page: Page) => Locator;
 /**

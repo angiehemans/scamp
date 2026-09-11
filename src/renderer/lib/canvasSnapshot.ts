@@ -1,4 +1,5 @@
 import type { ProjectFormat, ThemeDef, ThemeToken } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 
 import {
   buildContextModel,
@@ -69,7 +70,15 @@ export type TreeNode = {
   children: TreeNode[];
 };
 
-export type FileListItem = { name: string; tsx: string; css: string };
+export type FileListItem = {
+  name: string;
+  tsx: string;
+  css: string;
+  /** Pages only: `view` when the page's design lives under views/<Name>/. */
+  kind?: 'page' | 'view';
+  /** Pages of kind `view`: the PascalCase view name; `name` is the route slug. */
+  view?: string;
+};
 
 export type ThemeTokensResult = {
   tokens: Array<{ name: string; value: string }>;
@@ -218,11 +227,24 @@ export const getElementTree = (
   return { root: build(root) };
 };
 
-export const listPages = (input: SnapshotInput): FileListItem[] =>
-  input.pageNames.map((name) => ({
-    name,
-    ...pagePathsRelative(name, input.projectFormat),
-  }));
+export const listPages = (input: SnapshotInput): FileListItem[] => [
+  ...input.pageNames.map(
+    (name): FileListItem => ({
+      name,
+      kind: 'page',
+      ...pagePathsRelative(name, input.projectFormat),
+    })
+  ),
+  ...(input.viewNames ?? []).map(
+    (view): FileListItem => ({
+      name: viewSlugFor(view),
+      kind: 'view',
+      view,
+      tsx: `views/${view}/${view}.tsx`,
+      css: `views/${view}/${view}.module.css`,
+    })
+  ),
+];
 
 /**
  * Components by name and path.
@@ -235,13 +257,6 @@ export const listComponents = (input: SnapshotInput): FileListItem[] =>
   input.componentNames.map((name) => ({
     name,
     ...componentPathsRelative(name),
-  }));
-
-export const listViews = (input: SnapshotInput): FileListItem[] =>
-  (input.viewNames ?? []).map((name) => ({
-    name,
-    tsx: `views/${name}/${name}.tsx`,
-    css: `views/${name}/${name}.module.css`,
   }));
 
 /**
@@ -290,8 +305,6 @@ export const answerSnapshotTool = (
       return listPages(input);
     case 'scamp_list_components':
       return listComponents(input);
-    case 'scamp_list_views':
-      return listViews(input);
     case 'scamp_get_theme_tokens':
       return getThemeTokens(input);
     default:

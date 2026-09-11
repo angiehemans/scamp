@@ -1,5 +1,5 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
-import { viewNameForPage } from '@shared/templates';
+import { viewNameForPage, viewSlugFor } from '@shared/templates';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { CreateComponentDialog } from '../CreateComponentDialog';
 import { PageContextMenu } from '../PageContextMenu';
@@ -11,7 +11,7 @@ import { ElementContextMenu } from '../ElementContextMenu';
  * detach). Purely presentational — state + handlers come from the page /
  * component / instance-flow hooks via props.
  */
-export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, handleConfirmConvertPage, }) => {
+export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, handleConfirmConvertPage, startRenameView, }) => {
     // Local binding so the `!== null` guard narrows it for the dialog's
     // onConfirm closure (a property access wouldn't narrow).
     const convertElementId = instanceFlows.convertElementId;
@@ -19,12 +19,16 @@ export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuIt
                     {
                         label: 'Rename…',
                         onSelect: () => {
+                            if (componentMenu.kind === 'view') {
+                                startRenameView(componentMenu.componentName);
+                                return;
+                            }
                             setComponentEditError(null);
                             setComponentEdit({ rename: componentMenu.componentName });
                         },
                     },
                     {
-                        label: componentMenu.kind === 'view' ? 'Delete view…' : 'Delete component…',
+                        label: componentMenu.kind === 'view' ? 'Delete…' : 'Delete component…',
                         destructive: true,
                         onSelect: () => requestDeleteComponent(componentMenu.componentName),
                     },
@@ -38,13 +42,19 @@ export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuIt
                     if (convertPageBusy)
                         return;
                     setConvertingPage(null);
-                } })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: `Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`, message: deletingComponent.kind === 'view'
-                    ? `Removes the views/${deletingComponent.componentName}/ folder and the page that previews it.`
+                } })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: deletingComponent.kind === 'view'
+                    ? `Delete page "${viewSlugFor(deletingComponent.componentName)}"?`
+                    : `Delete component "${deletingComponent.componentName}"?`, message: deletingComponent.kind === 'view'
+                    ? `Removes views/${deletingComponent.componentName}/ (the page's design) and the route file that previews it.`
                     : deletingComponent.impactByPage.length === 0
                         ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
                         : `Removes the components/${deletingComponent.componentName}/ folder AND every instance from: ${deletingComponent.impactByPage
                             .map((g) => `${g.pageName} (${g.count} instance${g.count === 1 ? '' : 's'})`)
-                            .join(', ')}. This cannot be undone.`, confirmLabel: componentDeleteBusy ? 'Deleting…' : `Delete ${deletingComponent.kind}`, variant: "destructive", onConfirm: () => void handleConfirmDeleteComponent(), onCancel: () => {
+                            .join(', ')}. This cannot be undone.`, confirmLabel: componentDeleteBusy
+                    ? 'Deleting…'
+                    : deletingComponent.kind === 'view'
+                        ? 'Delete page'
+                        : 'Delete component', variant: "destructive", onConfirm: () => void handleConfirmDeleteComponent(), onCancel: () => {
                     if (componentDeleteBusy)
                         return;
                     setDeletingComponent(null);

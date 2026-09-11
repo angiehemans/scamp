@@ -75,19 +75,13 @@ export const TOOL_DESCRIPTORS: ToolDescriptor[] = [
   {
     name: 'scamp_list_pages',
     description:
-      'Every page in the project with its project-relative TSX and CSS module paths. Use this to find a page the user names that is not the one currently open.',
+      'Every page in the project by route slug, with its project-relative file paths. Check `kind`: a `page` is a legacy app/<slug>/page.tsx; a `view` is the new shape — its design lives at views/<Name>/<Name>.tsx (`view` is that name) and the app/ file is a one-line wrapper Scamp owns. Edit the view, never the wrapper.',
     inputSchema: { ...NO_ARGS },
   },
   {
     name: 'scamp_list_components',
     description:
       'Every reusable Scamp component in the project (`components/<Name>/`) with its project-relative file paths. Read the returned .tsx file for a component’s props and markup. If this is empty and the user asks for components, a kit, or a library, create them — call scamp_get_component_scaffold for the starter files rather than building a page of examples.',
-    inputSchema: { ...NO_ARGS },
-  },
-  {
-    name: 'scamp_list_views',
-    description:
-      'Every view in the project (`views/<Name>/`) with its project-relative file paths. A view is a page-sized component: same file shape as a component, never placed as an instance. In a Next.js project each view previews through a one-line wrapper page at `app/<slug>/page.tsx` that Scamp owns; edit the view, not the wrapper.',
     inputSchema: { ...NO_ARGS },
   },
   {

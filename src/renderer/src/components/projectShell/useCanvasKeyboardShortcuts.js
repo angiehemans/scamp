@@ -385,7 +385,8 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
     // — page-mode Esc is owned by the existing handlers above.
     const { activeComponent, latestExit } = componentEditor;
     useEffect(() => {
-        if (activeComponent === null)
+        // A view is a page's design: there is nothing to exit to.
+        if (activeComponent === null || activeComponent.kind === 'view')
             return;
         const handler = (e) => {
             if (e.key !== 'Escape')

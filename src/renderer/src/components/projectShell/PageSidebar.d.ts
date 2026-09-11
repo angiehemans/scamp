@@ -1,8 +1,10 @@
 import { type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
-import type { PageFile } from '@shared/types';
+import type { ComponentFile, PageFile } from '@shared/types';
 import type { ActiveComponent, PageEdit } from './types';
 type Props = {
     pages: PageFile[];
+    /** Views: a page's design under views/<Name>/. Listed by route slug. */
+    views: ComponentFile[];
     existingPageNames: string[];
     pageEdit: PageEdit;
     pageEditError: string | null;
@@ -17,10 +19,12 @@ type Props = {
     handleDuplicatePage: (sourcePageName: string, newName: string) => Promise<void>;
     handleRenamePage: (oldName: string, newName: string) => Promise<void>;
     openPageMenu: (e: ReactMouseEvent, pageName: string) => void;
+    openView: (viewName: string) => void;
+    openViewMenu: (e: ReactMouseEvent, viewName: string) => void;
+    handleRenameView: (viewName: string, newSlug: string) => Promise<void>;
     persistActiveSource: () => void;
     setActiveComponentState: (next: ActiveComponent | null) => void;
     setActivePageName: (name: string | null) => void;
 };
-/** The Pages section of the left sidebar: page list + inline add/rename. */
-export declare const PageSidebar: ({ pages, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, persistActiveSource, setActiveComponentState, setActivePageName, }: Props) => JSX.Element;
+export declare const PageSidebar: ({ pages, views, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, openView, openViewMenu, handleRenameView, persistActiveSource, setActiveComponentState, setActivePageName, }: Props) => JSX.Element;
 export {};

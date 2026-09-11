@@ -2,10 +2,10 @@ import type { Page } from '@playwright/test';
 
 import {
   addComponentButton,
-  addViewButton,
+  addPageButton,
   componentSidebarItem,
   contextMenuItem,
-  viewSidebarItem,
+  pageSidebarItem,
 } from './selectors';
 
 /**
@@ -53,31 +53,28 @@ export const createComponentFromSidebar = async (
 };
 
 /** Right-click a component in the sidebar; open the context menu. */
-/** Activate the Views section in the icon rail. Idempotent. */
-export const openViewsSection = async (page: Page): Promise<void> => {
-  await page.locator('[data-section="views"]').click();
-  await addViewButton(page).waitFor({ state: 'visible' });
-};
-
-/** "+ Add View" → type the name → Enter. */
-export const createViewFromSidebar = async (
+/**
+ * "+ Add Page" → type the slug → Enter. In a Next.js project this creates
+ * a view (views/<Name>/) plus its route wrapper, and opens it.
+ */
+export const createPageFromSidebar = async (
   page: Page,
-  name: string
+  slug: string
 ): Promise<void> => {
-  await openViewsSection(page);
-  await addViewButton(page).click();
-  const input = page.getByPlaceholder('ComponentName');
-  await input.fill(name);
+  await openPagesSection(page);
+  await addPageButton(page).click();
+  const input = page.getByPlaceholder('page-name');
+  await input.fill(slug);
   await input.press('Enter');
 };
 
-/** Right-click a view in the sidebar to open its context menu. */
-export const openViewContextMenu = async (
+/** Right-click a page (legacy or view) in the Pages list. */
+export const openPageContextMenu = async (
   page: Page,
-  viewName: string
+  slug: string
 ): Promise<void> => {
-  await openViewsSection(page);
-  await viewSidebarItem(page, viewName).click({ button: 'right' });
+  await openPagesSection(page);
+  await pageSidebarItem(page, slug).click({ button: 'right' });
 };
 
 export const openComponentContextMenu = async (

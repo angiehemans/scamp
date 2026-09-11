@@ -11,8 +11,7 @@ import type { ActiveComponent, ComponentEdit } from './types';
 import styles from '../ProjectShell.module.css';
 
 type Props = {
-  /** Which list this section shows; the other kind is filtered out. */
-  kind: ComponentKind;
+  /** Components and views together; only components are listed here. */
   components: ComponentFile[];
   projectPath: string;
   componentEdit: ComponentEdit;
@@ -30,7 +29,6 @@ type Props = {
 
 /** The Components section of the left sidebar: list + inline add/rename. */
 export const ComponentSidebar = ({
-  kind,
   components: allComponents,
   projectPath,
   componentEdit,
@@ -45,15 +43,15 @@ export const ComponentSidebar = ({
   openComponent,
   openComponentMenu,
 }: Props): JSX.Element => {
+  const kind: ComponentKind = 'component';
+  // Views (a page's design) live in the Pages list; they share this
+  // namespace (see componentOps), so the inline input rejects a name
+  // either list already uses.
   const components = allComponents.filter((c) => componentKindOf(c) === kind);
-  const title = kind === 'view' ? 'Views' : 'Components';
-  const addLabel = kind === 'view' ? '+ Add View' : '+ Add Component';
-  // Names are one namespace across both kinds (see componentOps), so the
-  // inline input rejects a duplicate from either list.
   const allNames = allComponents.map((c) => c.name);
   return (
     <div className={styles.sidebarSection}>
-      <h2 className={styles.sidebarTitle}>{title}</h2>
+      <h2 className={styles.sidebarTitle}>Components</h2>
       <ul className={styles.pageList}>
         {components.map((component) => {
           const isRenaming =
@@ -95,9 +93,6 @@ export const ComponentSidebar = ({
                 // is under the cursor. The canvas interaction layer
                 // reads this mime to tell a component-drag apart from
                 // any other drag.
-                // A view is page-sized and never an instance, so it can't
-                // be dragged onto a page.
-                draggable={kind === 'component'}
                 onDragStart={(e) => {
                   e.dataTransfer.setData(COMPONENT_DRAG_MIME, component.name);
                   e.dataTransfer.effectAllowed = 'copy';
@@ -130,7 +125,7 @@ export const ComponentSidebar = ({
           }}
           type="button"
         >
-          {addLabel}
+          + Add Component
         </button>
       )}
     </div>

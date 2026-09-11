@@ -6,6 +6,12 @@ type ProjectChange = (next: ProjectData | ((prev: ProjectData) => ProjectData)) 
 type Args = {
     /** Adds a "Convert to view…" item to the page menu when given. */
     onConvertPageToView?: (pageName: string) => void;
+    /**
+     * When given, "+ Add Page" creates a view (a page's design under
+     * views/<Name>/ plus its route wrapper) instead of a legacy app/ page.
+     * Resolves once the view is open.
+     */
+    onCreatePageAsView?: (slug: string) => Promise<void>;
     project: ProjectData;
     onProjectChange?: ProjectChange;
     activePageName: string | null;
@@ -41,5 +47,5 @@ export type UsePageManagement = {
  * snapshot the load effect re-parses is current; rename also rekeys the
  * page's history bucket and pushes a `rename-page` entry.
  */
-export declare const usePageManagement: ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, onConvertPageToView, }: Args) => UsePageManagement;
+export declare const usePageManagement: ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, onConvertPageToView, onCreatePageAsView, }: Args) => UsePageManagement;
 export {};

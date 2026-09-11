@@ -1,3 +1,4 @@
+import { viewSlugFor } from '@shared/templates';
 import { buildContextModel, } from './contextModel';
 import { classNameFor, tagFor } from './generateCode';
 /**
@@ -111,10 +112,20 @@ export const getElementTree = (input) => {
     };
     return { root: build(root) };
 };
-export const listPages = (input) => input.pageNames.map((name) => ({
-    name,
-    ...pagePathsRelative(name, input.projectFormat),
-}));
+export const listPages = (input) => [
+    ...input.pageNames.map((name) => ({
+        name,
+        kind: 'page',
+        ...pagePathsRelative(name, input.projectFormat),
+    })),
+    ...(input.viewNames ?? []).map((view) => ({
+        name: viewSlugFor(view),
+        kind: 'view',
+        view,
+        tsx: `views/${view}/${view}.tsx`,
+        css: `views/${view}/${view}.module.css`,
+    })),
+];
 /**
  * Components by name and path.
  *
@@ -125,11 +136,6 @@ export const listPages = (input) => input.pageNames.map((name) => ({
 export const listComponents = (input) => input.componentNames.map((name) => ({
     name,
     ...componentPathsRelative(name),
-}));
-export const listViews = (input) => (input.viewNames ?? []).map((name) => ({
-    name,
-    tsx: `views/${name}/${name}.tsx`,
-    css: `views/${name}/${name}.module.css`,
 }));
 /**
  * Theme tokens exactly as they sit in `theme.css` — a flat list, not grouped
@@ -172,8 +178,6 @@ export const answerSnapshotTool = (tool, args, input) => {
             return listPages(input);
         case 'scamp_list_components':
             return listComponents(input);
-        case 'scamp_list_views':
-            return listViews(input);
         case 'scamp_get_theme_tokens':
             return getThemeTokens(input);
         default:

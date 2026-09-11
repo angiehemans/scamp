@@ -19,6 +19,8 @@ type Props = {
     setComponentEdit: Dispatch<SetStateAction<ComponentEdit>>;
     setComponentEditError: Dispatch<SetStateAction<string | null>>;
     requestDeleteComponent: (componentName: string) => void;
+    /** A view renames by its route slug, inline in the Pages list. */
+    startRenameView: (viewName: string) => void;
     convertingPage: string | null;
     setConvertingPage: Dispatch<SetStateAction<string | null>>;
     convertPageBusy: boolean;
@@ -36,5 +38,5 @@ type Props = {
  * detach). Purely presentational — state + handlers come from the page /
  * component / instance-flow hooks via props.
  */
-export declare const ProjectModals: ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, handleConfirmConvertPage, }: Props) => JSX.Element;
+export declare const ProjectModals: ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, handleConfirmConvertPage, startRenameView, }: Props) => JSX.Element;
 export {};

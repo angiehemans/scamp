@@ -71,6 +71,10 @@ export type UseComponentManagement = {
   setDeletingComponent: Dispatch<SetStateAction<DeletingComponent | null>>;
   componentDeleteBusy: boolean;
   handleConfirmDeleteComponent: () => Promise<void>;
+  /** "+ Add Page": a view named from the slug, plus its route wrapper. Throws on failure. */
+  handleAddView: (slug: string) => Promise<void>;
+  /** Rename a view by its route slug (the Pages list's spelling). */
+  handleRenameView: (viewName: string, newSlug: string) => Promise<void>;
   /** The page a "Convert to view" confirm dialog is open for. */
   convertingPage: string | null;
   setConvertingPage: Dispatch<SetStateAction<string | null>>;
@@ -433,6 +437,33 @@ export const useComponentManagement = ({
     }
   };
 
+  const handleAddView = async (slug: string): Promise<void> => {
+    const viewName = viewNameForPage(slug);
+    if (project.components.some((c) => c.name === viewName)) {
+      throw new Error(`A component named "${viewName}" already uses this name.`);
+    }
+    const created = await window.scamp.createComponent({
+      projectPath: project.path,
+      componentName: viewName,
+      kind: 'view',
+      wrapperSlug: wrapperSlugFor(viewName),
+    });
+    flushPendingPageWrite();
+    persistActiveSource();
+    onProjectChange?.((prev) => ({
+      ...prev,
+      components: [...prev.components, created],
+    }));
+    openComponent(created.name, null, 'view');
+  };
+
+  const handleRenameView = async (
+    viewName: string,
+    newSlug: string
+  ): Promise<void> => {
+    await handleRenameComponent(viewName, viewNameForPage(newSlug));
+  };
+
   const requestConvertPageToView = (pageName: string): void => {
     setConvertPageError(null);
     setConvertingPage(pageName);
@@ -547,6 +578,8 @@ export const useComponentManagement = ({
   };
 
   return {
+    handleAddView,
+    handleRenameView,
     convertingPage,
     setConvertingPage,
     convertPageBusy,

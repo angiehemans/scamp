@@ -21,6 +21,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectData } from '@shared/types';
 import { viewSlugFor } from '@shared/templates';
+import { componentKindOf } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
@@ -149,8 +150,15 @@ export const ProjectShell = ({
     // Defined by useComponentManagement below; routed through a ref
     // because the page menu is built before that hook runs.
     onConvertPageToView: (name) => convertPageRef.current?.(name),
+    // Views need the Next.js layout (views/ beside app/); a legacy project
+    // keeps creating flat pages.
+    onCreatePageAsView:
+      project.format === 'nextjs'
+        ? (slug) => addViewRef.current?.(slug) ?? Promise.resolve()
+        : undefined,
   });
   const convertPageRef = useRef<((pageName: string) => void) | null>(null);
+  const addViewRef = useRef<((slug: string) => Promise<void>) | null>(null);
 
   // Components sidebar inline-edit / context-menu state + the multi-file
   // add / rename / delete handlers.
@@ -171,6 +179,8 @@ export const ProjectShell = ({
     setDeletingComponent,
     componentDeleteBusy,
     handleConfirmDeleteComponent,
+    handleAddView,
+    handleRenameView,
     convertingPage,
     setConvertingPage,
     convertPageBusy,
@@ -188,6 +198,7 @@ export const ProjectShell = ({
     persistActiveSource,
   });
   convertPageRef.current = requestConvertPageToView;
+  addViewRef.current = handleAddView;
 
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
   const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
@@ -252,10 +263,6 @@ export const ProjectShell = ({
   // with a tooltip pointing at the migration banner.
   const projectFormatForPreview = useCanvasStore((s) => s.projectFormat);
   const projectPathForPreview = useCanvasStore((s) => s.projectPath);
-  const canPreview =
-    projectFormatForPreview === 'nextjs' &&
-    projectPathForPreview.length > 0 &&
-    activePageName !== null;
 
   // A view previews at its wrapper page's route; anything else at the
   // active page.
@@ -263,6 +270,10 @@ export const ProjectShell = ({
     activeComponent !== null && activeComponent.kind === 'view'
       ? viewSlugFor(activeComponent.name)
       : activePageName;
+  const canPreview =
+    projectFormatForPreview === 'nextjs' &&
+    projectPathForPreview.length > 0 &&
+    previewPageName !== null;
   const openPreview = useCallback((): void => {
     if (!canPreview || previewPageName === null) return;
     void window.scamp.openPreview({
@@ -399,6 +410,7 @@ export const ProjectShell = ({
             <>
           <PageSidebar
             pages={project.pages}
+            views={project.components.filter((c) => componentKindOf(c) === 'view')}
             existingPageNames={existingPageNames}
             pageEdit={pageEdit}
             pageEditError={pageEditError}
@@ -413,6 +425,12 @@ export const ProjectShell = ({
             handleDuplicatePage={handleDuplicatePage}
             handleRenamePage={handleRenamePage}
             openPageMenu={openPageMenu}
+            openView={(name) => openComponent(name, null, 'view')}
+            openViewMenu={openComponentMenu}
+            handleRenameView={async (name, slug) => {
+              await handleRenameView(name, slug);
+              resetPageEdit();
+            }}
             persistActiveSource={persistActiveSource}
             setActiveComponentState={setActiveComponentState}
             setActivePageName={setActivePageName}
@@ -426,10 +444,9 @@ export const ProjectShell = ({
               </div>
             </>
           )}
-          {(sidebarSection === 'components' || sidebarSection === 'views') && (
+          {sidebarSection === 'components' && (
             <>
           <ComponentSidebar
-            kind={sidebarSection === 'views' ? 'view' : 'component'}
             components={project.components}
             projectPath={project.path}
             componentEdit={componentEdit}
@@ -512,6 +529,10 @@ export const ProjectShell = ({
         setComponentEdit={setComponentEdit}
         setComponentEditError={setComponentEditError}
         requestDeleteComponent={requestDeleteComponent}
+        startRenameView={(name) => {
+          setPageEditError(null);
+          setPageEdit({ rename: viewSlugFor(name) });
+        }}
         convertingPage={convertingPage}
         setConvertingPage={setConvertingPage}
         convertPageBusy={convertPageBusy}

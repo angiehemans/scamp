@@ -65,16 +65,17 @@ export const componentSidebarItem = (page: Page, name: string): Locator =>
 export const addComponentButton = (page: Page): Locator =>
   page.getByRole('button', { name: /Add Component/i });
 
-const viewsList = (page: Page): Locator =>
-  page.locator('h2:has-text("Views") + ul');
+/** The Pages list: legacy pages and views together, by route slug. */
+export const pagesList = (page: Page): Locator =>
+  page.locator('h2:has-text("Pages") + ul');
 
-/** Sidebar view button by PascalCase name. Scoped to the views list. */
-export const viewSidebarItem = (page: Page, name: string): Locator =>
-  viewsList(page).getByRole('button', { name, exact: true });
+/** Sidebar page button by route slug (a legacy page or a view). */
+export const pageSidebarItem = (page: Page, slug: string): Locator =>
+  pagesList(page).getByRole('button', { name: slug, exact: true });
 
-/** "+ Add View" sidebar button. */
-export const addViewButton = (page: Page): Locator =>
-  page.getByRole('button', { name: /Add View/i });
+/** "+ Add Page" sidebar button. */
+export const addPageButton = (page: Page): Locator =>
+  page.getByRole('button', { name: /\+ Add Page/ });
 
 /** Currently-open context menu surface (PageContextMenu / ElementContextMenu). */
 export const contextMenu = (page: Page): Locator =>

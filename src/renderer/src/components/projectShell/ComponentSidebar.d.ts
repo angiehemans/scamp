@@ -2,8 +2,7 @@ import { type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction 
 import type { ComponentFile, ComponentKind } from '@shared/types';
 import type { ActiveComponent, ComponentEdit } from './types';
 type Props = {
-    /** Which list this section shows; the other kind is filtered out. */
-    kind: ComponentKind;
+    /** Components and views together; only components are listed here. */
     components: ComponentFile[];
     projectPath: string;
     componentEdit: ComponentEdit;
@@ -19,5 +18,5 @@ type Props = {
     openComponentMenu: (e: ReactMouseEvent, componentName: string) => void;
 };
 /** The Components section of the left sidebar: list + inline add/rename. */
-export declare const ComponentSidebar: ({ kind, components: allComponents, projectPath, componentEdit, componentEditError, renamingComponent, creatingComponent, activeComponent, setComponentEdit, setComponentEditError, handleAddComponent, handleRenameComponent, openComponent, openComponentMenu, }: Props) => JSX.Element;
+export declare const ComponentSidebar: ({ components: allComponents, projectPath, componentEdit, componentEditError, renamingComponent, creatingComponent, activeComponent, setComponentEdit, setComponentEditError, handleAddComponent, handleRenameComponent, openComponent, openComponentMenu, }: Props) => JSX.Element;
 export {};

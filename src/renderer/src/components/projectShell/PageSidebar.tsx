@@ -4,7 +4,8 @@ import {
   type SetStateAction,
 } from 'react';
 
-import type { PageFile } from '@shared/types';
+import type { ComponentFile, PageFile } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 
 import { flushPendingPageWrite } from '../../syncBridge';
 import { PageNameInput } from '../PageNameInput';
@@ -13,6 +14,8 @@ import styles from '../ProjectShell.module.css';
 
 type Props = {
   pages: PageFile[];
+  /** Views: a page's design under views/<Name>/. Listed by route slug. */
+  views: ComponentFile[];
   existingPageNames: string[];
   pageEdit: PageEdit;
   pageEditError: string | null;
@@ -27,14 +30,35 @@ type Props = {
   handleDuplicatePage: (sourcePageName: string, newName: string) => Promise<void>;
   handleRenamePage: (oldName: string, newName: string) => Promise<void>;
   openPageMenu: (e: ReactMouseEvent, pageName: string) => void;
+  openView: (viewName: string) => void;
+  openViewMenu: (e: ReactMouseEvent, viewName: string) => void;
+  handleRenameView: (viewName: string, newSlug: string) => Promise<void>;
   persistActiveSource: () => void;
   setActiveComponentState: (next: ActiveComponent | null) => void;
   setActivePageName: (name: string | null) => void;
 };
 
 /** The Pages section of the left sidebar: page list + inline add/rename. */
+type Row =
+  | { slug: string; kind: 'page'; page: PageFile }
+  | { slug: string; kind: 'view'; view: ComponentFile };
+
+/** Home first, then by slug. A view and a page never share a slug. */
+const rowsFor = (pages: PageFile[], views: ComponentFile[]): Row[] => {
+  const rows: Row[] = [
+    ...pages.map((page): Row => ({ slug: page.name, kind: 'page', page })),
+    ...views.map((view): Row => ({ slug: viewSlugFor(view.name), kind: 'view', view })),
+  ];
+  return rows.sort((a, b) => {
+    if (a.slug === 'home') return -1;
+    if (b.slug === 'home') return 1;
+    return a.slug.localeCompare(b.slug);
+  });
+};
+
 export const PageSidebar = ({
   pages,
+  views,
   existingPageNames,
   pageEdit,
   pageEditError,
@@ -49,6 +73,9 @@ export const PageSidebar = ({
   handleDuplicatePage,
   handleRenamePage,
   openPageMenu,
+  openView,
+  openViewMenu,
+  handleRenameView,
   persistActiveSource,
   setActiveComponentState,
   setActivePageName,
@@ -57,7 +84,47 @@ export const PageSidebar = ({
     <div className={styles.sidebarSection}>
       <h2 className={styles.sidebarTitle}>Pages</h2>
       <ul className={styles.pageList}>
-        {pages.map((page) => {
+        {rowsFor(pages, views).map((row) => {
+          if (row.kind === 'view') {
+            const view = row.view;
+            const isRenaming =
+              pageEdit !== null &&
+              pageEdit !== 'new' &&
+              'rename' in pageEdit &&
+              pageEdit.rename === row.slug;
+            if (isRenaming) {
+              return (
+                <li key={`view:${view.name}`}>
+                  <PageNameInput
+                    initialValue={row.slug}
+                    existingNames={existingPageNames.filter((n) => n !== row.slug)}
+                    onConfirm={(name) => void handleRenameView(view.name, name)}
+                    onCancel={resetPageEdit}
+                    error={pageEditError}
+                    busy={pageEditBusy}
+                  />
+                </li>
+              );
+            }
+            const isActive =
+              activeComponent !== null && activeComponent.name === view.name;
+            return (
+              <li key={`view:${view.name}`}>
+                <button
+                  className={`${styles.pageButton} ${isActive ? styles.pageActive : ''}`}
+                  onClick={() => {
+                    if (isEditingPage || isActive) return;
+                    openView(view.name);
+                  }}
+                  onContextMenu={(e) => openViewMenu(e, view.name)}
+                  type="button"
+                >
+                  {row.slug}
+                </button>
+              </li>
+            );
+          }
+          const page = row.page;
           const isDuplicating =
             pageEdit !== null &&
             pageEdit !== 'new' &&

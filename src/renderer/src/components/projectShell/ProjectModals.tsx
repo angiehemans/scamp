@@ -1,7 +1,7 @@
 import { type Dispatch, type SetStateAction } from 'react';
 
 import type { ComponentFile } from '@shared/types';
-import { viewNameForPage } from '@shared/templates';
+import { viewNameForPage, viewSlugFor } from '@shared/templates';
 
 import { ConfirmDialog } from '../ConfirmDialog';
 import { CreateComponentDialog } from '../CreateComponentDialog';
@@ -33,6 +33,8 @@ type Props = {
   setComponentEdit: Dispatch<SetStateAction<ComponentEdit>>;
   setComponentEditError: Dispatch<SetStateAction<string | null>>;
   requestDeleteComponent: (componentName: string) => void;
+  /** A view renames by its route slug, inline in the Pages list. */
+  startRenameView: (viewName: string) => void;
   convertingPage: string | null;
   setConvertingPage: Dispatch<SetStateAction<string | null>>;
   convertPageBusy: boolean;
@@ -76,6 +78,7 @@ export const ProjectModals = ({
   convertPageBusy,
   convertPageError,
   handleConfirmConvertPage,
+  startRenameView,
 }: Props): JSX.Element => {
   // Local binding so the `!== null` guard narrows it for the dialog's
   // onConfirm closure (a property access wouldn't narrow).
@@ -99,12 +102,16 @@ export const ProjectModals = ({
             {
               label: 'Rename…',
               onSelect: () => {
+                if (componentMenu.kind === 'view') {
+                  startRenameView(componentMenu.componentName);
+                  return;
+                }
                 setComponentEditError(null);
                 setComponentEdit({ rename: componentMenu.componentName });
               },
             },
             {
-              label: componentMenu.kind === 'view' ? 'Delete view…' : 'Delete component…',
+              label: componentMenu.kind === 'view' ? 'Delete…' : 'Delete component…',
               destructive: true,
               onSelect: () => requestDeleteComponent(componentMenu.componentName),
             },
@@ -175,10 +182,14 @@ export const ProjectModals = ({
       )}
       {deletingComponent !== null && (
         <ConfirmDialog
-          title={`Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`}
+          title={
+            deletingComponent.kind === 'view'
+              ? `Delete page "${viewSlugFor(deletingComponent.componentName)}"?`
+              : `Delete component "${deletingComponent.componentName}"?`
+          }
           message={
             deletingComponent.kind === 'view'
-              ? `Removes the views/${deletingComponent.componentName}/ folder and the page that previews it.`
+              ? `Removes views/${deletingComponent.componentName}/ (the page's design) and the route file that previews it.`
               : deletingComponent.impactByPage.length === 0
               ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
               : `Removes the components/${deletingComponent.componentName}/ folder AND every instance from: ${deletingComponent.impactByPage
@@ -189,7 +200,11 @@ export const ProjectModals = ({
                   .join(', ')}. This cannot be undone.`
           }
           confirmLabel={
-            componentDeleteBusy ? 'Deleting…' : `Delete ${deletingComponent.kind}`
+            componentDeleteBusy
+              ? 'Deleting…'
+              : deletingComponent.kind === 'view'
+                ? 'Delete page'
+                : 'Delete component'
           }
           variant="destructive"
           onConfirm={() => void handleConfirmDeleteComponent()}

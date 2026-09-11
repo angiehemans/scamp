@@ -1,4 +1,5 @@
 import { type RefObject } from 'react';
+import { viewSlugFor } from '@shared/templates';
 
 import type { ProjectConfig } from '@shared/types';
 import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
@@ -93,23 +94,15 @@ export const CanvasArea = ({
               </div>
             </div>
           )}
-          {activeComponent !== null && (
+          {activeComponent !== null && activeComponent.kind === 'component' && (
             <div
               className={styles.componentEditorBanner}
               data-testid="component-editor-banner"
             >
               <span>
-                {activeComponent.kind === 'view' ? (
-                  <>
-                    Editing view: <strong>{activeComponent.name}</strong>.
-                  </>
-                ) : (
-                  <>
-                    Editing component:{' '}
-                    <strong>{activeComponent.name}</strong>. Changes
-                    affect all instances.
-                  </>
-                )}
+                Editing component:{' '}
+                <strong>{activeComponent.name}</strong>. Changes
+                affect all instances.
               </span>
               <button
                 type="button"
@@ -121,7 +114,7 @@ export const CanvasArea = ({
             </div>
           )}
           <div className={styles.canvasHeader}>
-            {activeComponent !== null ? (
+            {activeComponent !== null && activeComponent.kind === 'component' ? (
               // Breadcrumb: "<return page> > <component>" when
               // entered from a page, otherwise just the
               // component name. Clicking a non-current segment
@@ -153,7 +146,7 @@ export const CanvasArea = ({
                       .getState()
                       .selectElement(ROOT_ELEMENT_ID)
                   }
-                  title={`Select ${activeComponent.kind} root`}
+                  title="Select component root"
                 >
                   {activeComponent.name}
                 </button>
@@ -169,7 +162,9 @@ export const CanvasArea = ({
                 }
                 title="Select page root"
               >
-                {activePageName ?? 'Page'}
+                {activeComponent !== null
+                  ? viewSlugFor(activeComponent.name)
+                  : activePageName ?? 'Page'}
               </button>
             )}
             <span className={styles.canvasHeaderSpacer} />

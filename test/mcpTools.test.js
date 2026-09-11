@@ -8,7 +8,7 @@ import { createToolInvoker, TOOL_DESCRIPTORS, TOOL_NAMES } from '../src/main/mcp
  */
 const invoker = (data = { ok: true }) => createToolInvoker(async () => data);
 describe('TOOL_DESCRIPTORS', () => {
-    it('exposes the eight canvas tools from the brief, views, and the component scaffold', () => {
+    it('exposes the eight canvas tools from the brief plus the component scaffold', () => {
         expect(TOOL_NAMES).toEqual([
             'scamp_get_active_page',
             'scamp_get_selected_element',
@@ -17,7 +17,6 @@ describe('TOOL_DESCRIPTORS', () => {
             'scamp_get_canvas_state',
             'scamp_list_pages',
             'scamp_list_components',
-            'scamp_list_views',
             'scamp_get_component_scaffold',
             'scamp_get_theme_tokens',
         ]);

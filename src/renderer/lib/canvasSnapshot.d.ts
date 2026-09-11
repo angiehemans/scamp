@@ -61,6 +61,10 @@ export type FileListItem = {
     name: string;
     tsx: string;
     css: string;
+    /** Pages only: `view` when the page's design lives under views/<Name>/. */
+    kind?: 'page' | 'view';
+    /** Pages of kind `view`: the PascalCase view name; `name` is the route slug. */
+    view?: string;
 };
 export type ThemeTokensResult = {
     tokens: Array<{
@@ -138,7 +142,6 @@ export declare const listPages: (input: SnapshotInput) => FileListItem[];
  * Adding it later is additive.
  */
 export declare const listComponents: (input: SnapshotInput) => FileListItem[];
-export declare const listViews: (input: SnapshotInput) => FileListItem[];
 /**
  * Theme tokens exactly as they sit in `theme.css` — a flat list, not grouped
  * into colours / typography / spacing.

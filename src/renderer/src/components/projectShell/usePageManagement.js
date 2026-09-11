@@ -1,4 +1,6 @@
 import { useState, } from 'react';
+import { componentKindOf } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useHistoryStore } from '@store/historySlice';
@@ -10,7 +12,7 @@ import { flushPendingPageWrite } from '../../syncBridge';
  * snapshot the load effect re-parses is current; rename also rekeys the
  * page's history bucket and pushes a `rename-page` entry.
  */
-export const usePageManagement = ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, onConvertPageToView, }) => {
+export const usePageManagement = ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, onConvertPageToView, onCreatePageAsView, }) => {
     // Pages sidebar inline-edit state. `'new'` shows the Add Page input at
     // the bottom of the list. `{ duplicate: name }` replaces the named row
     // with an input seeded from that page. `null` means no editing in
@@ -26,7 +28,13 @@ export const usePageManagement = ({ project, onProjectChange, activePageName, se
     // Inline error shown in the delete-confirmation dialog when the
     // delete IPC fails; keeps the dialog open so the user can retry.
     const [deletePageError, setDeletePageError] = useState(null);
-    const existingPageNames = project.pages.map((p) => p.name);
+    // Views share the route namespace: a view's slug is a page name.
+    const existingPageNames = [
+        ...project.pages.map((p) => p.name),
+        ...project.components
+            .filter((c) => componentKindOf(c) === 'view')
+            .map((c) => viewSlugFor(c.name)),
+    ];
     const resetPageEdit = () => {
         setPageEdit(null);
         setPageEditBusy(false);
@@ -35,6 +43,17 @@ export const usePageManagement = ({ project, onProjectChange, activePageName, se
     const handleAddPage = async (name) => {
         setPageEditBusy(true);
         setPageEditError(null);
+        if (onCreatePageAsView) {
+            try {
+                await onCreatePageAsView(name);
+                resetPageEdit();
+            }
+            catch (e) {
+                setPageEditError(errorMessage(e));
+                setPageEditBusy(false);
+            }
+            return;
+        }
         try {
             const newPage = await window.scamp.createPage({
                 projectPath: project.path,

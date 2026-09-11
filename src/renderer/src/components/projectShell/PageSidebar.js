@@ -1,10 +1,41 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { viewSlugFor } from '@shared/templates';
 import { flushPendingPageWrite } from '../../syncBridge';
 import { PageNameInput } from '../PageNameInput';
 import styles from '../ProjectShell.module.css';
-/** The Pages section of the left sidebar: page list + inline add/rename. */
-export const PageSidebar = ({ pages, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, persistActiveSource, setActiveComponentState, setActivePageName, }) => {
-    return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Pages" }), _jsxs("ul", { className: styles.pageList, children: [pages.map((page) => {
+/** Home first, then by slug. A view and a page never share a slug. */
+const rowsFor = (pages, views) => {
+    const rows = [
+        ...pages.map((page) => ({ slug: page.name, kind: 'page', page })),
+        ...views.map((view) => ({ slug: viewSlugFor(view.name), kind: 'view', view })),
+    ];
+    return rows.sort((a, b) => {
+        if (a.slug === 'home')
+            return -1;
+        if (b.slug === 'home')
+            return 1;
+        return a.slug.localeCompare(b.slug);
+    });
+};
+export const PageSidebar = ({ pages, views, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, openView, openViewMenu, handleRenameView, persistActiveSource, setActiveComponentState, setActivePageName, }) => {
+    return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Pages" }), _jsxs("ul", { className: styles.pageList, children: [rowsFor(pages, views).map((row) => {
+                        if (row.kind === 'view') {
+                            const view = row.view;
+                            const isRenaming = pageEdit !== null &&
+                                pageEdit !== 'new' &&
+                                'rename' in pageEdit &&
+                                pageEdit.rename === row.slug;
+                            if (isRenaming) {
+                                return (_jsx("li", { children: _jsx(PageNameInput, { initialValue: row.slug, existingNames: existingPageNames.filter((n) => n !== row.slug), onConfirm: (name) => void handleRenameView(view.name, name), onCancel: resetPageEdit, error: pageEditError, busy: pageEditBusy }) }, `view:${view.name}`));
+                            }
+                            const isActive = activeComponent !== null && activeComponent.name === view.name;
+                            return (_jsx("li", { children: _jsx("button", { className: `${styles.pageButton} ${isActive ? styles.pageActive : ''}`, onClick: () => {
+                                        if (isEditingPage || isActive)
+                                            return;
+                                        openView(view.name);
+                                    }, onContextMenu: (e) => openViewMenu(e, view.name), type: "button", children: row.slug }) }, `view:${view.name}`));
+                        }
+                        const page = row.page;
                         const isDuplicating = pageEdit !== null &&
                             pageEdit !== 'new' &&
                             'duplicate' in pageEdit &&

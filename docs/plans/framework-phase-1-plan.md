@@ -5,12 +5,16 @@ Status: **on branch `feat/framework-phase-1`.** Step 0 landed
 landed (the `_scamp` export, `viewMeta` on the parse result, the
 contract banner, `color` on containers; the fixture CSS for Home and
 RoundTag was regenerated from the app and published as scampjs 0.0.4).
-Step 2 landed in four commits: views on disk with the wrapper page and
-the scan (2a); the Views section, view editor, and view-aware create,
-rename, and delete (2b); Convert to view with a snapshot first, the
-`scamp_list_views` MCP tool, and the agent.md section (2c, 2d). A view
-is a `ComponentFile` with `kind: 'view'`, sharing the component plumbing
-end to end. Next: step 3, the binding grammar.
+Step 2 landed: views on disk with the wrapper page and the scan; views
+listed in the **Pages** section by route slug beside legacy pages, with
+**+ Add Page** creating a view in Next.js projects; a view opens like a
+page (no component banner, page badge, Preview at its route, Data tab
+available); Convert to view with a snapshot first; `scamp_list_pages`
+reporting `kind: 'view'`; and the agent.md section. There is no
+separate Views section — a view is a page's design, and under the
+framework a page is a view file, a styles file, and a route file. A
+view is a `ComponentFile` with `kind: 'view'`, sharing the component
+plumbing end to end. Next: step 3, the binding grammar.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at
@@ -124,11 +128,12 @@ Pages and Components), `src/renderer/store/canvasSlice.ts`
 default), `src/shared/templates/` (view template), `agentMd.ts`.
 
 - `views/<Name>/<Name>.tsx` + `.module.css` are discovered and listed
-  under **Views**. Opening one is the component editor with a page-sized
-  artboard. The MCP tools that list components list views the same way
-  (`scamp_list_views`).
-- **+ Add view** scaffolds the empty view from the contract's section 3
-  shape, and, in a Next project, writes `app/<slug>/page.tsx` as a
+  under **Pages** by route slug, beside legacy pages. A view is a page's
+  design, so there is no separate section. Opening one is the page
+  editor: page-sized artboard, page badge, Preview at its route, and the
+  Data tab. `scamp_list_pages` reports it with `kind: 'view'`.
+- **+ Add Page** (in a Next project) scaffolds the empty view from the
+  contract's section 3 shape and writes `app/<slug>/page.tsx` as a
   one-line wrapper so `next dev` still previews it:
 
   ```tsx
