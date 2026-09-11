@@ -1,4 +1,6 @@
 import { useState, } from 'react';
+import { componentKindOf } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useAppLogStore } from '@store/appLogSlice';
@@ -40,13 +42,35 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
      * validation happens main-side too; this rejects locally first
      * so users see invalid-name errors without an IPC round trip.
      */
-    const handleAddComponent = async (name) => {
+    /**
+     * A view previews through a wrapper page at its slug. When a real
+     * page already owns that slug, the view is created without one and
+     * the log says how to get a preview (convert the page instead).
+     */
+    const wrapperSlugFor = (viewName) => {
+        const slug = viewSlugFor(viewName);
+        const taken = project.pages.some((p) => p.name === slug);
+        if (taken) {
+            useAppLogStore
+                .getState()
+                .log('warn', `View "${viewName}" has no preview route: the page "${slug}" already owns /${slug === 'home' ? '' : slug}. Convert that page to a view, or rename one of them.`);
+            return null;
+        }
+        return slug;
+    };
+    const kindOfNamed = (componentName) => {
+        const file = project.components.find((c) => c.name === componentName);
+        return file ? componentKindOf(file) : 'component';
+    };
+    const handleAddComponent = async (name, kind) => {
         setCreatingComponent(true);
         setComponentEditError(null);
         try {
             const created = await window.scamp.createComponent({
                 projectPath: project.path,
                 componentName: name,
+                kind,
+                wrapperSlug: kind === 'view' ? wrapperSlugFor(name) : null,
             });
             // Functional updater so this composes with `openComponent`'s
             // follow-on `persistActiveSource` if the outgoing page has
@@ -57,7 +81,7 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
                 components: [...prev.components, created],
             }));
             setComponentEdit(null);
-            openComponent(created.name, null);
+            openComponent(created.name, null, kind);
         }
         catch (e) {
             setComponentEditError(errorMessage(e));
@@ -69,12 +93,22 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
     const openComponentMenu = (e, componentName) => {
         e.preventDefault();
         e.stopPropagation();
-        setComponentMenu({ x: e.clientX, y: e.clientY, componentName });
+        setComponentMenu({
+            x: e.clientX,
+            y: e.clientY,
+            componentName,
+            kind: kindOfNamed(componentName),
+        });
     };
     const requestDeleteComponent = (componentName) => {
-        const usages = findInstanceUsagesAcrossPages(project.pages, componentName);
+        const kind = kindOfNamed(componentName);
+        // Views are never instanced, so there is nothing on any page to remove.
+        const usages = kind === 'view'
+            ? []
+            : findInstanceUsagesAcrossPages(project.pages, componentName);
         setDeletingComponent({
             componentName,
+            kind,
             impactByPage: groupUsagesByPage(usages),
         });
     };
@@ -135,6 +169,7 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
             await window.scamp.deleteComponent({
                 projectPath: project.path,
                 componentName,
+                kind: deletingComponent.kind,
             });
             const wasEditingDeleted = activeComponent !== null && activeComponent.name === componentName;
             if (wasEditingDeleted) {
@@ -191,9 +226,12 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
                     unchangedPages.push(page);
                 }
             }
+            const kind = componentKindOf(sourceComponent);
             const newComponentFile = await window.scamp.createComponent({
                 projectPath: project.path,
                 componentName: newName,
+                kind,
+                wrapperSlug: kind === 'view' ? wrapperSlugFor(newName) : null,
                 tsxContent: newContent.tsx,
                 cssContent: newContent.css,
             });
@@ -209,6 +247,7 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
             await window.scamp.deleteComponent({
                 projectPath: project.path,
                 componentName: oldName,
+                kind,
             });
             const nextComponents = project.components.map((c) => c.name === oldName ? newComponentFile : c);
             const nextPages = [
@@ -240,6 +279,7 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
             if (activeComponent !== null && activeComponent.name === oldName) {
                 setActiveComponentState({
                     name: newName,
+                    kind,
                     returnToPage: activeComponent.returnToPage,
                 });
             }

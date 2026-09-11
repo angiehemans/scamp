@@ -1,4 +1,5 @@
 import type { ProjectConfig, ProjectData } from '@shared/types';
+import { type ComponentKind } from '@shared/types';
 import type { ActiveComponent } from './types';
 type ProjectChange = (next: ProjectData | ((prev: ProjectData) => ProjectData)) => void;
 type Args = {
@@ -20,7 +21,7 @@ export type UseActiveTarget = {
     showMigrationBanner: boolean;
     handleDismissMigrationBanner: () => void;
     persistActiveSource: () => void;
-    openComponent: (name: string, fromPage: string | null) => void;
+    openComponent: (name: string, fromPage: string | null, kind?: ComponentKind) => void;
     exitComponentEditor: () => void;
     latestExit: {
         current: () => void;

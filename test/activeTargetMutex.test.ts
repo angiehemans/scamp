@@ -26,7 +26,7 @@ const makeRoot = (): ScampElement => ({
 describe('loadPage / loadComponent mutual exclusivity', () => {
   it('loadPage clears any prior activeComponent', () => {
     useCanvasStore.getState().loadComponent(
-      { name: 'Button', tsxPath: '/p/components/Button/Button.tsx', cssPath: '/p/components/Button/Button.module.css' },
+      { name: 'Button', kind: 'component', tsxPath: '/p/components/Button/Button.tsx', cssPath: '/p/components/Button/Button.module.css' },
       { [ROOT_ELEMENT_ID]: makeRoot() },
       { tsx: '', css: '' }
     );
@@ -51,7 +51,7 @@ describe('loadPage / loadComponent mutual exclusivity', () => {
     expect(useCanvasStore.getState().activePage?.name).toBe('home');
 
     useCanvasStore.getState().loadComponent(
-      { name: 'Card', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' },
+      { name: 'Card', kind: 'component', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' },
       { [ROOT_ELEMENT_ID]: makeRoot() },
       { tsx: '', css: '' }
     );
@@ -61,7 +61,7 @@ describe('loadPage / loadComponent mutual exclusivity', () => {
 
   it('resetForNewPage clears both targets', () => {
     useCanvasStore.getState().loadComponent(
-      { name: 'Card', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' },
+      { name: 'Card', kind: 'component', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' },
       { [ROOT_ELEMENT_ID]: makeRoot() },
       { tsx: '', css: '' }
     );
@@ -72,7 +72,7 @@ describe('loadPage / loadComponent mutual exclusivity', () => {
 
   it('marks the load as initial (lastLoadKind / isLoading) for both kinds', () => {
     useCanvasStore.getState().loadComponent(
-      { name: 'Card', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' },
+      { name: 'Card', kind: 'component', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' },
       { [ROOT_ELEMENT_ID]: makeRoot() },
       { tsx: '', css: '' }
     );

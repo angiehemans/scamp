@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '@shared/errorMessage';
+import { componentKindOf } from '@shared/types';
 import { SUPPORTED_CONTRACT, isSupportedContract } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useAppLogStore } from '@store/appLogSlice';
@@ -146,8 +147,14 @@ export const useActiveTarget = ({ project, onProjectChange, projectConfig, handl
             return;
         }
         setParseError(null);
+        // The shell's copy of the kind drives the banner and the artboard
+        // default; keep it true to the file on disk.
+        if (activeComponent.kind !== componentKindOf(component)) {
+            setActiveComponentState({ ...activeComponent, kind: componentKindOf(component) });
+        }
         loadComponent({
             name: component.name,
+            kind: componentKindOf(component),
             tsxPath: component.tsxPath,
             cssPath: component.cssPath,
         }, parsed.elements, { tsx: component.tsxContent, css: component.cssContent }, parsed.customMediaBlocks, parsed.keyframesBlocks, parsed.cssDuplicates);
@@ -238,10 +245,17 @@ export const useActiveTarget = ({ project, onProjectChange, projectConfig, handl
      * so Esc / breadcrumb click can return there; Phase 2 always
      * passes null because the only entry point is the sidebar list.
      */
-    const openComponent = (name, fromPage) => {
+    const openComponent = (name, fromPage, kind) => {
         flushPendingPageWrite();
         persistActiveSource();
-        setActiveComponentState({ name, returnToPage: fromPage });
+        // A just-created file isn't in `project.components` yet (the state
+        // update is still in flight), so creation passes the kind explicitly.
+        const file = project.components.find((c) => c.name === name);
+        setActiveComponentState({
+            name,
+            kind: kind ?? (file ? componentKindOf(file) : 'component'),
+            returnToPage: fromPage,
+        });
     };
     // Latest refs for the one-shot canvas→component-editor navigation
     // effect, which binds before these are defined (see useLatest).

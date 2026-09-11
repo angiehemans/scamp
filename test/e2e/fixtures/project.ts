@@ -47,6 +47,14 @@ export type TestProject = {
   ) => Promise<{ tsx: string; css: string }>;
   /** True iff `components/<name>/<name>.tsx` exists. */
   componentExists: (componentName: string) => Promise<boolean>;
+  /** Read a view's TSX/CSS by PascalCase name. Throws if missing. */
+  readView: (viewName: string) => Promise<{ tsx: string; css: string }>;
+  /** True iff `views/<name>/<name>.tsx` exists (exact-case, see componentExists). */
+  viewExists: (viewName: string) => Promise<boolean>;
+  /** Read any project file by project-relative POSIX path. */
+  readFile: (relative: string) => Promise<string>;
+  /** True iff a project-relative path exists. */
+  fileExists: (relative: string) => Promise<boolean>;
   /** Read `theme.css` from disk. */
   readTheme: () => Promise<string>;
   /** Recursively delete the project's temp dir. */
@@ -324,6 +332,40 @@ export const createTestProject = async (
     }
   };
 
+  const readView = async (
+    viewName: string
+  ): Promise<{ tsx: string; css: string }> => {
+    const base = path.join(dir, 'views', viewName);
+    const [tsx, css] = await Promise.all([
+      fs.readFile(path.join(base, `${viewName}.tsx`), 'utf-8'),
+      fs.readFile(path.join(base, `${viewName}.module.css`), 'utf-8'),
+    ]);
+    return { tsx, css };
+  };
+
+  const viewExists = async (viewName: string): Promise<boolean> => {
+    try {
+      const entries = await fs.readdir(path.join(dir, 'views'));
+      if (!entries.includes(viewName)) return false;
+      const inner = await fs.readdir(path.join(dir, 'views', viewName));
+      return inner.includes(`${viewName}.tsx`);
+    } catch {
+      return false;
+    }
+  };
+
+  const readFile = (relative: string): Promise<string> =>
+    fs.readFile(path.join(dir, ...relative.split('/')), 'utf-8');
+
+  const fileExists = async (relative: string): Promise<boolean> => {
+    try {
+      await fs.access(path.join(dir, ...relative.split('/')));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   return {
     dir,
     name,
@@ -334,6 +376,10 @@ export const createTestProject = async (
     readPage,
     readComponent,
     componentExists,
+    readView,
+    viewExists,
+    readFile,
+    fileExists,
     readTheme: () => read(themePath),
     cleanup: async () => {
       await fs.rm(root, { recursive: true, force: true });

@@ -11,7 +11,7 @@ import type { ScampElement } from './element';
  */
 /** The page or component currently open on the canvas. */
 export type ContextTarget = {
-    kind: 'page' | 'component';
+    kind: 'page' | 'component' | 'view';
     name: string;
     /** Project-RELATIVE. Absolute paths would leak the user's home directory
      *  into text agents quote back verbatim. */

@@ -37,6 +37,8 @@ export declare const validateComponentName: (raw: string, existingNames: Readonl
  *   "hero-card"   → "HeroCard"
  *   "hero_card"   → "HeroCard"
  *   "HERO CARD"   → "HeroCard"
+ *   "HeroCard"    → "HeroCard"  (mixed case is kept)
+ *   "heroCard"    → "HeroCard"
  *   "123hero"     → "Hero"  (leading digits stripped)
  *   ""            → ""
  */

@@ -1,18 +1,23 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { componentKindOf } from '@shared/types';
 import { COMPONENT_DRAG_MIME } from '../../canvas/interactions/useComponentDrop';
 import { ComponentNameInput } from '../ComponentNameInput';
 import { ComponentSidebarItem } from '../ComponentSidebarItem';
 import styles from '../ProjectShell.module.css';
 /** The Components section of the left sidebar: list + inline add/rename. */
-export const ComponentSidebar = ({ components, projectPath, componentEdit, componentEditError, renamingComponent, creatingComponent, activeComponent, setComponentEdit, setComponentEditError, handleAddComponent, handleRenameComponent, openComponent, openComponentMenu, }) => {
-    return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Components" }), _jsxs("ul", { className: styles.pageList, children: [components.map((component) => {
+export const ComponentSidebar = ({ kind, components: allComponents, projectPath, componentEdit, componentEditError, renamingComponent, creatingComponent, activeComponent, setComponentEdit, setComponentEditError, handleAddComponent, handleRenameComponent, openComponent, openComponentMenu, }) => {
+    const components = allComponents.filter((c) => componentKindOf(c) === kind);
+    const title = kind === 'view' ? 'Views' : 'Components';
+    const addLabel = kind === 'view' ? '+ Add View' : '+ Add Component';
+    // Names are one namespace across both kinds (see componentOps), so the
+    // inline input rejects a duplicate from either list.
+    const allNames = allComponents.map((c) => c.name);
+    return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: title }), _jsxs("ul", { className: styles.pageList, children: [components.map((component) => {
                         const isRenaming = componentEdit !== null &&
-                            componentEdit !== 'new' &&
+                            'rename' in componentEdit &&
                             componentEdit.rename === component.name;
                         if (isRenaming) {
-                            return (_jsx("li", { children: _jsx(ComponentNameInput, { initialValue: component.name, existingNames: components
-                                        .map((c) => c.name)
-                                        .filter((n) => n !== component.name), onConfirm: (name) => void handleRenameComponent(component.name, name), onCancel: () => {
+                            return (_jsx("li", { children: _jsx(ComponentNameInput, { initialValue: component.name, existingNames: allNames.filter((n) => n !== component.name), onConfirm: (name) => void handleRenameComponent(component.name, name), onCancel: () => {
                                         if (renamingComponent)
                                             return;
                                         setComponentEdit(null);
@@ -25,15 +30,17 @@ export const ComponentSidebar = ({ components, projectPath, componentEdit, compo
                                 // is under the cursor. The canvas interaction layer
                                 // reads this mime to tell a component-drag apart from
                                 // any other drag.
-                                onDragStart: (e) => {
+                                // A view is page-sized and never an instance, so it can't
+                                // be dragged onto a page.
+                                draggable: kind === 'component', onDragStart: (e) => {
                                     e.dataTransfer.setData(COMPONENT_DRAG_MIME, component.name);
                                     e.dataTransfer.effectAllowed = 'copy';
                                 } }) }, component.name));
-                    }), componentEdit === 'new' && (_jsx("li", { children: _jsx(ComponentNameInput, { existingNames: components.map((c) => c.name), onConfirm: (name) => void handleAddComponent(name), onCancel: () => {
+                    }), componentEdit !== null && 'new' in componentEdit && componentEdit.new === kind && (_jsx("li", { children: _jsx(ComponentNameInput, { existingNames: allNames, onConfirm: (name) => void handleAddComponent(name, kind), onCancel: () => {
                                 setComponentEdit(null);
                                 setComponentEditError(null);
                             }, error: componentEditError, busy: creatingComponent }) }))] }), componentEdit === null && (_jsx("button", { className: styles.addPageButton, onClick: () => {
                     setComponentEditError(null);
-                    setComponentEdit('new');
-                }, type: "button", children: "+ Add Component" }))] }));
+                    setComponentEdit({ new: kind });
+                }, type: "button", children: addLabel }))] }));
 };

@@ -1,3 +1,4 @@
+import type { ComponentKind } from '@shared/types';
 /**
  * The component currently being edited, when the canvas is in the
  * component editor instead of the page editor. Mutually exclusive with
@@ -6,6 +7,7 @@
  */
 export type ActiveComponent = {
     name: string;
+    kind: ComponentKind;
     returnToPage: string | null;
 };
 /** Per-page impact summary used in the multi-instance confirm dialogs. */
@@ -40,6 +42,7 @@ export type SlotRemovalRequest = {
 /** Queued delete-component confirmation. */
 export type DeletingComponent = {
     componentName: string;
+    kind: ComponentKind;
     impactByPage: ReadonlyArray<PageImpact>;
 };
 /** Right-click context-menu anchor for a page or component sidebar row. */
@@ -58,6 +61,7 @@ export type ComponentMenuState = {
     x: number;
     y: number;
     componentName: string;
+    kind: ComponentKind;
 };
 /** Pages-sidebar inline-edit state. */
 export type PageEdit = 'new' | {
@@ -66,6 +70,8 @@ export type PageEdit = 'new' | {
     rename: string;
 } | null;
 /** Components-sidebar inline-edit state. */
-export type ComponentEdit = 'new' | {
+export type ComponentEdit = {
+    new: ComponentKind;
+} | {
     rename: string;
 } | null;

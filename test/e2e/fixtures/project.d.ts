@@ -35,6 +35,17 @@ export type TestProject = {
     }>;
     /** True iff `components/<name>/<name>.tsx` exists. */
     componentExists: (componentName: string) => Promise<boolean>;
+    /** Read a view's TSX/CSS by PascalCase name. Throws if missing. */
+    readView: (viewName: string) => Promise<{
+        tsx: string;
+        css: string;
+    }>;
+    /** True iff `views/<name>/<name>.tsx` exists (exact-case, see componentExists). */
+    viewExists: (viewName: string) => Promise<boolean>;
+    /** Read any project file by project-relative POSIX path. */
+    readFile: (relative: string) => Promise<string>;
+    /** True iff a project-relative path exists. */
+    fileExists: (relative: string) => Promise<boolean>;
     /** Read `theme.css` from disk. */
     readTheme: () => Promise<string>;
     /** Recursively delete the project's temp dir. */

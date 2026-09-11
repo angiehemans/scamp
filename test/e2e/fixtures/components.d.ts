@@ -21,6 +21,12 @@ export declare const openPagesSection: (page: Page) => Promise<void>;
 /** Click "+ Add Component", type a name, press Enter. */
 export declare const createComponentFromSidebar: (page: Page, name: string) => Promise<void>;
 /** Right-click a component in the sidebar; open the context menu. */
+/** Activate the Views section in the icon rail. Idempotent. */
+export declare const openViewsSection: (page: Page) => Promise<void>;
+/** "+ Add View" → type the name → Enter. */
+export declare const createViewFromSidebar: (page: Page, name: string) => Promise<void>;
+/** Right-click a view in the sidebar to open its context menu. */
+export declare const openViewContextMenu: (page: Page, viewName: string) => Promise<void>;
 export declare const openComponentContextMenu: (page: Page, componentName: string) => Promise<void>;
 /** Right-click an element on the canvas (frame-local coords). */
 export declare const openElementContextMenu: (page: Page, clientX: number, clientY: number) => Promise<void>;

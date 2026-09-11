@@ -98,3 +98,22 @@ describe('suggestComponentName', () => {
     expect(suggestComponentName('   ')).toBe('');
   });
 });
+
+describe('suggestComponentName — typed PascalCase and camelCase', () => {
+  it('keeps the internal capitals of a PascalCase name', () => {
+    expect(suggestComponentName('HeroCard')).toBe('HeroCard');
+  });
+
+  it('capitalises a camelCase name without flattening it', () => {
+    expect(suggestComponentName('heroCard')).toBe('HeroCard');
+  });
+
+  it('still recases an all-caps or all-lowercase chunk', () => {
+    expect(suggestComponentName('HEROCARD')).toBe('Herocard');
+    expect(suggestComponentName('herocard')).toBe('Herocard');
+  });
+
+  it('applies per chunk', () => {
+    expect(suggestComponentName('hero CardTwo')).toBe('HeroCardTwo');
+  });
+});

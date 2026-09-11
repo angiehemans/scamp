@@ -1,4 +1,4 @@
-import type { ProjectConfig } from '@shared/types';
+import type { ProjectConfig, ComponentKind } from '@shared/types';
 type Props = {
     config: ProjectConfig;
     onChange: (next: ProjectConfig) => void;
@@ -11,6 +11,8 @@ type Props = {
      * Phase 3.5 — only pages have responsive cascades).
      */
     componentName?: string;
+    /** A view's artboard defaults to the page width instead of the component size. */
+    componentKind?: ComponentKind;
 };
 /**
  * Toolbar control for the canvas viewport size + active breakpoint.
@@ -29,5 +31,5 @@ type Props = {
  *     "Fixed height" toggle + input. All viewport-frame preview
  *     helpers — never written to CSS.
  */
-export declare const CanvasSizeControl: ({ config, onChange, componentName, }: Props) => JSX.Element;
+export declare const CanvasSizeControl: ({ config, onChange, componentName, componentKind, }: Props) => JSX.Element;
 export {};

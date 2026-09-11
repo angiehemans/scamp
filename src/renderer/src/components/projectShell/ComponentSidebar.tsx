@@ -1,6 +1,7 @@
 import { type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
 
-import type { ComponentFile } from '@shared/types';
+import type { ComponentFile, ComponentKind } from '@shared/types';
+import { componentKindOf } from '@shared/types';
 
 import { COMPONENT_DRAG_MIME } from '../../canvas/interactions/useComponentDrop';
 
@@ -10,6 +11,8 @@ import type { ActiveComponent, ComponentEdit } from './types';
 import styles from '../ProjectShell.module.css';
 
 type Props = {
+  /** Which list this section shows; the other kind is filtered out. */
+  kind: ComponentKind;
   components: ComponentFile[];
   projectPath: string;
   componentEdit: ComponentEdit;
@@ -19,7 +22,7 @@ type Props = {
   activeComponent: ActiveComponent | null;
   setComponentEdit: Dispatch<SetStateAction<ComponentEdit>>;
   setComponentEditError: Dispatch<SetStateAction<string | null>>;
-  handleAddComponent: (name: string) => Promise<void>;
+  handleAddComponent: (name: string, kind: ComponentKind) => Promise<void>;
   handleRenameComponent: (oldName: string, newName: string) => Promise<void>;
   openComponent: (name: string, fromPage: string | null) => void;
   openComponentMenu: (e: ReactMouseEvent, componentName: string) => void;
@@ -27,7 +30,8 @@ type Props = {
 
 /** The Components section of the left sidebar: list + inline add/rename. */
 export const ComponentSidebar = ({
-  components,
+  kind,
+  components: allComponents,
   projectPath,
   componentEdit,
   componentEditError,
@@ -41,23 +45,27 @@ export const ComponentSidebar = ({
   openComponent,
   openComponentMenu,
 }: Props): JSX.Element => {
+  const components = allComponents.filter((c) => componentKindOf(c) === kind);
+  const title = kind === 'view' ? 'Views' : 'Components';
+  const addLabel = kind === 'view' ? '+ Add View' : '+ Add Component';
+  // Names are one namespace across both kinds (see componentOps), so the
+  // inline input rejects a duplicate from either list.
+  const allNames = allComponents.map((c) => c.name);
   return (
     <div className={styles.sidebarSection}>
-      <h2 className={styles.sidebarTitle}>Components</h2>
+      <h2 className={styles.sidebarTitle}>{title}</h2>
       <ul className={styles.pageList}>
         {components.map((component) => {
           const isRenaming =
             componentEdit !== null &&
-            componentEdit !== 'new' &&
+            'rename' in componentEdit &&
             componentEdit.rename === component.name;
           if (isRenaming) {
             return (
               <li key={component.name}>
                 <ComponentNameInput
                   initialValue={component.name}
-                  existingNames={components
-                    .map((c) => c.name)
-                    .filter((n) => n !== component.name)}
+                  existingNames={allNames.filter((n) => n !== component.name)}
                   onConfirm={(name) =>
                     void handleRenameComponent(component.name, name)
                   }
@@ -87,6 +95,9 @@ export const ComponentSidebar = ({
                 // is under the cursor. The canvas interaction layer
                 // reads this mime to tell a component-drag apart from
                 // any other drag.
+                // A view is page-sized and never an instance, so it can't
+                // be dragged onto a page.
+                draggable={kind === 'component'}
                 onDragStart={(e) => {
                   e.dataTransfer.setData(COMPONENT_DRAG_MIME, component.name);
                   e.dataTransfer.effectAllowed = 'copy';
@@ -95,11 +106,11 @@ export const ComponentSidebar = ({
             </li>
           );
         })}
-        {componentEdit === 'new' && (
+        {componentEdit !== null && 'new' in componentEdit && componentEdit.new === kind && (
           <li>
             <ComponentNameInput
-              existingNames={components.map((c) => c.name)}
-              onConfirm={(name) => void handleAddComponent(name)}
+              existingNames={allNames}
+              onConfirm={(name) => void handleAddComponent(name, kind)}
               onCancel={() => {
                 setComponentEdit(null);
                 setComponentEditError(null);
@@ -115,11 +126,11 @@ export const ComponentSidebar = ({
           className={styles.addPageButton}
           onClick={() => {
             setComponentEditError(null);
-            setComponentEdit('new');
+            setComponentEdit({ new: kind });
           }}
           type="button"
         >
-          + Add Component
+          {addLabel}
         </button>
       )}
     </div>

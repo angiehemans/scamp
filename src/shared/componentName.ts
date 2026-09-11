@@ -61,6 +61,8 @@ export const validateComponentName = (
  *   "hero-card"   → "HeroCard"
  *   "hero_card"   → "HeroCard"
  *   "HERO CARD"   → "HeroCard"
+ *   "HeroCard"    → "HeroCard"  (mixed case is kept)
+ *   "heroCard"    → "HeroCard"
  *   "123hero"     → "Hero"  (leading digits stripped)
  *   ""            → ""
  */
@@ -73,13 +75,17 @@ export const suggestComponentName = (raw: string): string => {
     .split(/[^A-Za-z0-9]+/)
     .filter((p) => p.length > 0);
   const camelChunks = parts.map((p) => {
-    const lower = p.toLowerCase();
+    // A chunk typed in PascalCase or camelCase already carries its word
+    // boundaries (`HeroCard`, `heroCard`); lowercasing would flatten it
+    // to `Herocard`. Only all-caps and all-lowercase chunks are recased.
+    const isMixedCase = /[a-z]/.test(p) && /[A-Z]/.test(p);
+    const lower = isMixedCase ? p : p.toLowerCase();
     // Find the first letter in the chunk and capitalise it. If
     // the chunk is digits-only (no letter), keep it verbatim —
     // it might be a legitimate internal digit segment like the
     // `2` in `Heading2`. The final `replace(/^[0-9]+/, '')` below
     // trims any leading digits the join leaves behind.
-    const firstLetterIdx = lower.search(/[a-z]/);
+    const firstLetterIdx = lower.search(/[A-Za-z]/);
     if (firstLetterIdx < 0) return lower;
     return (
       lower.slice(0, firstLetterIdx) +

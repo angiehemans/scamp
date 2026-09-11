@@ -23,7 +23,7 @@ const targetOf = (state) => {
     const { projectPath } = state;
     if (state.activeComponent) {
         return {
-            kind: 'component',
+            kind: state.activeComponent.kind,
             name: state.activeComponent.name,
             tsxPath: relativeTo(projectPath, state.activeComponent.tsxPath),
             cssPath: relativeTo(projectPath, state.activeComponent.cssPath),

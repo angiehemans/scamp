@@ -99,9 +99,17 @@ export const CanvasArea = ({
               data-testid="component-editor-banner"
             >
               <span>
-                Editing component:{' '}
-                <strong>{activeComponent.name}</strong>. Changes
-                affect all instances.
+                {activeComponent.kind === 'view' ? (
+                  <>
+                    Editing view: <strong>{activeComponent.name}</strong>.
+                  </>
+                ) : (
+                  <>
+                    Editing component:{' '}
+                    <strong>{activeComponent.name}</strong>. Changes
+                    affect all instances.
+                  </>
+                )}
               </span>
               <button
                 type="button"
@@ -145,7 +153,7 @@ export const CanvasArea = ({
                       .getState()
                       .selectElement(ROOT_ELEMENT_ID)
                   }
-                  title="Select component root"
+                  title={`Select ${activeComponent.kind} root`}
                 >
                   {activeComponent.name}
                 </button>
@@ -174,6 +182,7 @@ export const CanvasArea = ({
                   ? activeComponent.name
                   : undefined
               }
+              componentKind={activeComponent?.kind}
             />
           </div>
           <Viewport

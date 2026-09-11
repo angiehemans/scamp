@@ -316,6 +316,8 @@ export declare const MAX_COMPONENT_CANVAS_DIM = 4000;
  * layout without feeling cramped; the user resizes via the drag
  * handle or the panel inputs as soon as the design needs it.
  */
+/** A view's artboard height until resized; the width is the page canvas width. */
+export declare const DEFAULT_VIEW_CANVAS_HEIGHT = 900;
 export declare const DEFAULT_COMPONENT_CANVAS_SIZE: ComponentCanvasSize;
 export type ProjectConfigReadArgs = {
     projectPath: string;

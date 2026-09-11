@@ -23,7 +23,7 @@ export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuIt
                         },
                     },
                     {
-                        label: 'Delete component…',
+                        label: componentMenu.kind === 'view' ? 'Delete view…' : 'Delete component…',
                         destructive: true,
                         onSelect: () => requestDeleteComponent(componentMenu.componentName),
                     },
@@ -32,11 +32,13 @@ export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuIt
                     setDeletePageError(null);
                 } })), convertElementId !== null && (_jsx(CreateComponentDialog, { existingNames: components.map((c) => c.name), error: instanceFlows.convertError, busy: instanceFlows.convertingComponent, onConfirm: (name) => void instanceFlows.handleConvertToComponent(convertElementId, name), onCancel: instanceFlows.cancelConvert })), instanceFlows.lockPropRequest !== null && (_jsx(ConfirmDialog, { title: `Lock "${instanceFlows.lockPropRequest.propName}"?`, message: `This will drop the override on ${instanceFlows.lockPropRequest.impactByPage
                     .map((g) => `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`)
-                    .join(', ')}. The component-side default will render in their place.`, confirmLabel: "Lock prop", variant: "destructive", onConfirm: instanceFlows.handleConfirmLockProp, onCancel: instanceFlows.cancelLockProp })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: `Delete component "${deletingComponent.componentName}"?`, message: deletingComponent.impactByPage.length === 0
-                    ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
-                    : `Removes the components/${deletingComponent.componentName}/ folder AND every instance from: ${deletingComponent.impactByPage
-                        .map((g) => `${g.pageName} (${g.count} instance${g.count === 1 ? '' : 's'})`)
-                        .join(', ')}. This cannot be undone.`, confirmLabel: componentDeleteBusy ? 'Deleting…' : 'Delete component', variant: "destructive", onConfirm: () => void handleConfirmDeleteComponent(), onCancel: () => {
+                    .join(', ')}. The component-side default will render in their place.`, confirmLabel: "Lock prop", variant: "destructive", onConfirm: instanceFlows.handleConfirmLockProp, onCancel: instanceFlows.cancelLockProp })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: `Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`, message: deletingComponent.kind === 'view'
+                    ? `Removes the views/${deletingComponent.componentName}/ folder and the page that previews it.`
+                    : deletingComponent.impactByPage.length === 0
+                        ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
+                        : `Removes the components/${deletingComponent.componentName}/ folder AND every instance from: ${deletingComponent.impactByPage
+                            .map((g) => `${g.pageName} (${g.count} instance${g.count === 1 ? '' : 's'})`)
+                            .join(', ')}. This cannot be undone.`, confirmLabel: componentDeleteBusy ? 'Deleting…' : `Delete ${deletingComponent.kind}`, variant: "destructive", onConfirm: () => void handleConfirmDeleteComponent(), onCancel: () => {
                     if (componentDeleteBusy)
                         return;
                     setDeletingComponent(null);

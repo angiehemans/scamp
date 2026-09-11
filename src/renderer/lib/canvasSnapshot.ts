@@ -41,7 +41,7 @@ export type SnapshotInput = {
 };
 
 export type ActiveTargetResult = {
-  kind: 'page' | 'component';
+  kind: 'page' | 'component' | 'view';
   name: string;
   tsx: string;
   css: string;

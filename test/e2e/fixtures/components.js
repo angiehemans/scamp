@@ -1,4 +1,4 @@
-import { addComponentButton, componentSidebarItem, contextMenuItem, } from './selectors';
+import { addComponentButton, addViewButton, componentSidebarItem, contextMenuItem, viewSidebarItem, } from './selectors';
 /**
  * Higher-level interactions for the components sidebar and the
  * convert-to-component / detach context menus. Specs use these so
@@ -37,6 +37,24 @@ export const createComponentFromSidebar = async (page, name) => {
     await input.press('Enter');
 };
 /** Right-click a component in the sidebar; open the context menu. */
+/** Activate the Views section in the icon rail. Idempotent. */
+export const openViewsSection = async (page) => {
+    await page.locator('[data-section="views"]').click();
+    await addViewButton(page).waitFor({ state: 'visible' });
+};
+/** "+ Add View" → type the name → Enter. */
+export const createViewFromSidebar = async (page, name) => {
+    await openViewsSection(page);
+    await addViewButton(page).click();
+    const input = page.getByPlaceholder('ComponentName');
+    await input.fill(name);
+    await input.press('Enter');
+};
+/** Right-click a view in the sidebar to open its context menu. */
+export const openViewContextMenu = async (page, viewName) => {
+    await openViewsSection(page);
+    await viewSidebarItem(page, viewName).click({ button: 'right' });
+};
 export const openComponentContextMenu = async (page, componentName) => {
     await openComponentsSection(page);
     await componentSidebarItem(page, componentName).click({ button: 'right' });

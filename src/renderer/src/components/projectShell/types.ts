@@ -1,3 +1,4 @@
+import type { ComponentKind } from '@shared/types';
 // Shared types for the ProjectShell sub-components and hooks (Phase 5.2
 // split). ProjectShell composes these pieces; the request types drive its
 // confirmation modals and the active-target type tracks page-vs-component
@@ -11,6 +12,7 @@
  */
 export type ActiveComponent = {
   name: string;
+  kind: ComponentKind;
   returnToPage: string | null;
 };
 
@@ -47,6 +49,7 @@ export type SlotRemovalRequest = {
 /** Queued delete-component confirmation. */
 export type DeletingComponent = {
   componentName: string;
+  kind: ComponentKind;
   impactByPage: ReadonlyArray<PageImpact>;
 };
 
@@ -61,6 +64,7 @@ export type ComponentMenuState = {
   x: number;
   y: number;
   componentName: string;
+  kind: ComponentKind;
 };
 
 /** Pages-sidebar inline-edit state. */
@@ -71,4 +75,4 @@ export type PageEdit =
   | null;
 
 /** Components-sidebar inline-edit state. */
-export type ComponentEdit = 'new' | { rename: string } | null;
+export type ComponentEdit = { new: ComponentKind } | { rename: string } | null;

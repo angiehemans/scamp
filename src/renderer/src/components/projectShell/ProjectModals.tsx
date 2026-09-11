@@ -93,7 +93,7 @@ export const ProjectModals = ({
               },
             },
             {
-              label: 'Delete component…',
+              label: componentMenu.kind === 'view' ? 'Delete view…' : 'Delete component…',
               destructive: true,
               onSelect: () => requestDeleteComponent(componentMenu.componentName),
             },
@@ -149,9 +149,11 @@ export const ProjectModals = ({
 
       {deletingComponent !== null && (
         <ConfirmDialog
-          title={`Delete component "${deletingComponent.componentName}"?`}
+          title={`Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`}
           message={
-            deletingComponent.impactByPage.length === 0
+            deletingComponent.kind === 'view'
+              ? `Removes the views/${deletingComponent.componentName}/ folder and the page that previews it.`
+              : deletingComponent.impactByPage.length === 0
               ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
               : `Removes the components/${deletingComponent.componentName}/ folder AND every instance from: ${deletingComponent.impactByPage
                   .map(
@@ -160,7 +162,9 @@ export const ProjectModals = ({
                   )
                   .join(', ')}. This cannot be undone.`
           }
-          confirmLabel={componentDeleteBusy ? 'Deleting…' : 'Delete component'}
+          confirmLabel={
+            componentDeleteBusy ? 'Deleting…' : `Delete ${deletingComponent.kind}`
+          }
           variant="destructive"
           onConfirm={() => void handleConfirmDeleteComponent()}
           onCancel={() => {

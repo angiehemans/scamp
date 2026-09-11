@@ -137,6 +137,36 @@ export const createTestProject = async (options = {}) => {
             return false;
         }
     };
+    const readView = async (viewName) => {
+        const base = path.join(dir, 'views', viewName);
+        const [tsx, css] = await Promise.all([
+            fs.readFile(path.join(base, `${viewName}.tsx`), 'utf-8'),
+            fs.readFile(path.join(base, `${viewName}.module.css`), 'utf-8'),
+        ]);
+        return { tsx, css };
+    };
+    const viewExists = async (viewName) => {
+        try {
+            const entries = await fs.readdir(path.join(dir, 'views'));
+            if (!entries.includes(viewName))
+                return false;
+            const inner = await fs.readdir(path.join(dir, 'views', viewName));
+            return inner.includes(`${viewName}.tsx`);
+        }
+        catch {
+            return false;
+        }
+    };
+    const readFile = (relative) => fs.readFile(path.join(dir, ...relative.split('/')), 'utf-8');
+    const fileExists = async (relative) => {
+        try {
+            await fs.access(path.join(dir, ...relative.split('/')));
+            return true;
+        }
+        catch {
+            return false;
+        }
+    };
     return {
         dir,
         name,
@@ -147,6 +177,10 @@ export const createTestProject = async (options = {}) => {
         readPage,
         readComponent,
         componentExists,
+        readView,
+        viewExists,
+        readFile,
+        fileExists,
         readTheme: () => read(themePath),
         cleanup: async () => {
             await fs.rm(root, { recursive: true, force: true });

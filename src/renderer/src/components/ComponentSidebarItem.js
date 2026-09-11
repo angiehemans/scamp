@@ -4,7 +4,7 @@ import { COMPONENT_THUMBNAIL_UPDATED_EVENT, } from '../lib/componentThumbnail';
 import styles from './ComponentSidebarItem.module.css';
 import projectStyles from './ProjectShell.module.css';
 /** Sidebar row with thumbnail. see docs/notes/components-thumbnails.md */
-export const ComponentSidebarItem = ({ componentName, projectPath, isActive, onClick, onContextMenu, onDragStart, }) => {
+export const ComponentSidebarItem = ({ componentName, projectPath, isActive, onClick, onContextMenu, draggable = true, onDragStart, }) => {
     const [thumbnailUrl, setThumbnailUrl] = useState(null);
     useEffect(() => {
         let cancelled = false;
@@ -38,5 +38,5 @@ export const ComponentSidebarItem = ({ componentName, projectPath, isActive, onC
             window.removeEventListener(COMPONENT_THUMBNAIL_UPDATED_EVENT, handler);
         };
     }, [componentName, projectPath]);
-    return (_jsxs("button", { className: `${projectStyles.pageButton} ${styles.row} ${isActive ? projectStyles.pageActive : ''}`, onClick: onClick, onContextMenu: onContextMenu, type: "button", draggable: true, onDragStart: onDragStart, children: [thumbnailUrl !== null ? (_jsx("img", { className: styles.thumbnail, src: thumbnailUrl, alt: "", "aria-hidden": "true" })) : (_jsx("span", { className: styles.placeholder, "aria-hidden": "true" })), _jsx("span", { className: styles.label, children: componentName })] }));
+    return (_jsxs("button", { className: `${projectStyles.pageButton} ${styles.row} ${isActive ? projectStyles.pageActive : ''}`, onClick: onClick, onContextMenu: onContextMenu, type: "button", draggable: draggable, onDragStart: draggable ? onDragStart : undefined, children: [thumbnailUrl !== null ? (_jsx("img", { className: styles.thumbnail, src: thumbnailUrl, alt: "", "aria-hidden": "true" })) : (_jsx("span", { className: styles.placeholder, "aria-hidden": "true" })), _jsx("span", { className: styles.label, children: componentName })] }));
 };

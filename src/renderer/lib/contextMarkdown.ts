@@ -41,11 +41,18 @@ const targetSection = (target: ContextTarget | null): string => {
   if (target === null) {
     return `## Active page\n\nNo project open.`;
   }
-  const heading = target.kind === 'component' ? 'Active component' : 'Active page';
+  const heading =
+    target.kind === 'component'
+      ? 'Active component'
+      : target.kind === 'view'
+        ? 'Active view'
+        : 'Active page';
   const nameLine =
     target.kind === 'component'
       ? `Component: ${target.name}\n`
-      : `Page: ${target.name}\n`;
+      : target.kind === 'view'
+        ? `View: ${target.name}\n`
+        : `Page: ${target.name}\n`;
   return `## ${heading}\n\n${nameLine}File: ${target.tsxPath}\nCSS:  ${target.cssPath}`;
 };
 

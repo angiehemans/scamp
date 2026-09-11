@@ -1,6 +1,7 @@
 import {
   IconFiles,
   IconComponents,
+  IconLayout,
   IconPalette,
   IconHistory,
   IconSettings,
@@ -76,6 +77,13 @@ export const SidebarRail = ({
         <IconFiles size={ICON_SIZE} />,
         sectionActive && section === 'pages',
         () => onSelectSection('pages')
+      )}
+      {railButton(
+        'views',
+        'Views',
+        <IconLayout size={ICON_SIZE} />,
+        sectionActive && section === 'views',
+        () => onSelectSection('views')
       )}
       {railButton(
         'components',

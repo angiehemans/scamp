@@ -1,5 +1,5 @@
 import { type Dispatch, type MouseEvent as ReactMouseEvent, type SetStateAction } from 'react';
-import type { ProjectData } from '@shared/types';
+import type { ComponentKind, ProjectData } from '@shared/types';
 import type { ActiveComponent, ComponentEdit, ComponentMenuState, DeletingComponent } from './types';
 type ProjectChange = (next: ProjectData | ((prev: ProjectData) => ProjectData)) => void;
 type Args = {
@@ -7,7 +7,7 @@ type Args = {
     onProjectChange?: ProjectChange;
     activeComponent: ActiveComponent | null;
     setActiveComponentState: (next: ActiveComponent | null) => void;
-    openComponent: (name: string, fromPage: string | null) => void;
+    openComponent: (name: string, fromPage: string | null, kind?: ComponentKind) => void;
     persistActiveSource: () => void;
 };
 export type UseComponentManagement = {
@@ -17,7 +17,7 @@ export type UseComponentManagement = {
     setComponentEditError: Dispatch<SetStateAction<string | null>>;
     creatingComponent: boolean;
     renamingComponent: boolean;
-    handleAddComponent: (name: string) => Promise<void>;
+    handleAddComponent: (name: string, kind: ComponentKind) => Promise<void>;
     handleRenameComponent: (oldName: string, newName: string) => Promise<void>;
     openComponentMenu: (e: ReactMouseEvent, componentName: string) => void;
     componentMenu: ComponentMenuState | null;

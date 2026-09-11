@@ -22,7 +22,7 @@ const makeRoot = () => ({
 });
 describe('loadPage / loadComponent mutual exclusivity', () => {
     it('loadPage clears any prior activeComponent', () => {
-        useCanvasStore.getState().loadComponent({ name: 'Button', tsxPath: '/p/components/Button/Button.tsx', cssPath: '/p/components/Button/Button.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
+        useCanvasStore.getState().loadComponent({ name: 'Button', kind: 'component', tsxPath: '/p/components/Button/Button.tsx', cssPath: '/p/components/Button/Button.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
         expect(useCanvasStore.getState().activeComponent?.name).toBe('Button');
         expect(useCanvasStore.getState().activePage).toBeNull();
         useCanvasStore.getState().loadPage({ name: 'home', tsxPath: '/p/app/page.tsx', cssPath: '/p/app/page.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
@@ -32,18 +32,18 @@ describe('loadPage / loadComponent mutual exclusivity', () => {
     it('loadComponent clears any prior activePage', () => {
         useCanvasStore.getState().loadPage({ name: 'home', tsxPath: '/p/app/page.tsx', cssPath: '/p/app/page.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
         expect(useCanvasStore.getState().activePage?.name).toBe('home');
-        useCanvasStore.getState().loadComponent({ name: 'Card', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
+        useCanvasStore.getState().loadComponent({ name: 'Card', kind: 'component', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
         expect(useCanvasStore.getState().activeComponent?.name).toBe('Card');
         expect(useCanvasStore.getState().activePage).toBeNull();
     });
     it('resetForNewPage clears both targets', () => {
-        useCanvasStore.getState().loadComponent({ name: 'Card', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
+        useCanvasStore.getState().loadComponent({ name: 'Card', kind: 'component', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
         useCanvasStore.getState().resetForNewPage();
         expect(useCanvasStore.getState().activePage).toBeNull();
         expect(useCanvasStore.getState().activeComponent).toBeNull();
     });
     it('marks the load as initial (lastLoadKind / isLoading) for both kinds', () => {
-        useCanvasStore.getState().loadComponent({ name: 'Card', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
+        useCanvasStore.getState().loadComponent({ name: 'Card', kind: 'component', tsxPath: '/p/components/Card/Card.tsx', cssPath: '/p/components/Card/Card.module.css' }, { [ROOT_ELEMENT_ID]: makeRoot() }, { tsx: '', css: '' });
         const state = useCanvasStore.getState();
         expect(state.isLoading).toBe(true);
         expect(state.lastLoadKind).toBe('initial');

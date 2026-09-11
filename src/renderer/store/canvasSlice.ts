@@ -43,6 +43,7 @@ import { classNameFor } from '@lib/generateCode';
 import { resolveElementAtState } from '@lib/stateCascade';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { DEFAULT_BODY_FONT_FAMILY } from '@shared/agentMd';
+import type { ComponentKind } from '@shared/types';
 import {
   DEFAULT_BREAKPOINTS,
   type Breakpoint,
@@ -177,6 +178,8 @@ export type ActivePage = {
  */
 export type ActiveComponent = {
   name: string;
+  /** A view is a component with a page-sized canvas. see docs/plans/framework-phase-1-plan.md */
+  kind: ComponentKind;
   tsxPath: string;
   cssPath: string;
 };
@@ -247,7 +250,7 @@ export type BottomPanel = 'code' | 'terminal' | 'none';
  * rail, so they aren't sidebar-panel sections.) Per-session preference —
  * not persisted to disk. see docs/plans/icon-sidebar-nav-plan.md
  */
-export type SidebarSection = 'pages' | 'components' | 'history';
+export type SidebarSection = 'pages' | 'views' | 'components' | 'history';
 
 /** Properties panel display mode. 'data' is component-scoped. */
 export type PanelMode = 'ui' | 'css' | 'data';

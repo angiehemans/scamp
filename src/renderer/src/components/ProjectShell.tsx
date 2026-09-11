@@ -20,6 +20,7 @@
 // frame stay here.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectData } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 import { useCanvasStore } from '@store/canvasSlice';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
@@ -243,14 +244,20 @@ export const ProjectShell = ({
     projectPathForPreview.length > 0 &&
     activePageName !== null;
 
+  // A view previews at its wrapper page's route; anything else at the
+  // active page.
+  const previewPageName =
+    activeComponent !== null && activeComponent.kind === 'view'
+      ? viewSlugFor(activeComponent.name)
+      : activePageName;
   const openPreview = useCallback((): void => {
-    if (!canPreview || activePageName === null) return;
+    if (!canPreview || previewPageName === null) return;
     void window.scamp.openPreview({
       projectPath: projectPathForPreview,
-      pageName: activePageName,
+      pageName: previewPageName,
       pageNames: project.pages.map((p) => p.name),
     });
-  }, [canPreview, projectPathForPreview, activePageName, project.pages]);
+  }, [canPreview, projectPathForPreview, previewPageName, project.pages]);
 
   // Push page-list updates to an already-open preview window so the
   // URL-bar dropdown stays current as the user adds / renames /
@@ -406,9 +413,10 @@ export const ProjectShell = ({
               </div>
             </>
           )}
-          {sidebarSection === 'components' && (
+          {(sidebarSection === 'components' || sidebarSection === 'views') && (
             <>
           <ComponentSidebar
+            kind={sidebarSection === 'views' ? 'view' : 'component'}
             components={project.components}
             projectPath={project.path}
             componentEdit={componentEdit}

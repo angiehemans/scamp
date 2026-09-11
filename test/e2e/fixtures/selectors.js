@@ -38,6 +38,11 @@ const componentsList = (page) => page.locator('h2:has-text("Components") + ul');
 export const componentSidebarItem = (page, name) => componentsList(page).getByRole('button', { name, exact: true });
 /** "+ Add Component" sidebar button. Scoped to the components section. */
 export const addComponentButton = (page) => page.getByRole('button', { name: /Add Component/i });
+const viewsList = (page) => page.locator('h2:has-text("Views") + ul');
+/** Sidebar view button by PascalCase name. Scoped to the views list. */
+export const viewSidebarItem = (page, name) => viewsList(page).getByRole('button', { name, exact: true });
+/** "+ Add View" sidebar button. */
+export const addViewButton = (page) => page.getByRole('button', { name: /Add View/i });
 /** Currently-open context menu surface (PageContextMenu / ElementContextMenu). */
 export const contextMenu = (page) => page.getByRole('menu');
 /**

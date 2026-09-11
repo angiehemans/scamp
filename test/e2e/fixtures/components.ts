@@ -2,8 +2,10 @@ import type { Page } from '@playwright/test';
 
 import {
   addComponentButton,
+  addViewButton,
   componentSidebarItem,
   contextMenuItem,
+  viewSidebarItem,
 } from './selectors';
 
 /**
@@ -51,6 +53,33 @@ export const createComponentFromSidebar = async (
 };
 
 /** Right-click a component in the sidebar; open the context menu. */
+/** Activate the Views section in the icon rail. Idempotent. */
+export const openViewsSection = async (page: Page): Promise<void> => {
+  await page.locator('[data-section="views"]').click();
+  await addViewButton(page).waitFor({ state: 'visible' });
+};
+
+/** "+ Add View" → type the name → Enter. */
+export const createViewFromSidebar = async (
+  page: Page,
+  name: string
+): Promise<void> => {
+  await openViewsSection(page);
+  await addViewButton(page).click();
+  const input = page.getByPlaceholder('ComponentName');
+  await input.fill(name);
+  await input.press('Enter');
+};
+
+/** Right-click a view in the sidebar to open its context menu. */
+export const openViewContextMenu = async (
+  page: Page,
+  viewName: string
+): Promise<void> => {
+  await openViewsSection(page);
+  await viewSidebarItem(page, viewName).click({ button: 'right' });
+};
+
 export const openComponentContextMenu = async (
   page: Page,
   componentName: string

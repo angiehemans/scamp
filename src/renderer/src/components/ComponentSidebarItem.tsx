@@ -13,6 +13,8 @@ type Props = {
   isActive: boolean;
   onClick: () => void;
   onContextMenu: (e: ReactMouseEvent) => void;
+  /** Default true; views aren't draggable. */
+  draggable?: boolean;
   onDragStart: (e: React.DragEvent<HTMLButtonElement>) => void;
 };
 
@@ -23,6 +25,7 @@ export const ComponentSidebarItem = ({
   isActive,
   onClick,
   onContextMenu,
+  draggable = true,
   onDragStart,
 }: Props): JSX.Element => {
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
@@ -66,8 +69,8 @@ export const ComponentSidebarItem = ({
       onClick={onClick}
       onContextMenu={onContextMenu}
       type="button"
-      draggable
-      onDragStart={onDragStart}
+      draggable={draggable}
+      onDragStart={draggable ? onDragStart : undefined}
     >
       {thumbnailUrl !== null ? (
         <img
