@@ -19,6 +19,8 @@ type ProjectChange = (
 ) => void;
 
 type Args = {
+  /** Adds a "Convert to view…" item to the page menu when given. */
+  onConvertPageToView?: (pageName: string) => void;
   project: ProjectData;
   onProjectChange?: ProjectChange;
   activePageName: string | null;
@@ -62,6 +64,7 @@ export const usePageManagement = ({
   activePageName,
   setActivePageName,
   persistActiveSource,
+  onConvertPageToView,
 }: Args): UsePageManagement => {
   // Pages sidebar inline-edit state. `'new'` shows the Add Page input at
   // the bottom of the list. `{ duplicate: name }` replaces the named row
@@ -223,6 +226,14 @@ export const usePageManagement = ({
         setPageEdit({ duplicate: pageName });
       },
     },
+    ...(onConvertPageToView
+      ? [
+          {
+            label: 'Convert to view…',
+            onSelect: () => onConvertPageToView(pageName),
+          },
+        ]
+      : []),
     {
       label: 'Delete',
       destructive: true,

@@ -5,7 +5,12 @@ Status: **on branch `feat/framework-phase-1`.** Step 0 landed
 landed (the `_scamp` export, `viewMeta` on the parse result, the
 contract banner, `color` on containers; the fixture CSS for Home and
 RoundTag was regenerated from the app and published as scampjs 0.0.4).
-Next: step 2, views.
+Step 2 landed in four commits: views on disk with the wrapper page and
+the scan (2a); the Views section, view editor, and view-aware create,
+rename, and delete (2b); Convert to view with a snapshot first, the
+`scamp_list_views` MCP tool, and the agent.md section (2c, 2d). A view
+is a `ComponentFile` with `kind: 'view'`, sharing the component plumbing
+end to end. Next: step 3, the binding grammar.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

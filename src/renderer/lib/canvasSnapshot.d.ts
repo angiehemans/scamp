@@ -24,6 +24,8 @@ export type SnapshotInput = {
     selectedIds: ReadonlyArray<string>;
     pageNames: ReadonlyArray<string>;
     componentNames: ReadonlyArray<string>;
+    /** Views (`views/<Name>/`); absent means none. */
+    viewNames?: ReadonlyArray<string>;
     themeTokens: ReadonlyArray<ThemeToken>;
     themes: ReadonlyArray<ThemeDef>;
     activeThemeId: string;
@@ -136,6 +138,7 @@ export declare const listPages: (input: SnapshotInput) => FileListItem[];
  * Adding it later is additive.
  */
 export declare const listComponents: (input: SnapshotInput) => FileListItem[];
+export declare const listViews: (input: SnapshotInput) => FileListItem[];
 /**
  * Theme tokens exactly as they sit in `theme.css` — a flat list, not grouped
  * into colours / typography / spacing.

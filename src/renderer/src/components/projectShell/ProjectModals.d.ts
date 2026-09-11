@@ -19,6 +19,11 @@ type Props = {
     setComponentEdit: Dispatch<SetStateAction<ComponentEdit>>;
     setComponentEditError: Dispatch<SetStateAction<string | null>>;
     requestDeleteComponent: (componentName: string) => void;
+    convertingPage: string | null;
+    setConvertingPage: Dispatch<SetStateAction<string | null>>;
+    convertPageBusy: boolean;
+    convertPageError: string | null;
+    handleConfirmConvertPage: () => Promise<void>;
     deletingComponent: DeletingComponent | null;
     componentDeleteBusy: boolean;
     handleConfirmDeleteComponent: () => Promise<void>;
@@ -31,5 +36,5 @@ type Props = {
  * detach). Purely presentational — state + handlers come from the page /
  * component / instance-flow hooks via props.
  */
-export declare const ProjectModals: ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, }: Props) => JSX.Element;
+export declare const ProjectModals: ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, handleConfirmConvertPage, }: Props) => JSX.Element;
 export {};

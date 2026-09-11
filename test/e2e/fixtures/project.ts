@@ -55,6 +55,8 @@ export type TestProject = {
   readFile: (relative: string) => Promise<string>;
   /** True iff a project-relative path exists. */
   fileExists: (relative: string) => Promise<boolean>;
+  /** Labels in `.scamp/snapshots.json`, oldest first; [] when none. */
+  listSnapshotLabels: () => Promise<string[]>;
   /** Read `theme.css` from disk. */
   readTheme: () => Promise<string>;
   /** Recursively delete the project's temp dir. */
@@ -366,11 +368,26 @@ export const createTestProject = async (
     }
   };
 
+  const listSnapshotLabels = async (): Promise<string[]> => {
+    try {
+      const raw = await fs.readFile(path.join(dir, '.scamp', 'snapshots.json'), 'utf-8');
+      const parsed: unknown = JSON.parse(raw);
+      const list = (parsed as { snapshots?: unknown } | null)?.snapshots;
+      if (!Array.isArray(list)) return [];
+      return list
+        .map((m) => (m && typeof m === 'object' && typeof (m as { label?: unknown }).label === 'string' ? (m as { label: string }).label : null))
+        .filter((l): l is string => l !== null);
+    } catch {
+      return [];
+    }
+  };
+
   return {
     dir,
     name,
     pageName,
     format,
+    listSnapshotLabels,
     readTsx: () => read(homeTsxPath),
     readCss: () => read(homeCssPath),
     readPage,

@@ -142,7 +142,7 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_get_element_by_id\` — any element, selected or not
 - \`scamp_get_element_tree\` — structure only; cheap, start here
 - \`scamp_get_active_page\` — which page or component is open
-- \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_list_pages\` / \`scamp_list_components\` / \`scamp_list_views\` — what else exists
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
   or typography value so you use a token instead of a literal
 - \`scamp_get_canvas_state\` — everything at once; large, and capped
@@ -1251,7 +1251,7 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_get_element_by_id\` — any element, selected or not
 - \`scamp_get_element_tree\` — structure only; cheap, start here
 - \`scamp_get_active_page\` — which page or component is open
-- \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_list_pages\` / \`scamp_list_components\` / \`scamp_list_views\` — what else exists
 - \`scamp_get_component_scaffold\` — the exact starter files for a new
   component; call it before creating one
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
@@ -1540,6 +1540,18 @@ The last statement of every component is the \`_scamp\` export: the
 framework contract version the file was written for, and the names of
 its event-handler props (always \`[]\` today). Scamp writes it on every
 save; copy it exactly, don't invent fields.
+
+### Views
+
+A view is a component with a page-sized canvas: \`views/<Name>/<Name>.tsx\`
++ \`<Name>.module.css\`, in exactly the file shape above (props type,
+\`className\` passthrough, \`_scamp\` export). Views are never placed on a
+page as instances. In this project each view previews through a
+one-line page that Scamp writes and regenerates — \`app/<slug>/page.tsx\`
+containing only \`import <Name> from '@/views/<Name>/<Name>'\` and
+\`return <Name />\`. Never edit that wrapper: edit the view. Never give a
+view root \`min-height: 100vh\` either; the page shell owns full height.
+\`scamp_list_views\` lists them.
 
 Inside, everything works as on a page: the root is \`data-scamp-id="root"\`
 with the \`className\` passthrough shown above, every other element has

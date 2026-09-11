@@ -7,6 +7,8 @@ type Args = {
     onProjectChange?: ProjectChange;
     activeComponent: ActiveComponent | null;
     setActiveComponentState: (next: ActiveComponent | null) => void;
+    activePageName: string | null;
+    setActivePageName: (next: string | null) => void;
     openComponent: (name: string, fromPage: string | null, kind?: ComponentKind) => void;
     persistActiveSource: () => void;
 };
@@ -27,6 +29,13 @@ export type UseComponentManagement = {
     setDeletingComponent: Dispatch<SetStateAction<DeletingComponent | null>>;
     componentDeleteBusy: boolean;
     handleConfirmDeleteComponent: () => Promise<void>;
+    /** The page a "Convert to view" confirm dialog is open for. */
+    convertingPage: string | null;
+    setConvertingPage: Dispatch<SetStateAction<string | null>>;
+    convertPageBusy: boolean;
+    convertPageError: string | null;
+    requestConvertPageToView: (pageName: string) => void;
+    handleConfirmConvertPage: () => Promise<void>;
 };
 /**
  * Owns the Components sidebar's inline-edit + context-menu state and the
@@ -37,5 +46,5 @@ export type UseComponentManagement = {
  * suppression so the watcher doesn't fight the in-flight multi-file write.
  * see docs/notes/components-multi-file-ops.md
  */
-export declare const useComponentManagement: ({ project, onProjectChange, activeComponent, setActiveComponentState, openComponent, persistActiveSource, }: Args) => UseComponentManagement;
+export declare const useComponentManagement: ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, openComponent, persistActiveSource, }: Args) => UseComponentManagement;
 export {};

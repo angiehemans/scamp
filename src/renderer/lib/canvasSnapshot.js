@@ -126,6 +126,11 @@ export const listComponents = (input) => input.componentNames.map((name) => ({
     name,
     ...componentPathsRelative(name),
 }));
+export const listViews = (input) => (input.viewNames ?? []).map((name) => ({
+    name,
+    tsx: `views/${name}/${name}.tsx`,
+    css: `views/${name}/${name}.module.css`,
+}));
 /**
  * Theme tokens exactly as they sit in `theme.css` — a flat list, not grouped
  * into colours / typography / spacing.
@@ -167,6 +172,8 @@ export const answerSnapshotTool = (tool, args, input) => {
             return listPages(input);
         case 'scamp_list_components':
             return listComponents(input);
+        case 'scamp_list_views':
+            return listViews(input);
         case 'scamp_get_theme_tokens':
             return getThemeTokens(input);
         default:

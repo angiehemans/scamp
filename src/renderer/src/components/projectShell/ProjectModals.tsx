@@ -1,6 +1,7 @@
 import { type Dispatch, type SetStateAction } from 'react';
 
 import type { ComponentFile } from '@shared/types';
+import { viewNameForPage } from '@shared/templates';
 
 import { ConfirmDialog } from '../ConfirmDialog';
 import { CreateComponentDialog } from '../CreateComponentDialog';
@@ -32,6 +33,11 @@ type Props = {
   setComponentEdit: Dispatch<SetStateAction<ComponentEdit>>;
   setComponentEditError: Dispatch<SetStateAction<string | null>>;
   requestDeleteComponent: (componentName: string) => void;
+  convertingPage: string | null;
+  setConvertingPage: Dispatch<SetStateAction<string | null>>;
+  convertPageBusy: boolean;
+  convertPageError: string | null;
+  handleConfirmConvertPage: () => Promise<void>;
   deletingComponent: DeletingComponent | null;
   componentDeleteBusy: boolean;
   handleConfirmDeleteComponent: () => Promise<void>;
@@ -65,6 +71,11 @@ export const ProjectModals = ({
   componentDeleteBusy,
   handleConfirmDeleteComponent,
   setDeletingComponent,
+  convertingPage,
+  setConvertingPage,
+  convertPageBusy,
+  convertPageError,
+  handleConfirmConvertPage,
 }: Props): JSX.Element => {
   // Local binding so the `!== null` guard narrows it for the dialog's
   // onConfirm closure (a property access wouldn't narrow).
@@ -147,6 +158,21 @@ export const ProjectModals = ({
         />
       )}
 
+      {convertingPage !== null && (
+        <ConfirmDialog
+          title={`Convert "${convertingPage}" to a view?`}
+          message={
+            convertPageError ??
+            `The page's elements move to views/${viewNameForPage(convertingPage)}/ and the page file becomes a one-line wrapper that renders the view, so it still previews at the same route. A snapshot is taken first.`
+          }
+          confirmLabel={convertPageBusy ? 'Converting…' : 'Convert to view'}
+          onConfirm={() => void handleConfirmConvertPage()}
+          onCancel={() => {
+            if (convertPageBusy) return;
+            setConvertingPage(null);
+          }}
+        />
+      )}
       {deletingComponent !== null && (
         <ConfirmDialog
           title={`Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`}

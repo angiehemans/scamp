@@ -12,4 +12,11 @@ export declare const parseViewWrapper: (tsx: string) => string | null;
  * (`HeroCard` → `hero-card`). `Home` maps to `home`, which is the root
  * page (`app/page.tsx`) in a Next.js project.
  */
+/**
+ * The view name a page converts to: kebab-case → PascalCase
+ * (`checkout-flow` → `CheckoutFlow`). `viewSlugFor` inverts it for every
+ * valid page name, so a converted page's wrapper sits where the view
+ * expects it.
+ */
+export declare const viewNameForPage: (pageName: string) => string;
 export declare const viewSlugFor: (viewName: string) => string;

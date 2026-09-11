@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 
 import type { ProjectConfig, ProjectData } from '@shared/types';
+import { componentKindOf } from '@shared/types';
 import {
   DEFAULT_COMPONENT_CANVAS_SIZE,
   DEFAULT_VIEW_CANVAS_HEIGHT,
 } from '@shared/types';
-import { useCanvasStore } from '@store/canvasSlice';
+import { useCanvasStore, type ComponentTree } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
 import type { ScampElement } from '@lib/element';
 
@@ -58,10 +59,7 @@ export const useProjectStoreSync = ({
   // external agent) propagate live to every instance on every
   // page without per-page work.
   useEffect(() => {
-    const trees: Record<
-      string,
-      { elements: Record<string, ScampElement>; rootId: string }
-    > = {};
+    const trees: Record<string, ComponentTree> = {};
     for (const component of project.components) {
       try {
         const parsed = parseCode(component.tsxContent, component.cssContent, {
@@ -71,6 +69,7 @@ export const useProjectStoreSync = ({
         trees[component.name] = {
           elements: parsed.elements,
           rootId: parsed.rootId,
+          kind: componentKindOf(component),
         };
       } catch (err) {
         // Skip the component — its instances will render as

@@ -115,6 +115,8 @@ export type ActiveComponent = {
 export type ComponentTree = {
     elements: Record<string, ScampElement>;
     rootId: string;
+    /** Absent means `'component'`. Views are never instanced but share the map. */
+    kind?: ComponentKind;
 };
 export type PageSource = {
     tsx: string;

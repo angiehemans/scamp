@@ -48,7 +48,12 @@ export const snapshotInputFrom = (state) => {
         rootElementId: state.rootElementId,
         selectedIds: state.selectedElementIds,
         pageNames: state.pageNames,
-        componentNames: Object.keys(state.componentTrees),
+        componentNames: Object.entries(state.componentTrees)
+            .filter(([, tree]) => (tree.kind ?? 'component') === 'component')
+            .map(([name]) => name),
+        viewNames: Object.entries(state.componentTrees)
+            .filter(([, tree]) => tree.kind === 'view')
+            .map(([name]) => name),
         themeTokens: state.themeTokens,
         themes: state.themes,
         activeThemeId: state.activeThemeId,

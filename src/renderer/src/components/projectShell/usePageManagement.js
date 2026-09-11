@@ -10,7 +10,7 @@ import { flushPendingPageWrite } from '../../syncBridge';
  * snapshot the load effect re-parses is current; rename also rekeys the
  * page's history bucket and pushes a `rename-page` entry.
  */
-export const usePageManagement = ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, }) => {
+export const usePageManagement = ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, onConvertPageToView, }) => {
     // Pages sidebar inline-edit state. `'new'` shows the Add Page input at
     // the bottom of the list. `{ duplicate: name }` replaces the named row
     // with an input seeded from that page. `null` means no editing in
@@ -156,6 +156,14 @@ export const usePageManagement = ({ project, onProjectChange, activePageName, se
                 setPageEdit({ duplicate: pageName });
             },
         },
+        ...(onConvertPageToView
+            ? [
+                {
+                    label: 'Convert to view…',
+                    onSelect: () => onConvertPageToView(pageName),
+                },
+            ]
+            : []),
         {
             label: 'Delete',
             destructive: true,

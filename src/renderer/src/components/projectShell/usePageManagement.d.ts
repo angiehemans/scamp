@@ -4,6 +4,8 @@ import type { PageMenuItem } from '../PageContextMenu';
 import type { PageEdit, PageMenuState } from './types';
 type ProjectChange = (next: ProjectData | ((prev: ProjectData) => ProjectData)) => void;
 type Args = {
+    /** Adds a "Convert to view…" item to the page menu when given. */
+    onConvertPageToView?: (pageName: string) => void;
     project: ProjectData;
     onProjectChange?: ProjectChange;
     activePageName: string | null;
@@ -39,5 +41,5 @@ export type UsePageManagement = {
  * snapshot the load effect re-parses is current; rename also rekeys the
  * page's history bucket and pushes a `rename-page` entry.
  */
-export declare const usePageManagement: ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, }: Args) => UsePageManagement;
+export declare const usePageManagement: ({ project, onProjectChange, activePageName, setActivePageName, persistActiveSource, onConvertPageToView, }: Args) => UsePageManagement;
 export {};

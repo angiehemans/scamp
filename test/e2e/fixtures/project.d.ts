@@ -46,6 +46,8 @@ export type TestProject = {
     readFile: (relative: string) => Promise<string>;
     /** True iff a project-relative path exists. */
     fileExists: (relative: string) => Promise<boolean>;
+    /** Labels in `.scamp/snapshots.json`, oldest first; [] when none. */
+    listSnapshotLabels: () => Promise<string[]>;
     /** Read `theme.css` from disk. */
     readTheme: () => Promise<string>;
     /** Recursively delete the project's temp dir. */

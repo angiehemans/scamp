@@ -32,6 +32,8 @@ export type SnapshotInput = {
   selectedIds: ReadonlyArray<string>;
   pageNames: ReadonlyArray<string>;
   componentNames: ReadonlyArray<string>;
+  /** Views (`views/<Name>/`); absent means none. */
+  viewNames?: ReadonlyArray<string>;
   themeTokens: ReadonlyArray<ThemeToken>;
   themes: ReadonlyArray<ThemeDef>;
   activeThemeId: string;
@@ -235,6 +237,13 @@ export const listComponents = (input: SnapshotInput): FileListItem[] =>
     ...componentPathsRelative(name),
   }));
 
+export const listViews = (input: SnapshotInput): FileListItem[] =>
+  (input.viewNames ?? []).map((name) => ({
+    name,
+    tsx: `views/${name}/${name}.tsx`,
+    css: `views/${name}/${name}.module.css`,
+  }));
+
 /**
  * Theme tokens exactly as they sit in `theme.css` — a flat list, not grouped
  * into colours / typography / spacing.
@@ -281,6 +290,8 @@ export const answerSnapshotTool = (
       return listPages(input);
     case 'scamp_list_components':
       return listComponents(input);
+    case 'scamp_list_views':
+      return listViews(input);
     case 'scamp_get_theme_tokens':
       return getThemeTokens(input);
     default:

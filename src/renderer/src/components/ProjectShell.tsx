@@ -146,7 +146,11 @@ export const ProjectShell = ({
     activePageName,
     setActivePageName,
     persistActiveSource,
+    // Defined by useComponentManagement below; routed through a ref
+    // because the page menu is built before that hook runs.
+    onConvertPageToView: (name) => convertPageRef.current?.(name),
   });
+  const convertPageRef = useRef<((pageName: string) => void) | null>(null);
 
   // Components sidebar inline-edit / context-menu state + the multi-file
   // add / rename / delete handlers.
@@ -167,14 +171,23 @@ export const ProjectShell = ({
     setDeletingComponent,
     componentDeleteBusy,
     handleConfirmDeleteComponent,
+    convertingPage,
+    setConvertingPage,
+    convertPageBusy,
+    convertPageError,
+    requestConvertPageToView,
+    handleConfirmConvertPage,
   } = useComponentManagement({
     project,
     onProjectChange,
     activeComponent,
     setActiveComponentState,
+    activePageName,
+    setActivePageName,
     openComponent,
     persistActiveSource,
   });
+  convertPageRef.current = requestConvertPageToView;
 
   const bottomPanel = useCanvasStore((s) => s.bottomPanel);
   const toggleBottomPanel = useCanvasStore((s) => s.toggleBottomPanel);
@@ -499,6 +512,11 @@ export const ProjectShell = ({
         setComponentEdit={setComponentEdit}
         setComponentEditError={setComponentEditError}
         requestDeleteComponent={requestDeleteComponent}
+        convertingPage={convertingPage}
+        setConvertingPage={setConvertingPage}
+        convertPageBusy={convertPageBusy}
+        convertPageError={convertPageError}
+        handleConfirmConvertPage={handleConfirmConvertPage}
         deletingComponent={deletingComponent}
         componentDeleteBusy={componentDeleteBusy}
         handleConfirmDeleteComponent={handleConfirmDeleteComponent}

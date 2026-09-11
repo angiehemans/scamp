@@ -7,7 +7,7 @@ import {
 
 import type { ComponentKind, PageFile, ProjectData } from '@shared/types';
 import { componentKindOf } from '@shared/types';
-import { viewSlugFor } from '@shared/templates';
+import { viewNameForPage, viewSlugFor } from '@shared/templates';
 import { errorMessage } from '@shared/errorMessage';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useAppLogStore } from '@store/appLogSlice';
@@ -44,6 +44,8 @@ type Args = {
   onProjectChange?: ProjectChange;
   activeComponent: ActiveComponent | null;
   setActiveComponentState: (next: ActiveComponent | null) => void;
+  activePageName: string | null;
+  setActivePageName: (next: string | null) => void;
   openComponent: (
     name: string,
     fromPage: string | null,
@@ -69,6 +71,13 @@ export type UseComponentManagement = {
   setDeletingComponent: Dispatch<SetStateAction<DeletingComponent | null>>;
   componentDeleteBusy: boolean;
   handleConfirmDeleteComponent: () => Promise<void>;
+  /** The page a "Convert to view" confirm dialog is open for. */
+  convertingPage: string | null;
+  setConvertingPage: Dispatch<SetStateAction<string | null>>;
+  convertPageBusy: boolean;
+  convertPageError: string | null;
+  requestConvertPageToView: (pageName: string) => void;
+  handleConfirmConvertPage: () => Promise<void>;
 };
 
 /**
@@ -85,6 +94,8 @@ export const useComponentManagement = ({
   onProjectChange,
   activeComponent,
   setActiveComponentState,
+  activePageName,
+  setActivePageName,
   openComponent,
   persistActiveSource,
 }: Args): UseComponentManagement => {
@@ -109,6 +120,9 @@ export const useComponentManagement = ({
   const [deletingComponent, setDeletingComponent] =
     useState<DeletingComponent | null>(null);
   const [componentDeleteBusy, setComponentDeleteBusy] = useState(false);
+  const [convertingPage, setConvertingPage] = useState<string | null>(null);
+  const [convertPageBusy, setConvertPageBusy] = useState(false);
+  const [convertPageError, setConvertPageError] = useState<string | null>(null);
 
   /**
    * Atomic add: create the component on disk, append to the
@@ -419,7 +433,126 @@ export const useComponentManagement = ({
     }
   };
 
+  const requestConvertPageToView = (pageName: string): void => {
+    setConvertPageError(null);
+    setConvertingPage(pageName);
+  };
+
+  /**
+   * Convert a page into a view: the page's elements become
+   * `views/<Name>/` in the component file shape, and the page file
+   * becomes the one-line wrapper that previews the view. A snapshot is
+   * taken first, so the page is one restore away.
+   * see docs/plans/framework-phase-1-plan.md, step 2
+   */
+  const handleConfirmConvertPage = async (): Promise<void> => {
+    if (convertingPage === null) return;
+    const pageName = convertingPage;
+    const viewName = viewNameForPage(pageName);
+    setConvertPageBusy(true);
+    setConvertPageError(null);
+    armTargetSwapSuppression();
+    try {
+      if (project.components.some((c) => c.name === viewName)) {
+        throw new Error(
+          `A component or view named "${viewName}" already exists. Rename it first.`
+        );
+      }
+      flushPendingPageWrite();
+      persistActiveSource();
+      const page = project.pages.find((p) => p.name === pageName);
+      if (!page) throw new Error(`Page "${pageName}" not found in project.`);
+
+      const snapshot = await window.scamp.createSnapshot({
+        projectPath: project.path,
+        trigger: 'manual',
+        label: `Before converting "${pageName}" to a view`,
+      });
+      if (snapshot.snapshot === null) {
+        // Snapshots never block the user (see snapshotOps), but the
+        // conversion is meant to be one restore away, so say so.
+        useAppLogStore
+          .getState()
+          .log('warn', `No snapshot was taken before converting "${pageName}"; see the main-process log.`);
+      }
+
+      const store = useCanvasStore.getState();
+      const breakpoints = store.breakpoints;
+      // The open page's latest edits live in the store; any other page
+      // is read from its file.
+      const source =
+        store.activePage?.name === pageName
+          ? {
+              elements: store.elements,
+              rootId: store.rootElementId,
+              customMediaBlocks: store.pageCustomMediaBlocks,
+              keyframesBlocks: store.pageKeyframesBlocks,
+            }
+          : (() => {
+              const parsed = parseCode(page.tsxContent, page.cssContent, { breakpoints });
+              return {
+                elements: parsed.elements,
+                rootId: parsed.rootId,
+                customMediaBlocks: parsed.customMediaBlocks,
+                keyframesBlocks: parsed.keyframesBlocks,
+              };
+            })();
+      // A view root is a component root: no page-root `100vh` floor.
+      const root = source.elements[source.rootId];
+      const elements: Record<string, ScampElement> = root
+        ? { ...source.elements, [source.rootId]: { ...root, minHeight: undefined } }
+        : source.elements;
+      const generated = generateCode({
+        elements,
+        rootId: source.rootId,
+        pageName: viewName,
+        cssModuleImportName: viewName,
+        breakpoints,
+        customMediaBlocks: source.customMediaBlocks,
+        pageKeyframesBlocks: source.keyframesBlocks,
+        isComponent: true,
+      });
+
+      const created = await window.scamp.createComponent({
+        projectPath: project.path,
+        componentName: viewName,
+        kind: 'view',
+        wrapperSlug: pageName,
+        replacePage: true,
+        tsxContent: generated.tsx,
+        cssContent: generated.css,
+      });
+
+      const nextPages = project.pages.filter((p) => p.name !== pageName);
+      onProjectChange?.({
+        ...project,
+        pages: nextPages,
+        components: [...project.components, created],
+      });
+      if (activePageName === pageName) {
+        setActivePageName(nextPages[0]?.name ?? null);
+      }
+      setConvertingPage(null);
+      openComponent(viewName, null, 'view');
+    } catch (err) {
+      disarmTargetSwapSuppression();
+      const message = errorMessage(err);
+      setConvertPageError(message);
+      useAppLogStore
+        .getState()
+        .log('warn', `Convert page "${pageName}" to a view failed: ${message}`);
+    } finally {
+      setConvertPageBusy(false);
+    }
+  };
+
   return {
+    convertingPage,
+    setConvertingPage,
+    convertPageBusy,
+    convertPageError,
+    requestConvertPageToView,
+    handleConfirmConvertPage,
     componentEdit,
     setComponentEdit,
     componentEditError,

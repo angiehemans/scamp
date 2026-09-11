@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { componentKindOf } from '@shared/types';
 import { DEFAULT_COMPONENT_CANVAS_SIZE, DEFAULT_VIEW_CANVAS_HEIGHT, } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
@@ -46,6 +47,7 @@ export const useProjectStoreSync = ({ project, projectConfig, activeComponent, }
                 trees[component.name] = {
                     elements: parsed.elements,
                     rootId: parsed.rootId,
+                    kind: componentKindOf(component),
                 };
             }
             catch (err) {

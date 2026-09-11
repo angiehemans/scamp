@@ -167,11 +167,27 @@ export const createTestProject = async (options = {}) => {
             return false;
         }
     };
+    const listSnapshotLabels = async () => {
+        try {
+            const raw = await fs.readFile(path.join(dir, '.scamp', 'snapshots.json'), 'utf-8');
+            const parsed = JSON.parse(raw);
+            const list = parsed?.snapshots;
+            if (!Array.isArray(list))
+                return [];
+            return list
+                .map((m) => (m && typeof m === 'object' && typeof m.label === 'string' ? m.label : null))
+                .filter((l) => l !== null);
+        }
+        catch {
+            return [];
+        }
+    };
     return {
         dir,
         name,
         pageName,
         format,
+        listSnapshotLabels,
         readTsx: () => read(homeTsxPath),
         readCss: () => read(homeCssPath),
         readPage,

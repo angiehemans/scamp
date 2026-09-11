@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseViewWrapper, viewSlugFor, viewWrapperTsx, } from '@shared/templates';
+import { parseViewWrapper, viewNameForPage, viewSlugFor, viewWrapperTsx, } from '@shared/templates';
 describe('viewWrapperTsx', () => {
     it('imports the view through the @/views alias and renders it', () => {
         expect(viewWrapperTsx('Lobby')).toBe(`import Lobby from '@/views/Lobby/Lobby';\n\nexport default function LobbyPage() {\n  return <Lobby />;\n}\n`);
@@ -39,5 +39,16 @@ describe('viewSlugFor', () => {
     it('keeps digits attached and splits acronyms sensibly', () => {
         expect(viewSlugFor('Button2')).toBe('button2');
         expect(viewSlugFor('FAQPage')).toBe('faq-page');
+    });
+});
+describe('viewNameForPage', () => {
+    it('PascalCases a kebab-case page name', () => {
+        expect(viewNameForPage('checkout-flow')).toBe('CheckoutFlow');
+        expect(viewNameForPage('home')).toBe('Home');
+    });
+    it('inverts viewSlugFor for every page-name shape', () => {
+        for (const page of ['home', 'about', 'checkout-flow', 'page2', 'v2-beta', 'faq']) {
+            expect(viewSlugFor(viewNameForPage(page))).toBe(page);
+        }
     });
 });

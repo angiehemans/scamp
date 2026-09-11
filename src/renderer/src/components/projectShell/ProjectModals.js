@@ -1,4 +1,5 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
+import { viewNameForPage } from '@shared/templates';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { CreateComponentDialog } from '../CreateComponentDialog';
 import { PageContextMenu } from '../PageContextMenu';
@@ -10,7 +11,7 @@ import { ElementContextMenu } from '../ElementContextMenu';
  * detach). Purely presentational — state + handlers come from the page /
  * component / instance-flow hooks via props.
  */
-export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, }) => {
+export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuItems, closePageMenu, deletingPageName, deletePageError, handleDeletePage, setDeletingPageName, setDeletePageError, componentMenu, closeComponentMenu, setComponentEdit, setComponentEditError, requestDeleteComponent, deletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, setDeletingComponent, convertingPage, setConvertingPage, convertPageBusy, convertPageError, handleConfirmConvertPage, }) => {
     // Local binding so the `!== null` guard narrows it for the dialog's
     // onConfirm closure (a property access wouldn't narrow).
     const convertElementId = instanceFlows.convertElementId;
@@ -32,7 +33,12 @@ export const ProjectModals = ({ components, instanceFlows, pageMenu, buildMenuIt
                     setDeletePageError(null);
                 } })), convertElementId !== null && (_jsx(CreateComponentDialog, { existingNames: components.map((c) => c.name), error: instanceFlows.convertError, busy: instanceFlows.convertingComponent, onConfirm: (name) => void instanceFlows.handleConvertToComponent(convertElementId, name), onCancel: instanceFlows.cancelConvert })), instanceFlows.lockPropRequest !== null && (_jsx(ConfirmDialog, { title: `Lock "${instanceFlows.lockPropRequest.propName}"?`, message: `This will drop the override on ${instanceFlows.lockPropRequest.impactByPage
                     .map((g) => `${g.count} instance${g.count === 1 ? '' : 's'} on ${g.pageName}`)
-                    .join(', ')}. The component-side default will render in their place.`, confirmLabel: "Lock prop", variant: "destructive", onConfirm: instanceFlows.handleConfirmLockProp, onCancel: instanceFlows.cancelLockProp })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: `Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`, message: deletingComponent.kind === 'view'
+                    .join(', ')}. The component-side default will render in their place.`, confirmLabel: "Lock prop", variant: "destructive", onConfirm: instanceFlows.handleConfirmLockProp, onCancel: instanceFlows.cancelLockProp })), convertingPage !== null && (_jsx(ConfirmDialog, { title: `Convert "${convertingPage}" to a view?`, message: convertPageError ??
+                    `The page's elements move to views/${viewNameForPage(convertingPage)}/ and the page file becomes a one-line wrapper that renders the view, so it still previews at the same route. A snapshot is taken first.`, confirmLabel: convertPageBusy ? 'Converting…' : 'Convert to view', onConfirm: () => void handleConfirmConvertPage(), onCancel: () => {
+                    if (convertPageBusy)
+                        return;
+                    setConvertingPage(null);
+                } })), deletingComponent !== null && (_jsx(ConfirmDialog, { title: `Delete ${deletingComponent.kind} "${deletingComponent.componentName}"?`, message: deletingComponent.kind === 'view'
                     ? `Removes the views/${deletingComponent.componentName}/ folder and the page that previews it.`
                     : deletingComponent.impactByPage.length === 0
                         ? `Removes the components/${deletingComponent.componentName}/ folder. No instances on any page.`
