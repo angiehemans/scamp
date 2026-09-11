@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 
 import { generateCode } from '../src/renderer/lib/generateCode';
 import { parseCode } from '../src/renderer/lib/parseCode';
+import {
+  DEFAULT_COMPONENT_CSS,
+  defaultComponentTsx,
+} from '../src/main/ipc/componentScaffold';
 
 /**
  * The "Add Component" flow writes a starter TSX + CSS pair to
@@ -19,27 +23,10 @@ import { parseCode } from '../src/renderer/lib/parseCode';
 
 const componentName = 'Card';
 
-const scaffoldTsx = `import styles from './${componentName}.module.css';
-
-type ${componentName}Props = {
-  className?: string;
-};
-
-export default function ${componentName}({ className }: ${componentName}Props) {
-  return (
-    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
-  );
-}
-`;
-
-// No `min-height: 100vh`: a component root is embedded, not a full
-// page, so it must not carry the page-root viewport floor.
-// see docs/notes/component-min-height-floor.md
-const scaffoldCss = `.root {
-  width: 100%;
-  position: relative;
-}
-`;
+// The scaffold itself, not a copy of it — so this test can't drift from
+// what `createComponent` and `scamp_get_component_scaffold` hand out.
+const scaffoldTsx = defaultComponentTsx(componentName);
+const scaffoldCss = DEFAULT_COMPONENT_CSS;
 
 describe('component scaffold round-trip', () => {
   it('the createComponent scaffold reproduces itself through parseCode → generateCode', () => {

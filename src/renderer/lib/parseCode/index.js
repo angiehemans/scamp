@@ -4,7 +4,7 @@ import { DEFAULT_RECT_STYLES } from '../defaults';
 import { requireAt, requireGroup } from "../safeAccess";
 import { applyDeclarations, applyDeclarationsAsOverride, applyDeclarationsAsStateOverride, makeBaseline, makeRoot } from "./apply";
 import { parseCssDeclarations } from "./css";
-import { parseTsxStructure, parsePropsDestructure, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
+import { parseTsxStructure, parsePropsDestructure, parseScampMeta, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
 import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID } from "@shared/types";
 /**
@@ -368,6 +368,7 @@ export const parseCode = (tsx, css, options) => {
     // drop the `{slotName}` fragment (it re-emits from `slot` on generate).
     // see docs/plans/component-slots-plan.md
     const slotNames = parseSlotNames(tsx);
+    const viewMeta = parseScampMeta(tsx);
     if (slotNames.size > 0) {
         for (const id of Object.keys(elements)) {
             const el = elements[id];
@@ -411,5 +412,6 @@ export const parseCode = (tsx, css, options) => {
         cssDuplicates,
         ...(migrated ? { migrated: true } : {}),
         ...(duplicateIdRepairs.length > 0 ? { duplicateIdRepairs } : {}),
+        ...(viewMeta ? { viewMeta } : {}),
     };
 };

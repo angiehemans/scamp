@@ -7,6 +7,8 @@ import { DEFAULT_BREAKPOINTS, DEFAULT_PROJECT_CONFIG, DESKTOP_BREAKPOINT_ID, MAX
  * see docs/plans/framework-phase-1-plan.md
  */
 export const SUPPORTED_CONTRACT = { min: 0, max: 0 };
+/** The contract version the generator writes into every `_scamp` export. */
+export const WRITTEN_CONTRACT = SUPPORTED_CONTRACT.max;
 export const isSupportedContract = (contract) => typeof contract === 'number' &&
     Number.isInteger(contract) &&
     contract >= SUPPORTED_CONTRACT.min &&

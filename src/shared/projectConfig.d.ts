@@ -10,6 +10,8 @@ export declare const SUPPORTED_CONTRACT: {
     readonly min: 0;
     readonly max: 0;
 };
+/** The contract version the generator writes into every `_scamp` export. */
+export declare const WRITTEN_CONTRACT: number;
 export declare const isSupportedContract: (contract: unknown) => contract is number;
 /** Clamp a raw canvasWidth candidate to the supported range. */
 export declare const clampCanvasWidth: (value: unknown) => number;

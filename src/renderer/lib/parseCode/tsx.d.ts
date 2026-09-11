@@ -78,5 +78,17 @@ export declare const parseSlotNames: (tsx: string) => Set<string>;
  * `text` field after its JSX-expression body resolves to a known
  * prop name.
  */
+/** The `_scamp` export a component or view ends with. */
+export type ScampViewMeta = {
+    contract: number;
+    events: string[];
+};
+/**
+ * Read the `_scamp` export (contract version + event-prop names). Null
+ * when the file has none — every page, and components written before
+ * the framework contract. The generator always writes it back, so
+ * nothing here needs preserving. see docs/plans/framework-phase-1-plan.md
+ */
+export declare const parseScampMeta: (tsx: string) => ScampViewMeta | null;
 export declare const parsePropsDestructure: (tsx: string) => Map<string, string>;
 export declare const parseTsxStructure: (rawTsx: string) => RawElement[];

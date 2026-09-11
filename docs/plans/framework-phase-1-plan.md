@@ -1,6 +1,11 @@
 # Framework phase 1 — the app writes contract-0 files
 
-Status: **plan, on branch `feat/framework-phase-1`.** Nothing built.
+Status: **on branch `feat/framework-phase-1`.** Step 0 landed
+(scampjs 0.0.3 publishes the fixture; the drift test is in). Step 1
+landed (the `_scamp` export, `viewMeta` on the parse result, the
+contract banner, `color` on containers; the fixture CSS for Home and
+RoundTag was regenerated from the app and published as scampjs 0.0.4).
+Next: step 2, views.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at
@@ -95,6 +100,12 @@ Files: `src/renderer/lib/generateCode/tsx.ts`,
   parse error does today, with a banner naming the version.
 - Views get the component file shape: props type, `className`
   passthrough, `_scamp`. Pages under `app/` are unchanged.
+- Fixture CSS: the app's emission is canonical for property order and
+  the root's `width: 100%` / `position: relative`, so the fixture's
+  `.module.css` files are regenerated from the app once the TSX
+  round-trips. A view root drops `min-height: 100vh` (the framework's
+  document shell owns full height); `color` on a container was a real
+  round-trip loss and is fixed in the app instead.
 - Exit: `Home.tsx` and `RoundTag.tsx` pass the drift test.
 
 ### Step 2 — views

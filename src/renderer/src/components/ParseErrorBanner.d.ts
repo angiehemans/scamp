@@ -1,6 +1,8 @@
 type Props = {
     /** Name of the page or component whose source failed to parse. */
     targetName: string;
+    /** Replaces the default message when the file parsed but can't be edited. */
+    reason?: string;
     onDismiss: () => void;
 };
 /**
@@ -10,5 +12,5 @@ type Props = {
  * last successfully-parsed state instead of silently blanking. Cleared
  * by re-selecting the target (a clean parse) or by dismissing.
  */
-export declare const ParseErrorBanner: ({ targetName, onDismiss }: Props) => JSX.Element;
+export declare const ParseErrorBanner: ({ targetName, reason, onDismiss }: Props) => JSX.Element;
 export {};

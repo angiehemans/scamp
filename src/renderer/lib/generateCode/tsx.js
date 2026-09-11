@@ -1,4 +1,5 @@
 // generateCode/tsx.ts — split out of generateCode.ts (4.5).
+import { WRITTEN_CONTRACT } from '@shared/projectConfig';
 import { PASSTHROUGH_PROP, rootClassNameAttribute } from "../classNamePassthrough";
 import { ROOT_ELEMENT_ID } from "../element";
 import { sizeDeclarationLines } from "./declarations";
@@ -332,6 +333,17 @@ const tsStringLiteral = (raw) => {
         .replace(/\n/g, '\\n');
     return `"${escaped}"`;
 };
+/**
+ * The `_scamp` export every component and view ends with — the contract
+ * version the file was written for, and the props that are event
+ * handlers (empty until the binding grammar lands; the framework's build
+ * reads it to decide which views need JavaScript).
+ * see docs/plans/framework-phase-1-plan.md
+ */
+const formatScampMeta = (events) => {
+    const list = events.map((name) => `'${name}'`).join(', ');
+    return `export const _scamp = { contract: ${WRITTEN_CONTRACT}, events: [${list}] } as const;`;
+};
 export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isComponent) => {
     const root = elements[rootId];
     const componentName = componentNameFromPage(pageName);
@@ -373,9 +385,11 @@ export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isC
     const signatureArgs = hasProps
         ? `{ ${signatureParts.join(', ')} }: ${propsTypeName}`
         : '';
+    // Components and views end with the `_scamp` export; pages don't.
+    const metaBlock = isComponent ? `\n${formatScampMeta([])}\n` : '';
     if (!root) {
-        return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return null;\n}\n`;
+        return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return null;\n}\n${metaBlock}`;
     }
     const body = renderJsx(root, elements, 2, isComponent);
-    return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return (\n${body}\n  );\n}\n`;
+    return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return (\n${body}\n  );\n}\n${metaBlock}`;
 };

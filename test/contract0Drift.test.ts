@@ -30,8 +30,8 @@ type DriftCase = {
 };
 
 const CASES: ReadonlyArray<DriftCase> = [
-  { folder: 'views', name: 'Home', status: { pendingUntil: 'step 1' } },
-  { folder: 'components', name: 'RoundTag', status: { pendingUntil: 'step 1' } },
+  { folder: 'views', name: 'Home', status: 'pass' },
+  { folder: 'components', name: 'RoundTag', status: 'pass' },
   { folder: 'views', name: 'Lobby', status: { pendingUntil: 'step 3' } },
   { folder: 'components', name: 'LinkCard', status: { pendingUntil: 'step 3' } },
 ];

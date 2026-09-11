@@ -22,6 +22,9 @@ import {
  */
 export const SUPPORTED_CONTRACT = { min: 0, max: 0 } as const;
 
+/** The contract version the generator writes into every `_scamp` export. */
+export const WRITTEN_CONTRACT: number = SUPPORTED_CONTRACT.max;
+
 export const isSupportedContract = (contract: unknown): contract is number =>
   typeof contract === 'number' &&
   Number.isInteger(contract) &&

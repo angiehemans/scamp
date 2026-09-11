@@ -4,6 +4,8 @@ import styles from './ParseErrorBanner.module.css';
 type Props = {
   /** Name of the page or component whose source failed to parse. */
   targetName: string;
+  /** Replaces the default message when the file parsed but can't be edited. */
+  reason?: string;
   onDismiss: () => void;
 };
 
@@ -14,7 +16,7 @@ type Props = {
  * last successfully-parsed state instead of silently blanking. Cleared
  * by re-selecting the target (a clean parse) or by dismissing.
  */
-export const ParseErrorBanner = ({ targetName, onDismiss }: Props): JSX.Element => {
+export const ParseErrorBanner = ({ targetName, reason, onDismiss }: Props): JSX.Element => {
   return (
     <div className={styles.banner} role="alert">
       <div className={styles.content}>
@@ -26,9 +28,10 @@ export const ParseErrorBanner = ({ targetName, onDismiss }: Props): JSX.Element 
             Couldn&rsquo;t parse &ldquo;{targetName}&rdquo;
           </strong>
           <span className={styles.message}>
-            The canvas is showing the last version that loaded cleanly. Fix
-            the file&rsquo;s syntax, then re-select it to continue editing.
-            See the activity log for the error.
+            {reason ??
+              'The canvas is showing the last version that loaded cleanly. Fix ' +
+                'the file\u2019s syntax, then re-select it to continue editing. ' +
+                'See the activity log for the error.'}
           </span>
         </div>
       </div>

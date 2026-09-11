@@ -1,5 +1,6 @@
 import { type KeyframesBlock, type ScampElement } from "../element";
 import { type RawDeclaration } from "./css";
+import { type ScampViewMeta } from "./tsx";
 import { type Breakpoint } from "@shared/types";
 /**
  * Pure function: real TSX + CSS module text → canvas state.
@@ -63,6 +64,8 @@ export type ParsedTree = {
      * collapses them). Future-extensible.
      */
     cssDuplicates: Record<string, ReadonlyArray<string>>;
+    /** The file's `_scamp` export, when it has one (components and views). */
+    viewMeta?: ScampViewMeta;
 };
 export type ParseCodeOptions = {
     /**

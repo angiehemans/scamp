@@ -7,7 +7,9 @@ import { parseCssDeclarations, type ParsedCss, type RawDeclaration } from "./css
 import {
   parseTsxStructure,
   parsePropsDestructure,
+  parseScampMeta,
   parseSlotNames,
+  type ScampViewMeta,
   PROP_REF_TEXT_RE,
 } from "./tsx";
 import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
@@ -73,6 +75,8 @@ export type ParsedTree = {
    * collapses them). Future-extensible.
    */
   cssDuplicates: Record<string, ReadonlyArray<string>>;
+  /** The file's `_scamp` export, when it has one (components and views). */
+  viewMeta?: ScampViewMeta;
 };
 
 
@@ -493,6 +497,7 @@ export const parseCode = (
   // drop the `{slotName}` fragment (it re-emits from `slot` on generate).
   // see docs/plans/component-slots-plan.md
   const slotNames = parseSlotNames(tsx);
+  const viewMeta = parseScampMeta(tsx);
   if (slotNames.size > 0) {
     for (const id of Object.keys(elements)) {
       const el = elements[id];
@@ -533,6 +538,7 @@ export const parseCode = (
     cssDuplicates,
     ...(migrated ? { migrated: true } : {}),
     ...(duplicateIdRepairs.length > 0 ? { duplicateIdRepairs } : {}),
+    ...(viewMeta ? { viewMeta } : {}),
   };
 };
 

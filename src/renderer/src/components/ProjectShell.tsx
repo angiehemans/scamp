@@ -325,6 +325,7 @@ export const ProjectShell = ({
       {parseError && (
         <ParseErrorBanner
           targetName={parseError.targetName}
+          reason={parseError.reason}
           onDismiss={clearParseError}
         />
       )}

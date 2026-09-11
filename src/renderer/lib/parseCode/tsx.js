@@ -99,14 +99,24 @@ const decodeTsStringLiteral = (raw) => raw
     .replace(/\\r/g, '\r')
     .replace(/\\"/g, '"')
     .replace(/\\\\/g, '\\');
+const SCAMP_META_RE = /export\s+const\s+_scamp\s*=\s*\{\s*contract:\s*(\d+)\s*,\s*events:\s*\[([^\]]*)\]\s*\}\s*as\s+const\s*;?/;
 /**
- * Parse the function-signature destructure into a `propName →
- * defaultText` map. Components with no text-props (and pages,
- * which never emit this form) return an empty map. The returned
- * map is the authoritative source for restoring a text element's
- * `text` field after its JSX-expression body resolves to a known
- * prop name.
+ * Read the `_scamp` export (contract version + event-prop names). Null
+ * when the file has none — every page, and components written before
+ * the framework contract. The generator always writes it back, so
+ * nothing here needs preserving. see docs/plans/framework-phase-1-plan.md
  */
+export const parseScampMeta = (tsx) => {
+    const match = SCAMP_META_RE.exec(tsx);
+    if (!match)
+        return null;
+    const contract = Number(match[1]);
+    const events = (match[2] ?? '')
+        .split(',')
+        .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+        .filter((s) => s.length > 0);
+    return { contract, events };
+};
 export const parsePropsDestructure = (tsx) => {
     const out = new Map();
     const block = tsx.match(COMPONENT_PROPS_DESTRUCTURE_RE);

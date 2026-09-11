@@ -1525,6 +1525,8 @@ export default function Card({ className }: CardProps) {
     <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
   );
 }
+
+export const _scamp = { contract: 0, events: [] } as const;
 \`\`\`
 
 \`\`\`css
@@ -1533,6 +1535,11 @@ export default function Card({ className }: CardProps) {
   position: relative;
 }
 \`\`\`
+
+The last statement of every component is the \`_scamp\` export: the
+framework contract version the file was written for, and the names of
+its event-handler props (always \`[]\` today). Scamp writes it on every
+save; copy it exactly, don't invent fields.
 
 Inside, everything works as on a page: the root is \`data-scamp-id="root"\`
 with the \`className\` passthrough shown above, every other element has
@@ -1560,6 +1567,8 @@ export default function Button({ label = "Get started", className }: ButtonProps
     </div>
   );
 }
+
+export const _scamp = { contract: 0, events: [] } as const;
 \`\`\`
 
 Text that should never vary between instances stays a literal.

@@ -380,6 +380,11 @@ export const elementDeclarationLines = (
     if (el.letterSpacing !== undefined) {
       emit('typography', `letter-spacing: ${el.letterSpacing};`);
     }
+  } else if (el.tag !== 'svg' && el.color !== undefined && el.color.length > 0) {
+    // `color` on a container inherits into its text children, so a
+    // hand-written one must round-trip; it used to be parsed and then
+    // silently dropped here. Svg emits its own `color` below.
+    lines.push(`color: ${el.color};`);
   }
 
   // Visibility + opacity — NOT togglable. These always emit

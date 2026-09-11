@@ -14,6 +14,7 @@ export type UseActiveTarget = {
     setActiveComponentState: (next: ActiveComponent | null) => void;
     parseError: {
         targetName: string;
+        reason?: string;
     } | null;
     clearParseError: () => void;
     showMigrationBanner: boolean;

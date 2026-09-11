@@ -185,6 +185,29 @@ const decodeTsStringLiteral = (raw: string): string =>
  * `text` field after its JSX-expression body resolves to a known
  * prop name.
  */
+/** The `_scamp` export a component or view ends with. */
+export type ScampViewMeta = { contract: number; events: string[] };
+
+const SCAMP_META_RE =
+  /export\s+const\s+_scamp\s*=\s*\{\s*contract:\s*(\d+)\s*,\s*events:\s*\[([^\]]*)\]\s*\}\s*as\s+const\s*;?/;
+
+/**
+ * Read the `_scamp` export (contract version + event-prop names). Null
+ * when the file has none — every page, and components written before
+ * the framework contract. The generator always writes it back, so
+ * nothing here needs preserving. see docs/plans/framework-phase-1-plan.md
+ */
+export const parseScampMeta = (tsx: string): ScampViewMeta | null => {
+  const match = SCAMP_META_RE.exec(tsx);
+  if (!match) return null;
+  const contract = Number(match[1]);
+  const events = (match[2] ?? '')
+    .split(',')
+    .map((s) => s.trim().replace(/^['"]|['"]$/g, ''))
+    .filter((s) => s.length > 0);
+  return { contract, events };
+};
+
 export const parsePropsDestructure = (tsx: string): Map<string, string> => {
   const out = new Map<string, string>();
   const block = tsx.match(COMPONENT_PROPS_DESTRUCTURE_RE);

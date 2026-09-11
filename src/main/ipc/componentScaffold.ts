@@ -4,6 +4,8 @@
  * tool and the `component:create` IPC hand out byte-identical files.
  */
 
+import { WRITTEN_CONTRACT } from '@shared/projectConfig';
+
 /**
  * Folder + binding identifier for a Scamp component. Must be
  * PascalCase: the folder name, the TSX filename, the React
@@ -30,6 +32,8 @@ export default function ${componentName}({ className }: ${componentName}Props) {
     <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
   );
 }
+
+export const _scamp = { contract: ${WRITTEN_CONTRACT}, events: [] } as const;
 `;
 
 // No `min-height: 100vh` here, unlike a page root: a component is

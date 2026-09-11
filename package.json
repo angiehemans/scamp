@@ -72,7 +72,7 @@
     "patch-package": "^8.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "scampjs": "^0.0.3",
+    "scampjs": "^0.0.4",
     "typescript": "^5.4.5",
     "vite": "^7.3.1",
     "vitest": "^1.6.0"
