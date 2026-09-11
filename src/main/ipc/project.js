@@ -12,7 +12,7 @@ import { startMcpForProject } from '../mcp/lifecycle';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
-import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponents, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
+import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponentsAndViews, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
 import { createSnapshot } from './snapshotOps';
 export { detectProjectFormat };
@@ -54,7 +54,7 @@ const readProject = async (folderPath) => {
     // sits at the project root alongside `app/`). Legacy projects
     // return an empty list — see `docs/plans/2026-05-17-components.md`
     // for the rationale.
-    const components = format === 'nextjs' ? await readProjectComponents(folderPath) : [];
+    const components = format === 'nextjs' ? await readProjectComponentsAndViews(folderPath) : [];
     return {
         path: folderPath,
         name: basename(folderPath),

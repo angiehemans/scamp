@@ -41,7 +41,8 @@ export const registerComponentIpc = (): void => {
     // see docs/notes/component-scaffold-roundtrip.md
     const { tsxPath, cssPath } = componentPathsFor(
       args.projectPath,
-      args.componentName
+      args.componentName,
+      args.kind ?? 'component'
     );
     const writeId = randomUUID();
     registerPendingWrite(tsxPath, writeId, true);

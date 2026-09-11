@@ -1,13 +1,19 @@
-import type { ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, ProjectFormat } from '@shared/types';
+import type { ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentKind, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ComponentWriteThumbnailResult, ProjectFormat } from '@shared/types';
 /**
  * Path layout for one component. Mirrors `pagePathsFor` in
  * shape — folder + TSX + CSS module, where the folder is the
  * component's canonical identifier.
  */
-export declare const componentPathsFor: (projectPath: string, componentName: string) => {
+export declare const componentPathsFor: (projectPath: string, componentName: string, kind?: ComponentKind) => {
     tsxPath: string;
     cssPath: string;
     componentDir: string;
+};
+/** `app/<slug>/page.tsx` and its CSS module; `home` is the root page. */
+export declare const wrapperPagePathsFor: (projectPath: string, slug: string) => {
+    tsxPath: string;
+    cssPath: string;
+    pageDir: string | null;
 };
 export declare const createComponent: (args: ComponentCreateArgs, format: ProjectFormat) => Promise<ComponentFile>;
 export declare const deleteComponent: (args: ComponentDeleteArgs, format: ProjectFormat) => Promise<void>;

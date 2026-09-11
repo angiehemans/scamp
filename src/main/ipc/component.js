@@ -24,7 +24,7 @@ export const registerComponentIpc = () => {
         // trails the chokidar event) and the chokidar handler
         // reloads on top of any rect the user has just drawn.
         // see docs/notes/component-scaffold-roundtrip.md
-        const { tsxPath, cssPath } = componentPathsFor(args.projectPath, args.componentName);
+        const { tsxPath, cssPath } = componentPathsFor(args.projectPath, args.componentName, args.kind ?? 'component');
         const writeId = randomUUID();
         registerPendingWrite(tsxPath, writeId, true);
         registerPendingWrite(cssPath, writeId, true);

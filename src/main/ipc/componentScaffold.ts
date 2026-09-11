@@ -48,8 +48,12 @@ export const DEFAULT_COMPONENT_CSS = `.root {
 
 /** Project-relative paths for a component, POSIX, for agent-facing output. */
 export const componentRelativePaths = (
-  componentName: string
-): { tsx: string; css: string } => ({
-  tsx: `components/${componentName}/${componentName}.tsx`,
-  css: `components/${componentName}/${componentName}.module.css`,
-});
+  componentName: string,
+  kind: 'component' | 'view' = 'component'
+): { tsx: string; css: string } => {
+  const folder = kind === 'view' ? 'views' : 'components';
+  return {
+    tsx: `${folder}/${componentName}/${componentName}.tsx`,
+    css: `${folder}/${componentName}/${componentName}.module.css`,
+  };
+};

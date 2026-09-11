@@ -1,4 +1,4 @@
-import type { ComponentFile, PageFile, ProjectFormat } from '@shared/types';
+import type { ComponentFile, ComponentKind, PageFile, ProjectFormat } from '@shared/types';
 /**
  * Path on disk where a project's `theme.css` lives. Nextjs projects
  * co-locate it inside `app/` so the root layout can import it and
@@ -15,7 +15,13 @@ export declare const themePathFor: (projectPath: string, format: ProjectFormat) 
  * Legacy-format projects don't have components — callers should
  * skip this and return `[]` instead.
  */
-export declare const readProjectComponents: (folderPath: string) => Promise<ComponentFile[]>;
+export declare const readProjectComponents: (folderPath: string, kind?: ComponentKind) => Promise<ComponentFile[]>;
+/**
+ * Components and views as one list. The two share a namespace (the
+ * store, thumbnails, and props types key by name), so a view whose
+ * name a component already uses is skipped rather than shadowing it.
+ */
+export declare const readProjectComponentsAndViews: (folderPath: string) => Promise<ComponentFile[]>;
 export declare const readProjectLegacy: (folderPath: string) => Promise<PageFile[]>;
 /**
  * Read pages from a Next.js App Router project layout. The root page

@@ -2,6 +2,7 @@
  * Shared types used by main, preload, and renderer.
  * All IPC payloads must have explicit types defined here.
  */
+export const componentKindOf = (file) => file.kind ?? 'component';
 /** Stable id of the desktop breakpoint — treated specially throughout. */
 export const DESKTOP_BREAKPOINT_ID = 'desktop';
 export const DEFAULT_BREAKPOINTS = [

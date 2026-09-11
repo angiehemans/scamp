@@ -22,13 +22,27 @@ export type PageFile = {
  * legacy-format projects — `ProjectData.components` is always
  * an empty array there.
  */
+/**
+ * A view is a component with a page-sized canvas: same file shape
+ * (props type, `className` passthrough, `_scamp` export), same editor,
+ * but it lives under `views/<Name>/`, is never placed on a page as an
+ * instance, and — in a Next.js project — previews through a one-line
+ * wrapper page (`app/<slug>/page.tsx`) that renders it.
+ * see docs/plans/framework-phase-1-plan.md, step 2
+ */
+export type ComponentKind = 'component' | 'view';
 export type ComponentFile = {
     name: string;
+    /** Absent means `'component'` (files written before views existed). */
+    kind?: ComponentKind;
     tsxPath: string;
     cssPath: string;
     tsxContent: string;
     cssContent: string;
 };
+export declare const componentKindOf: (file: {
+    kind?: ComponentKind;
+}) => ComponentKind;
 /**
  * Two on-disk formats are supported:
  * - `legacy`: flat layout — `<page>.tsx` + `<page>.module.css` at the
@@ -488,6 +502,20 @@ export type ComponentCreateArgs = {
     /** PascalCase folder + component name. Caller is responsible for
      *  slugifying user input before sending — main re-validates. */
     componentName: string;
+    /** `'view'` writes to `views/<Name>/`; default `'component'`. */
+    kind?: ComponentKind;
+    /**
+     * Views only. The page slug whose `app/<slug>/page.tsx` becomes the
+     * one-line wrapper that renders the view (`'home'` means
+     * `app/page.tsx`). Null or absent: no wrapper is written.
+     */
+    wrapperSlug?: string | null;
+    /**
+     * Views only, with `wrapperSlug`. Overwrite an existing page at that
+     * slug with the wrapper and delete its CSS module — the "convert page
+     * to view" path. Without it an existing page is left alone.
+     */
+    replacePage?: boolean;
     /**
      * Optional initial TSX content. When omitted, the scaffold's
      * default `<div data-scamp-id="root"/>` template is written.
@@ -506,10 +534,12 @@ export type ComponentCreateArgs = {
 export type ComponentDeleteArgs = {
     projectPath: string;
     componentName: string;
+    kind?: ComponentKind;
 };
 export type ComponentReadArgs = {
     projectPath: string;
     componentName: string;
+    kind?: ComponentKind;
 };
 /**
  * Write a small canvas thumbnail next to the sidebar component

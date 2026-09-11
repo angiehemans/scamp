@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
+import { parseViewWrapper } from '@shared/templates';
 import { AGENT_MD_CONTENT, AGENT_MD_CONTENT_LEGACY, CLAUDE_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_PAGE_CSS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, defaultPageTsx, } from '@shared/agentMd';
 import { decideLayoutMigration } from '@shared/layoutMigration';
 import { backfillThemeDefaults } from '@shared/themeBackfill';
@@ -62,8 +63,8 @@ const readComponent = async (name, tsxPath, cssPath) => {
  * Legacy-format projects don't have components — callers should
  * skip this and return `[]` instead.
  */
-export const readProjectComponents = async (folderPath) => {
-    const componentsDir = join(folderPath, 'components');
+export const readProjectComponents = async (folderPath, kind = 'component') => {
+    const componentsDir = join(folderPath, kind === 'view' ? 'views' : 'components');
     let entries = [];
     try {
         entries = await fs.readdir(componentsDir, { withFileTypes: true });
@@ -81,9 +82,22 @@ export const readProjectComponents = async (folderPath) => {
         const name = entry.name;
         const component = await readComponent(name, join(componentsDir, name, `${name}.tsx`), join(componentsDir, name, `${name}.module.css`));
         if (component)
-            components.push(component);
+            components.push({ ...component, kind });
     }
     return components;
+};
+/**
+ * Components and views as one list. The two share a namespace (the
+ * store, thumbnails, and props types key by name), so a view whose
+ * name a component already uses is skipped rather than shadowing it.
+ */
+export const readProjectComponentsAndViews = async (folderPath) => {
+    const [components, views] = await Promise.all([
+        readProjectComponents(folderPath, 'component'),
+        readProjectComponents(folderPath, 'view'),
+    ]);
+    const taken = new Set(components.map((c) => c.name));
+    return [...components, ...views.filter((v) => !taken.has(v.name))];
 };
 export const readProjectLegacy = async (folderPath) => {
     const entries = await fs.readdir(folderPath);
@@ -112,7 +126,7 @@ export const readProjectNextjs = async (folderPath) => {
     const pages = [];
     // Root / home page
     const homePage = await readPage('home', join(appDir, 'page.tsx'), join(appDir, 'page.module.css'));
-    if (homePage)
+    if (homePage && !isViewWrapper(homePage))
         pages.push(homePage);
     // Nested page folders
     let entries = [];
@@ -126,11 +140,14 @@ export const readProjectNextjs = async (folderPath) => {
         if (!entry.isDirectory())
             continue;
         const page = await readPage(entry.name, join(appDir, entry.name, 'page.tsx'), join(appDir, entry.name, 'page.module.css'));
-        if (page)
+        if (page && !isViewWrapper(page))
             pages.push(page);
     }
     return pages;
 };
+// A view's wrapper page normally has no CSS module and so never reads
+// as a page; a stray one left beside it must not surface either.
+const isViewWrapper = (page) => parseViewWrapper(page.tsxContent) !== null;
 // see docs/notes/components-thumbnails.md — `.scamp/` excluded.
 const NEXTJS_GITIGNORE = `# Dependencies
 node_modules

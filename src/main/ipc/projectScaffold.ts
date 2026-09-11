@@ -1,6 +1,12 @@
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
-import type { ComponentFile, PageFile, ProjectFormat } from '@shared/types';
+import type {
+  ComponentFile,
+  ComponentKind,
+  PageFile,
+  ProjectFormat,
+} from '@shared/types';
+import { parseViewWrapper } from '@shared/templates';
 import {
   AGENT_MD_CONTENT,
   AGENT_MD_CONTENT_LEGACY,
@@ -90,9 +96,10 @@ const readComponent = async (
  * skip this and return `[]` instead.
  */
 export const readProjectComponents = async (
-  folderPath: string
+  folderPath: string,
+  kind: ComponentKind = 'component'
 ): Promise<ComponentFile[]> => {
-  const componentsDir = join(folderPath, 'components');
+  const componentsDir = join(folderPath, kind === 'view' ? 'views' : 'components');
   let entries: { name: string; isDirectory: () => boolean }[] = [];
   try {
     entries = await fs.readdir(componentsDir, { withFileTypes: true });
@@ -111,9 +118,25 @@ export const readProjectComponents = async (
       join(componentsDir, name, `${name}.tsx`),
       join(componentsDir, name, `${name}.module.css`)
     );
-    if (component) components.push(component);
+    if (component) components.push({ ...component, kind });
   }
   return components;
+};
+
+/**
+ * Components and views as one list. The two share a namespace (the
+ * store, thumbnails, and props types key by name), so a view whose
+ * name a component already uses is skipped rather than shadowing it.
+ */
+export const readProjectComponentsAndViews = async (
+  folderPath: string
+): Promise<ComponentFile[]> => {
+  const [components, views] = await Promise.all([
+    readProjectComponents(folderPath, 'component'),
+    readProjectComponents(folderPath, 'view'),
+  ]);
+  const taken = new Set(components.map((c) => c.name));
+  return [...components, ...views.filter((v) => !taken.has(v.name))];
 };
 
 export const readProjectLegacy = async (
@@ -156,7 +179,7 @@ export const readProjectNextjs = async (
     join(appDir, 'page.tsx'),
     join(appDir, 'page.module.css')
   );
-  if (homePage) pages.push(homePage);
+  if (homePage && !isViewWrapper(homePage)) pages.push(homePage);
 
   // Nested page folders
   let entries: { name: string; isDirectory: () => boolean }[] = [];
@@ -172,10 +195,15 @@ export const readProjectNextjs = async (
       join(appDir, entry.name, 'page.tsx'),
       join(appDir, entry.name, 'page.module.css')
     );
-    if (page) pages.push(page);
+    if (page && !isViewWrapper(page)) pages.push(page);
   }
   return pages;
 };
+
+// A view's wrapper page normally has no CSS module and so never reads
+// as a page; a stray one left beside it must not surface either.
+const isViewWrapper = (page: PageFile): boolean =>
+  parseViewWrapper(page.tsxContent) !== null;
 
 // see docs/notes/components-thumbnails.md — `.scamp/` excluded.
 const NEXTJS_GITIGNORE = `# Dependencies

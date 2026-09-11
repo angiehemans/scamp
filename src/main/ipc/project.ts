@@ -27,7 +27,7 @@ import { setCachedProjectFormat } from './projectFormatCache';
 import {
   ensureThemeDefaultsIfNeeded,
   ensureTsConfigIfNeeded,
-  readProjectComponents,
+  readProjectComponentsAndViews,
   readProjectLegacy,
   readProjectNextjs,
   refreshAgentMdIfNeeded,
@@ -82,7 +82,7 @@ const readProject = async (folderPath: string): Promise<ProjectData> => {
   // return an empty list — see `docs/plans/2026-05-17-components.md`
   // for the rationale.
   const components =
-    format === 'nextjs' ? await readProjectComponents(folderPath) : [];
+    format === 'nextjs' ? await readProjectComponentsAndViews(folderPath) : [];
   return {
     path: folderPath,
     name: basename(folderPath),

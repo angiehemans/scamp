@@ -15,7 +15,7 @@ export declare const COMPONENT_NAME_RE: RegExp;
 export declare const defaultComponentTsx: (componentName: string) => string;
 export declare const DEFAULT_COMPONENT_CSS = ".root {\n  width: 100%;\n  position: relative;\n}\n";
 /** Project-relative paths for a component, POSIX, for agent-facing output. */
-export declare const componentRelativePaths: (componentName: string) => {
+export declare const componentRelativePaths: (componentName: string, kind?: "component" | "view") => {
     tsx: string;
     css: string;
 };
