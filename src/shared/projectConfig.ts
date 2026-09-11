@@ -13,6 +13,21 @@ import {
   MIN_COMPONENT_CANVAS_DIM,
 } from './types';
 
+/**
+ * The scampjs contract versions this build of the app can read and write.
+ * Read against `scampjs.contract` in a project's installed
+ * `node_modules/scampjs/package.json` on open; outside the range the app
+ * shows a banner instead of guessing at a shape it doesn't know.
+ * see docs/plans/framework-phase-1-plan.md
+ */
+export const SUPPORTED_CONTRACT = { min: 0, max: 0 } as const;
+
+export const isSupportedContract = (contract: unknown): contract is number =>
+  typeof contract === 'number' &&
+  Number.isInteger(contract) &&
+  contract >= SUPPORTED_CONTRACT.min &&
+  contract <= SUPPORTED_CONTRACT.max;
+
 const isValidColor = (value: unknown): value is string =>
   typeof value === 'string' && value.length > 0 && !/[\n\r\t]/.test(value);
 

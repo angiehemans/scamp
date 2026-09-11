@@ -1,4 +1,16 @@
 import { DEFAULT_BREAKPOINTS, DEFAULT_PROJECT_CONFIG, DESKTOP_BREAKPOINT_ID, MAX_CANVAS_WIDTH, MAX_COMPONENT_CANVAS_DIM, MIN_CANVAS_WIDTH, MIN_COMPONENT_CANVAS_DIM, } from './types';
+/**
+ * The scampjs contract versions this build of the app can read and write.
+ * Read against `scampjs.contract` in a project's installed
+ * `node_modules/scampjs/package.json` on open; outside the range the app
+ * shows a banner instead of guessing at a shape it doesn't know.
+ * see docs/plans/framework-phase-1-plan.md
+ */
+export const SUPPORTED_CONTRACT = { min: 0, max: 0 };
+export const isSupportedContract = (contract) => typeof contract === 'number' &&
+    Number.isInteger(contract) &&
+    contract >= SUPPORTED_CONTRACT.min &&
+    contract <= SUPPORTED_CONTRACT.max;
 const isValidColor = (value) => typeof value === 'string' && value.length > 0 && !/[\n\r\t]/.test(value);
 /** Clamp a raw canvasWidth candidate to the supported range. */
 export const clampCanvasWidth = (value) => {

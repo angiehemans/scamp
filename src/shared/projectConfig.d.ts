@@ -1,4 +1,16 @@
 import type { Breakpoint, ComponentCanvasSize, ProjectConfig } from './types';
+/**
+ * The scampjs contract versions this build of the app can read and write.
+ * Read against `scampjs.contract` in a project's installed
+ * `node_modules/scampjs/package.json` on open; outside the range the app
+ * shows a banner instead of guessing at a shape it doesn't know.
+ * see docs/plans/framework-phase-1-plan.md
+ */
+export declare const SUPPORTED_CONTRACT: {
+    readonly min: 0;
+    readonly max: 0;
+};
+export declare const isSupportedContract: (contract: unknown) => contract is number;
 /** Clamp a raw canvasWidth candidate to the supported range. */
 export declare const clampCanvasWidth: (value: unknown) => number;
 /**
