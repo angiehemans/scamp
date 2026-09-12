@@ -17,4 +17,4 @@ export const basename = (p: string): string => {
  * process normalises separators per-platform.
  */
 export const assetsDirSegment = (format: ProjectFormat): string =>
-  format === 'nextjs' ? 'public/assets' : 'assets';
+  format === 'legacy' ? 'assets' : 'public/assets';

@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
-import { parseViewWrapper } from '@shared/templates';
+import { parseViewWrapper, AGENT_MD_CONTENT_SCAMP, } from '@shared/templates';
 import { AGENT_MD_CONTENT, AGENT_MD_CONTENT_LEGACY, CLAUDE_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_PAGE_CSS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, defaultPageTsx, } from '@shared/agentMd';
 import { decideLayoutMigration } from '@shared/layoutMigration';
 import { backfillThemeDefaults } from '@shared/themeBackfill';
@@ -17,7 +17,9 @@ const componentNameFromPage = (pageName) => pageName
  */
 export const themePathFor = (projectPath, format) => format === 'nextjs'
     ? join(projectPath, 'app', 'theme.css')
-    : join(projectPath, 'theme.css');
+    : format === 'scamp'
+        ? join(projectPath, 'design', 'theme.css')
+        : join(projectPath, 'theme.css');
 /**
  * Read a single page (TSX + CSS pair) from disk, returning null when
  * the pair is incomplete (one half missing) so callers can skip it
@@ -271,7 +273,11 @@ export const refreshLayoutTemplateIfNeeded = async (projectPath) => {
  * event when there's no actual change.
  */
 export const refreshAgentMdIfNeeded = async (projectPath, format) => {
-    const agentTarget = format === 'nextjs' ? AGENT_MD_CONTENT : AGENT_MD_CONTENT_LEGACY;
+    const agentTarget = format === 'nextjs'
+        ? AGENT_MD_CONTENT
+        : format === 'scamp'
+            ? AGENT_MD_CONTENT_SCAMP
+            : AGENT_MD_CONTENT_LEGACY;
     await refreshManagedFile(join(projectPath, 'agent.md'), agentTarget);
     await refreshManagedFile(join(projectPath, 'CLAUDE.md'), CLAUDE_MD_CONTENT);
 };

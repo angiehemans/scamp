@@ -1,3 +1,4 @@
+import type { ProjectFormat } from '@shared/types';
 // @lib/elementToStyle.ts — pure element -> CSSProperties for the canvas
 // renderer. Moved out of ElementRenderer.tsx (4.1) so it is unit-
 // testable. `rootMinHeight` is now a required param (was defaulted to
@@ -128,7 +129,7 @@ export const elementToStyle = (
   parentDirection: FlexDirection | undefined,
   tokens: ReadonlyArray<ThemeToken>,
   projectDir: string | null,
-  projectFormat: 'legacy' | 'nextjs',
+  projectFormat: ProjectFormat,
   // When true, the element is being rendered AS the inner subtree
   // of a component instance — not as the active page's own root.
   // Suppresses the canvas-frame affordances (the root min-height
@@ -472,7 +473,7 @@ export const elementToStyle = (
         const absPath = `${projectDir}/${relPath.slice(2)}`;
         return `url("scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}")`;
       });
-      if (projectFormat === 'nextjs') {
+      if (projectFormat !== 'legacy') {
         next = next.replace(URL_NEXTJS_ASSETS_RE, (_match, absRef: string) => {
           // `/assets/foo.png` lives at `<project>/public/assets/foo.png`.
           const absPath = `${projectDir}/public${absRef}`;

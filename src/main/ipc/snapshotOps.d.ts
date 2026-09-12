@@ -26,13 +26,6 @@ export declare const pruneToLimit: (snapshots: ReadonlyArray<SnapshotMeta>, limi
     kept: SnapshotMeta[];
     removed: SnapshotMeta[];
 };
-/**
- * The absolute paths of every snapshot-relevant file: page `.tsx` +
- * `.module.css` (nextjs: `app/page.*` + `app/<page>/page.*`; legacy: root
- * `*.tsx` + `*.module.css`) plus `components/<Name>/<Name>.*`. A direct
- * byte walk — independent of `parseCode`, so even a malformed file an
- * agent just wrote is captured (the whole point of the safety net).
- */
 export declare const enumerateProjectFiles: (projectPath: string, format: ProjectFormat) => Promise<string[]>;
 /**
  * Snapshot the project's current on-disk state. Never throws — on any

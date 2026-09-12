@@ -63,7 +63,11 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
 
   if (showTheme) {
     const themePath =
-      projectFormat === 'nextjs' ? 'app/theme.css' : 'theme.css';
+      projectFormat === 'nextjs'
+        ? 'app/theme.css'
+        : projectFormat === 'scamp'
+          ? 'design/theme.css'
+          : 'theme.css';
     return (
       <div className={styles.panel}>
         <div className={styles.header}>

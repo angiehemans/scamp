@@ -31,6 +31,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
+import { FrameworkContractBanner } from './FrameworkContractBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
@@ -150,14 +151,15 @@ export const ProjectShell = ({
     // Defined by useComponentManagement below; routed through a ref
     // because the page menu is built before that hook runs.
     onConvertPageToView: (name) => convertPageRef.current?.(name),
-    // Views need the Next.js layout (views/ beside app/); a legacy project
+    // Views need a components/ layout (Next.js or Scamp); a legacy project
     // keeps creating flat pages.
     onCreatePageAsView:
-      project.format === 'nextjs'
+      project.format !== 'legacy'
         ? (slug) => addViewRef.current?.(slug) ?? Promise.resolve()
         : undefined,
   });
   const convertPageRef = useRef<((pageName: string) => void) | null>(null);
+  const [showFrameworkBanner, setShowFrameworkBanner] = useState(true);
   const addViewRef = useRef<((slug: string) => Promise<void>) | null>(null);
 
   // Components sidebar inline-edit / context-menu state + the multi-file
@@ -352,6 +354,12 @@ export const ProjectShell = ({
       <SaveStatusToast />
       {showMigrationBanner && (
         <MigrationBanner onDismiss={handleDismissMigrationBanner} />
+      )}
+      {project.format === 'scamp' && project.framework && showFrameworkBanner && (
+        <FrameworkContractBanner
+          framework={project.framework}
+          onDismiss={() => setShowFrameworkBanner(false)}
+        />
       )}
       {parseError && (
         <ParseErrorBanner

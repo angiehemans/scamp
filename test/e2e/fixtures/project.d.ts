@@ -61,6 +61,12 @@ export type SeedComponent = {
     cssContent?: string;
 };
 export type CreateTestProjectOptions = {
+    /**
+     * Copy an existing project directory instead of scaffolding one. The
+     * other options are ignored; `format` is whatever the copy detects as.
+     * Used to open the scampjs contract fixture.
+     */
+    sourceDir?: string;
     /** Project directory's basename. Defaults to `scamp-e2e`. */
     name?: string;
     /** Project format. Defaults to `'legacy'` for back-compat. */

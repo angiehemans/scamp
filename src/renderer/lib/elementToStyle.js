@@ -442,7 +442,7 @@ inComponentEditor = false) => {
                 const absPath = `${projectDir}/${relPath.slice(2)}`;
                 return `url("scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}")`;
             });
-            if (projectFormat === 'nextjs') {
+            if (projectFormat !== 'legacy') {
                 next = next.replace(URL_NEXTJS_ASSETS_RE, (_match, absRef) => {
                     // `/assets/foo.png` lives at `<project>/public/assets/foo.png`.
                     const absPath = `${projectDir}/public${absRef}`;

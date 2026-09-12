@@ -37,6 +37,7 @@ import {
   themePathFor,
 } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
+import { readFrameworkInfo } from './frameworkVersion';
 import { createSnapshot } from './snapshotOps';
 
 export { detectProjectFormat };
@@ -73,22 +74,27 @@ const chooseFolder = async (): Promise<ChooseFolderResult> => {
 const readProject = async (folderPath: string): Promise<ProjectData> => {
   const format = await detectProjectFormat(folderPath);
   setCachedProjectFormat(folderPath, format);
+  // A scamp-format project has no pages: every page is a view.
   const pages =
-    format === 'nextjs'
-      ? await readProjectNextjs(folderPath)
-      : await readProjectLegacy(folderPath);
+    format === 'scamp'
+      ? []
+      : format === 'nextjs'
+        ? await readProjectNextjs(folderPath)
+        : await readProjectLegacy(folderPath);
   // Components require the Next.js layout (the `components/` folder
   // sits at the project root alongside `app/`). Legacy projects
   // return an empty list — see `docs/plans/2026-05-17-components.md`
   // for the rationale.
   const components =
-    format === 'nextjs' ? await readProjectComponentsAndViews(folderPath) : [];
+    format === 'legacy' ? [] : await readProjectComponentsAndViews(folderPath);
+  const framework = format === 'scamp' ? await readFrameworkInfo(folderPath) : undefined;
   return {
     path: folderPath,
     name: basename(folderPath),
     format,
     pages,
     components,
+    ...(framework ? { framework } : {}),
   };
 };
 
@@ -208,6 +214,9 @@ const migrateProject = async (
   const format = await detectProjectFormat(args.projectPath);
   if (format === 'nextjs') {
     throw new Error('This project is already in Next.js format.');
+  }
+  if (format === 'scamp') {
+    throw new Error('This project is already in Scamp format.');
   }
   const result = await migrateLegacyToNextjs(args.projectPath);
   setCachedProjectFormat(args.projectPath, 'nextjs');

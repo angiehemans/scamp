@@ -1128,6 +1128,20 @@ Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
  * project structure, asset path conventions, and the list of files
  * agents should leave alone.
  */
+const NEXT_LAYOUT_PARAGRAPH = `This project uses the **Next.js App Router** layout — it can be opened
+directly in a Next.js workspace and run with \`next dev\` outside of
+Scamp without any reorganisation.`;
+const SCAMP_LAYOUT_PARAGRAPH = `This project uses the **Scamp framework** layout (\`scampjs\`):
+
+- \`views/<Name>/<Name>.tsx\` + \`.module.css\` — a page's design. Scamp
+  owns and regenerates these.
+- \`components/<Name>/\` — reusable pieces, same file shape.
+- \`routes/\` — YOUR logic: a route file loads data and renders a view.
+  Scamp never reads, lists, or regenerates anything under \`routes/\`.
+- \`design/theme.css\` — the design tokens.
+
+There is no \`app/\` folder and no wrapper pages; a page IS its view.
+\`npm run dev\` runs the framework's dev server (\`scamp dev\`).`;
 export const AGENT_MD_CONTENT = `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
 
 # Scamp Project — Agent Instructions
@@ -1136,9 +1150,7 @@ You are editing files in a Scamp project. Scamp is a local design tool
 that bidirectionally syncs canvas state with real \`.tsx\` + CSS module
 files. Anything you write here is parsed and re-rendered on the canvas.
 
-This project uses the **Next.js App Router** layout — it can be opened
-directly in a Next.js workspace and run with \`next dev\` outside of
-Scamp without any reorganisation.
+${NEXT_LAYOUT_PARAGRAPH}
 
 ## TL;DR
 
@@ -2375,3 +2387,8 @@ Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
 - Do not combine multiple selectors into one rule block.
 - Do not nest \`@media\` inside a class rule.
 `;
+/**
+ * The scamp-format variant: same conventions, framework layout. The
+ * views paragraph's Next-only wrapper-page note is replaced too.
+ */
+export const AGENT_MD_CONTENT_SCAMP = AGENT_MD_CONTENT.replace(NEXT_LAYOUT_PARAGRAPH, SCAMP_LAYOUT_PARAGRAPH).replace(/In this project each view previews through a[\s\S]*?never edit it\./, 'There are no wrapper pages here: a page is its view, and the route that renders it lives in `routes/`, which is yours.');

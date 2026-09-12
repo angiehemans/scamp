@@ -154,7 +154,7 @@ row = null) => {
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
         }
         else if (projectPath &&
-            projectFormat === 'nextjs' &&
+            projectFormat !== 'legacy' &&
             resolvedSrc.startsWith('/')) {
             const absPath = `${projectPath.replace(/\\/g, '/')}/public${resolvedSrc}`;
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
@@ -762,7 +762,7 @@ export const ElementRenderer = ({ elementId, row }) => {
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
         }
         else if (projectPath &&
-            projectFormat === 'nextjs' &&
+            projectFormat !== 'legacy' &&
             resolvedSrc.startsWith('/')) {
             // Nextjs absolute server-root path → `<project>/public/<path>`.
             const absPath = `${projectPath.replace(/\\/g, '/')}/public${resolvedSrc}`;

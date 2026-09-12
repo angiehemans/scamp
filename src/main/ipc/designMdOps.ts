@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
+import type { ProjectFormat } from '@shared/types';
 
 /**
  * DESIGN.md lives in the project ROOT (next to agent.md / CLAUDE.md),
@@ -7,13 +8,21 @@ import { join } from 'path';
  * system. The renderer generates the content (it holds the tokens); the
  * main process just does the file I/O. see docs/plans/design-system-plan.md
  */
-export const designMdPathFor = (projectPath: string): string =>
-  join(projectPath, 'DESIGN.md');
+export const designMdPathFor = (
+  projectPath: string,
+  format: ProjectFormat = 'nextjs'
+): string =>
+  format === 'scamp'
+    ? join(projectPath, 'design', 'DESIGN.md')
+    : join(projectPath, 'DESIGN.md');
 
 /** Read DESIGN.md, or '' if it doesn't exist yet. */
-export const readDesignMdFile = async (projectPath: string): Promise<string> => {
+export const readDesignMdFile = async (
+  projectPath: string,
+  format: ProjectFormat = 'nextjs'
+): Promise<string> => {
   try {
-    return await fs.readFile(designMdPathFor(projectPath), 'utf-8');
+    return await fs.readFile(designMdPathFor(projectPath, format), 'utf-8');
   } catch {
     return '';
   }
@@ -22,7 +31,8 @@ export const readDesignMdFile = async (projectPath: string): Promise<string> => 
 /** Write DESIGN.md, replacing its entire content. */
 export const writeDesignMdFile = async (
   projectPath: string,
-  content: string
+  content: string,
+  format: ProjectFormat = 'nextjs'
 ): Promise<void> => {
-  await fs.writeFile(designMdPathFor(projectPath), content, 'utf-8');
+  await fs.writeFile(designMdPathFor(projectPath, format), content, 'utf-8');
 };

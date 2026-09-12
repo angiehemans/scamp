@@ -140,6 +140,10 @@ export const useComponentManagement = ({
    * the log says how to get a preview (convert the page instead).
    */
   const wrapperSlugFor = (viewName: string): string | null => {
+    // Only a Next.js project needs a wrapper page; in a scamp-format
+    // project the route that renders a view lives in routes/, which is
+    // the user's.
+    if (project.format !== 'nextjs') return null;
     const slug = viewSlugFor(viewName);
     const taken = project.pages.some((p) => p.name === slug);
     if (taken) {

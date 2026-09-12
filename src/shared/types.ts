@@ -60,7 +60,15 @@ export const componentKindOf = (file: { kind?: ComponentKind }): ComponentKind =
  * created in nextjs format. Migration from legacy → nextjs is opt-in
  * via a banner.
  */
-export type ProjectFormat = 'legacy' | 'nextjs';
+export type ProjectFormat = 'legacy' | 'nextjs' | 'scamp';
+
+/** A scamp-format project's installed framework, read on open. */
+export type FrameworkInfo = {
+  /** `node_modules/scampjs` version, or null when not installed. */
+  installedVersion: string | null;
+  /** The contract that install implements, or null when not installed. */
+  contract: number | null;
+};
 
 export type ProjectData = {
   path: string;
@@ -74,6 +82,8 @@ export type ProjectData = {
    * App Router layout).
    */
   components: ComponentFile[];
+  /** Present for `scamp`-format projects. see docs/plans/framework-phase-1-plan.md */
+  framework?: FrameworkInfo;
 };
 
 export type RecentProject = {

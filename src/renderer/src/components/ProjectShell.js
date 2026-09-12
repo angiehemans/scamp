@@ -31,6 +31,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
+import { FrameworkContractBanner } from './FrameworkContractBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
 import { ProjectSettingsPage } from './ProjectSettingsPage';
@@ -87,13 +88,14 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         // Defined by useComponentManagement below; routed through a ref
         // because the page menu is built before that hook runs.
         onConvertPageToView: (name) => convertPageRef.current?.(name),
-        // Views need the Next.js layout (views/ beside app/); a legacy project
+        // Views need a components/ layout (Next.js or Scamp); a legacy project
         // keeps creating flat pages.
-        onCreatePageAsView: project.format === 'nextjs'
+        onCreatePageAsView: project.format !== 'legacy'
             ? (slug) => addViewRef.current?.(slug) ?? Promise.resolve()
             : undefined,
     });
     const convertPageRef = useRef(null);
+    const [showFrameworkBanner, setShowFrameworkBanner] = useState(true);
     const addViewRef = useRef(null);
     // Components sidebar inline-edit / context-menu state + the multi-file
     // add / rename / delete handlers.
@@ -229,7 +231,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
     useSvgAssetReload();
     const { exportHtml, status: exportStatus, message: exportMessage, location: exportLocation, } = useHtmlExport(project.path, project.name);
-    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview, onExportHtml: exportHtml, exportStatus: exportStatus, exportMessage: exportMessage, exportLocation: exportLocation }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, reason: parseError.reason, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview, onExportHtml: exportHtml, exportStatus: exportStatus, exportMessage: exportMessage, exportLocation: exportLocation }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'scamp' && project.framework && showFrameworkBanner && (_jsx(FrameworkContractBanner, { framework: project.framework, onDismiss: () => setShowFrameworkBanner(false) })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, reason: parseError.reason, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.

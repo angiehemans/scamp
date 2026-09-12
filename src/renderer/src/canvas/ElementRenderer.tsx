@@ -30,7 +30,9 @@ import { instanceStretchStyle } from '@lib/instanceStretch';
 import { resolveElementAtBreakpoint } from '@lib/breakpointCascade';
 import { resolveElementAtState } from '@lib/stateCascade';
 import { formatAnimationShorthand } from '@lib/parsers';
-import type { ThemeToken } from '@shared/types';
+import type { ThemeToken,
+  ProjectFormat,
+} from '@shared/types';
 import { sanitizeSvgInner } from '../lib/svg';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
@@ -72,7 +74,7 @@ const renderComponentSubtree = (
   propOverrides: Record<string, string>,
   tokens: ReadonlyArray<ThemeToken>,
   projectDir: string | null,
-  projectFormat: 'legacy' | 'nextjs',
+  projectFormat: ProjectFormat,
   projectPath: string | null,
   /**
    * Threaded through every recursive call so the wrapper that
@@ -213,7 +215,7 @@ const renderComponentSubtree = (
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
     } else if (
       projectPath &&
-      projectFormat === 'nextjs' &&
+      projectFormat !== 'legacy' &&
       resolvedSrc.startsWith('/')
     ) {
       const absPath = `${projectPath.replace(/\\/g, '/')}/public${resolvedSrc}`;
@@ -963,7 +965,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
     } else if (
       projectPath &&
-      projectFormat === 'nextjs' &&
+      projectFormat !== 'legacy' &&
       resolvedSrc.startsWith('/')
     ) {
       // Nextjs absolute server-root path → `<project>/public/<path>`.

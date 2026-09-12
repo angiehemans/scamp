@@ -39,14 +39,21 @@ export const createTestProject = async (options = {}) => {
     const extraPages = opts.extraPages ?? [];
     const components = opts.components ?? [];
     const pageContent = opts.pageContent ?? {};
+    const copied = opts.sourceDir !== undefined;
     if (format === 'legacy' && components.length > 0) {
         throw new Error('createTestProject: legacy projects don\'t support components. Use format: "nextjs".');
     }
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-e2e-'));
     const dir = path.join(root, name);
     await fs.mkdir(dir, { recursive: false });
+    if (opts.sourceDir !== undefined) {
+        await fs.cp(opts.sourceDir, dir, { recursive: true });
+    }
     const pageName = 'home';
-    if (format === 'legacy') {
+    if (copied) {
+        // A copied project brings its own files; nothing to scaffold.
+    }
+    else if (format === 'legacy') {
         await fs.writeFile(path.join(dir, 'agent.md'), AGENT_MD_CONTENT_LEGACY, 'utf-8');
         await writePage(dir, pageName);
         for (const extra of extraPages) {

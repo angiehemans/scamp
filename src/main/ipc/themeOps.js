@@ -10,7 +10,9 @@ import { join } from 'path';
  */
 export const themePathFor = (projectPath, format) => format === 'nextjs'
     ? join(projectPath, 'app', 'theme.css')
-    : join(projectPath, 'theme.css');
+    : format === 'scamp'
+        ? join(projectPath, 'design', 'theme.css')
+        : join(projectPath, 'theme.css');
 /**
  * Read the project's theme.css. Returns the file content as a string,
  * or an empty string if the file doesn't exist.

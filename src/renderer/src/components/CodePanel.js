@@ -45,7 +45,11 @@ export const CodePanel = ({ showTheme = false }) => {
     const tsxRanges = useMemo(() => (selectedClass === null ? [] : findTsxLines(tsx, selectedClass)), [tsx, selectedClass]);
     const cssRanges = useMemo(() => (selectedClass === null ? [] : findCssBlocks(css, selectedClass)), [css, selectedClass]);
     if (showTheme) {
-        const themePath = projectFormat === 'nextjs' ? 'app/theme.css' : 'theme.css';
+        const themePath = projectFormat === 'nextjs'
+            ? 'app/theme.css'
+            : projectFormat === 'scamp'
+                ? 'design/theme.css'
+                : 'theme.css';
         return (_jsxs("div", { className: styles.panel, children: [_jsxs("div", { className: styles.header, children: [_jsx("span", { className: styles.title, children: "Code" }), _jsx("span", { className: styles.spacer }), _jsx(Tooltip, { label: "Hide code panel", children: _jsx("button", { className: styles.closeButton, onClick: () => setBottomPanel('none'), type: "button", children: "\u00D7" }) })] }), _jsx("div", { className: styles.split, children: _jsxs("div", { className: styles.pane, children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: themePath }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(CodeMirror, { value: themeCssRaw, height: "100%", theme: editorTheme, extensions: [CSS_LANG, READ_ONLY], basicSetup: {
                                         lineNumbers: true,
                                         foldGutter: false,

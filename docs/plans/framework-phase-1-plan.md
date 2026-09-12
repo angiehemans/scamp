@@ -28,7 +28,17 @@ sample row, and drop a hidden one; the parity fixture
 `binding-repeat-and-show` proves it against a browser.
 Step 5 landed: the Data tab's Repeat, Show, Attributes, and Events
 sections, the right-click items that start a repeat or a show, and the
-`bindings` store slice. Next: step 6, project format and compatibility.
+`bindings` store slice.
+Step 6 landed: `ProjectFormat` gains `'scamp'` (detected from `views/`
+plus a `scampjs` dependency, ahead of the Next.js test); a scamp project
+reads with no pages, its theme and DESIGN.md under `design/`, assets
+under `public/`, snapshots of views, components, design, and every
+route file, and a scamp-flavoured `agent.md`. On open the installed
+`scampjs` version and contract are read from `node_modules` and a banner
+reports a missing install or a contract outside `SUPPORTED_CONTRACT`.
+Preview stays disabled with a notice until contract 1. The published
+contract fixture opens, renders the Lobby's bindings, and is left
+byte-identical. Next: step 7, agents.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

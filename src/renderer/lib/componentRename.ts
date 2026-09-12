@@ -1,7 +1,7 @@
 import { generateCode } from './generateCode';
 import { parseCode } from './parseCode';
 import type { ScampElement } from './element';
-import type { Breakpoint } from '@shared/types';
+import type { Breakpoint, ProjectFormat } from '@shared/types';
 
 // Pure rewrite helpers for component rename.
 // see docs/notes/components-multi-file-ops.md
@@ -41,7 +41,7 @@ export const rewritePageForComponentRename = (
   oldName: string,
   newName: string,
   pageName: string,
-  format: 'legacy' | 'nextjs',
+  format: ProjectFormat,
   options?: RewriteOptions
 ): { tsx: string; css: string; changed: boolean } => {
   const parsed = parseCode(tsx, css, { breakpoints: options?.breakpoints });

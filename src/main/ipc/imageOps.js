@@ -8,16 +8,16 @@ import { bufferToWebpIfSmaller, toWebpIfSmaller } from './imageOptimize';
  *   - nextjs: `<project>/public/assets/` (Next.js serves `public/`
  *     at the URL root, so the runtime reference is `/assets/<file>`)
  */
-export const assetsDirFor = (projectPath, format) => format === 'nextjs'
-    ? join(projectPath, 'public', 'assets')
-    : join(projectPath, 'assets');
+export const assetsDirFor = (projectPath, format) => format === 'legacy'
+    ? join(projectPath, 'assets')
+    : join(projectPath, 'public', 'assets');
 /**
  * The runtime reference path that lands on `el.src` / in CSS
  * `url(...)` declarations. Legacy uses a relative-to-project path so
  * exported HTML works when opened directly; nextjs uses an absolute
  * server-root path because Next.js serves `public/` at `/`.
  */
-const referencePathFor = (fileName, format) => format === 'nextjs' ? `/assets/${fileName}` : `./assets/${fileName}`;
+const referencePathFor = (fileName, format) => format === 'legacy' ? `./assets/${fileName}` : `/assets/${fileName}`;
 /** `fs.stat`, or null when the path doesn't exist. */
 const statOrNull = async (path) => {
     try {

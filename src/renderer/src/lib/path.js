@@ -13,4 +13,4 @@ export const basename = (p) => {
  * opens in the right folder. Always uses forward slashes — the main
  * process normalises separators per-platform.
  */
-export const assetsDirSegment = (format) => format === 'nextjs' ? 'public/assets' : 'assets';
+export const assetsDirSegment = (format) => format === 'legacy' ? 'assets' : 'public/assets';

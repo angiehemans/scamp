@@ -1,4 +1,4 @@
-const isProjectFormat = (v) => v === 'legacy' || v === 'nextjs';
+const isProjectFormat = (v) => v === 'legacy' || v === 'nextjs' || v === 'scamp';
 /**
  * Coerce one raw JSON entry from `recentProjects.json` into a typed
  * `RecentProject`. Entries written before the `format` field existed

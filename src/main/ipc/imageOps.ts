@@ -18,9 +18,9 @@ export const assetsDirFor = (
   projectPath: string,
   format: ProjectFormat
 ): string =>
-  format === 'nextjs'
-    ? join(projectPath, 'public', 'assets')
-    : join(projectPath, 'assets');
+  format === 'legacy'
+    ? join(projectPath, 'assets')
+    : join(projectPath, 'public', 'assets');
 
 /**
  * The runtime reference path that lands on `el.src` / in CSS
@@ -32,7 +32,7 @@ const referencePathFor = (
   fileName: string,
   format: ProjectFormat
 ): string =>
-  format === 'nextjs' ? `/assets/${fileName}` : `./assets/${fileName}`;
+  format === 'legacy' ? `./assets/${fileName}` : `/assets/${fileName}`;
 
 /** `fs.stat`, or null when the path doesn't exist. */
 const statOrNull = async (path: string): Promise<Stats | null> => {

@@ -6,17 +6,19 @@ import { join } from 'path';
  * system. The renderer generates the content (it holds the tokens); the
  * main process just does the file I/O. see docs/plans/design-system-plan.md
  */
-export const designMdPathFor = (projectPath) => join(projectPath, 'DESIGN.md');
+export const designMdPathFor = (projectPath, format = 'nextjs') => format === 'scamp'
+    ? join(projectPath, 'design', 'DESIGN.md')
+    : join(projectPath, 'DESIGN.md');
 /** Read DESIGN.md, or '' if it doesn't exist yet. */
-export const readDesignMdFile = async (projectPath) => {
+export const readDesignMdFile = async (projectPath, format = 'nextjs') => {
     try {
-        return await fs.readFile(designMdPathFor(projectPath), 'utf-8');
+        return await fs.readFile(designMdPathFor(projectPath, format), 'utf-8');
     }
     catch {
         return '';
     }
 };
 /** Write DESIGN.md, replacing its entire content. */
-export const writeDesignMdFile = async (projectPath, content) => {
-    await fs.writeFile(designMdPathFor(projectPath), content, 'utf-8');
+export const writeDesignMdFile = async (projectPath, content, format = 'nextjs') => {
+    await fs.writeFile(designMdPathFor(projectPath, format), content, 'utf-8');
 };

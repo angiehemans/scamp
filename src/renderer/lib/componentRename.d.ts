@@ -1,4 +1,4 @@
-import type { Breakpoint } from '@shared/types';
+import type { Breakpoint, ProjectFormat } from '@shared/types';
 type RewriteOptions = {
     breakpoints?: ReadonlyArray<Breakpoint>;
 };
@@ -8,7 +8,7 @@ export declare const rewriteComponentForRename: (tsx: string, css: string, _oldN
     css: string;
 };
 /** Rewrite a page TSX/CSS to use newName for matching instances. `changed: false` → skip the disk write. */
-export declare const rewritePageForComponentRename: (tsx: string, css: string, oldName: string, newName: string, pageName: string, format: "legacy" | "nextjs", options?: RewriteOptions) => {
+export declare const rewritePageForComponentRename: (tsx: string, css: string, oldName: string, newName: string, pageName: string, format: ProjectFormat, options?: RewriteOptions) => {
     tsx: string;
     css: string;
     changed: boolean;

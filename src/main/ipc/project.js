@@ -14,6 +14,7 @@ import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
 import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponentsAndViews, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
+import { readFrameworkInfo } from './frameworkVersion';
 import { createSnapshot } from './snapshotOps';
 export { detectProjectFormat };
 export { scaffoldLegacyProject, scaffoldNextjsProject };
@@ -47,20 +48,25 @@ const chooseFolder = async () => {
 const readProject = async (folderPath) => {
     const format = await detectProjectFormat(folderPath);
     setCachedProjectFormat(folderPath, format);
-    const pages = format === 'nextjs'
-        ? await readProjectNextjs(folderPath)
-        : await readProjectLegacy(folderPath);
+    // A scamp-format project has no pages: every page is a view.
+    const pages = format === 'scamp'
+        ? []
+        : format === 'nextjs'
+            ? await readProjectNextjs(folderPath)
+            : await readProjectLegacy(folderPath);
     // Components require the Next.js layout (the `components/` folder
     // sits at the project root alongside `app/`). Legacy projects
     // return an empty list — see `docs/plans/2026-05-17-components.md`
     // for the rationale.
-    const components = format === 'nextjs' ? await readProjectComponentsAndViews(folderPath) : [];
+    const components = format === 'legacy' ? [] : await readProjectComponentsAndViews(folderPath);
+    const framework = format === 'scamp' ? await readFrameworkInfo(folderPath) : undefined;
     return {
         path: folderPath,
         name: basename(folderPath),
         format,
         pages,
         components,
+        ...(framework ? { framework } : {}),
     };
 };
 const createProject = async (args) => {
@@ -171,6 +177,9 @@ const migrateProject = async (args) => {
     const format = await detectProjectFormat(args.projectPath);
     if (format === 'nextjs') {
         throw new Error('This project is already in Next.js format.');
+    }
+    if (format === 'scamp') {
+        throw new Error('This project is already in Scamp format.');
     }
     const result = await migrateLegacyToNextjs(args.projectPath);
     setCachedProjectFormat(args.projectPath, 'nextjs');

@@ -106,13 +106,51 @@ const exists = async (p) => {
  * byte walk — independent of `parseCode`, so even a malformed file an
  * agent just wrote is captured (the whole point of the safety net).
  */
+/** Every file under `dir`, recursively; nothing when it doesn't exist. */
+const addTree = async (dir, out) => {
+    let entries = [];
+    try {
+        entries = await fs.readdir(dir, { withFileTypes: true });
+    }
+    catch {
+        return;
+    }
+    for (const e of entries) {
+        const p = join(dir, e.name);
+        if (e.isDirectory())
+            await addTree(p, out);
+        else
+            out.push(p);
+    }
+};
 export const enumerateProjectFiles = async (projectPath, format) => {
     const out = [];
     const add = async (p) => {
         if (await exists(p))
             out.push(p);
     };
-    if (format === 'nextjs') {
+    if (format === 'scamp') {
+        await add(join(projectPath, 'design', 'theme.css'));
+        await add(join(projectPath, 'design', 'DESIGN.md'));
+        // Views share the components layout below; routes are the user's
+        // logic and go in whole.
+        await addTree(join(projectPath, 'routes'), out);
+        const viewsDir = join(projectPath, 'views');
+        let views = [];
+        try {
+            views = await fs.readdir(viewsDir, { withFileTypes: true });
+        }
+        catch {
+            // no views yet
+        }
+        for (const v of views) {
+            if (!v.isDirectory())
+                continue;
+            await add(join(viewsDir, v.name, `${v.name}.tsx`));
+            await add(join(viewsDir, v.name, `${v.name}.module.css`));
+        }
+    }
+    else if (format === 'nextjs') {
         const appDir = join(projectPath, 'app');
         await add(join(appDir, 'page.tsx'));
         await add(join(appDir, 'page.module.css'));

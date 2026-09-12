@@ -6,7 +6,9 @@ import type {
   PageFile,
   ProjectFormat,
 } from '@shared/types';
-import { parseViewWrapper } from '@shared/templates';
+import { parseViewWrapper,
+  AGENT_MD_CONTENT_SCAMP,
+} from '@shared/templates';
 import {
   AGENT_MD_CONTENT,
   AGENT_MD_CONTENT_LEGACY,
@@ -40,7 +42,9 @@ export const themePathFor = (
 ): string =>
   format === 'nextjs'
     ? join(projectPath, 'app', 'theme.css')
-    : join(projectPath, 'theme.css');
+    : format === 'scamp'
+      ? join(projectPath, 'design', 'theme.css')
+      : join(projectPath, 'theme.css');
 
 /**
  * Read a single page (TSX + CSS pair) from disk, returning null when
@@ -382,7 +386,11 @@ export const refreshAgentMdIfNeeded = async (
   format: ProjectFormat
 ): Promise<void> => {
   const agentTarget =
-    format === 'nextjs' ? AGENT_MD_CONTENT : AGENT_MD_CONTENT_LEGACY;
+    format === 'nextjs'
+      ? AGENT_MD_CONTENT
+      : format === 'scamp'
+        ? AGENT_MD_CONTENT_SCAMP
+        : AGENT_MD_CONTENT_LEGACY;
   await refreshManagedFile(join(projectPath, 'agent.md'), agentTarget);
   await refreshManagedFile(
     join(projectPath, 'CLAUDE.md'),

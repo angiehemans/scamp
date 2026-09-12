@@ -78,6 +78,9 @@ export const createPage = async (
       `Invalid page name "${args.pageName}". Use alphanumeric and hyphens only.`
     );
   }
+  if (format === 'scamp') {
+    throw new Error('A Scamp-format project has no pages; add a view instead.');
+  }
   if (format === 'nextjs' && args.pageName === 'home') {
     throw new Error(`A page named "home" already exists.`);
   }

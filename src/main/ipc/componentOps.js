@@ -42,8 +42,8 @@ const pathExists = async (p) => {
  * components sidebar handles the surfacing.
  */
 const assertNextjs = (format) => {
-    if (format !== 'nextjs') {
-        throw new Error('Components are only supported in Next.js-format projects.');
+    if (format === 'legacy') {
+        throw new Error('Components are only supported in Next.js- or Scamp-format projects.');
     }
 };
 /** `app/<slug>/page.tsx` and its CSS module; `home` is the root page. */

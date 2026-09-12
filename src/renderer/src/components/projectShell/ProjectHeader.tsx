@@ -86,7 +86,9 @@ export const ProjectHeader = ({
             ? 'Open this project in a real browser preview window (⌘P)'
             : projectFormat === 'legacy'
               ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
-              : 'Open a page to enable preview.'
+              : projectFormat === 'scamp'
+                ? 'Previews for this project need scampjs contract 1 (scamp dev), which isn\'t released yet.'
+                : 'Open a page to enable preview.'
         }
       >
         <button

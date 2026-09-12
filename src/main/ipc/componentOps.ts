@@ -71,8 +71,8 @@ const pathExists = async (p: string): Promise<boolean> => {
  * components sidebar handles the surfacing.
  */
 const assertNextjs = (format: ProjectFormat): void => {
-  if (format !== 'nextjs') {
-    throw new Error('Components are only supported in Next.js-format projects.');
+  if (format === 'legacy') {
+    throw new Error('Components are only supported in Next.js- or Scamp-format projects.');
   }
 };
 
