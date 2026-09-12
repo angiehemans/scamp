@@ -2,7 +2,7 @@ import { type RefObject } from 'react';
 import { viewSlugFor } from '@shared/templates';
 
 import type { ProjectConfig } from '@shared/types';
-import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
+import { componentCanvasSizeFor } from '@shared/types';
 import { resolveClip } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useSnapshotsStore } from '@store/snapshotsSlice';
@@ -183,14 +183,12 @@ export const CanvasArea = ({
           <Viewport
             canvasWidth={
               activeComponent !== null
-                ? (projectConfig.componentCanvas?.[activeComponent.name]
-                    ?.width ?? DEFAULT_COMPONENT_CANVAS_SIZE.width)
+                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).width
                 : projectConfig.canvasWidth
             }
             canvasHeight={
               activeComponent !== null
-                ? (projectConfig.componentCanvas?.[activeComponent.name]
-                    ?.height ?? DEFAULT_COMPONENT_CANVAS_SIZE.height)
+                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
                 : pageHeightIsFixed
                   ? projectConfig.canvasHeight
                   : undefined

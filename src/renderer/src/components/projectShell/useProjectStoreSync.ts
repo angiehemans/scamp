@@ -2,10 +2,7 @@ import { useEffect } from 'react';
 
 import type { ProjectConfig, ProjectData } from '@shared/types';
 import { componentKindOf } from '@shared/types';
-import {
-  DEFAULT_COMPONENT_CANVAS_SIZE,
-  DEFAULT_VIEW_CANVAS_HEIGHT,
-} from '@shared/types';
+import { componentCanvasSizeFor } from '@shared/types';
 import { useCanvasStore, type ComponentTree } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
 import type { ScampElement } from '@lib/element';
@@ -95,10 +92,7 @@ export const useProjectStoreSync = ({
   useEffect(() => {
     const next =
       activeComponent !== null
-        ? (projectConfig.componentCanvas?.[activeComponent.name]?.height ??
-            (activeComponent.kind === 'view'
-              ? DEFAULT_VIEW_CANVAS_HEIGHT
-              : DEFAULT_COMPONENT_CANVAS_SIZE.height))
+        ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
         : 900;
     useCanvasStore.getState().setCanvasMinHeight(next);
   }, [activeComponent, projectConfig.componentCanvas]);

@@ -38,3 +38,13 @@ export const DEFAULT_COMPONENT_CANVAS_SIZE = {
     width: 480,
     height: 320,
 };
+/**
+ * The artboard size for a component or view: the saved size, else the
+ * kind's default — a view is a page's design and starts at the page
+ * canvas width. The one place every reader of `componentCanvas` goes
+ * through, so the size control, the viewport, and the canvas floor agree.
+ */
+export const componentCanvasSizeFor = (config, name, kind) => config.componentCanvas?.[name] ??
+    (kind === 'view'
+        ? { width: config.canvasWidth, height: DEFAULT_VIEW_CANVAS_HEIGHT }
+        : DEFAULT_COMPONENT_CANVAS_SIZE);

@@ -319,6 +319,13 @@ export declare const MAX_COMPONENT_CANVAS_DIM = 4000;
 /** A view's artboard height until resized; the width is the page canvas width. */
 export declare const DEFAULT_VIEW_CANVAS_HEIGHT = 900;
 export declare const DEFAULT_COMPONENT_CANVAS_SIZE: ComponentCanvasSize;
+/**
+ * The artboard size for a component or view: the saved size, else the
+ * kind's default — a view is a page's design and starts at the page
+ * canvas width. The one place every reader of `componentCanvas` goes
+ * through, so the size control, the viewport, and the canvas floor agree.
+ */
+export declare const componentCanvasSizeFor: (config: Pick<ProjectConfig, "componentCanvas" | "canvasWidth">, name: string, kind: ComponentKind) => ComponentCanvasSize;
 export type ProjectConfigReadArgs = {
     projectPath: string;
 };

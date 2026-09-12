@@ -3,8 +3,7 @@ import type { Breakpoint, ProjectConfig,
   ComponentKind,
 } from '@shared/types';
 import {
-  DEFAULT_COMPONENT_CANVAS_SIZE,
-  DEFAULT_VIEW_CANVAS_HEIGHT,
+  componentCanvasSizeFor,
   DESKTOP_BREAKPOINT_ID,
   MAX_CANVAS_WIDTH,
   MAX_COMPONENT_CANVAS_DIM,
@@ -140,12 +139,8 @@ export const CanvasSizeControl = ({
   // with content), so we compute the current size with a
   // fallback to DEFAULT_COMPONENT_CANVAS_SIZE for components the
   // user hasn't resized yet.
-  const defaultComponentSize =
-    componentKind === 'view'
-      ? { width: config.canvasWidth, height: DEFAULT_VIEW_CANVAS_HEIGHT }
-      : DEFAULT_COMPONENT_CANVAS_SIZE;
   const componentSize = componentName
-    ? config.componentCanvas?.[componentName] ?? defaultComponentSize
+    ? componentCanvasSizeFor(config, componentName, componentKind ?? 'component')
     : null;
   const clampComponentDim = (n: number): number =>
     Math.round(

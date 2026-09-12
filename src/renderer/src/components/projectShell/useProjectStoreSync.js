@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { componentKindOf } from '@shared/types';
-import { DEFAULT_COMPONENT_CANVAS_SIZE, DEFAULT_VIEW_CANVAS_HEIGHT, } from '@shared/types';
+import { componentCanvasSizeFor } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
 /**
@@ -68,10 +68,7 @@ export const useProjectStoreSync = ({ project, projectConfig, activeComponent, }
     // size, and clicks on "empty" canvas area still hit the root.
     useEffect(() => {
         const next = activeComponent !== null
-            ? (projectConfig.componentCanvas?.[activeComponent.name]?.height ??
-                (activeComponent.kind === 'view'
-                    ? DEFAULT_VIEW_CANVAS_HEIGHT
-                    : DEFAULT_COMPONENT_CANVAS_SIZE.height))
+            ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
             : 900;
         useCanvasStore.getState().setCanvasMinHeight(next);
     }, [activeComponent, projectConfig.componentCanvas]);

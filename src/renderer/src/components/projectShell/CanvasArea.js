@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { viewSlugFor } from '@shared/templates';
-import { DEFAULT_COMPONENT_CANVAS_SIZE } from '@shared/types';
+import { componentCanvasSizeFor } from '@shared/types';
 import { resolveClip } from '@shared/projectConfig';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useSnapshotsStore } from '@store/snapshotsSlice';
@@ -50,11 +50,9 @@ export const CanvasArea = ({ activeComponent, activePageName, projectConfig, art
                                         : activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(ThemeSwitcher, {}), _jsx(CanvasSizeControl, { config: projectConfig, onChange: onProjectConfigChange, componentName: activeComponent !== null
                                         ? activeComponent.name
                                         : undefined, componentKind: activeComponent?.kind })] }), _jsx(Viewport, { canvasWidth: activeComponent !== null
-                                ? (projectConfig.componentCanvas?.[activeComponent.name]
-                                    ?.width ?? DEFAULT_COMPONENT_CANVAS_SIZE.width)
+                                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).width
                                 : projectConfig.canvasWidth, canvasHeight: activeComponent !== null
-                                ? (projectConfig.componentCanvas?.[activeComponent.name]
-                                    ?.height ?? DEFAULT_COMPONENT_CANVAS_SIZE.height)
+                                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
                                 : pageHeightIsFixed
                                     ? projectConfig.canvasHeight
                                     : undefined, heightIsFixed: pageHeightIsFixed, clipContent: clipContent, scrollContainerRef: artboardScrollRef, 
