@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { preserveDrawnSize, shrinkGuardPatch } from '@lib/flexChild';
+import { dropDrawnOffset, preserveDrawnSize, shrinkGuardPatch } from '@lib/flexChild';
 import { DEFAULT_RECT_STYLES } from '@lib/defaults';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 const element = (over = {}) => ({
@@ -95,5 +95,21 @@ describe('shrinkGuardPatch — px on the main axis means don’t shrink', () => 
     it('is a no-op when the guard is already in the right state', () => {
         expect(shrinkGuardPatch(element({ flexShrink: 0 }), parentWith('flex'), 'width', 'fixed')).toEqual({});
         expect(shrinkGuardPatch(element(), parentWith('flex'), 'width', 'stretch')).toEqual({});
+    });
+});
+describe('dropDrawnOffset', () => {
+    const drawn = () => ({ ...element(), x: 406, y: 416 });
+    it('zeroes x and y under a flex, grid, or instance parent', () => {
+        expect(dropDrawnOffset(drawn(), parentWith('flex'))).toMatchObject({ x: 0, y: 0 });
+        expect(dropDrawnOffset(drawn(), parentWith('grid'))).toMatchObject({ x: 0, y: 0 });
+        expect(dropDrawnOffset(drawn(), { display: 'none', type: 'component-instance' })).toMatchObject({ x: 0, y: 0 });
+    });
+    it('keeps the drawn point under a block parent or no parent', () => {
+        expect(dropDrawnOffset(drawn(), parentWith('none'))).toMatchObject({ x: 406, y: 416 });
+        expect(dropDrawnOffset(drawn(), undefined)).toMatchObject({ x: 406, y: 416 });
+    });
+    it('returns the same object when nothing changes', () => {
+        const el = { ...element(), x: 0, y: 0 };
+        expect(dropDrawnOffset(el, parentWith('flex'))).toBe(el);
     });
 });

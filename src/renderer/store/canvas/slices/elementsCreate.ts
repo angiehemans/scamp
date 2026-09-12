@@ -16,7 +16,7 @@ import {
   type PropertyGroup,
   type ScampElement,
 } from '@lib/element';
-import { preserveDrawnSize } from '@lib/flexChild';
+import { dropDrawnOffset, preserveDrawnSize } from '@lib/flexChild';
 import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore, type HistoryCommitInput } from '../../historySlice';
 import { PRESETS_BY_NAME, isPresetName } from '@lib/animationPresets';
@@ -118,7 +118,7 @@ export const createElementsCreateSlice: StateCreator<
           // canvas (which renders the model) and the browser (which
           // renders the file) disagree about a box that has not been
           // saved yet. see docs/plans/flex-sizing-contract-plan.md
-          [id]: preserveDrawnSize(withTag, parent),
+          [id]: dropDrawnOffset(preserveDrawnSize(withTag, parent), parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -140,7 +140,7 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: withTag,
+          [id]: dropDrawnOffset(withTag, parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -160,7 +160,7 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: preserveDrawnSize(newImage, parent),
+          [id]: dropDrawnOffset(preserveDrawnSize(newImage, parent), parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],
@@ -206,7 +206,7 @@ export const createElementsCreateSlice: StateCreator<
       return {
         elements: {
           ...state.elements,
-          [id]: preserveDrawnSize(newInput, parent),
+          [id]: dropDrawnOffset(preserveDrawnSize(newInput, parent), parent),
           [input.parentId]: { ...parent, childIds: [...parent.childIds, id] },
         },
         selectedElementIds: [id],

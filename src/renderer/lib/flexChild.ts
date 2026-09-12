@@ -31,6 +31,26 @@ import { isColumnDirection } from './flexAxis';
  * A non-default `flexShrink` is never overwritten — if it is there, either
  * the user or the file it was parsed from meant it.
  */
+/**
+ * A flex or grid parent (or a component instance, whose slot lays out
+ * like one) places its children; the point the user drew at is not a
+ * position. Zero it, or the numbers come back later as `left` / `top`
+ * offsets — the first absolute child gives a flex child a positioning
+ * context, and the generator writes the stored x/y with it, so a box
+ * drawn at (406, 416) jumped by that much the moment a text was placed
+ * inside it. see docs/notes/parse-position-absolute-in-flex.md
+ */
+export const dropDrawnOffset = (
+  element: ScampElement,
+  parent: Pick<ScampElement, 'display' | 'type'> | undefined
+): ScampElement => {
+  const placedByParent =
+    parent !== undefined &&
+    (parent.display === 'flex' || parent.display === 'grid' || parent.type === 'component-instance');
+  if (!placedByParent || (element.x === 0 && element.y === 0)) return element;
+  return { ...element, x: 0, y: 0 };
+};
+
 export const preserveDrawnSize = (
   element: ScampElement,
   parent: ScampElement | undefined
