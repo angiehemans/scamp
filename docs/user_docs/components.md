@@ -18,11 +18,16 @@ my-project/
 │   ├── page.tsx
 │   └── about/
 │       └── page.tsx
-└── components/
-    └── Card/
-        ├── Card.tsx
-        └── Card.module.css
+├── components/
+│   └── Card/
+│       ├── Card.tsx
+│       └── Card.module.css
+└── views/
+    └── About/
 ```
+
+A [view](views.md) is a page's design in the same two-file shape. Views
+list under Pages, not Components.
 
 The component's name becomes the folder name, the TSX filename, the
 React function name, and the JSX tag used to instantiate it on a page.
@@ -134,6 +139,11 @@ decide whether each one is dynamic (becomes a React prop) or locked
 The default for new text elements added to a component is **Prop**.
 Switch individual text rows to **Locked** when the text should never
 vary between instances, such as footer copyright lines and fixed labels.
+
+Below Text and Slots, the Data tab has sections for **Repeat**,
+**Show**, **Attributes**, and **Events**, which bind a list, a flag, an
+attribute, or a handler to a prop. They work the same in a component as
+in a view. See [Bind data in the Data tab](views.md#bind-data-in-the-data-tab).
 
 ## Place an instance on a page
 
@@ -315,3 +325,7 @@ and instance counts, never a generic message.
   that page. The component definition is untouched.
 - An AI agent can edit `components/[Name]/[Name].tsx` directly, like a
   page file. The canvas reloads as expected.
+- Every component file ends with an `export const _scamp` line that
+  records the file format version and the component's event props.
+  Scamp writes it on every save. See
+  [Views and components](code-output.md#views-and-components).

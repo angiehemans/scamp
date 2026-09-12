@@ -16,6 +16,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Flex layout](flex-layout.md)—Flex containers (direction, wrap, alignment, and gaps) and flex-child controls (grow, shrink, basis, align self, and order)
 - [Grid layout](grid-layout.md)—CSS Grid containers, columns, rows, and grid-item placement
 - [Components](components.md)—Reusable components across pages, the component editor, the Data tab, and per-instance text overrides
+- [Views](views.md)—A page's design as a component-shaped file, data bindings in the Data tab, and Scamp framework projects
 - [Element states](element-states.md)—Hover, active, and focus styles through the state switcher
 - [Transitions](transitions.md)—Smooth state changes through the Transitions section
 - [Animations](animations.md)—Preset keyframe animations with full timing controls

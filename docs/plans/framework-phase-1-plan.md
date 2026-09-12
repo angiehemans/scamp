@@ -46,7 +46,11 @@ byte-identical.
   real replacement, and the MCP server answers `scamp_get_view_props`
   (name or route slug) with the exact props type, kinds, events, and
   samples. No separate `scamp_list_views`: views already list under
-  `scamp_list_pages` with `kind: "view"`. Next: step 8, docs.
+  `scamp_list_pages` with `kind: "view"`.
+- Step 8 landed: `docs/user_docs/views.md`, the views and bindings
+  additions to `components.md`, `code-output.md`, `preview.md`, and
+  the index, and an Unreleased changelog entry to rename at release.
+  Phase 1 is complete pending manual testing.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

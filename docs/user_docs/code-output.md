@@ -9,6 +9,9 @@ Each page produces two files:
 - `pagename.tsx`: A React component with JSX markup.
 - `pagename.module.css`: A CSS Module with scoped class names.
 
+A page whose design is a [view](views.md) keeps the same two files
+under `views/[Name]/`, and the page file becomes a one-line wrapper.
+
 ### TSX structure
 
 ```tsx
@@ -77,6 +80,72 @@ CSS module, widest first:
 
 Unknown `@media` queries, such as `min-width` and `prefers-color-scheme`,
 are preserved exactly as written after the known breakpoint blocks.
+
+## Views and components
+
+A [view](views.md) or a [component](components.md) is a function with
+a props type, and its file ends with a `_scamp` export:
+
+```tsx
+import styles from './Lobby.module.css';
+
+type LobbyProps = {
+  code?: string;
+  players?: Array<{ id: string; label: string }>;
+  waiting?: boolean;
+  onStart?: () => void;
+  className?: string;
+};
+
+export default function Lobby({
+  code = "KZQ4",
+  players = [
+    { id: "1", label: "Player 1 · Alex" },
+    { id: "2", label: "Player 2 · Bea" },
+  ],
+  waiting = true,
+  onStart,
+  className,
+}: LobbyProps) {
+  return (
+    <div data-scamp-id="root" className={`${styles.root} ${className ?? ''}`}>
+      <h2 data-scamp-id="code_e1d2" className={styles.code_e1d2}>{code}</h2>
+      {players.map((player) => (
+        <p data-scamp-id="row_e1e4" className={styles.row_e1e4} key={player.id}>{player.label}</p>
+      ))}
+      {waiting && (
+        <p data-scamp-id="note_e1f5" className={styles.note_e1f5}>Waiting for everyone to join</p>
+      )}
+      <button data-scamp-id="start_e1f9" className={styles.start_e1f9} type="button" onClick={onStart}>Start the game</button>
+    </div>
+  );
+}
+
+export const _scamp = { contract: 0, events: ['onStart'] } as const;
+```
+
+- Every prop is optional, and the default in the destructure is the
+  sample value from the Data tab. The file renders on its own with no
+  data.
+- Props are declared in the order they appear in the design, then event
+  handlers, then slots, then `className`.
+- The `_scamp` export records the file format version (the contract)
+  and the event props in order. Scamp writes it on every save.
+
+Each binding from the Data tab has one form in the file, and Scamp
+reads only these forms back:
+
+| Binding | In the file |
+|---|---|
+| Text | `{code}` in place of the literal |
+| Attribute | `href={url}`; a boolean attribute is `disabled={canStart}` or `disabled={!canStart}` |
+| Event | `onClick={onStart}`; inside a repeat, `onClick={() => onCopy?.(player.id)}` |
+| Repeat | `{players.map((player) => (` … `))}` around one element, which carries `key={player.id}` |
+| Show | `{waiting && (` … `)}` around one element |
+
+Inside a repeat, `{player.label}` and `href={player.url}` read the
+row. Any other expression in an attribute is kept as written but isn't
+editable on the canvas.
 
 ## Live code preview
 

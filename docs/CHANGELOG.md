@@ -22,19 +22,46 @@ release time.
 
 ## Releases
 
-### 0.7.2 (2026-09-15)
+### Unreleased
+
+**Added**
+
+- **Views: a page's design as a component-shaped file.** A view lives
+  at `views/[Name]/` with a props type and sample data, and lists under
+  **Pages** by its route slug. **+ Add Page** creates a view, and
+  **Convert to view…** on a page's menu moves an existing page's
+  elements across, leaving a one-line wrapper at the same route. See
+  [Views](user_docs/views.md).
+- **Data bindings in the Data tab.** Bind a list to an element with
+  **Repeat this…**, a flag with **Show only when…**, and any attribute
+  or event handler to a prop. The literal on the canvas becomes the
+  prop's sample value and its default in the file, so a view renders on
+  its own. Each binding has one canonical form in the file, and
+  hand-written files in that form round-trip. See
+  [Views and components](user_docs/code-output.md#views-and-components).
+- **Scamp framework projects open in Scamp.** A project with a
+  `views/` folder and a `scampjs` dependency opens with tokens under
+  `design/`, no wrapper pages, and `routes/` left entirely to you. A
+  banner says when `scampjs` isn't installed or implements a file
+  format this version can't read.
+- **Agents learn views.** `agent.md` gains a data bindings section, and
+  the MCP server's new `scamp_get_view_props` tool returns a view's
+  exact props type and sample data, so an agent writing the route
+  passes the right shape.
+- **The `_scamp` export.** Every component and view file now ends with
+  `export const _scamp`, which records the file format version and the
+  event props. Scamp writes it on every save.
 
 **Fixed**
 
-- **Adding text to a box in a flex or grid container no longer shifts
-  the box.** A box drawn into a layout container kept the coordinates it
-  was drawn at, and a box drawn before its parent became a flex or grid
-  container kept its old position. The moment a text was placed inside,
-  those leftover numbers were written as `left` and `top` on the box's
-  positioning context, and it jumped by that much. New boxes under a
-  layout parent now start at zero, and the generated CSS always writes
-  `left: 0px; top: 0px` for a positioning context, so the layout owns
-  the position and every save is stable.
+- **Text added inside a flex child no longer shifts the child.** A box
+  drawn into a flex or grid container kept its drawn offset, which
+  became a stale `left` and `top` once it held an absolutely positioned
+  text. New boxes under a layout parent start at zero, and the
+  generated CSS writes `left: 0px; top: 0px` for the positioning
+  context.
+- **A view's artboard matches the size the toolbar shows.** A view
+  opens at the project's page width instead of the component default.
 
 ### 0.7.1 (2026-09-10)
 
@@ -451,6 +478,10 @@ Everything Scamp does today. Each entry links to its user documentation.
 - Slots for page-owned content, and per-instance text overrides.
 - Detach an instance back into plain elements.
   [Components](user_docs/components.md)
+- Views: a page's design in the component file shape, listed under
+  Pages, with repeat, show, attribute, and event bindings in the Data
+  tab.
+  [Views](user_docs/views.md)
 
 ### Design system
 
@@ -474,12 +505,13 @@ Everything Scamp does today. Each entry links to its user documentation.
   [Code output](user_docs/code-output.md)
 - Bidirectional sync: edit the files externally, and the canvas reloads.
   [Bidirectional sync](user_docs/bidirectional-sync.md)
-- Next.js and legacy project formats.
-  [Get started](user_docs/getting-started.md)
+- Next.js, Scamp framework, and legacy project formats.
+  [Views](user_docs/views.md#scamp-framework-projects)
 
 ### Work with AI agents
 
-- An MCP server that exposes the live canvas to coding agents.
+- An MCP server that exposes the live canvas to coding agents,
+  including each view's props type and sample data.
 - A live context file on disk for file-reading agents.
 - **Copy context for agent** for pasting into a chat or terminal.
   [Work with AI agents](user_docs/ai-agents.md)
