@@ -2,6 +2,7 @@
 import { WRITTEN_CONTRACT } from '@shared/projectConfig';
 import { PASSTHROUGH_PROP, rootClassNameAttribute } from "../classNamePassthrough";
 import { ROOT_ELEMENT_ID } from "../element";
+import { collectViewProps, isRowPath, viewEventNames } from "../viewProps";
 import { sizeDeclarationLines } from "./declarations";
 import { classNameFor, escapeHtml, tagFor } from "./internal";
 const componentNameFromPage = (pageName) => {
@@ -42,8 +43,32 @@ const VOID_TAGS = new Set([
 const formatAttribute = (name, value) => {
     if (value === '')
         return name;
+    // A value the parser kept as a verbatim JSX expression (`{expr}`) goes
+    // back out unquoted, as it was written.
+    if (value.startsWith('{') && value.endsWith('}'))
+        return `${name}=${value}`;
     return `${name}="${escapeHtml(value)}"`;
 };
+/**
+ * The bound and event attributes of an element, in binding order:
+ * `attr={prop}`, `attr={!prop}`, `attr={row.field}`, `onX={handler}`, and
+ * inside a repeat `onX={() => handler?.(row.key)}`.
+ * see docs/notes/view-bindings.md
+ */
+const bindingAttributes = (el, repeatRow) => {
+    const out = [];
+    for (const [attr, expr] of Object.entries(el.bind ?? {})) {
+        out.push(`${attr}={${expr}}`);
+    }
+    for (const [event, handler] of Object.entries(el.on ?? {})) {
+        out.push(repeatRow !== null && !isRowPath(handler)
+            ? `${event}={() => ${handler}?.(${repeatRow.as}.${repeatRow.key})}`
+            : `${event}={${handler}}`);
+    }
+    return out;
+};
+/** The key field of a repeat: the declared one, else `id`. */
+const repeatKeyFor = (el) => el.repeat?.key ?? 'id';
 /**
  * Render the `<option>` children of a `<select>` element. Each option
  * is emitted on its own line, indented one level past the select.
@@ -63,7 +88,27 @@ const renderSelectOptions = (options, level) => options
  * Self-closes when the element has no children and (for text elements)
  * no text content.
  */
-const renderJsx = (el, elements, level, isComponent) => {
+/**
+ * Render one element with its show and repeat wrappers. The wrapped
+ * element sits one level deeper per wrapper; the openers and closers
+ * sit at the element's own level, on their own lines. Show wraps repeat.
+ */
+const renderJsx = (el, elements, level, isComponent, repeatRow = null) => {
+    const wrappers = (el.showIf !== undefined ? 1 : 0) + (el.repeat !== undefined ? 1 : 0);
+    const row = el.repeat !== undefined ? { as: el.repeat.as, key: repeatKeyFor(el) } : repeatRow;
+    let out = renderElement(el, elements, level + wrappers, isComponent, row);
+    let lvl = level + wrappers;
+    if (el.repeat !== undefined) {
+        lvl -= 1;
+        out = `${indent(lvl)}{${el.repeat.over}.map((${el.repeat.as}) => (\n${out}\n${indent(lvl)}))}`;
+    }
+    if (el.showIf !== undefined) {
+        lvl -= 1;
+        out = `${indent(lvl)}{${el.showIf} && (\n${out}\n${indent(lvl)})}`;
+    }
+    return out;
+};
+const renderElement = (el, elements, level, isComponent, repeatRow) => {
     // Component instances render as their own PascalCase JSX tag,
     // self-closing, carrying `data-scamp-instance-id` + one
     // attribute per prop override. They never have classNames, page
@@ -82,10 +127,19 @@ const renderJsx = (el, elements, level, isComponent) => {
         if (sizeDeclarationLines(el).length > 0) {
             attrs.push(`className={styles.${classNameFor(el)}}`);
         }
+        // A repeated instance carries the row key; bound props emit as
+        // expressions in place of their literal override.
+        if (el.repeat !== undefined && repeatRow !== null) {
+            attrs.push(`key={${repeatRow.as}.${repeatRow.key}}`);
+        }
+        const bound = el.bind ?? {};
         const overrides = el.propOverrides ?? {};
         for (const [propName, value] of Object.entries(overrides)) {
+            if (propName in bound)
+                continue;
             attrs.push(`${propName}="${escapeHtml(value)}"`);
         }
+        attrs.push(...bindingAttributes(el, repeatRow));
         // Group slot content: the default (`children`) slot emits as JSX
         // children of the tag; named slots emit as `slotName={<…>}` props
         // (a `<>…</>` fragment when more than one element fills the slot).
@@ -110,7 +164,7 @@ const renderJsx = (el, elements, level, isComponent) => {
         }
         for (const [name, children] of namedSlots) {
             const inner = children
-                .map((c) => renderJsx(c, elements, level + 1, isComponent))
+                .map((c) => renderJsx(c, elements, level + 1, isComponent, repeatRow))
                 .join('\n');
             const value = children.length === 1
                 ? inner.trim()
@@ -122,7 +176,7 @@ const renderJsx = (el, elements, level, isComponent) => {
             return `${indent(level)}${openTag} />`;
         }
         const childLines = defaultChildren
-            .map((child) => renderJsx(child, elements, level + 1, isComponent))
+            .map((child) => renderJsx(child, elements, level + 1, isComponent, repeatRow))
             .filter((line) => line.length > 0)
             .join('\n');
         return `${indent(level)}${openTag}>\n${childLines}\n${indent(level)}</${tagName}>`;
@@ -148,12 +202,21 @@ const renderJsx = (el, elements, level, isComponent) => {
         baseAttrs.push(`alt="${escapeHtml(el.alt ?? '')}"`);
     }
     // Generic attribute bag. Iteration order matches insertion order so
-    // round-trips stay text-stable.
+    // round-trips stay text-stable. A bound attribute's literal is its
+    // sample and is skipped here; the binding emits after the literals.
+    const bound = el.bind ?? {};
     if (el.attributes) {
         for (const [name, value] of Object.entries(el.attributes)) {
+            if (name in bound)
+                continue;
             baseAttrs.push(formatAttribute(name, value));
         }
     }
+    // A repeated element carries the row key.
+    if (el.repeat !== undefined && repeatRow !== null) {
+        baseAttrs.push(`key={${repeatRow.as}.${repeatRow.key}}`);
+    }
+    baseAttrs.push(...bindingAttributes(el, repeatRow));
     const open = `<${tag} ${baseAttrs.join(' ')}`;
     // Self-closing void tags (img, input, br, …). No children, no text,
     // no inner source possible.
@@ -230,7 +293,7 @@ const renderJsx = (el, elements, level, isComponent) => {
     el.childIds.forEach((childId, i) => {
         const child = elements[childId];
         if (child) {
-            const line = renderJsx(child, elements, level + 1, isComponent);
+            const line = renderJsx(child, elements, level + 1, isComponent, repeatRow);
             if (line.length > 0)
                 segments.push(line);
         }
@@ -265,60 +328,6 @@ const collectComponentImports = (elements) => {
     return [...names].sort();
 };
 /**
- * Walk the element tree from `rootId` collecting every text
- * descendant with a `prop` set. Returns one entry per unique prop
- * name in document order (depth-first), with the originating text
- * element's `text` as the default value. Multiple text elements
- * with the same prop name share one declaration — first one wins
- * for the default. The Data tab validates uniqueness on input so
- * this collision shouldn't happen in practice; this is just a
- * defensive guarantee against malformed states surviving an edit.
- */
-const collectTextProps = (elements, rootId) => {
-    const seen = new Set();
-    const out = [];
-    const walk = (id) => {
-        const el = elements[id];
-        if (!el)
-            return;
-        if (el.type === 'text' &&
-            typeof el.prop === 'string' &&
-            el.prop.length > 0 &&
-            !seen.has(el.prop)) {
-            seen.add(el.prop);
-            out.push({ name: el.prop, defaultText: el.text ?? '' });
-        }
-        for (const childId of el.childIds)
-            walk(childId);
-    };
-    walk(rootId);
-    return out;
-};
-/**
- * Walk the element tree from `rootId` collecting every slot name declared
- * on a container rectangle (`el.slot`). One entry per unique name in
- * document order. Each becomes a `name?: React.ReactNode` prop.
- */
-const collectSlots = (elements, rootId) => {
-    const seen = new Set();
-    const out = [];
-    const walk = (id) => {
-        const el = elements[id];
-        if (!el)
-            return;
-        if (typeof el.slot === 'string' &&
-            el.slot.length > 0 &&
-            !seen.has(el.slot)) {
-            seen.add(el.slot);
-            out.push(el.slot);
-        }
-        for (const childId of el.childIds)
-            walk(childId);
-    };
-    walk(rootId);
-    return out;
-};
-/**
  * Format one string for a TypeScript default-value position
  * (function destructure). We use double-quoted form and escape
  * the minimal characters that would break it. Multi-line text is
@@ -333,12 +342,30 @@ const tsStringLiteral = (raw) => {
         .replace(/\n/g, '\\n');
     return `"${escaped}"`;
 };
+/** One sample row as a TypeScript object literal; numbers unquoted. */
+const formatRow = (row) => {
+    const fields = Object.entries(row).map(([field, value]) => typeof value === 'number' ? `${field}: ${value}` : `${field}: ${tsStringLiteral(value)}`);
+    return `{ ${fields.join(', ')} }`;
+};
+/** The destructure entry for one prop: `name = default`, or a bare name. */
+const formatDestructureEntry = (prop, rowIndent) => {
+    const value = prop.defaultValue;
+    if (value === undefined)
+        return prop.name;
+    if (typeof value === 'boolean')
+        return `${prop.name} = ${value ? 'true' : 'false'}`;
+    if (typeof value === 'string')
+        return `${prop.name} = ${tsStringLiteral(value)}`;
+    if (value.length === 0)
+        return `${prop.name} = []`;
+    const rows = value.map((row) => `${rowIndent}  ${formatRow(row)},`).join('\n');
+    return `${prop.name} = [\n${rows}\n${rowIndent}]`;
+};
 /**
  * The `_scamp` export every component and view ends with — the contract
  * version the file was written for, and the props that are event
- * handlers (empty until the binding grammar lands; the framework's build
- * reads it to decide which views need JavaScript).
- * see docs/plans/framework-phase-1-plan.md
+ * handlers (the framework's build reads it to decide which views need
+ * JavaScript). see docs/notes/view-bindings.md
  */
 const formatScampMeta = (events) => {
     const list = events.map((name) => `'${name}'`).join(', ');
@@ -354,39 +381,36 @@ export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isC
     // user's `next dev` run.
     const componentImports = collectComponentImports(elements).map((name) => `import ${name} from '@/components/${name}/${name}';`);
     const importLines = [stylesImport, ...componentImports].join('\n');
-    // Props emission (component-only). When the component has at
-    // least one text-prop, emit `type [Name]Props = { … }` before
-    // the function and destructure with defaults in the signature.
-    // No props or page → use the existing no-args signature.
-    // Props emission combines text props (`name?: string`, with a default in
-    // the destructure) and slots (`name?: React.ReactNode`, no default). Text
-    // props are listed first, then slots — both in document order — so the
-    // output is stable across saves. see docs/plans/component-slots-plan.md
-    const textProps = isComponent ? collectTextProps(elements, rootId) : [];
-    const slots = isComponent ? collectSlots(elements, rootId) : [];
-    // Every component accepts `className` — unconditionally, because whether
-    // it's needed depends on how some other page uses the component, and a
-    // component's own file must not change when a page sizes an instance.
+    // Props emission (components and views only): the inferred props in
+    // contract order — non-event props in document order, then events,
+    // then slots — and `className` last. Every component accepts
+    // `className` unconditionally, because whether it's needed depends on
+    // how some other page sizes an instance, and a component's own file
+    // must not change when a page does. see docs/notes/view-bindings.md
+    const props = isComponent ? collectViewProps(elements, rootId) : [];
     const hasProps = isComponent;
     const propsTypeName = `${componentName}Props`;
     const typeLines = [
-        ...textProps.map((p) => `  ${p.name}?: string;`),
-        ...slots.map((name) => `  ${name}?: React.ReactNode;`),
+        ...props.map((p) => `  ${p.name}?: ${p.tsType};`),
         ...(isComponent ? [`  ${PASSTHROUGH_PROP}?: string;`] : []),
     ];
     const propsTypeBlock = hasProps
         ? `type ${propsTypeName} = {\n${typeLines.join('\n')}\n};\n\n`
         : '';
-    const signatureParts = [
-        ...textProps.map((p) => `${p.name} = ${tsStringLiteral(p.defaultText)}`),
-        ...slots,
+    // The destructure goes multi-line as soon as a repeat's rows are in
+    // it; otherwise it stays on one line, as components always have.
+    const multiLine = props.some((p) => p.kind === 'repeat');
+    const entries = [
+        ...props.map((p) => formatDestructureEntry(p, multiLine ? '  ' : '')),
         ...(isComponent ? [PASSTHROUGH_PROP] : []),
     ];
-    const signatureArgs = hasProps
-        ? `{ ${signatureParts.join(', ')} }: ${propsTypeName}`
-        : '';
+    const signatureArgs = !hasProps
+        ? ''
+        : multiLine
+            ? `{\n${entries.map((e) => `  ${e},`).join('\n')}\n}: ${propsTypeName}`
+            : `{ ${entries.join(', ')} }: ${propsTypeName}`;
     // Components and views end with the `_scamp` export; pages don't.
-    const metaBlock = isComponent ? `\n${formatScampMeta([])}\n` : '';
+    const metaBlock = isComponent ? `\n${formatScampMeta(viewEventNames(props))}\n` : '';
     if (!root) {
         return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return null;\n}\n${metaBlock}`;
     }

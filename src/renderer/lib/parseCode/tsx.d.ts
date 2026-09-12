@@ -1,4 +1,4 @@
-import { type ElementType, type SelectOption } from "../element";
+import { type ElementType, type RepeatBinding, type SelectOption } from "../element";
 export type RawElement = {
     id: string;
     type: ElementType;
@@ -56,6 +56,10 @@ export type RawElement = {
     instanceId: string | null;
     propOverrides: Record<string, string> | null;
     missingComponent: boolean;
+    bind: Record<string, string> | null;
+    on: Record<string, string> | null;
+    repeat: RepeatBinding | null;
+    showIf: string | null;
 };
 /**
  * Match a JSX-expression-only text body, ignoring surrounding

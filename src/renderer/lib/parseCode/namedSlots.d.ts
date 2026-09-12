@@ -1,5 +1,3 @@
-/** The attribute the hoist injects onto slot-content elements. Read back
- *  into `slotName` after the structural parse, then dropped from the bag. */
 export declare const SLOT_MARKER_ATTR = "data-scamp-slot";
 /**
  * Rewrite every component-instance's named-slot props into

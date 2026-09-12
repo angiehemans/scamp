@@ -205,6 +205,10 @@ export const makeBaseline = (
     // `attributes` field.
     ...(Object.keys(raw.attributes).length > 0 ? { attributes: raw.attributes } : {}),
     ...(raw.svgSource !== null ? { svgSource: raw.svgSource } : {}),
+    ...(raw.bind !== null ? { bind: raw.bind } : {}),
+    ...(raw.on !== null ? { on: raw.on } : {}),
+    ...(raw.repeat !== null ? { repeat: raw.repeat } : {}),
+    ...(raw.showIf !== null ? { showIf: raw.showIf } : {}),
     ...(raw.selectOptions !== null ? { selectOptions: raw.selectOptions } : {}),
     // Component-instance carry-through. Identity lives in
     // `componentName` + `instanceId`; overrides land in

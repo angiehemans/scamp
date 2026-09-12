@@ -14,7 +14,14 @@ reporting `kind: 'view'`; and the agent.md section. There is no
 separate Views section — a view is a page's design, and under the
 framework a page is a view file, a styles file, and a route file. A
 view is a `ComponentFile` with `kind: 'view'`, sharing the component
-plumbing end to end. Next: step 3, the binding grammar.
+plumbing end to end.
+Step 3 landed: the five binding kinds on the model (`bind`, `on`,
+`repeat`, `showIf`, root `samples`), `lib/viewProps.ts` for the inferred
+props type and `_scamp.events`, the generator's canonical forms, and a
+parse pre-pass (`parseCode/bindings.ts`) that makes them readable by
+the HTML tokenizer. All four fixture files pass the drift test byte for
+byte (scampjs 0.0.5 carries the regenerated Lobby and LinkCard CSS).
+Design in `docs/notes/view-bindings.md`. Next: step 4, the canvas.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

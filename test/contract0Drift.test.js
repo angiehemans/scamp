@@ -19,8 +19,8 @@ const FIXTURE_ROOT = resolve(__dirname, '../node_modules/scampjs/fixtures/contra
 const CASES = [
     { folder: 'views', name: 'Home', status: 'pass' },
     { folder: 'components', name: 'RoundTag', status: 'pass' },
-    { folder: 'views', name: 'Lobby', status: { pendingUntil: 'step 3' } },
-    { folder: 'components', name: 'LinkCard', status: { pendingUntil: 'step 3' } },
+    { folder: 'views', name: 'Lobby', status: 'pass' },
+    { folder: 'components', name: 'LinkCard', status: 'pass' },
 ];
 const readFixture = (c) => {
     const dir = resolve(FIXTURE_ROOT, c.folder, c.name);

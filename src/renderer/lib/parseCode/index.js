@@ -1,10 +1,12 @@
 // parseCode/index.ts — split out of parseCode.ts (4.4).
+import { hoistBindings, parsePropsDefaults } from './bindings';
+import { BOOLEAN_ATTRIBUTES, bindPropName, enclosingRepeat, isInvertedBinding, isRowPath, } from '../viewProps';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID } from "../element";
 import { DEFAULT_RECT_STYLES } from '../defaults';
 import { requireAt, requireGroup } from "../safeAccess";
 import { applyDeclarations, applyDeclarationsAsOverride, applyDeclarationsAsStateOverride, makeBaseline, makeRoot } from "./apply";
 import { parseCssDeclarations } from "./css";
-import { parseTsxStructure, parsePropsDestructure, parseScampMeta, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
+import { parseTsxStructure, parseScampMeta, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
 import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID } from "@shared/types";
 /**
@@ -118,7 +120,9 @@ export const parseCode = (tsx, css, options) => {
     // Hoist named-slot props (`<Card left={<…>} />`) into marker-carrying JSX
     // children first — htmlparser2 can't tokenize JSX inside an attribute.
     // A post-pass below lifts the marker into `slotName`.
-    const rawElements = parseTsxStructure(hoistNamedSlots(tsx));
+    // Then the binding forms — `attr={expr}`, the repeat and show wrappers —
+    // which the tokenizer can't read either. see docs/notes/view-bindings.md
+    const rawElements = parseTsxStructure(hoistBindings(hoistNamedSlots(tsx)));
     const parsedCss = parseCssDeclarations(css, breakpoints);
     // Rename resilience: if a TSX className has no matching CSS class (the
     // class was renamed on only one side), fall back to the CSS class sharing
@@ -143,7 +147,7 @@ export const parseCode = (tsx, css, options) => {
     // `[Name]Props` destructure). Used in the post-pass to hydrate
     // each text element whose body resolves to `{propName}` back
     // into a typed `prop` field.
-    const propDefaults = parsePropsDestructure(tsx);
+    const propDefaults = parsePropsDefaults(tsx);
     // Which elements are flex/grid containers, by id. Needed while applying
     // declarations: whether a child's `position: absolute` is information or
     // just Scamp's own auto-emission depends on the parent's display.
@@ -341,26 +345,91 @@ export const parseCode = (tsx, css, options) => {
     // typed `prop` field and restore `text` to the destructure
     // default. Unresolved `{whatever}` expressions stay as literal
     // text so user-/agent-written JSX round-trips byte-stably.
-    if (propDefaults.size > 0) {
-        for (const id of Object.keys(elements)) {
-            const el = elements[id];
-            if (!el || el.type !== 'text')
+    for (const id of Object.keys(elements)) {
+        const el = elements[id];
+        if (!el || el.type !== 'text')
+            continue;
+        const text = el.text;
+        if (typeof text !== 'string')
+            continue;
+        const m = text.match(PROP_REF_TEXT_RE);
+        if (!m)
+            continue;
+        const ref = requireGroup(m, 1);
+        // Inside a repeat, `{row.field}` binds the row; the sample is in the
+        // rows on the root, so the element carries no text of its own.
+        const dot = ref.indexOf('.');
+        if (dot >= 0) {
+            const repeat = enclosingRepeat(elements, id);
+            if (repeat === null || repeat.as !== ref.slice(0, dot))
                 continue;
-            const text = el.text;
-            if (typeof text !== 'string')
-                continue;
-            const m = text.match(PROP_REF_TEXT_RE);
-            if (!m)
-                continue;
-            const propName = requireGroup(m, 1);
-            if (!propDefaults.has(propName))
-                continue;
-            elements[id] = {
-                ...el,
-                prop: propName,
-                text: propDefaults.get(propName) ?? '',
-            };
+            const { text: _dropped, ...rest } = el;
+            elements[id] = { ...rest, prop: ref };
+            continue;
         }
+        const sample = propDefaults.get(ref);
+        if (typeof sample !== 'string')
+            continue;
+        elements[id] = { ...el, prop: ref, text: sample };
+    }
+    // Post-pass: samples. A bound attribute's sample is the destructure
+    // default, written back into the literal's place (presence for a
+    // boolean attribute); a show flag's and a repeat's samples have no
+    // element to live on and go on the root. see docs/notes/view-bindings.md
+    const rootSamples = {};
+    for (const id of Object.keys(elements)) {
+        const el = elements[id];
+        if (!el)
+            continue;
+        if (el.showIf !== undefined && !isRowPath(el.showIf)) {
+            const sample = propDefaults.get(el.showIf);
+            rootSamples[el.showIf] = typeof sample === 'boolean' ? sample : true;
+        }
+        if (el.repeat !== undefined) {
+            const sample = propDefaults.get(el.repeat.over);
+            rootSamples[el.repeat.over] = Array.isArray(sample) ? sample : [];
+        }
+        if (el.bind === undefined)
+            continue;
+        let next = el;
+        for (const [attr, expr] of Object.entries(el.bind)) {
+            const name = bindPropName(expr);
+            if (isRowPath(name))
+                continue;
+            const sample = propDefaults.get(name);
+            if (el.type === 'component-instance') {
+                next = {
+                    ...next,
+                    propOverrides: {
+                        ...(next.propOverrides ?? {}),
+                        [attr]: typeof sample === 'string' ? sample : '',
+                    },
+                };
+                continue;
+            }
+            const attributes = { ...(next.attributes ?? {}) };
+            if (BOOLEAN_ATTRIBUTES.has(attr)) {
+                const flag = typeof sample === 'boolean' ? sample : false;
+                const present = isInvertedBinding(expr) ? !flag : flag;
+                if (present)
+                    attributes[attr] = '';
+                else
+                    delete attributes[attr];
+            }
+            else {
+                attributes[attr] = typeof sample === 'string' ? sample : '';
+            }
+            next =
+                Object.keys(attributes).length > 0
+                    ? { ...next, attributes }
+                    : (({ attributes: _none, ...rest }) => rest)(next);
+        }
+        elements[id] = next;
+    }
+    if (Object.keys(rootSamples).length > 0) {
+        const root = elements[ROOT_ELEMENT_ID];
+        if (root)
+            elements[ROOT_ELEMENT_ID] = { ...root, samples: rootSamples };
     }
     // Post-pass: hydrate component slots. A rectangle whose sole content is a
     // single `{slotName}` expression AND whose name is declared as a

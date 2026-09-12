@@ -32,8 +32,8 @@ type DriftCase = {
 const CASES: ReadonlyArray<DriftCase> = [
   { folder: 'views', name: 'Home', status: 'pass' },
   { folder: 'components', name: 'RoundTag', status: 'pass' },
-  { folder: 'views', name: 'Lobby', status: { pendingUntil: 'step 3' } },
-  { folder: 'components', name: 'LinkCard', status: { pendingUntil: 'step 3' } },
+  { folder: 'views', name: 'Lobby', status: 'pass' },
+  { folder: 'components', name: 'LinkCard', status: 'pass' },
 ];
 
 const readFixture = (c: DriftCase): { tsx: string; css: string } => {

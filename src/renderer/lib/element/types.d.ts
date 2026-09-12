@@ -74,6 +74,18 @@ export type Position = 'auto' | 'static' | 'relative' | 'absolute' | 'fixed' | '
 /** Any CSS numeric font weight (1–1000); validated at the parse boundary. */
 export type FontWeight = number;
 export type TextAlign = 'left' | 'center' | 'right';
+/** One row of a repeat's sample list. */
+export type SampleRow = Record<string, string | number>;
+/** A sample value stored on the view root: a show flag or a repeat's rows. */
+export type SampleValue = string | boolean | SampleRow[];
+export type RepeatBinding = {
+    /** The list prop. */
+    over: string;
+    /** The row variable, e.g. `player`. */
+    as: string;
+    /** The row field used as the React key; `id` when absent and present in the rows. */
+    key?: string;
+};
 export type ElementType = 'rectangle' | 'text' | 'image' | 'input' | 'component-instance';
 /**
  * One non-Scamp inline fragment between (or around) the element
@@ -462,8 +474,31 @@ export type ScampElement = {
      */
     backgroundBlendMode: BlendMode;
     text?: string;
-    /** Component-side prop name (component editor only). see docs/notes/components-data-model.md */
+    /**
+     * Component-side prop name (component editor only), or, inside a
+     * repeat, a row path (`player.label`). see docs/notes/components-data-model.md
+     * and docs/notes/view-bindings.md
+     */
     prop?: string;
+    /**
+     * Attribute bindings: attribute (or, on an instance, prop) name → the
+     * prop it binds to. A boolean attribute inverted is `!name`; inside a
+     * repeat the value may be a row path. The literal in `attributes` /
+     * `propOverrides` is the sample. see docs/notes/view-bindings.md
+     */
+    bind?: Record<string, string>;
+    /** Event bindings: `onClick` → the handler prop name. */
+    on?: Record<string, string>;
+    /** This element renders once per row of the list prop `over`. */
+    repeat?: RepeatBinding;
+    /** This element renders only when the boolean prop is true. */
+    showIf?: string;
+    /**
+     * Root only: the sample values that have no element to live on — the
+     * booleans behind `showIf` and the rows behind `repeat`. Text and
+     * attribute samples stay on their elements. see docs/notes/view-bindings.md
+     */
+    samples?: Record<string, SampleValue>;
     /**
      * Component-side SLOT name on a container rectangle (component editor
      * only). When set, the element emits `{slotName}` and declares a

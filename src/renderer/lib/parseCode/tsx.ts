@@ -1,8 +1,20 @@
 // parseCode/tsx.ts — split out of parseCode.ts (4.4).
 import { normalizeRootClassNamePassthrough } from "../classNamePassthrough";
-import { ROOT_ELEMENT_ID, type ElementType, type SelectOption } from "../element";
+import {
+  ROOT_ELEMENT_ID,
+  type ElementType,
+  type RepeatBinding,
+  type SelectOption,
+} from "../element";
 import { requireAt } from "../safeAccess";
 import { Parser } from "htmlparser2";
+
+import {
+  decodeBinding,
+  REPEAT_TAG,
+  repeatFromAttribs,
+  SHOW_TAG,
+} from './bindings';
 
 export type RawElement = {
   id: string;
@@ -59,6 +71,13 @@ export type RawElement = {
   instanceId: string | null;
   propOverrides: Record<string, string> | null;
   missingComponent: boolean;
+
+  // Bindings (see docs/notes/view-bindings.md). Null when the element
+  // has none of that kind.
+  bind: Record<string, string> | null;
+  on: Record<string, string> | null;
+  repeat: RepeatBinding | null;
+  showIf: string | null;
 };
 
 
@@ -139,7 +158,7 @@ const PROPS_DESTRUCTURE_PAIR_RE =
  * parsed text element's content is a single `{propName}` ref so
  * we can hydrate it into the typed `prop` field.
  */
-export const PROP_REF_TEXT_RE = /^\s*\{([a-z][a-zA-Z0-9_]*)\}\s*$/;
+export const PROP_REF_TEXT_RE = /^\s*\{([a-z][a-zA-Z0-9_]*(?:\.[a-zA-Z0-9_]+)*)\}\s*$/;
 
 
 /**
@@ -383,8 +402,64 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
   // Parallel to every onopentag event, regardless of whether we
   // pushed a RawElement onto `stack`. Lets onclosetag know whether to
   // pop the real stack or skip.
-  type FrameKind = 'pushed' | 'skipped' | 'svg-inner' | 'option';
+  type FrameKind = 'pushed' | 'skipped' | 'svg-inner' | 'option' | 'wrapper';
   const frames: FrameKind[] = [];
+
+  // Show / repeat pseudo-tags (from the bindings pre-pass) wrap the next
+  // real element; they attach to it when it opens.
+  const pendingWrappers: Array<{ repeat: RepeatBinding | null; showIf: string | null }> = [];
+  const attachWrappers = (el: RawElement): void => {
+    while (pendingWrappers.length > 0) {
+      const w = pendingWrappers.shift();
+      if (!w) break;
+      if (w.repeat) el.repeat = { ...w.repeat, ...(el.repeat?.key ? { key: el.repeat.key } : {}) };
+      if (w.showIf) el.showIf = w.showIf;
+    }
+  };
+  /**
+   * Split an element's raw attributes into literals and bindings. A
+   * `key={row.field}` on a repeated element names the repeat key.
+   */
+  const readBindings = (
+    attribs: Record<string, string>,
+    skip: ReadonlySet<string>
+  ): {
+    literals: Record<string, string>;
+    bind: Record<string, string> | null;
+    on: Record<string, string> | null;
+    repeatKey: string | null;
+  } => {
+    const literals: Record<string, string> = {};
+    let bind: Record<string, string> | null = null;
+    let on: Record<string, string> | null = null;
+    let repeatKey: string | null = null;
+    for (const [attrName, attrValue] of Object.entries(attribs)) {
+      if (skip.has(attrName)) continue;
+      const decoded = decodeBinding(attrName, attrValue);
+      if (decoded === null) {
+        literals[attrName] = attrValue;
+        continue;
+      }
+      if (decoded.kind === 'verbatim') {
+        literals[attrName] = `{${decoded.expr}}`;
+        continue;
+      }
+      if (decoded.kind === 'event') {
+        on = { ...(on ?? {}), [attrName]: decoded.handler };
+        continue;
+      }
+      if (attrName === 'key') {
+        const dot = decoded.expr.indexOf('.');
+        const field = dot >= 0 ? decoded.expr.slice(dot + 1) : decoded.expr;
+        // `id` is the default key; storing it would make a file written
+        // without one parse differently from its own regeneration.
+        repeatKey = field === 'id' ? null : field;
+        continue;
+      }
+      bind = { ...(bind ?? {}), [attrName]: decoded.expr };
+    }
+    return { literals, bind, on, repeatKey };
+  };
 
   // Depth of nested unclassed (skipped) tags currently open inside
   // a Scamp parent. When > 0, we treat text + nested tags as part of
@@ -413,6 +488,16 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
         // Already inside an svg — everything is raw inner source.
         if (svgTarget) {
           frames.push('svg-inner');
+          return;
+        }
+
+        // A show / repeat wrapper: remember it for the next real element.
+        if (name === REPEAT_TAG || name === SHOW_TAG) {
+          pendingWrappers.push({
+            repeat: name === REPEAT_TAG ? repeatFromAttribs(attribs) : null,
+            showIf: name === SHOW_TAG ? (attribs['if'] ?? null) : null,
+          });
+          frames.push('wrapper');
           return;
         }
 
@@ -456,12 +541,11 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
           // distinct from absence).
           const classRaw = attribs['className'] ?? attribs['classname'] ?? '';
           const instanceClass = classRaw.match(CLASS_NAME_RE)?.[1] ?? '';
-          const propOverrides: Record<string, string> = {};
-          for (const [attrName, attrValue] of Object.entries(attribs)) {
-            if (attrName === 'data-scamp-instance-id') continue;
-            if (attrName === 'className' || attrName === 'classname') continue;
-            propOverrides[attrName] = attrValue;
-          }
+          const instanceBindings = readBindings(
+            attribs,
+            new Set(['data-scamp-instance-id', 'className', 'classname'])
+          );
+          const propOverrides: Record<string, string> = instanceBindings.literals;
           const el: RawElement = {
             id,
             type: 'component-instance',
@@ -481,7 +565,13 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
             instanceId: rawInstanceId,
             propOverrides,
             missingComponent: resolvedName === undefined,
+            bind: instanceBindings.bind,
+            on: instanceBindings.on,
+            repeat: instanceBindings.repeatKey ? { over: '', as: '', key: instanceBindings.repeatKey } : null,
+            showIf: null,
           };
+          attachWrappers(el);
+          if (el.repeat && el.repeat.over.length === 0) el.repeat = null;
           claimId(el);
           if (parentId) {
             const parent = byId.get(parentId);
@@ -548,14 +638,14 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
         const typedImgSrcAlt = type === 'image' && name === 'img';
 
         // Collect every attribute not already typed-captured into the
-        // generic bag. Preserves unknown attrs verbatim.
-        const extraAttributes: Record<string, string> = {};
-        for (const [attrName, attrValue] of Object.entries(attribs)) {
-          if (attrName === 'data-scamp-id') continue;
-          if (attrName === 'className' || attrName === 'classname') continue;
-          if (typedImgSrcAlt && (attrName === 'src' || attrName === 'alt')) continue;
-          extraAttributes[attrName] = attrValue;
+        // generic bag (bindings split off). Preserves unknown attrs verbatim.
+        const skipAttrs = new Set(['data-scamp-id', 'className', 'classname']);
+        if (typedImgSrcAlt) {
+          skipAttrs.add('src');
+          skipAttrs.add('alt');
         }
+        const elementBindings = readBindings(attribs, skipAttrs);
+        const extraAttributes: Record<string, string> = elementBindings.literals;
 
         const el: RawElement = {
           id,
@@ -579,7 +669,15 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
           instanceId: null,
           propOverrides: null,
           missingComponent: false,
+          bind: elementBindings.bind,
+          on: elementBindings.on,
+          repeat: elementBindings.repeatKey
+            ? { over: '', as: '', key: elementBindings.repeatKey }
+            : null,
+          showIf: null,
         };
+        attachWrappers(el);
+        if (el.repeat && el.repeat.over.length === 0) el.repeat = null;
         claimId(el);
         if (parentId) {
           const parent = byId.get(parentId);
@@ -633,6 +731,7 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
       onclosetag(name) {
         const frame = frames.pop();
         if (frame === 'svg-inner') return;
+        if (frame === 'wrapper') return;
         if (frame === 'option') {
           if (!currentOption) return;
           const label = currentOption.label.trim();

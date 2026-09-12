@@ -8,56 +8,9 @@
 
 /** The attribute the hoist injects onto slot-content elements. Read back
  *  into `slotName` after the structural parse, then dropped from the bag. */
+import { findMatchingBrace, findOpeningTagClose } from '../jsxScan';
+
 export const SLOT_MARKER_ATTR = 'data-scamp-slot';
-
-/**
- * From `openIdx` (pointing at a `{`), the index of the matching `}`,
- * balancing nested braces and ignoring braces inside string literals.
- * -1 when unbalanced.
- */
-const findMatchingBrace = (s: string, openIdx: number): number => {
-  let depth = 0;
-  let quote: string | null = null;
-  for (let i = openIdx; i < s.length; i += 1) {
-    const c = s[i];
-    if (quote !== null) {
-      if (c === quote && s[i - 1] !== '\\') quote = null;
-      continue;
-    }
-    if (c === '"' || c === "'" || c === '`') {
-      quote = c;
-      continue;
-    }
-    if (c === '{') depth += 1;
-    else if (c === '}') {
-      depth -= 1;
-      if (depth === 0) return i;
-    }
-  }
-  return -1;
-};
-
-/**
- * From `tagOpen` (at `<`), the index of the `>` that closes the OPENING
- * tag, skipping braces/strings so JSX-valued props don't confuse it.
- * -1 when not found.
- */
-const findOpeningTagClose = (s: string, tagOpen: number): number => {
-  let i = tagOpen + 1;
-  let quote: string | null = null;
-  let brace = 0;
-  while (i < s.length) {
-    const c = s[i];
-    if (quote !== null) {
-      if (c === quote && s[i - 1] !== '\\') quote = null;
-    } else if (c === '"' || c === "'" || c === '`') quote = c;
-    else if (c === '{') brace += 1;
-    else if (c === '}') brace -= 1;
-    else if (brace === 0 && c === '>') return i;
-    i += 1;
-  }
-  return -1;
-};
 
 /**
  * From `start` (at a `<` opening a JSX element), the index just past the
