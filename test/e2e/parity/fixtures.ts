@@ -606,4 +606,143 @@ export default function Home() {
 }
 `,
   },
+  {
+    name: 'binding-repeat-and-show',
+    why: 'A component whose list repeats over its sample rows and whose notes show or hide by a sample flag. The canvas must render one copy per row with the row in scope, keep the shown note, and drop the hidden one — what the framework renders from the same defaults. see docs/notes/view-bindings.md',
+    components: [
+      {
+        name: 'List',
+        tsx: `import styles from './List.module.css';
+
+type ListProps = {
+  items?: Array<{ id: string; label: string }>;
+  extra?: boolean;
+  more?: boolean;
+  className?: string;
+};
+
+export default function List({
+  items = [
+    { id: "1", label: "Alpha" },
+    { id: "2", label: "Beta" },
+    { id: "3", label: "Gamma" },
+  ],
+  extra = true,
+  more = false,
+  className,
+}: ListProps) {
+  return (
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`}>
+      {items.map((item) => (
+        <div data-scamp-id="row_r001" className={styles.row_r001} key={item.id}>
+          <p data-scamp-id="label_r002" className={styles.label_r002}>{item.label}</p>
+        </div>
+      ))}
+      {extra && (
+        <div data-scamp-id="note_r003" className={styles.note_r003} />
+      )}
+      {more && (
+        <div data-scamp-id="hidden_r004" className={styles.hidden_r004} />
+      )}
+    </div>
+  );
+}
+
+export const _scamp = { contract: 0, events: [] } as const;
+`,
+        css: `.root {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: #223344;
+}
+
+.row_r001 {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 8px;
+  background: #556677;
+}
+
+.label_r002 {
+  width: 100px;
+  font-size: 16px;
+  line-height: 24px;
+  margin: 0;
+}
+
+.note_r003 {
+  height: 20px;
+  background: #66aa66;
+}
+
+.hidden_r004 {
+  height: 20px;
+  background: #aa6666;
+}
+`,
+      },
+    ],
+    tsx: `import styles from './home.module.css';
+import List from '@/components/List/List';
+
+export default function Home() {
+  return (
+    <div data-scamp-id="root" className={styles.root}>
+      <List data-scamp-instance-id="inst_a024" />
+    </div>
+  );
+}
+`,
+    html: `    <div data-scamp-id="root" class="root">
+      <div data-scamp-instance-id="inst_a024" data-scamp-id="root" class="List_root">
+        <div data-scamp-id="row_r001" class="List_row_r001"><p data-scamp-id="label_r002" class="List_label_r002">Alpha</p></div>
+        <div data-scamp-id="row_r001" class="List_row_r001"><p data-scamp-id="label_r002" class="List_label_r002">Beta</p></div>
+        <div data-scamp-id="row_r001" class="List_row_r001"><p data-scamp-id="label_r002" class="List_label_r002">Gamma</p></div>
+        <div data-scamp-id="note_r003" class="List_note_r003"></div>
+      </div>
+    </div>`,
+    css: `.root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  padding: 40px;
+  position: relative;
+  background: #101014;
+}
+`,
+    truthCss: `.List_root {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  background: #223344;
+}
+
+.List_row_r001 {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 8px;
+  background: #556677;
+}
+
+.List_label_r002 {
+  width: 100px;
+  font-size: 16px;
+  line-height: 24px;
+  margin: 0;
+}
+
+.List_note_r003 {
+  height: 20px;
+  background: #66aa66;
+}
+`,
+  },
 ];

@@ -21,7 +21,12 @@ props type and `_scamp.events`, the generator's canonical forms, and a
 parse pre-pass (`parseCode/bindings.ts`) that makes them readable by
 the HTML tokenizer. All four fixture files pass the drift test byte for
 byte (scampjs 0.0.5 carries the regenerated Lobby and LinkCard CSS).
-Design in `docs/notes/view-bindings.md`. Next: step 4, the canvas.
+Design in `docs/notes/view-bindings.md`.
+Step 4 landed: `lib/bindingEval.ts` and both canvas render paths resolve
+row-bound text and instance props, render a repeated element once per
+sample row, and drop a hidden one; the parity fixture
+`binding-repeat-and-show` proves it against a browser. Next: step 5,
+the Data tab.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

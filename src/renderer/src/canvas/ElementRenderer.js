@@ -1,6 +1,8 @@
 import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
-import { createElement, useEffect, useMemo, useRef, } from 'react';
+import { createElement, useEffect, useMemo, useRef, cloneElement } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
+import { ROOT_ELEMENT_ID } from '@lib/element';
+import { childBindingKey, expandChildren, resolveInstanceOverrides, resolveText, } from '@lib/bindingEval';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { instanceClassPrefix } from '@lib/generateHtml';
 import { CANVAS_SKIP_ATTRS_BY_TAG, canvasRenderTag, elementToStyle, } from '@lib/elementToStyle';
@@ -84,7 +86,13 @@ instanceSelected,
  * page-owned slot children (or an empty drop zone). see
  * docs/plans/component-slots-plan.md
  */
-renderSlot) => {
+renderSlot, 
+/** The repeat row this subtree is rendered for. see docs/notes/view-bindings.md */
+row = null) => {
+    const scope = {
+        samples: elementsMap[ROOT_ELEMENT_ID]?.samples ?? {},
+        row,
+    };
     // Slot composition deferred: nested instances render as placeholders.
     if (element.type === 'component-instance') {
         return (_jsxs("div", { style: {
@@ -172,14 +180,20 @@ renderSlot) => {
         });
     }
     const isText = element.type === 'text';
-    // Substitute propOverride → literal default for prop-text.
-    // see docs/notes/components-data-model.md
-    const propName = isText && typeof element.prop === 'string' && element.prop.length > 0
+    // Substitute propOverride → literal default for prop-text. A row-bound
+    // text (`player.label`) resolves from the row instead and isn't an
+    // editable prop. see docs/notes/components-data-model.md
+    const rowText = resolveText(element, scope);
+    const propName = rowText === undefined && isText && typeof element.prop === 'string' && element.prop.length > 0
         ? element.prop
         : null;
     const overrideValue = propName !== null ? propOverrides[propName] : undefined;
     const defaultText = isText && typeof element.text === 'string' ? element.text : undefined;
-    const textContent = overrideValue !== undefined ? overrideValue : defaultText;
+    const textContent = rowText !== undefined
+        ? rowText
+        : overrideValue !== undefined
+            ? overrideValue
+            : defaultText;
     const hasText = isText && typeof textContent === 'string' && textContent.length > 0;
     const hasChildren = element.childIds.length > 0;
     // Prop-text always carries the hit-test attrs and overrides the
@@ -275,18 +289,34 @@ renderSlot) => {
         ? element.display
         : 'none';
     const childParentDirection = element.display === 'flex' ? element.flexDirection : undefined;
-    const children = element.childIds
-        .map((childId) => {
+    const children = expandChildren(elementsMap, element.childIds, scope)
+        .map(({ id: childId, row: childRow }) => {
         const child = elementsMap[childId];
         if (!child)
             return null;
-        return renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, instanceClass, editingProp, onCommitProp, onChangeEditingProp, instanceSelected, renderSlot);
+        const rendered = renderComponentSubtree(child, elementsMap, childParentDisplay, childParentDirection, propOverrides, tokens, projectDir, projectFormat, projectPath, instanceId, instanceClass, editingProp, onCommitProp, onChangeEditingProp, instanceSelected, renderSlot, childRow);
+        // A repeated child renders once per row; React needs a key per copy.
+        return rendered && childRow !== null
+            ? cloneElement(rendered, { key: `${childId}:${childRow.index}` })
+            : rendered;
     })
         .filter((c) => c !== null);
     return createElement(tag, { ...props, key: element.id }, children);
 };
-export const ElementRenderer = ({ elementId }) => {
+export const ElementRenderer = ({ elementId, row }) => {
     const rawElement = useCanvasStore((s) => s.elements[elementId]);
+    // Bindings resolve against the root's samples and the current row.
+    // see docs/notes/view-bindings.md
+    const rootSamples = useCanvasStore((s) => s.elements[ROOT_ELEMENT_ID]?.samples);
+    const childBindings = useCanvasStore((s) => {
+        const el = s.elements[elementId];
+        return el ? childBindingKey(s.elements, el.childIds) : '';
+    });
+    const scope = { samples: rootSamples ?? {}, row: row ?? null };
+    // A copy of a repeated element beyond the first is display only: it
+    // carries no hit-test id or ref, so selection and measurement land on
+    // the first copy.
+    const isRepeatCopy = row !== undefined && row.index > 0;
     const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
     const activeStateName = useCanvasStore((s) => s.activeStateName);
     const breakpoints = useCanvasStore((s) => s.breakpoints);
@@ -595,7 +625,7 @@ export const ElementRenderer = ({ elementId }) => {
         const inner = root && resolvedComponentElements
             ? renderComponentSubtree(root, resolvedComponentElements, 
             // Pass page-side layout context so flex/grid still applies.
-            parentDisplay, parentDirection, element.propOverrides ?? {}, themeTokens, projectDir, projectFormat, projectPath, element.id, classNameFor(element), editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected, renderSlot)
+            parentDisplay, parentDirection, resolveInstanceOverrides(element, scope), themeTokens, projectDir, projectFormat, projectPath, element.id, classNameFor(element), editingPropForThis, handleCommitProp, handleChangeEditingProp, isSelected, renderSlot)
             : null;
         if (isEmptyComponent) {
             return (_jsxs("div", { ...wrapperProps, style: {
@@ -668,7 +698,9 @@ export const ElementRenderer = ({ elementId }) => {
         // used by canvas hit-testing and selection — keep it separate so
         // renames don't force a refactor of every lookup site.
         'data-scamp-id': classNameFor(element),
-        'data-element-id': element.id,
+        ...(isRepeatCopy && row !== undefined
+            ? { 'data-scamp-repeat-copy': row.index }
+            : { 'data-element-id': element.id }),
         onContextMenu: handleContextMenu,
         // Animation preview: increment the React key on each Play click
         // so React remounts the element and the CSS animation plays from
@@ -679,7 +711,7 @@ export const ElementRenderer = ({ elementId }) => {
             : {}),
         className: `${styles.element} ${classNameFor(element)} ${isSelected ? styles.selected : ''} ${isText && isEditing ? styles.textEditing : ''} ${element.visibilityMode === 'none' ? styles.hiddenNone : ''}`.trim(),
         style,
-        ref: elementRef,
+        ...(isRepeatCopy ? {} : { ref: elementRef }),
     };
     // Forward tag-specific attributes from the element's attribute bag
     // to the canvas DOM so the preview reflects them (e.g. input
@@ -774,7 +806,10 @@ export const ElementRenderer = ({ elementId }) => {
         }, createElement('span', { className: styles.slotLabel, key: 'slot-label' }, `✦ slot: ${element.slot}`));
     }
     const children = isText
-        ? (element.text ?? '')
-        : element.childIds.map((childId) => (_jsx(ElementRenderer, { elementId: childId }, childId)));
+        ? (resolveText(element, scope) ?? element.text ?? '')
+        : expandChildren(useCanvasStore.getState().elements, element.childIds, scope).map(({ id: childId, row: childRow }) => (_jsx(ElementRenderer, { elementId: childId, ...(childRow !== null ? { row: childRow } : {}) }, childRow !== null ? `${childId}:${childRow.index}` : childId)));
+    // `childBindings` is read so a child's show or repeat change re-expands
+    // this list; the value itself is the subscription key.
+    void childBindings;
     return createElement(tag, props, children);
 };

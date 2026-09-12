@@ -66,8 +66,27 @@ writes each bound attribute's default back into the literal's place,
 hydrates `{row.field}` text as a row-path prop (with no text), and puts
 show flags and repeat rows on the root as `samples`.
 
-## What the canvas does (step 4, not yet)
+## What the canvas does
 
-Resolve text and attributes from samples and rows before render, render
-a repeated subtree once per row, and skip a hidden one. Until then a
-row-bound text element has no text and renders empty.
+`lib/bindingEval.ts` resolves references against the root's samples and
+the current row: a row path reads the row, anything else reads the
+samples, `.length` works on rows, and `!` inverts. A flag with no
+sample reads as true (the props type's default), so `!flag` hides.
+
+Both render paths — `ElementRenderer` for pages, components, and views,
+and `renderComponentSubtree` for instances on a page — expand a
+parent's children through `expandChildren`: a hidden child is dropped,
+a repeated child renders once per sample row with that row in scope,
+everything else inherits the row. A row-bound text resolves from the
+row and isn't an editable prop; a row-bound instance prop resolves
+into the instance's overrides. Attribute samples need no evaluation:
+the literal in `attributes` is the sample. Events render nothing.
+
+Copies of a repeated element beyond the first carry no
+`data-element-id` and no ref, so hit-testing, selection, and
+measurement land on the first copy. A parent subscribes to a key of its
+children's show and repeat bindings (`childBindingKey`) rather than to
+the whole element map.
+
+The parity fixture `binding-repeat-and-show` proves the canvas against
+a browser rendering the same defaults.

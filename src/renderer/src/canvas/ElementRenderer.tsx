@@ -7,10 +7,17 @@ import {
   createElement,
   useEffect,
   useMemo,
-  useRef,
-} from 'react';
+  useRef, cloneElement } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
-import { type FlexDirection, type ScampElement } from '@lib/element';
+import { type FlexDirection, type ScampElement, ROOT_ELEMENT_ID } from '@lib/element';
+import {
+  childBindingKey,
+  expandChildren,
+  resolveInstanceOverrides,
+  resolveText,
+  type BindingScope,
+  type RowScope,
+} from '@lib/bindingEval';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { instanceClassPrefix } from '@lib/generateHtml';
 import {
@@ -53,6 +60,8 @@ const isScaffoldRoot = (root: ScampElement): boolean => {
 
 type Props = {
   elementId: string;
+  /** The repeat row this render is for; absent outside a repeat. */
+  row?: RowScope;
 };
 
 const renderComponentSubtree = (
@@ -120,8 +129,14 @@ const renderComponentSubtree = (
   renderSlot: (slotName: string) => {
     content: JSX.Element | JSX.Element[];
     empty: boolean;
-  }
+  },
+  /** The repeat row this subtree is rendered for. see docs/notes/view-bindings.md */
+  row: RowScope | null = null
 ): JSX.Element | null => {
+  const scope: BindingScope = {
+    samples: elementsMap[ROOT_ELEMENT_ID]?.samples ?? {},
+    row,
+  };
   // Slot composition deferred: nested instances render as placeholders.
   if (element.type === 'component-instance') {
     return (
@@ -228,10 +243,12 @@ const renderComponentSubtree = (
   }
 
   const isText = element.type === 'text';
-  // Substitute propOverride → literal default for prop-text.
-  // see docs/notes/components-data-model.md
+  // Substitute propOverride → literal default for prop-text. A row-bound
+  // text (`player.label`) resolves from the row instead and isn't an
+  // editable prop. see docs/notes/components-data-model.md
+  const rowText = resolveText(element, scope);
   const propName =
-    isText && typeof element.prop === 'string' && element.prop.length > 0
+    rowText === undefined && isText && typeof element.prop === 'string' && element.prop.length > 0
       ? element.prop
       : null;
   const overrideValue =
@@ -239,7 +256,11 @@ const renderComponentSubtree = (
   const defaultText =
     isText && typeof element.text === 'string' ? element.text : undefined;
   const textContent: string | undefined =
-    overrideValue !== undefined ? overrideValue : defaultText;
+    rowText !== undefined
+      ? rowText
+      : overrideValue !== undefined
+        ? overrideValue
+        : defaultText;
 
   const hasText =
     isText && typeof textContent === 'string' && textContent.length > 0;
@@ -353,11 +374,11 @@ const renderComponentSubtree = (
   const childParentDirection =
     element.display === 'flex' ? element.flexDirection : undefined;
 
-  const children = element.childIds
-    .map((childId) => {
+  const children = expandChildren(elementsMap, element.childIds, scope)
+    .map(({ id: childId, row: childRow }) => {
       const child = elementsMap[childId];
       if (!child) return null;
-      return renderComponentSubtree(
+      const rendered = renderComponentSubtree(
         child,
         elementsMap,
         childParentDisplay,
@@ -373,16 +394,33 @@ const renderComponentSubtree = (
         onCommitProp,
         onChangeEditingProp,
         instanceSelected,
-        renderSlot
+        renderSlot,
+        childRow
       );
+      // A repeated child renders once per row; React needs a key per copy.
+      return rendered && childRow !== null
+        ? cloneElement(rendered, { key: `${childId}:${childRow.index}` })
+        : rendered;
     })
     .filter((c): c is JSX.Element => c !== null);
 
   return createElement(tag, { ...props, key: element.id }, children);
 };
 
-export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
+export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null => {
   const rawElement = useCanvasStore((s) => s.elements[elementId]);
+  // Bindings resolve against the root's samples and the current row.
+  // see docs/notes/view-bindings.md
+  const rootSamples = useCanvasStore((s) => s.elements[ROOT_ELEMENT_ID]?.samples);
+  const childBindings = useCanvasStore((s) => {
+    const el = s.elements[elementId];
+    return el ? childBindingKey(s.elements, el.childIds) : '';
+  });
+  const scope: BindingScope = { samples: rootSamples ?? {}, row: row ?? null };
+  // A copy of a repeated element beyond the first is display only: it
+  // carries no hit-test id or ref, so selection and measurement land on
+  // the first copy.
+  const isRepeatCopy = row !== undefined && row.index > 0;
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
   const activeStateName = useCanvasStore((s) => s.activeStateName);
   const breakpoints = useCanvasStore((s) => s.breakpoints);
@@ -746,7 +784,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
           // Pass page-side layout context so flex/grid still applies.
           parentDisplay,
           parentDirection,
-          element.propOverrides ?? {},
+          resolveInstanceOverrides(element, scope),
           themeTokens,
           projectDir,
           projectFormat,
@@ -855,7 +893,9 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
     // used by canvas hit-testing and selection — keep it separate so
     // renames don't force a refactor of every lookup site.
     'data-scamp-id': classNameFor(element),
-    'data-element-id': element.id,
+    ...(isRepeatCopy && row !== undefined
+      ? { 'data-scamp-repeat-copy': row.index }
+      : { 'data-element-id': element.id }),
     onContextMenu: handleContextMenu,
     // Animation preview: increment the React key on each Play click
     // so React remounts the element and the CSS animation plays from
@@ -870,7 +910,7 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
       element.visibilityMode === 'none' ? styles.hiddenNone : ''
     }`.trim(),
     style,
-    ref: elementRef,
+    ...(isRepeatCopy ? {} : { ref: elementRef }),
   };
 
   // Forward tag-specific attributes from the element's attribute bag
@@ -981,10 +1021,19 @@ export const ElementRenderer = ({ elementId }: Props): JSX.Element | null => {
   }
 
   const children = isText
-    ? (element.text ?? '')
-    : element.childIds.map((childId) => (
-        <ElementRenderer key={childId} elementId={childId} />
-      ));
+    ? (resolveText(element, scope) ?? element.text ?? '')
+    : expandChildren(useCanvasStore.getState().elements, element.childIds, scope).map(
+        ({ id: childId, row: childRow }) => (
+          <ElementRenderer
+            key={childRow !== null ? `${childId}:${childRow.index}` : childId}
+            elementId={childId}
+            {...(childRow !== null ? { row: childRow } : {})}
+          />
+        )
+      );
+  // `childBindings` is read so a child's show or repeat change re-expands
+  // this list; the value itself is the subscription key.
+  void childBindings;
 
   return createElement(tag, props, children);
 };
