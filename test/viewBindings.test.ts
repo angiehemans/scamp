@@ -11,6 +11,7 @@ import {
 import {
   collectViewProps,
   enclosingRepeat,
+  propsTypeSource,
   rowTypeFor,
   viewEventNames,
 } from '@lib/viewProps';
@@ -321,5 +322,20 @@ describe('round trip — one case per binding kind', () => {
       n: text('n', 'row', 'More', { showIf: 'extra' }),
     };
     expect(roundTrip(elements)).toEqual(elements);
+  });
+});
+
+describe('propsTypeSource', () => {
+  it('writes every prop optional in order and className last', () => {
+    expect(
+      propsTypeSource('CardProps', [
+        { name: 'title', kind: 'text', tsType: 'string', defaultValue: 'Hi' },
+        { name: 'onOpen', kind: 'event', tsType: '() => void' },
+      ])
+    ).toBe('type CardProps = {\n  title?: string;\n  onOpen?: () => void;\n  className?: string;\n};');
+  });
+
+  it('declares only className when there are no props', () => {
+    expect(propsTypeSource('CardProps', [])).toBe('type CardProps = {\n  className?: string;\n};');
   });
 });

@@ -1,6 +1,7 @@
 import type { ProjectFormat, ThemeDef, ThemeToken } from '@shared/types';
 import { type ContextTarget } from './contextModel';
-import type { ScampElement } from './element';
+import type { SampleValue, ScampElement } from './element';
+import { type ViewPropKind } from './viewProps';
 /**
  * The canvas, in the shapes the MCP tools return.
  *
@@ -26,6 +27,8 @@ export type SnapshotInput = {
     componentNames: ReadonlyArray<string>;
     /** Views (`views/<Name>/`); absent means none. */
     viewNames?: ReadonlyArray<string>;
+    /** Every component and view tree by name, for `scamp_get_view_props`. */
+    trees?: Readonly<Record<string, SnapshotTree>>;
     themeTokens: ReadonlyArray<ThemeToken>;
     themes: ReadonlyArray<ThemeDef>;
     activeThemeId: string;
@@ -33,6 +36,30 @@ export type SnapshotInput = {
     breakpointLabel: string;
     canvasWidth: number;
 };
+export type SnapshotTree = {
+    kind: 'component' | 'view';
+    elements: Record<string, ScampElement>;
+    rootId: string;
+};
+export type ViewPropsResult = {
+    name: string;
+    kind: 'component' | 'view';
+    tsx: string;
+    css: string;
+    /** The `<Name>Props` type exactly as the file declares it. */
+    propsType: string;
+    props: Array<{
+        name: string;
+        kind: ViewPropKind;
+        type: string;
+        /** The default in the destructure; absent for events and slots. */
+        default?: SampleValue;
+    }>;
+    /** Event-prop names in order — what `_scamp.events` lists. */
+    events: string[];
+    /** The sample data the design renders with, per prop. */
+    samples: Record<string, SampleValue>;
+} | null;
 export type ActiveTargetResult = {
     kind: 'page' | 'component' | 'view';
     name: string;
@@ -120,6 +147,11 @@ export declare const componentPathsRelative: (name: string) => {
     tsx: string;
     css: string;
 };
+/** Mirrors `main/ipc/componentOps.ts` → `componentPathsFor` for views. */
+export declare const viewPathsRelative: (name: string) => {
+    tsx: string;
+    css: string;
+};
 export declare const getActiveTarget: (input: SnapshotInput) => ActiveTargetResult;
 export declare const getSelectedElement: (input: SnapshotInput) => ElementResult;
 export declare const getElementById: (input: SnapshotInput, id: string) => ElementResult;
@@ -134,6 +166,15 @@ export declare const getElementTree: (input: SnapshotInput) => {
     root: TreeNode;
 } | null;
 export declare const listPages: (input: SnapshotInput) => FileListItem[];
+/**
+ * The props a view or component accepts, from its live tree.
+ *
+ * `name` is the PascalCase file name, or — because `scamp_list_pages`
+ * reports a view by its route slug — that slug. The type text comes
+ * from the same formatter the generator uses, so what the agent reads
+ * here is byte-for-byte what the file declares.
+ */
+export declare const getViewProps: (input: SnapshotInput, name: string) => ViewPropsResult;
 /**
  * Components by name and path.
  *

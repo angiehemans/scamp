@@ -61,6 +61,12 @@ export const snapshotInputFrom = (state: CanvasState): SnapshotInput => {
     viewNames: Object.entries(state.componentTrees)
       .filter(([, tree]) => tree.kind === 'view')
       .map(([name]) => name),
+    trees: Object.fromEntries(
+      Object.entries(state.componentTrees).map(([name, tree]) => [
+        name,
+        { kind: tree.kind ?? 'component', elements: tree.elements, rootId: tree.rootId },
+      ])
+    ),
     themeTokens: state.themeTokens,
     themes: state.themes,
     activeThemeId: state.activeThemeId,

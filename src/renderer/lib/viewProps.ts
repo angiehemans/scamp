@@ -1,3 +1,4 @@
+import { PASSTHROUGH_PROP } from './classNamePassthrough';
 import type { SampleRow, SampleValue, ScampElement } from './element';
 
 /**
@@ -165,6 +166,23 @@ export const collectViewProps = (
   };
   walk(rootId, null);
   return [...props, ...events, ...slots];
+};
+
+/**
+ * The `<Name>Props` type exactly as the file declares it: every prop
+ * optional, `className` last. One source for the generator and the
+ * MCP `scamp_get_view_props` answer, so an agent reads the same text
+ * it would find in the file.
+ */
+export const propsTypeSource = (
+  typeName: string,
+  props: ReadonlyArray<ViewProp>
+): string => {
+  const lines = [
+    ...props.map((p) => `  ${p.name}?: ${p.tsType};`),
+    `  ${PASSTHROUGH_PROP}?: string;`,
+  ];
+  return `type ${typeName} = {\n${lines.join('\n')}\n};`;
 };
 
 /** The event-prop names, in props-type order — what `_scamp.events` lists. */

@@ -40,7 +40,10 @@ sample rows (a field is `number` when every row holds a number),
 `() => void` / `(<key>: string) => void`, `React.ReactNode`. The
 destructure carries the defaults, and goes multi-line as soon as a
 repeat's rows are in it. `_scamp.events` is the event list in that
-order.
+order. `propsTypeSource` formats the type text; the generator and the
+MCP tool `scamp_get_view_props` (`getViewProps` in `canvasSnapshot.ts`,
+answered from the store's component trees, by name or route slug) both
+use it, so an agent reads exactly what the file declares.
 
 ## Parsing
 

@@ -68,6 +68,7 @@ claude mcp reset-project-choices
 | `scamp_list_pages` | Every page in the project |
 | `scamp_list_components` | Every [component](components.md) and its files |
 | `scamp_get_component_scaffold` | The exact starter files for a new [component](components.md), so the agent creates real components instead of a page of examples |
+| `scamp_get_view_props` | The exact props type and sample data of a view or component, so the code that renders it passes the right shape |
 | `scamp_get_theme_tokens` | Your [design tokens](design-tokens.md), so the agent uses a token instead of a raw hex value |
 | `scamp_get_canvas_state` | A broad snapshot; large, and capped |
 

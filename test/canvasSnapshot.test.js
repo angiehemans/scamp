@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answerSnapshotTool, CANVAS_STATE_ELEMENT_LIMIT, componentPathsRelative, getActiveTarget, getCanvasState, getElementById, getElementTree, getSelectedElement, getThemeTokens, listComponents, listPages, pagePathsRelative, } from '@lib/canvasSnapshot';
+import { answerSnapshotTool, CANVAS_STATE_ELEMENT_LIMIT, componentPathsRelative, getActiveTarget, getCanvasState, getElementById, getElementTree, getSelectedElement, getThemeTokens, getViewProps, listComponents, listPages, pagePathsRelative, } from '@lib/canvasSnapshot';
 import { DEFAULT_RECT_STYLES } from '@lib/defaults';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 /**
@@ -383,5 +383,120 @@ describe('agreement with the shared model', () => {
         // file and the MCP answer can describe one element two ways.
         const input = build({ selectedIds: ['a1b2'] });
         expect(getSelectedElement(input)).toEqual(getElementById(input, 'a1b2'));
+    });
+});
+describe('getViewProps', () => {
+    const lobby = () => ({
+        [ROOT_ELEMENT_ID]: el({
+            id: ROOT_ELEMENT_ID,
+            parentId: null,
+            childIds: ['code', 'row', 'note', 'start'],
+            samples: {
+                players: [
+                    { id: '1', label: 'Alex' },
+                    { id: '2', label: 'Bea' },
+                ],
+                waiting: true,
+            },
+        }),
+        code: el({ id: 'code', type: 'text', text: 'KZQ4', prop: 'code' }),
+        row: el({
+            id: 'row',
+            type: 'text',
+            prop: 'player.label',
+            repeat: { over: 'players', as: 'player' },
+        }),
+        note: el({ id: 'note', type: 'text', text: 'Waiting', showIf: 'waiting' }),
+        start: el({
+            id: 'start',
+            type: 'text',
+            text: 'Start',
+            tag: 'button',
+            bind: { disabled: '!canStart' },
+            on: { onClick: 'onStart' },
+        }),
+    });
+    const withTrees = () => build({
+        viewNames: ['Lobby'],
+        componentNames: ['Button'],
+        trees: {
+            Lobby: { kind: 'view', elements: lobby(), rootId: ROOT_ELEMENT_ID },
+            Button: { kind: 'component', elements: tree(), rootId: ROOT_ELEMENT_ID },
+        },
+    });
+    it('returns the props type exactly as the file declares it, with kinds, events, and samples', () => {
+        const result = getViewProps(withTrees(), 'Lobby');
+        expect(result).toEqual({
+            name: 'Lobby',
+            kind: 'view',
+            tsx: 'views/Lobby/Lobby.tsx',
+            css: 'views/Lobby/Lobby.module.css',
+            propsType: [
+                'type LobbyProps = {',
+                '  code?: string;',
+                '  players?: Array<{ id: string; label: string }>;',
+                '  waiting?: boolean;',
+                '  canStart?: boolean;',
+                '  onStart?: () => void;',
+                '  className?: string;',
+                '};',
+            ].join('\n'),
+            props: [
+                { name: 'code', kind: 'text', type: 'string', default: 'KZQ4' },
+                {
+                    name: 'players',
+                    kind: 'repeat',
+                    type: 'Array<{ id: string; label: string }>',
+                    default: [
+                        { id: '1', label: 'Alex' },
+                        { id: '2', label: 'Bea' },
+                    ],
+                },
+                { name: 'waiting', kind: 'show', type: 'boolean', default: true },
+                { name: 'canStart', kind: 'boolean', type: 'boolean', default: true },
+                { name: 'onStart', kind: 'event', type: '() => void' },
+            ],
+            events: ['onStart'],
+            samples: {
+                code: 'KZQ4',
+                players: [
+                    { id: '1', label: 'Alex' },
+                    { id: '2', label: 'Bea' },
+                ],
+                waiting: true,
+                canStart: true,
+            },
+        });
+    });
+    it('resolves a view by its route slug, as scamp_list_pages reports it', () => {
+        expect(getViewProps(withTrees(), 'lobby')?.name).toBe('Lobby');
+    });
+    it('describes a component with only className when it binds nothing', () => {
+        expect(getViewProps(withTrees(), 'Button')).toEqual({
+            name: 'Button',
+            kind: 'component',
+            tsx: 'components/Button/Button.tsx',
+            css: 'components/Button/Button.module.css',
+            propsType: 'type ButtonProps = {\n  className?: string;\n};',
+            props: [],
+            events: [],
+            samples: {},
+        });
+    });
+    it('returns null for an unknown name, an empty name, or when no trees were supplied', () => {
+        expect(getViewProps(withTrees(), 'Nope')).toBeNull();
+        expect(getViewProps(withTrees(), '')).toBeNull();
+        expect(getViewProps(build(), 'Lobby')).toBeNull();
+    });
+    it('does not let a component slug-match a view name', () => {
+        // Only views are addressable by slug; "button" must not resolve to Button.
+        expect(getViewProps(withTrees(), 'button')).toBeNull();
+    });
+    it('answers through answerSnapshotTool with the name argument', () => {
+        expect(answerSnapshotTool('scamp_get_view_props', { name: 'Lobby' }, withTrees())).toMatchObject({
+            name: 'Lobby',
+            kind: 'view',
+        });
+        expect(answerSnapshotTool('scamp_get_view_props', {}, withTrees())).toBeNull();
     });
 });

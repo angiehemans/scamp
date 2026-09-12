@@ -13,7 +13,7 @@ const invoker = (data: unknown = { ok: true }) =>
   createToolInvoker(async () => data);
 
 describe('TOOL_DESCRIPTORS', () => {
-  it('exposes the eight canvas tools from the brief plus the component scaffold', () => {
+  it('exposes the eight canvas tools from the brief plus the component scaffold and view props', () => {
     expect(TOOL_NAMES).toEqual([
       'scamp_get_active_page',
       'scamp_get_selected_element',
@@ -23,6 +23,7 @@ describe('TOOL_DESCRIPTORS', () => {
       'scamp_list_pages',
       'scamp_list_components',
       'scamp_get_component_scaffold',
+      'scamp_get_view_props',
       'scamp_get_theme_tokens',
     ]);
   });
@@ -41,16 +42,26 @@ describe('TOOL_DESCRIPTORS', () => {
     }
   });
 
-  it('requires an id on get_element_by_id, a name on get_component_scaffold, and nothing else', () => {
+  it('requires an id on get_element_by_id, a name on get_component_scaffold and get_view_props, and nothing else', () => {
     const byId = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_element_by_id');
     expect(byId?.inputSchema['required']).toEqual(['id']);
     const scaffold = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_component_scaffold');
     expect(scaffold?.inputSchema['required']).toEqual(['name']);
+    const viewProps = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_view_props');
+    expect(viewProps?.inputSchema['required']).toEqual(['name']);
     for (const tool of TOOL_DESCRIPTORS) {
       if (tool.name === 'scamp_get_element_by_id') continue;
       if (tool.name === 'scamp_get_component_scaffold') continue;
+      if (tool.name === 'scamp_get_view_props') continue;
       expect(tool.inputSchema['required']).toBeUndefined();
     }
+  });
+
+  it('tells the agent to call get_view_props before rendering a view, and accepts a slug', () => {
+    const tool = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_view_props');
+    expect(tool?.description).toContain('scamp_list_pages');
+    expect(tool?.description.toLowerCase()).toContain('route slug');
+    expect(tool?.description).toContain('_scamp.events');
   });
 
   it('tells the agent to create components when list_components comes back empty', () => {
@@ -200,6 +211,37 @@ describe('createToolInvoker', () => {
       expect(
         (await invoker()('scamp_get_component_scaffold', { name: 42 })).isError
       ).toBe(true);
+    });
+  });
+});
+
+describe('scamp_get_view_props', () => {
+  it('rejects a missing or empty name without asking the renderer', async () => {
+    const runQuery = vi.fn(async () => ({ name: 'Lobby' }));
+    const invoke = createToolInvoker(runQuery);
+    const missing = await invoke('scamp_get_view_props', {});
+    expect(missing.isError).toBe(true);
+    expect(missing.content[0]?.text).toContain('"name"');
+    const empty = await invoke('scamp_get_view_props', { name: '' });
+    expect(empty.isError).toBe(true);
+    expect(runQuery).not.toHaveBeenCalled();
+  });
+
+  it('turns a null answer into a sentence naming the missing view and the listing tools', async () => {
+    const result = await invoker(null)('scamp_get_view_props', { name: 'Nope' });
+    expect(result.isError).toBeUndefined();
+    expect(result.content[0]?.text).toBe(
+      'No view or component named "Nope" exists. Call scamp_list_pages (the `view` field) or scamp_list_components for the names.'
+    );
+  });
+
+  it('passes the name through to the renderer and returns its answer as JSON', async () => {
+    const runQuery = vi.fn(async () => ({ name: 'Lobby', propsType: 'type LobbyProps = {\n  className?: string;\n};' }));
+    const result = await createToolInvoker(runQuery)('scamp_get_view_props', { name: 'Lobby' });
+    expect(runQuery).toHaveBeenCalledWith('scamp_get_view_props', { name: 'Lobby' });
+    expect(JSON.parse(result.content[0]?.text ?? '')).toEqual({
+      name: 'Lobby',
+      propsType: 'type LobbyProps = {\n  className?: string;\n};',
     });
   });
 });

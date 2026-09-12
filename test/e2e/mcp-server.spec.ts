@@ -125,6 +125,7 @@ test.describe('MCP server, live', () => {
       'scamp_get_element_tree',
       'scamp_get_selected_element',
       'scamp_get_theme_tokens',
+      'scamp_get_view_props',
       'scamp_list_components',
       'scamp_list_pages',
     ]);
@@ -200,6 +201,101 @@ test.describe('MCP server, live', () => {
     const config = await readConfig(project.dir);
     const text = await callTool(config, 'scamp_get_element_by_id', { id: 'zzzz' });
     expect(text).toContain('No element with that id');
+  });
+
+  test('describes a view’s props from a file an agent just wrote, by name or slug', async ({
+    window,
+    project,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    const config = await readConfig(project.dir);
+
+    // Written from outside, in the contract's canonical forms — the
+    // watcher lists it, and the tool answers from the parsed tree.
+    const dir = join(project.dir, 'views', 'Lobby');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(
+      join(dir, 'Lobby.module.css'),
+      ['.root {', '  width: 100%;', '  position: relative;', '}', '', '.code_e1d2 {', '  width: 200px;', '}', '', '.row_e1e4 {', '  width: 200px;', '}', '', '.note_e1f5 {', '  width: 200px;', '}', '', '.start_e1f9 {', '  width: 200px;', '}', ''].join('\n'),
+      'utf-8'
+    );
+    await fs.writeFile(
+      join(dir, 'Lobby.tsx'),
+      [
+        "import styles from './Lobby.module.css';",
+        '',
+        'type LobbyProps = {',
+        '  code?: string;',
+        '  players?: Array<{ id: string; label: string }>;',
+        '  waiting?: boolean;',
+        '  onStart?: () => void;',
+        '  className?: string;',
+        '};',
+        '',
+        'export default function Lobby({',
+        '  code = "KZQ4",',
+        '  players = [',
+        '    { id: "1", label: "Player 1 · Alex" },',
+        '    { id: "2", label: "Player 2 · Bea" },',
+        '  ],',
+        '  waiting = true,',
+        '  onStart,',
+        '  className,',
+        '}: LobbyProps) {',
+        '  return (',
+        "    <div data-scamp-id=\"root\" className={`${styles.root} ${className ?? ''}`}>",
+        '      <h2 data-scamp-id="code_e1d2" className={styles.code_e1d2}>{code}</h2>',
+        '      {players.map((player) => (',
+        '        <p data-scamp-id="row_e1e4" className={styles.row_e1e4} key={player.id}>{player.label}</p>',
+        '      ))}',
+        '      {waiting && (',
+        '        <p data-scamp-id="note_e1f5" className={styles.note_e1f5}>Waiting for everyone to join</p>',
+        '      )}',
+        '      <button data-scamp-id="start_e1f9" className={styles.start_e1f9} type="button" onClick={onStart}>Start the game</button>',
+        '    </div>',
+        '  );',
+        '}',
+        '',
+        "export const _scamp = { contract: 0, events: ['onStart'] } as const;",
+        '',
+      ].join('\n'),
+      'utf-8'
+    );
+
+    await expect
+      .poll(async () => callTool(config, 'scamp_get_view_props', { name: 'Lobby' }), {
+        timeout: 15_000,
+      })
+      .toContain('"kind": "view"');
+    const lobby = JSON.parse(await callTool(config, 'scamp_get_view_props', { name: 'Lobby' }));
+    expect(lobby.tsx).toBe('views/Lobby/Lobby.tsx');
+    expect(lobby.propsType).toBe(
+      [
+        'type LobbyProps = {',
+        '  code?: string;',
+        '  players?: Array<{ id: string; label: string }>;',
+        '  waiting?: boolean;',
+        '  onStart?: () => void;',
+        '  className?: string;',
+        '};',
+      ].join('\n')
+    );
+    expect(lobby.events).toEqual(['onStart']);
+    expect(lobby.samples).toEqual({
+      code: 'KZQ4',
+      players: [
+        { id: '1', label: 'Player 1 · Alex' },
+        { id: '2', label: 'Player 2 · Bea' },
+      ],
+      waiting: true,
+    });
+
+    // scamp_list_pages reports the view by slug; the slug works too.
+    const bySlug = JSON.parse(await callTool(config, 'scamp_get_view_props', { name: 'lobby' }));
+    expect(bySlug.name).toBe('Lobby');
+
+    const missing = await callTool(config, 'scamp_get_view_props', { name: 'Nope' });
+    expect(missing).toContain('No view or component named "Nope"');
   });
 
   test('rejects a request with no token', async ({ window, project }) => {

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
 import { BIND_MARK, decodeBinding, hoistBindings, parsePropsDefaults, } from '@lib/parseCode/bindings';
-import { collectViewProps, enclosingRepeat, rowTypeFor, viewEventNames, } from '@lib/viewProps';
+import { collectViewProps, enclosingRepeat, propsTypeSource, rowTypeFor, viewEventNames, } from '@lib/viewProps';
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 import { DEFAULT_BREAKPOINTS } from '@shared/types';
@@ -280,5 +280,16 @@ describe('round trip — one case per binding kind', () => {
             n: text('n', 'row', 'More', { showIf: 'extra' }),
         };
         expect(roundTrip(elements)).toEqual(elements);
+    });
+});
+describe('propsTypeSource', () => {
+    it('writes every prop optional in order and className last', () => {
+        expect(propsTypeSource('CardProps', [
+            { name: 'title', kind: 'text', tsType: 'string', defaultValue: 'Hi' },
+            { name: 'onOpen', kind: 'event', tsType: '() => void' },
+        ])).toBe('type CardProps = {\n  title?: string;\n  onOpen?: () => void;\n  className?: string;\n};');
+    });
+    it('declares only className when there are no props', () => {
+        expect(propsTypeSource('CardProps', [])).toBe('type CardProps = {\n  className?: string;\n};');
     });
 });

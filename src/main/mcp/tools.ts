@@ -23,8 +23,8 @@ import {
  * see docs/plans/mcp-server-plan.md
  */
 
-/** Every tool takes no arguments except `get_element_by_id` and
- *  `get_component_scaffold`. */
+/** Every tool takes no arguments except `get_element_by_id`,
+ *  `get_component_scaffold`, and `get_view_props`. */
 const NO_ARGS = {
   type: 'object',
   properties: {},
@@ -101,6 +101,22 @@ export const TOOL_DESCRIPTORS: ToolDescriptor[] = [
     },
   },
   {
+    name: 'scamp_get_view_props',
+    description:
+      'The props a view or component accepts: the exact `<Name>Props` type as its file declares it, each prop’s kind (text, attribute, boolean, repeat, show, event, slot), the event names `_scamp.events` lists, and the sample data the design renders with. Call this before writing the route or page that renders a view so the object you pass matches exactly — the sample rows show the shape of a repeat’s list. Takes the PascalCase name from scamp_list_pages (`view`) or scamp_list_components; a page’s route slug also works.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The view or component name, e.g. "Lobby", or a view page’s route slug, e.g. "lobby".',
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'scamp_get_theme_tokens',
     description:
       'The design tokens defined in the project’s theme.css, as a flat list of CSS custom properties, plus the available themes. Call this before writing any colour, spacing, or typography value so you use an existing token instead of a raw literal.',
@@ -121,8 +137,17 @@ export const TOOL_NAMES: ReadonlyArray<string> = TOOL_DESCRIPTORS.map(
  * `null` becomes an explicit sentence because a bare "null" reads as a
  * failure to a model, when it actually means "nothing is selected".
  */
-const format = (tool: string, data: unknown): ToolResult => {
+const format = (
+  tool: string,
+  data: unknown,
+  args: Record<string, unknown>
+): ToolResult => {
   if (data === null || data === undefined) {
+    if (tool === 'scamp_get_view_props') {
+      return textResult(
+        `No view or component named "${String(args['name'] ?? '')}" exists. Call scamp_list_pages (the \`view\` field) or scamp_list_components for the names.`
+      );
+    }
     if (tool === 'scamp_get_selected_element') {
       return textResult('No element is currently selected on the Scamp canvas.');
     }
@@ -186,6 +211,15 @@ export const createToolInvoker = (
       }
     }
 
+    if (name === 'scamp_get_view_props') {
+      const viewName = args['name'];
+      if (typeof viewName !== 'string' || viewName.length === 0) {
+        return errorResult(
+          'scamp_get_view_props requires a non-empty string "name" argument — a view or component name such as "Lobby".'
+        );
+      }
+    }
+
     // Answered here, not by the renderer: the scaffold is a pure
     // function of the name and needs no canvas state.
     if (name === 'scamp_get_component_scaffold') {
@@ -193,7 +227,7 @@ export const createToolInvoker = (
     }
 
     try {
-      return format(name, await runQuery(name, args));
+      return format(name, await runQuery(name, args), args);
     } catch (err) {
       // Timeouts and renderer failures land here. An isError result keeps
       // the agent's turn alive and tells it what to do next.

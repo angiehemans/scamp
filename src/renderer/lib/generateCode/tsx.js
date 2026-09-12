@@ -2,7 +2,7 @@
 import { WRITTEN_CONTRACT } from '@shared/projectConfig';
 import { PASSTHROUGH_PROP, rootClassNameAttribute } from "../classNamePassthrough";
 import { ROOT_ELEMENT_ID } from "../element";
-import { collectViewProps, isRowPath, viewEventNames } from "../viewProps";
+import { collectViewProps, isRowPath, propsTypeSource, viewEventNames, } from "../viewProps";
 import { sizeDeclarationLines } from "./declarations";
 import { classNameFor, escapeHtml, tagFor } from "./internal";
 const componentNameFromPage = (pageName) => {
@@ -390,12 +390,8 @@ export const generateTsx = (elements, rootId, pageName, cssModuleImportName, isC
     const props = isComponent ? collectViewProps(elements, rootId) : [];
     const hasProps = isComponent;
     const propsTypeName = `${componentName}Props`;
-    const typeLines = [
-        ...props.map((p) => `  ${p.name}?: ${p.tsType};`),
-        ...(isComponent ? [`  ${PASSTHROUGH_PROP}?: string;`] : []),
-    ];
     const propsTypeBlock = hasProps
-        ? `type ${propsTypeName} = {\n${typeLines.join('\n')}\n};\n\n`
+        ? `${propsTypeSource(propsTypeName, props)}\n\n`
         : '';
     // The destructure goes multi-line as soon as a repeat's rows are in
     // it; otherwise it stays on one line, as components always have.

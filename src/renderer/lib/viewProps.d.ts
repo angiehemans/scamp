@@ -35,6 +35,13 @@ export declare const rowTypeFor: (rows: ReadonlyArray<SampleRow>) => string;
  * the first binding wins its default.
  */
 export declare const collectViewProps: (elements: Record<string, ScampElement>, rootId: string) => ViewProp[];
+/**
+ * The `<Name>Props` type exactly as the file declares it: every prop
+ * optional, `className` last. One source for the generator and the
+ * MCP `scamp_get_view_props` answer, so an agent reads the same text
+ * it would find in the file.
+ */
+export declare const propsTypeSource: (typeName: string, props: ReadonlyArray<ViewProp>) => string;
 /** The event-prop names, in props-type order — what `_scamp.events` lists. */
 export declare const viewEventNames: (props: ReadonlyArray<ViewProp>) => string[];
 /**

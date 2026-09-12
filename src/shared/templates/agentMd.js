@@ -140,6 +140,8 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_get_element_tree\` — structure only; cheap, start here
 - \`scamp_get_active_page\` — which page or component is open
 - \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_get_view_props\` — a view's or component's exact props type and
+  sample data; call before writing the route or page that renders it
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
   or typography value so you use a token instead of a literal
 - \`scamp_get_canvas_state\` — everything at once; large, and capped
@@ -1142,6 +1144,12 @@ const SCAMP_LAYOUT_PARAGRAPH = `This project uses the **Scamp framework** layout
 
 There is no \`app/\` folder and no wrapper pages; a page IS its view.
 \`npm run dev\` runs the framework's dev server (\`scamp dev\`).`;
+const NEXT_WRAPPER_NOTE = `Its \`app/<slug>/page.tsx\` is a one-line wrapper Scamp writes and
+regenerates — never edit it. New pages created in Scamp are views; a
+legacy \`app/<slug>/page.tsx\` page keeps working until it is converted.`;
+const SCAMP_WRAPPER_NOTE = `There are no wrapper pages: a page is its view, and the route file
+under \`routes/\` that renders it is yours — Scamp never reads, lists,
+or regenerates anything there.`;
 export const AGENT_MD_CONTENT = `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
 
 # Scamp Project — Agent Instructions
@@ -1259,6 +1267,8 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_get_element_tree\` — structure only; cheap, start here
 - \`scamp_get_active_page\` — which page or component is open
 - \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
+- \`scamp_get_view_props\` — a view's or component's exact props type and
+  sample data; call before writing the route or page that renders it
 - \`scamp_get_component_scaffold\` — the exact starter files for a new
   component; call it before creating one
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
@@ -1545,8 +1555,8 @@ export const _scamp = { contract: 0, events: [] } as const;
 
 The last statement of every component is the \`_scamp\` export: the
 framework contract version the file was written for, and the names of
-its event-handler props (always \`[]\` today). Scamp writes it on every
-save; copy it exactly, don't invent fields.
+its event-handler props in props-type order (\`[]\` when it has none).
+Scamp writes it on every save; copy it exactly, don't invent fields.
 
 ### Pages as views
 
@@ -1554,9 +1564,7 @@ A page's design can live as a view: \`views/<Name>/<Name>.tsx\` +
 \`<Name>.module.css\`, in exactly the component file shape above (props
 type, \`className\` passthrough, \`_scamp\` export). \`scamp_list_pages\`
 reports such a page with \`kind: "view"\` and the view name; edit the
-view. Its \`app/<slug>/page.tsx\` is a one-line wrapper Scamp writes and
-regenerates — never edit it. New pages created in Scamp are views; a
-legacy \`app/<slug>/page.tsx\` page keeps working until it is converted.
+view. ${NEXT_WRAPPER_NOTE}
 Never give a view root \`min-height: 100vh\`; the page shell owns full
 height.
 
@@ -1609,6 +1617,92 @@ type CardProps = {
 \`\`\`
 
 A slot container has no children of its own.
+
+### Data bindings
+
+A view (or component) is presentational: it declares the data it needs
+as props, renders sample data by default, and leaves the real values to
+whoever renders it. **Compute in logic, bind in the view.** In a Scamp
+framework project that logic is the route file under \`routes/\` — its
+\`load()\` receives a \`LoadContext\` from \`scampjs/runtime\` and the
+route passes the result in as props. Never fetch, branch on business
+rules, or format data inside a view file.
+
+There are five binding kinds, and these are the only forms Scamp reads
+(any other expression is kept verbatim but is not editable on the
+canvas):
+
+| Kind | In the view | Prop |
+|---|---|---|
+| Text | \`<h2 …>{code}</h2>\` | \`code?: string\` |
+| Attribute | \`href={url}\`; boolean: \`disabled={!canStart}\` | \`url?: string\`; \`canStart?: boolean\` |
+| Event | \`onClick={onStart}\`; in a repeat: \`onClick={() => onCopy?.(player.id)}\` | \`onStart?: () => void\`; \`onCopy?: (id: string) => void\` |
+| Repeat | \`{players.map((player) => (…))}\` around ONE element carrying \`key={player.id}\` | \`players?: Array<{ id: string; label: string }>\` |
+| Show | \`{waiting && (…)}\` around one element | \`waiting?: boolean\` |
+
+\`\`\`tsx
+import styles from './Lobby.module.css';
+
+type LobbyProps = {
+  code?: string;
+  players?: Array<{ id: string; label: string }>;
+  waiting?: boolean;
+  onStart?: () => void;
+  className?: string;
+};
+
+export default function Lobby({
+  code = "KZQ4",
+  players = [
+    { id: "1", label: "Player 1 · Alex" },
+    { id: "2", label: "Player 2 · Bea" },
+  ],
+  waiting = true,
+  onStart,
+  className,
+}: LobbyProps) {
+  return (
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`}>
+      <h2 data-scamp-id="code_e1d2" className={styles.code_e1d2}>{code}</h2>
+      <ul data-scamp-id="list_e1e3" className={styles.list_e1e3}>
+        {players.map((player) => (
+          <li data-scamp-id="row_e1e4" className={styles.row_e1e4} key={player.id}>{player.label}</li>
+        ))}
+      </ul>
+      {waiting && (
+        <p data-scamp-id="note_e1f5" className={styles.note_e1f5}>Waiting for everyone to join</p>
+      )}
+      <button data-scamp-id="start_e1f9" className={styles.start_e1f9} type="button" onClick={onStart}>Start the game</button>
+    </div>
+  );
+}
+
+export const _scamp = { contract: 0, events: ['onStart'] } as const;
+\`\`\`
+
+The rules:
+
+- Every prop is optional and defaulted in the destructure, and the
+  default IS the sample data the canvas renders. Give a repeat two or
+  three realistic rows with identical fields; a field types as
+  \`number\` only when every row holds a number.
+- Props are declared in document order (per element: show, repeat, the
+  text prop, then bound attributes), then events, then slots, then
+  \`className\` last. The destructure goes multi-line as soon as a
+  repeat's rows are in it.
+- Inside a repeat, text and attributes read the row — \`{player.label}\`,
+  \`href={player.url}\` — and those are not props. \`key\` is the row's
+  \`id\` unless another field is named.
+- A repeat or show wraps exactly one element, on its own lines, at
+  that element's indent. Never wrap the root.
+- \`_scamp.events\` lists the event props in the same order as the type.
+- \`scamp_get_view_props\` returns the exact props type and samples for
+  any view or component — call it before writing code that renders
+  one, so the object you pass matches.
+
+A view imports nothing from \`scampjs\`: it is plain TSX plus a CSS
+module and renders unchanged in any React or Preact project. Scamp
+regenerates only the view's own two files.
 
 ### Instancing on a page
 
@@ -2391,4 +2485,4 @@ Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
  * The scamp-format variant: same conventions, framework layout. The
  * views paragraph's Next-only wrapper-page note is replaced too.
  */
-export const AGENT_MD_CONTENT_SCAMP = AGENT_MD_CONTENT.replace(NEXT_LAYOUT_PARAGRAPH, SCAMP_LAYOUT_PARAGRAPH).replace(/In this project each view previews through a[\s\S]*?never edit it\./, 'There are no wrapper pages here: a page is its view, and the route that renders it lives in `routes/`, which is yours.');
+export const AGENT_MD_CONTENT_SCAMP = AGENT_MD_CONTENT.replace(NEXT_LAYOUT_PARAGRAPH, SCAMP_LAYOUT_PARAGRAPH).replace(NEXT_WRAPPER_NOTE, SCAMP_WRAPPER_NOTE);

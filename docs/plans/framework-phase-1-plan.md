@@ -38,7 +38,15 @@ route file, and a scamp-flavoured `agent.md`. On open the installed
 reports a missing install or a contract outside `SUPPORTED_CONTRACT`.
 Preview stays disabled with a notice until contract 1. The published
 contract fixture opens, renders the Lobby's bindings, and is left
-byte-identical. Next: step 7, agents.
+byte-identical.
+- Step 7 landed: `agent.md` gained a **Data bindings** section (the
+  five canonical forms, props order, "compute in logic, bind in the
+  view", the `_scamp` export, the portability promise, `LoadContext`
+  from `scampjs/runtime`), the scamp variant's wrapper note is now a
+  real replacement, and the MCP server answers `scamp_get_view_props`
+  (name or route slug) with the exact props type, kinds, events, and
+  samples. No separate `scamp_list_views`: views already list under
+  `scamp_list_pages` with `kind: "view"`. Next: step 8, docs.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

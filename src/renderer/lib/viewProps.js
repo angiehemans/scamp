@@ -1,3 +1,4 @@
+import { PASSTHROUGH_PROP } from './classNamePassthrough';
 /** HTML attributes whose presence is the value; bound, they type as boolean. */
 export const BOOLEAN_ATTRIBUTES = new Set([
     'disabled',
@@ -131,6 +132,19 @@ export const collectViewProps = (elements, rootId) => {
     };
     walk(rootId, null);
     return [...props, ...events, ...slots];
+};
+/**
+ * The `<Name>Props` type exactly as the file declares it: every prop
+ * optional, `className` last. One source for the generator and the
+ * MCP `scamp_get_view_props` answer, so an agent reads the same text
+ * it would find in the file.
+ */
+export const propsTypeSource = (typeName, props) => {
+    const lines = [
+        ...props.map((p) => `  ${p.name}?: ${p.tsType};`),
+        `  ${PASSTHROUGH_PROP}?: string;`,
+    ];
+    return `type ${typeName} = {\n${lines.join('\n')}\n};`;
 };
 /** The event-prop names, in props-type order — what `_scamp.events` lists. */
 export const viewEventNames = (props) => props.filter((p) => p.kind === 'event').map((p) => p.name);

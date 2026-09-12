@@ -102,7 +102,9 @@ describe('scamp project format', () => {
     expect(AGENT_MD_CONTENT_SCAMP).toContain('Scamp framework');
     expect(AGENT_MD_CONTENT_SCAMP).toContain('routes/');
     expect(AGENT_MD_CONTENT_SCAMP).not.toContain('can be opened\ndirectly in a Next.js workspace');
-    expect(AGENT_MD_CONTENT_SCAMP).not.toContain('previews through a');
+    expect(AGENT_MD_CONTENT_SCAMP).not.toContain('one-line wrapper');
+    expect(AGENT_MD_CONTENT_SCAMP).toContain('There are no wrapper pages');
+    expect(AGENT_MD_CONTENT_SCAMP).toContain('### Data bindings');
     expect(AGENT_MD_CONTENT).toContain('can be opened\ndirectly in a Next.js workspace');
   });
 });

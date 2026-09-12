@@ -6,8 +6,14 @@ import {
   type ContextElement,
   type ContextTarget,
 } from './contextModel';
-import type { ScampElement } from './element';
+import type { SampleValue, ScampElement } from './element';
 import { classNameFor, tagFor } from './generateCode';
+import {
+  collectViewProps,
+  propsTypeSource,
+  viewEventNames,
+  type ViewPropKind,
+} from './viewProps';
 
 /**
  * The canvas, in the shapes the MCP tools return.
@@ -35,6 +41,8 @@ export type SnapshotInput = {
   componentNames: ReadonlyArray<string>;
   /** Views (`views/<Name>/`); absent means none. */
   viewNames?: ReadonlyArray<string>;
+  /** Every component and view tree by name, for `scamp_get_view_props`. */
+  trees?: Readonly<Record<string, SnapshotTree>>;
   themeTokens: ReadonlyArray<ThemeToken>;
   themes: ReadonlyArray<ThemeDef>;
   activeThemeId: string;
@@ -42,6 +50,32 @@ export type SnapshotInput = {
   breakpointLabel: string;
   canvasWidth: number;
 };
+
+export type SnapshotTree = {
+  kind: 'component' | 'view';
+  elements: Record<string, ScampElement>;
+  rootId: string;
+};
+
+export type ViewPropsResult = {
+  name: string;
+  kind: 'component' | 'view';
+  tsx: string;
+  css: string;
+  /** The `<Name>Props` type exactly as the file declares it. */
+  propsType: string;
+  props: Array<{
+    name: string;
+    kind: ViewPropKind;
+    type: string;
+    /** The default in the destructure; absent for events and slots. */
+    default?: SampleValue;
+  }>;
+  /** Event-prop names in order — what `_scamp.events` lists. */
+  events: string[];
+  /** The sample data the design renders with, per prop. */
+  samples: Record<string, SampleValue>;
+} | null;
 
 export type ActiveTargetResult = {
   kind: 'page' | 'component' | 'view';
@@ -136,6 +170,14 @@ export const componentPathsRelative = (
 ): { tsx: string; css: string } => ({
   tsx: `components/${name}/${name}.tsx`,
   css: `components/${name}/${name}.module.css`,
+});
+
+/** Mirrors `main/ipc/componentOps.ts` → `componentPathsFor` for views. */
+export const viewPathsRelative = (
+  name: string
+): { tsx: string; css: string } => ({
+  tsx: `views/${name}/${name}.tsx`,
+  css: `views/${name}/${name}.module.css`,
 });
 
 /** `ContextElement` → the tool's element shape. */
@@ -240,11 +282,53 @@ export const listPages = (input: SnapshotInput): FileListItem[] => [
       name: viewSlugFor(view),
       kind: 'view',
       view,
-      tsx: `views/${view}/${view}.tsx`,
-      css: `views/${view}/${view}.module.css`,
+      ...viewPathsRelative(view),
     })
   ),
 ];
+
+/**
+ * The props a view or component accepts, from its live tree.
+ *
+ * `name` is the PascalCase file name, or — because `scamp_list_pages`
+ * reports a view by its route slug — that slug. The type text comes
+ * from the same formatter the generator uses, so what the agent reads
+ * here is byte-for-byte what the file declares.
+ */
+export const getViewProps = (
+  input: SnapshotInput,
+  name: string
+): ViewPropsResult => {
+  const trees = input.trees ?? {};
+  const match =
+    trees[name] !== undefined
+      ? name
+      : Object.keys(trees).find(
+          (candidate) =>
+            trees[candidate]?.kind === 'view' && viewSlugFor(candidate) === name
+        );
+  const tree = match === undefined ? undefined : trees[match];
+  if (match === undefined || tree === undefined) return null;
+  const props = collectViewProps(tree.elements, tree.rootId);
+  const samples: Record<string, SampleValue> = {};
+  for (const prop of props) {
+    if (prop.defaultValue !== undefined) samples[prop.name] = prop.defaultValue;
+  }
+  return {
+    name: match,
+    kind: tree.kind,
+    ...(tree.kind === 'view' ? viewPathsRelative(match) : componentPathsRelative(match)),
+    propsType: propsTypeSource(`${match}Props`, props),
+    props: props.map((p) => ({
+      name: p.name,
+      kind: p.kind,
+      type: p.tsType,
+      ...(p.defaultValue !== undefined ? { default: p.defaultValue } : {}),
+    })),
+    events: viewEventNames(props),
+    samples,
+  };
+};
 
 /**
  * Components by name and path.
@@ -307,6 +391,8 @@ export const answerSnapshotTool = (
       return listComponents(input);
     case 'scamp_get_theme_tokens':
       return getThemeTokens(input);
+    case 'scamp_get_view_props':
+      return getViewProps(input, String(args['name'] ?? ''));
     default:
       throw new Error(`Unknown snapshot tool: ${tool}`);
   }
