@@ -3,6 +3,8 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { SegmentedControl } from './controls/SegmentedControl';
 import { REQUEST_REMOVE_SLOT_EVENT, } from './ElementContextMenu';
+import { BindingSections } from './DataBindings';
+import { collectViewProps, enclosingRepeat } from '@lib/viewProps';
 import styles from './DataPanel.module.css';
 import propStyles from './PropertiesPanel.module.css';
 // Data tab: component-only prop/locked toggle + per-instance overrides.
@@ -108,12 +110,25 @@ const DataRow = ({ row, otherPropNames, }) => {
     useEffect(() => {
         setDraftName(row.prop ?? '');
     }, [row.prop]);
+    const elements = useCanvasStore((s) => s.elements);
     const isProp = row.prop !== undefined;
     const validationError = (() => {
         if (!isProp)
             return null;
         if (draftName === row.prop)
             return null;
+        // Inside a repeat, a text may bind a row field: `item.label`.
+        if (draftName.includes('.')) {
+            const repeat = enclosingRepeat(elements, row.id);
+            if (repeat === null)
+                return 'A row field needs a repeat above this element.';
+            const [head, ...rest] = draftName.split('.');
+            if (head !== repeat.as)
+                return `Row fields start with ${repeat.as}.`;
+            if (rest.length !== 1 || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(rest[0] ?? ''))
+                return 'Use one field: item.field';
+            return null;
+        }
         if (!PROP_NAME_RE.test(draftName)) {
             return 'Use lowerCamelCase letters / digits only.';
         }
@@ -175,10 +190,14 @@ const ComponentDataView = () => {
     const allPropNames = useMemo(() => rows.flatMap((r) => (r.prop !== undefined ? [r.prop] : [])), [rows]);
     const slotRows = useMemo(() => collectSlotRows(elements, rootElementId), [elements, rootElementId]);
     const allSlotNames = useMemo(() => slotRows.map((r) => r.slot), [slotRows]);
-    if (rows.length === 0 && slotRows.length === 0) {
-        return (_jsx("div", { className: propStyles.uiPanelBody, children: _jsx("div", { className: styles.empty, children: "No text props or slots yet. Mark a text element as a prop, or right-click a rectangle \u2192 \"Make slot\" to let pages nest content inside this component." }) }));
+    const hasBindings = useMemo(() => collectViewProps(elements, rootElementId).some((p) => p.kind !== 'text' && p.kind !== 'slot'), [elements, rootElementId]);
+    const hasAttributeCandidates = useMemo(() => Object.values(elements).some((el) => el.id !== rootElementId &&
+        (el.type === 'component-instance' || Object.keys(el.attributes ?? {}).length > 0 ||
+            ['a', 'button', 'input', 'textarea', 'select', 'form', 'dialog', 'video', 'iframe', 'label', 'time', 'blockquote'].includes(el.tag ?? ''))), [elements, rootElementId]);
+    if (rows.length === 0 && slotRows.length === 0 && !hasBindings && !hasAttributeCandidates) {
+        return (_jsx("div", { className: propStyles.uiPanelBody, children: _jsx("div", { className: styles.empty, children: "No props yet. Mark a text element as a prop, right-click an element \u2192 \"Repeat this\u2026\" or \"Show only when\u2026\", or right-click a rectangle \u2192 \"Make slot\" to let pages nest content inside this component." }) }));
     }
-    return (_jsxs("div", { className: propStyles.uiPanelBody, children: [rows.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.intro, children: "Mark a text element as a prop to let pages override its content per-instance. Locked text stays the same on every instance." }), _jsx("div", { className: styles.rows, children: rows.map((row) => (_jsx(DataRow, { row: row, otherPropNames: allPropNames.filter((n) => n !== row.prop) }, row.id))) })] })), slotRows.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.intro, children: ["Slots let pages nest their own elements inside this component (React ", _jsx("code", { children: "children" }), "). Rename or remove them here."] }), _jsx("div", { className: styles.rows, children: slotRows.map((row) => (_jsx(SlotRow, { row: row, otherSlotNames: allSlotNames.filter((n) => n !== row.slot) }, row.id))) })] }))] }));
+    return (_jsxs("div", { className: propStyles.uiPanelBody, children: [rows.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.intro, children: "Mark a text element as a prop to let pages override its content per-instance. Locked text stays the same on every instance." }), _jsx("div", { className: styles.rows, children: rows.map((row) => (_jsx(DataRow, { row: row, otherPropNames: allPropNames.filter((n) => n !== row.prop) }, row.id))) })] })), slotRows.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.intro, children: ["Slots let pages nest their own elements inside this component (React ", _jsx("code", { children: "children" }), "). Rename or remove them here."] }), _jsx("div", { className: styles.rows, children: slotRows.map((row) => (_jsx(SlotRow, { row: row, otherSlotNames: allSlotNames.filter((n) => n !== row.slot) }, row.id))) })] })), _jsx(BindingSections, {})] }));
 };
 const collectPropDeclarations = (elements, rootId) => {
     const out = [];

@@ -24,6 +24,7 @@ import { create } from 'zustand';
 import { projectColorsFromElements } from '@lib/projectColors';
 import { createElementsCreateSlice } from './canvas/slices/elementsCreate';
 import { createElementsEditSlice } from './canvas/slices/elementsEdit';
+import { createBindingsSlice } from './canvas/slices/bindings';
 import { createSelectionSlice } from './canvas/slices/selection';
 import { createDocumentSlice } from './canvas/slices/document';
 import { createUiSlice } from './canvas/slices/ui';
@@ -33,6 +34,7 @@ export { MIN_ZOOM, MAX_ZOOM } from '@lib/zoom';
 export const useCanvasStore = create()((...a) => ({
     ...createElementsCreateSlice(...a),
     ...createElementsEditSlice(...a),
+    ...createBindingsSlice(...a),
     ...createSelectionSlice(...a),
     ...createDocumentSlice(...a),
     ...createUiSlice(...a),

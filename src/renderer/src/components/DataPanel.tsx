@@ -7,6 +7,8 @@ import {
   REQUEST_REMOVE_SLOT_EVENT,
   type RequestRemoveSlotEventDetail,
 } from './ElementContextMenu';
+import { BindingSections } from './DataBindings';
+import { collectViewProps, enclosingRepeat } from '@lib/viewProps';
 import styles from './DataPanel.module.css';
 import propStyles from './PropertiesPanel.module.css';
 
@@ -194,10 +196,20 @@ const DataRow = ({
     setDraftName(row.prop ?? '');
   }, [row.prop]);
 
+  const elements = useCanvasStore((s) => s.elements);
   const isProp = row.prop !== undefined;
   const validationError = (() => {
     if (!isProp) return null;
     if (draftName === row.prop) return null;
+    // Inside a repeat, a text may bind a row field: `item.label`.
+    if (draftName.includes('.')) {
+      const repeat = enclosingRepeat(elements, row.id);
+      if (repeat === null) return 'A row field needs a repeat above this element.';
+      const [head, ...rest] = draftName.split('.');
+      if (head !== repeat.as) return `Row fields start with ${repeat.as}.`;
+      if (rest.length !== 1 || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(rest[0] ?? '')) return 'Use one field: item.field';
+      return null;
+    }
     if (!PROP_NAME_RE.test(draftName)) {
       return 'Use lowerCamelCase letters / digits only.';
     }
@@ -302,13 +314,28 @@ const ComponentDataView = (): JSX.Element => {
   );
   const allSlotNames = useMemo(() => slotRows.map((r) => r.slot), [slotRows]);
 
-  if (rows.length === 0 && slotRows.length === 0) {
+  const hasBindings = useMemo(
+    () => collectViewProps(elements, rootElementId).some((p) => p.kind !== 'text' && p.kind !== 'slot'),
+    [elements, rootElementId]
+  );
+  const hasAttributeCandidates = useMemo(
+    () =>
+      Object.values(elements).some(
+        (el) =>
+          el.id !== rootElementId &&
+          (el.type === 'component-instance' || Object.keys(el.attributes ?? {}).length > 0 ||
+            ['a', 'button', 'input', 'textarea', 'select', 'form', 'dialog', 'video', 'iframe', 'label', 'time', 'blockquote'].includes(el.tag ?? ''))
+      ),
+    [elements, rootElementId]
+  );
+
+  if (rows.length === 0 && slotRows.length === 0 && !hasBindings && !hasAttributeCandidates) {
     return (
       <div className={propStyles.uiPanelBody}>
         <div className={styles.empty}>
-          No text props or slots yet. Mark a text element as a prop, or
-          right-click a rectangle → "Make slot" to let pages nest content
-          inside this component.
+          No props yet. Mark a text element as a prop, right-click an element
+          → "Repeat this…" or "Show only when…", or right-click a rectangle →
+          "Make slot" to let pages nest content inside this component.
         </div>
       </div>
     );
@@ -350,6 +377,7 @@ const ComponentDataView = (): JSX.Element => {
           </div>
         </>
       )}
+      <BindingSections />
     </div>
   );
 };

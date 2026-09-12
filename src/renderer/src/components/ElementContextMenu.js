@@ -2,6 +2,8 @@ import { jsx as _jsx } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
+import { collectViewProps } from '@lib/viewProps';
+import { freePropName } from './DataBindings';
 import { copyContextToClipboard } from '../lib/copyContext';
 import { PageContextMenu } from './PageContextMenu';
 import { EXPORT_SECTION_DOM_ID } from './sections/ExportSection';
@@ -69,6 +71,11 @@ export const ElementContextMenu = () => {
             (typeof el.text === 'string' && el.text.length > 0));
     });
     const toggleSlotOnRect = useCanvasStore((s) => s.toggleSlotOnRect);
+    // Repeat / show bindings (Data tab). see docs/notes/view-bindings.md
+    const setRepeat = useCanvasStore((s) => s.setRepeat);
+    const setShowIf = useCanvasStore((s) => s.setShowIf);
+    const targetRepeat = useCanvasStore((s) => menu ? s.elements[menu.elementId]?.repeat : undefined);
+    const targetShowIf = useCanvasStore((s) => menu ? s.elements[menu.elementId]?.showIf : undefined);
     const deleteElementContents = useCanvasStore((s) => s.deleteElementContents);
     const duplicateElement = useCanvasStore((s) => s.duplicateElement);
     const copyElements = useCanvasStore((s) => s.copyElements);
@@ -133,6 +140,30 @@ export const ElementContextMenu = () => {
             // layers tree there's no point to paste at, so it offsets.
             onSelect: () => pasteElement(menu.canvasPoint ? { at: menu.canvasPoint } : undefined),
         },
+        ...(inComponent && menu.elementId !== ROOT_ELEMENT_ID
+            ? [
+                targetRepeat === undefined
+                    ? {
+                        label: 'Repeat this…',
+                        onSelect: () => {
+                            const state = useCanvasStore.getState();
+                            const taken = collectViewProps(state.elements, state.rootElementId).map((p) => p.name);
+                            setRepeat(menu.elementId, { over: freePropName('items', taken), as: 'item' });
+                        },
+                    }
+                    : { label: 'Stop repeating', onSelect: () => setRepeat(menu.elementId, null) },
+                targetShowIf === undefined
+                    ? {
+                        label: 'Show only when…',
+                        onSelect: () => {
+                            const state = useCanvasStore.getState();
+                            const taken = collectViewProps(state.elements, state.rootElementId).map((p) => p.name);
+                            setShowIf(menu.elementId, freePropName('visible', taken));
+                        },
+                    }
+                    : { label: 'Always show', onSelect: () => setShowIf(menu.elementId, null) },
+            ]
+            : []),
         ...(canMakeSlot
             ? [
                 {

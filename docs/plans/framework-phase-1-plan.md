@@ -25,8 +25,10 @@ Design in `docs/notes/view-bindings.md`.
 Step 4 landed: `lib/bindingEval.ts` and both canvas render paths resolve
 row-bound text and instance props, render a repeated element once per
 sample row, and drop a hidden one; the parity fixture
-`binding-repeat-and-show` proves it against a browser. Next: step 5,
-the Data tab.
+`binding-repeat-and-show` proves it against a browser.
+Step 5 landed: the Data tab's Repeat, Show, Attributes, and Events
+sections, the right-click items that start a repeat or a show, and the
+`bindings` store slice. Next: step 6, project format and compatibility.
 
 This is the app side of "start using the framework in Scamp projects",
 given where the framework is today. `scampjs` 0.0.2 is on npm at

@@ -35,6 +35,8 @@ import {
   type KeyframesBlock,
   type PropertyGroup,
   type ScampElement,
+  type RepeatBinding,
+  type SampleRow,
 } from '@lib/element';
 import { canonicalizeGroupList } from '@lib/propertyGroups';
 import { useHistoryStore, type HistoryCommitInput } from './historySlice';
@@ -72,6 +74,7 @@ import { projectColorsFromElements } from '@lib/projectColors';
 import { commitElementsToHistory, freshId } from './canvas/history';
 import { createElementsCreateSlice } from './canvas/slices/elementsCreate';
 import { createElementsEditSlice } from './canvas/slices/elementsEdit';
+import { createBindingsSlice } from './canvas/slices/bindings';
 import { createSelectionSlice } from './canvas/slices/selection';
 import { createDocumentSlice } from './canvas/slices/document';
 import { createUiSlice } from './canvas/slices/ui';
@@ -677,6 +680,19 @@ export type CanvasState = {
   toggleSlotOnRect: (id: string) => void;
   /** Rename a slot rectangle's `slot`. Caller validates identifier + uniqueness. */
   renameSlot: (id: string, nextName: string) => void;
+  // Bindings (Data tab). see docs/notes/view-bindings.md
+  /** Bind an attribute (or an instance prop) to `propName`; null unbinds. `inverted` writes `!name`. */
+  setAttributeBinding: (id: string, attr: string, propName: string | null, inverted?: boolean) => void;
+  /** Bind an event (`onClick`) to a handler prop; null unbinds. */
+  setEventBinding: (id: string, event: string, handler: string | null) => void;
+  /** Repeat an element over a list prop, seeding one sample row; null stops. */
+  setRepeat: (id: string, repeat: RepeatBinding | null) => void;
+  /** Show an element only when a flag prop is true, seeding the flag; null always shows. */
+  setShowIf: (id: string, flag: string | null) => void;
+  setSampleFlag: (flag: string, value: boolean) => void;
+  setSampleRows: (over: string, rows: ReadonlyArray<SampleRow>) => void;
+  /** Rename a bound prop everywhere it's referenced (bindings, flags, lists, samples). */
+  renameBindingProp: (oldName: string, newName: string) => void;
   /** Set (or clear, when undefined) which slot a piece of instance content
    *  fills. Used by the drop flow when nesting into a named slot. */
   setElementSlotName: (id: string, slotName: string | undefined) => void;
@@ -896,6 +912,7 @@ export type CanvasState = {
 export const useCanvasStore = create<CanvasState>()((...a) => ({
   ...createElementsCreateSlice(...a),
   ...createElementsEditSlice(...a),
+  ...createBindingsSlice(...a),
   ...createSelectionSlice(...a),
   ...createDocumentSlice(...a),
   ...createUiSlice(...a),

@@ -90,3 +90,19 @@ the whole element map.
 
 The parity fixture `binding-repeat-and-show` proves the canvas against
 a browser rendering the same defaults.
+
+## The Data tab
+
+`DataBindings.tsx` adds four sections under the existing Text and Slots
+rows: **Repeat** (the list name, the row variable, the key, and the
+sample rows as an editable table with add-row and add-field), **Show**
+(the flag name and its sample checkbox), **Attributes** (Locked / Prop
+per typed or present attribute, with an *inverted* checkbox on boolean
+attributes), and **Events** (None / Prop per supported event: `onClick`
+on buttons and links, `onChange` on inputs, `onSubmit` on forms). Repeat
+and show start from the element's right-click menu — **Repeat this…**
+and **Show only when…** — which seed a list of one row or a flag set to
+true. Inside a repeat, a text prop or a bound attribute may be a row
+field (`item.label`). Every edit goes through the `bindings` store
+slice, which also keeps the root's samples in step and renames a prop
+everywhere at once.
