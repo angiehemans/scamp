@@ -26,6 +26,7 @@ export const useDrawInteraction = (geometry) => {
     const projectFormat = useCanvasStore((s) => s.projectFormat);
     const projectPath = useCanvasStore((s) => s.projectPath);
     const activePage = useCanvasStore((s) => s.activePage);
+    const activeComponent = useCanvasStore((s) => s.activeComponent);
     const setTool = useCanvasStore((s) => s.setTool);
     const createRectangle = useCanvasStore((s) => s.createRectangle);
     const createText = useCanvasStore((s) => s.createText);
@@ -47,7 +48,8 @@ export const useDrawInteraction = (geometry) => {
         // Already have a pending image (e.g. re-render), don't re-open dialog.
         if (pendingImage)
             return;
-        if (!activePage) {
+        // Images land on a page, a view, or a component alike.
+        if (!activePage && !activeComponent) {
             setTool('select');
             return;
         }

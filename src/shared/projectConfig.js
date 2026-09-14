@@ -157,6 +157,7 @@ export const parseProjectConfig = (raw) => {
         : DEFAULT_PROJECT_CONFIG.canvasOverflowHidden;
     const canvasMigrationAcknowledged = obj['canvasMigrationAcknowledged'] === true ? true : undefined;
     const nextjsMigrationDismissed = obj['nextjsMigrationDismissed'] === true ? true : undefined;
+    const scampMigrationDismissed = obj['scampMigrationDismissed'] === true ? true : undefined;
     // Auto-save snapshots default on; only persist an explicit disable.
     const snapshotAutoSave = obj['snapshotAutoSave'] === false ? false : undefined;
     const breakpoints = obj['breakpoints'] === undefined
@@ -190,6 +191,7 @@ export const parseProjectConfig = (raw) => {
         ...(canvasHeight !== undefined ? { canvasHeight } : {}),
         ...(canvasMigrationAcknowledged ? { canvasMigrationAcknowledged: true } : {}),
         ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
+        ...(scampMigrationDismissed ? { scampMigrationDismissed: true } : {}),
         ...(snapshotAutoSave === false ? { snapshotAutoSave: false } : {}),
         ...(componentCanvas ? { componentCanvas } : {}),
         ...(isValidColor(cardBackground) ? { cardBackground } : {}),

@@ -2,9 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { migrateLegacyToNextjs, rewriteAssetReferences, } from '../../src/main/ipc/projectMigrate';
+import { migrateLegacyToNextjs, migrateNextjsToScamp, rewriteAssetReferences, rewritePackageJsonForScamp, } from '../../src/main/ipc/projectMigrate';
+import { DEFAULT_COMPONENT_CSS, defaultComponentTsx } from '../../src/main/ipc/componentScaffold';
+import { viewWrapperTsx } from '../../src/shared/templates';
 import { detectProjectFormat } from '../../src/main/ipc/projectFormat';
-import { readProjectNextjs, scaffoldLegacyProject, } from '../../src/main/ipc/projectScaffold';
+import { readProjectNextjs, scaffoldLegacyProject, scaffoldNextjsProject, } from '../../src/main/ipc/projectScaffold';
 describe('rewriteAssetReferences', () => {
     it('rewrites url("./assets/foo.png") to url("/assets/foo.png")', () => {
         const css = `.hero { background: url("./assets/hero.png"); }`;
@@ -133,5 +135,99 @@ describe('migrateLegacyToNextjs', () => {
         await fs.rm(path.join(projectDir, 'home.tsx'));
         await fs.rm(path.join(projectDir, 'home.module.css'));
         await expect(migrateLegacyToNextjs(projectDir)).rejects.toThrow(/No pages found/);
+    });
+});
+describe('rewritePackageJsonForScamp', () => {
+    it('swaps Next and React for scampjs and Preact and keeps everything else', () => {
+        const original = JSON.stringify({
+            name: 'noise',
+            version: '0.1.0',
+            private: true,
+            scripts: { dev: 'next dev', build: 'next build', start: 'next start', lint: 'eslint .' },
+            dependencies: { next: '^15.0.0', react: '^19.0.0', 'react-dom': '^19.0.0', zod: '^3.0.0' },
+            devDependencies: { '@types/react': '^19.0.0', '@types/react-dom': '^19.0.0', typescript: '^5.5.0' },
+        });
+        const out = JSON.parse(rewritePackageJsonForScamp(original, 'noise', '^0.2.1'));
+        expect(out['scripts']).toEqual({ dev: 'scamp dev', build: 'scamp build', preview: 'scamp preview', lint: 'eslint .' });
+        expect(out['dependencies']).toEqual({ preact: '^10.29.0', scampjs: '^0.2.1', zod: '^3.0.0' });
+        expect(out['devDependencies']).toEqual({ typescript: '^5.5.0' });
+        expect(out['type']).toBe('module');
+        expect(out['version']).toBe('0.1.0');
+    });
+    it('replaces a malformed package.json outright', () => {
+        const out = JSON.parse(rewritePackageJsonForScamp('not json', 'noise', '^0.2.1'));
+        expect(out['name']).toBe('noise');
+        expect(out['dependencies']).toEqual({ preact: '^10.29.0', scampjs: '^0.2.1' });
+        expect(out['devDependencies']).toBeUndefined();
+    });
+});
+describe('migrateNextjsToScamp', () => {
+    let projectDir;
+    beforeEach(async () => {
+        const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-migrate-'));
+        projectDir = path.join(parent, 'noise');
+        await fs.mkdir(projectDir);
+        await scaffoldNextjsProject(projectDir, 'noise');
+    });
+    afterEach(async () => {
+        await fs.rm(path.dirname(projectDir), { recursive: true, force: true });
+    });
+    const write = async (relative, content) => {
+        const file = path.join(projectDir, relative);
+        await fs.mkdir(path.dirname(file), { recursive: true });
+        await fs.writeFile(file, content, 'utf-8');
+    };
+    const read = (relative) => fs.readFile(path.join(projectDir, relative), 'utf-8');
+    const exists = (relative) => fs.access(path.join(projectDir, relative)).then(() => true, () => false);
+    /** A project whose pages are already views: what the renderer hands over. */
+    const makeViews = async () => {
+        await write('app/page.tsx', viewWrapperTsx('Home'));
+        await write('app/about/page.tsx', viewWrapperTsx('About'));
+        await write('app/about/page.module.css', '.root {\n}\n');
+        for (const name of ['Home', 'About']) {
+            await write(`views/${name}/${name}.tsx`, defaultComponentTsx(name));
+            await write(`views/${name}/${name}.module.css`, DEFAULT_COMPONENT_CSS);
+        }
+        await write('DESIGN.md', '# Noise\n');
+        await write('app/api/ping/route.ts', 'export const GET = () => new Response("pong");\n');
+        await write('features/HomeScreen.tsx', 'export default function HomeScreen() { return null; }\n');
+    };
+    it('refuses while a plain page remains, naming it', async () => {
+        await expect(migrateNextjsToScamp(projectDir, '^0.2.1')).rejects.toThrow('Convert these pages to views first: home');
+        expect(await exists('app/page.tsx')).toBe(true);
+        expect(await exists('routes')).toBe(false);
+    });
+    it('writes routes, design/, the framework package.json, and keeps views and components', async () => {
+        await makeViews();
+        const result = await migrateNextjsToScamp(projectDir, '^0.2.1');
+        expect(await read('routes/index.tsx')).toBe("import Home from '@/views/Home/Home';\n\nexport const render = 'static';\n\nexport default function HomeRoute() {\n  return <Home />;\n}\n");
+        expect(await read('routes/about.tsx')).toContain("import About from '@/views/About/About';");
+        expect(await read('views/Home/Home.tsx')).toBe(defaultComponentTsx('Home'));
+        expect(await read('design/theme.css')).toContain('--color-primary');
+        expect(await read('design/theme.css')).toMatch(/body\s*\{[^}]*margin:\s*0/);
+        expect(await read('design/DESIGN.md')).toBe('# Noise\n');
+        const pkg = JSON.parse(await read('package.json'));
+        expect(pkg.dependencies).toEqual({ preact: '^10.29.0', scampjs: '^0.2.1' });
+        expect(pkg.scripts['dev']).toBe('scamp dev');
+        expect(await exists('scamp-env.d.ts')).toBe(true);
+        expect(JSON.parse(await read('tsconfig.json'))).toHaveProperty('compilerOptions.jsxImportSource', 'preact');
+        // Next.js files are in the backup at their paths; the leftovers are listed.
+        expect(await exists('app/page.tsx')).toBe(false);
+        expect(await exists('app/layout.tsx')).toBe(false);
+        expect(await exists('next.config.ts')).toBe(false);
+        expect(await exists('DESIGN.md')).toBe(false);
+        expect(await exists(path.relative(projectDir, path.join(result.backupPath, 'app', 'layout.tsx')))).toBe(true);
+        expect(await exists(path.relative(projectDir, path.join(result.backupPath, 'app', 'about', 'page.tsx')))).toBe(true);
+        expect(await exists('app/api/ping/route.ts')).toBe(true);
+        expect(await exists('app/about')).toBe(false);
+        expect(result.unmovedFiles).toEqual(['app/api/ping/route.ts', 'features/']);
+        expect(await detectProjectFormat(projectDir)).toBe('scamp');
+    });
+    it('keeps a customised tsconfig.json and says what to change', async () => {
+        await makeViews();
+        await write('tsconfig.json', '{ "compilerOptions": { "strict": false } }\n');
+        const result = await migrateNextjsToScamp(projectDir, '^0.2.1');
+        expect(await read('tsconfig.json')).toBe('{ "compilerOptions": { "strict": false } }\n');
+        expect(result.unmovedFiles.some((f) => f.startsWith('tsconfig.json'))).toBe(true);
     });
 });

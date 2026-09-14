@@ -3,6 +3,12 @@ export type PageFiles = {
     tsx: string;
     css: string;
 };
+/**
+ * The page's TSX and CSS module, wherever the project's format keeps
+ * them: `views/<Name>/` in a framework project, `app/` in a Next.js
+ * one, the root in a legacy one. Probed from disk so a spec reads the
+ * same way under `SCAMP_E2E_FORMAT`.
+ */
 export declare const readPageFiles: (projectDir: string, pageName: string) => Promise<PageFiles>;
 export declare const projectFileExists: (projectDir: string, name: string) => Promise<boolean>;
 /**

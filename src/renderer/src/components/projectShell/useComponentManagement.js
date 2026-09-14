@@ -340,6 +340,105 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
      * taken first, so the page is one restore away.
      * see docs/plans/framework-phase-1-plan.md, step 2
      */
+    /**
+     * Turn one page into a view: generate the view files from the page's
+     * latest content (the store for the open page, the file otherwise),
+     * create them, and replace the page with a wrapper. Returns the new
+     * view. Shared by the page menu's Convert and the framework migration.
+     */
+    const createViewFromPage = async (current, pageName) => {
+        const viewName = viewNameForPage(pageName);
+        if (current.components.some((c) => c.name === viewName)) {
+            throw new Error(`A component or view named "${viewName}" already exists. Rename it first.`);
+        }
+        flushPendingPageWrite();
+        persistActiveSource();
+        const page = current.pages.find((p) => p.name === pageName);
+        if (!page)
+            throw new Error(`Page "${pageName}" not found in current.`);
+        const snapshot = await window.scamp.createSnapshot({
+            projectPath: current.path,
+            trigger: 'manual',
+            label: `Before converting "${pageName}" to a view`,
+        });
+        if (snapshot.snapshot === null) {
+            // Snapshots never block the user (see snapshotOps), but the
+            // conversion is meant to be one restore away, so say so.
+            useAppLogStore
+                .getState()
+                .log('warn', `No snapshot was taken before converting "${pageName}"; see the main-process log.`);
+        }
+        const store = useCanvasStore.getState();
+        const breakpoints = store.breakpoints;
+        // The open page's latest edits live in the store; any other page
+        // is read from its file.
+        const source = store.activePage?.name === pageName
+            ? {
+                elements: store.elements,
+                rootId: store.rootElementId,
+                customMediaBlocks: store.pageCustomMediaBlocks,
+                keyframesBlocks: store.pageKeyframesBlocks,
+            }
+            : (() => {
+                const parsed = parseCode(page.tsxContent, page.cssContent, { breakpoints });
+                return {
+                    elements: parsed.elements,
+                    rootId: parsed.rootId,
+                    customMediaBlocks: parsed.customMediaBlocks,
+                    keyframesBlocks: parsed.keyframesBlocks,
+                };
+            })();
+        // A view root is a component root: no page-root `100vh` floor.
+        const root = source.elements[source.rootId];
+        const elements = root
+            ? { ...source.elements, [source.rootId]: { ...root, minHeight: undefined } }
+            : source.elements;
+        const generated = generateCode({
+            elements,
+            rootId: source.rootId,
+            pageName: viewName,
+            cssModuleImportName: viewName,
+            breakpoints,
+            customMediaBlocks: source.customMediaBlocks,
+            pageKeyframesBlocks: source.keyframesBlocks,
+            isComponent: true,
+        });
+        const created = await window.scamp.createComponent({
+            projectPath: current.path,
+            componentName: viewName,
+            kind: 'view',
+            wrapperSlug: pageName,
+            replacePage: true,
+            tsxContent: generated.tsx,
+            cssContent: generated.css,
+        });
+        return created;
+    };
+    /**
+     * Convert every plain page to a view, in order, for the nextjs → scamp
+     * migration; the main process then turns the wrappers into routes.
+     * Threads the project through so each step sees the last one's result.
+     */
+    const convertAllPagesToViews = async () => {
+        armTargetSwapSuppression();
+        let current = project;
+        try {
+            for (const page of project.pages) {
+                const created = await createViewFromPage(current, page.name);
+                current = {
+                    ...current,
+                    pages: current.pages.filter((p) => p.name !== page.name),
+                    components: [...current.components, created],
+                };
+            }
+            onProjectChange?.(current);
+            return current;
+        }
+        catch (err) {
+            disarmTargetSwapSuppression();
+            throw err;
+        }
+    };
     const handleConfirmConvertPage = async () => {
         if (convertingPage === null)
             return;
@@ -349,70 +448,7 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
         setConvertPageError(null);
         armTargetSwapSuppression();
         try {
-            if (project.components.some((c) => c.name === viewName)) {
-                throw new Error(`A component or view named "${viewName}" already exists. Rename it first.`);
-            }
-            flushPendingPageWrite();
-            persistActiveSource();
-            const page = project.pages.find((p) => p.name === pageName);
-            if (!page)
-                throw new Error(`Page "${pageName}" not found in project.`);
-            const snapshot = await window.scamp.createSnapshot({
-                projectPath: project.path,
-                trigger: 'manual',
-                label: `Before converting "${pageName}" to a view`,
-            });
-            if (snapshot.snapshot === null) {
-                // Snapshots never block the user (see snapshotOps), but the
-                // conversion is meant to be one restore away, so say so.
-                useAppLogStore
-                    .getState()
-                    .log('warn', `No snapshot was taken before converting "${pageName}"; see the main-process log.`);
-            }
-            const store = useCanvasStore.getState();
-            const breakpoints = store.breakpoints;
-            // The open page's latest edits live in the store; any other page
-            // is read from its file.
-            const source = store.activePage?.name === pageName
-                ? {
-                    elements: store.elements,
-                    rootId: store.rootElementId,
-                    customMediaBlocks: store.pageCustomMediaBlocks,
-                    keyframesBlocks: store.pageKeyframesBlocks,
-                }
-                : (() => {
-                    const parsed = parseCode(page.tsxContent, page.cssContent, { breakpoints });
-                    return {
-                        elements: parsed.elements,
-                        rootId: parsed.rootId,
-                        customMediaBlocks: parsed.customMediaBlocks,
-                        keyframesBlocks: parsed.keyframesBlocks,
-                    };
-                })();
-            // A view root is a component root: no page-root `100vh` floor.
-            const root = source.elements[source.rootId];
-            const elements = root
-                ? { ...source.elements, [source.rootId]: { ...root, minHeight: undefined } }
-                : source.elements;
-            const generated = generateCode({
-                elements,
-                rootId: source.rootId,
-                pageName: viewName,
-                cssModuleImportName: viewName,
-                breakpoints,
-                customMediaBlocks: source.customMediaBlocks,
-                pageKeyframesBlocks: source.keyframesBlocks,
-                isComponent: true,
-            });
-            const created = await window.scamp.createComponent({
-                projectPath: project.path,
-                componentName: viewName,
-                kind: 'view',
-                wrapperSlug: pageName,
-                replacePage: true,
-                tsxContent: generated.tsx,
-                cssContent: generated.css,
-            });
+            const created = await createViewFromPage(project, pageName);
             const nextPages = project.pages.filter((p) => p.name !== pageName);
             onProjectChange?.({
                 ...project,
@@ -446,6 +482,7 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
         convertPageError,
         requestConvertPageToView,
         handleConfirmConvertPage,
+        convertAllPagesToViews,
         componentEdit,
         setComponentEdit,
         componentEditError,

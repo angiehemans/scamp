@@ -7,7 +7,10 @@ import { pageRoot } from '../fixtures/selectors';
  * breakpoint back to Desktop because no preset matches.
  */
 test.describe('canvas: custom width input', () => {
-    test('typing a custom canvas width drops the breakpoint back to Desktop', async ({ window, }) => {
+    test('typing a custom canvas width drops the breakpoint back to Desktop', async ({ window, project, }) => {
+        // A view keeps the component artboard, not the page's breakpoint
+        // canvas; see docs/plans/framework-phase-5-plan.md, "Left for later".
+        test.skip(project.format === 'scamp', 'page-only canvas controls');
         await expect(pageRoot(window)).toBeVisible();
         // Start at a non-desktop breakpoint so the desktop-revert is observable.
         await switchBreakpoint(window, 'tablet', 'Tablet');

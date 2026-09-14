@@ -18,7 +18,7 @@ export type TestProject = {
     /** Default page name, always 'home'. */
     pageName: string;
     /** 'legacy' (flat) or 'nextjs' (App Router). */
-    format: 'legacy' | 'nextjs';
+    format: 'legacy' | 'nextjs' | 'scamp';
     /** Read the home page's TSX from disk (path differs by format). */
     readTsx: () => Promise<string>;
     /** Read the home page's CSS module from disk. */
@@ -69,8 +69,18 @@ export type CreateTestProjectOptions = {
     sourceDir?: string;
     /** Project directory's basename. Defaults to `scamp-e2e`. */
     name?: string;
-    /** Project format. Defaults to `'legacy'` for back-compat. */
-    format?: 'legacy' | 'nextjs';
+    /**
+     * Project format. Defaults to `SCAMP_E2E_FORMAT` when set, else
+     * `'legacy'` for back-compat. Set the variable to run a spec folder
+     * against another format: `SCAMP_E2E_FORMAT=scamp npx playwright test test/e2e/canvas`.
+     */
+    format?: 'legacy' | 'nextjs' | 'scamp';
+    /**
+     * Show the nextjs → scamp migration banner on a Next.js project.
+     * Dismissed by default so the banner doesn't cover the canvas in
+     * specs that aren't about it.
+     */
+    scampMigrationBanner?: boolean;
     /**
      * Extra pages to seed beyond the default `home` page. Each name
      * gets a default TSX + CSS module written to disk. The app's page

@@ -40,6 +40,8 @@ export type UseComponentManagement = {
     convertPageError: string | null;
     requestConvertPageToView: (pageName: string) => void;
     handleConfirmConvertPage: () => Promise<void>;
+    /** Convert every plain page to a view, for the nextjs → scamp migration. */
+    convertAllPagesToViews: () => Promise<ProjectData>;
 };
 /**
  * Owns the Components sidebar's inline-edit + context-menu state and the

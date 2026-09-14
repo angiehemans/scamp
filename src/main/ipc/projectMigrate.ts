@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { randomBytes } from 'crypto';
-import { basename, join } from 'path';
+import { basename, dirname, join } from 'path';
+import { projectTemplate } from 'scampjs/templates';
 import type { PageFile } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
 import {
@@ -11,7 +12,9 @@ import {
   defaultLayoutTsx,
   defaultPackageJson,
 } from '@shared/agentMd';
-import { readProjectLegacy } from './projectScaffold';
+import { readProjectLegacy, readProjectNextjs } from './projectScaffold';
+import { parseViewWrapper } from '@shared/templates';
+import { DEFAULT_TSCONFIG_JSON } from '@shared/tsconfigAlias';
 
 /**
  * Anything in the legacy project root that the migrator knows how to
@@ -287,4 +290,252 @@ export const migrateLegacyToNextjs = async (
   }
 
   return { backupPath: backupDir, unmovedFiles };
+};
+
+/**
+ * nextjs → scamp: the pages become views and routes, the theme and
+ * DESIGN.md move under design/, package.json swaps Next and React for
+ * scampjs and Preact, and the Next-only files go to the backup.
+ * Views, components, public/, .scamp/, and the agent files stay where
+ * they are. Every page must already be a view (its app/ file a one-line
+ * wrapper); the renderer converts plain pages first, since that needs
+ * the parser and generator. see docs/notes/nextjs-sunset.md
+ */
+
+const BODY_RULES = `body {
+  margin: 0;
+  min-height: 100vh;
+}
+`;
+
+const routeTsx = (viewName: string): string => `import ${viewName} from '@/views/${viewName}/${viewName}';
+
+export const render = 'static';
+
+export default function ${viewName}Route() {
+  return <${viewName} />;
+}
+`;
+
+const exists = async (file: string): Promise<boolean> => {
+  try {
+    await fs.access(file);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+type Wrapper = { slug: string; viewName: string; dir: string };
+
+/** Every `app/<slug>/page.tsx` that is a view wrapper, home first. */
+const readWrappers = async (projectPath: string): Promise<Wrapper[]> => {
+  const appDir = join(projectPath, 'app');
+  const wrappers: Wrapper[] = [];
+  const consider = async (slug: string, dir: string): Promise<void> => {
+    const file = join(dir, 'page.tsx');
+    if (!(await exists(file))) return;
+    const viewName = parseViewWrapper(await fs.readFile(file, 'utf-8'));
+    if (viewName !== null) wrappers.push({ slug, viewName, dir });
+  };
+  await consider('home', appDir);
+  let entries: { name: string; isDirectory: () => boolean }[] = [];
+  try {
+    entries = await fs.readdir(appDir, { withFileTypes: true });
+  } catch {
+    return wrappers;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) await consider(entry.name, join(appDir, entry.name));
+  }
+  return wrappers;
+};
+
+/** Swap the Next.js stack for the framework's; keep everything else. */
+export const rewritePackageJsonForScamp = (
+  original: string,
+  projectName: string,
+  scampjsRange: string
+): string => {
+  let parsed: Record<string, unknown> = {};
+  try {
+    const value: unknown = JSON.parse(original);
+    if (typeof value === 'object' && value !== null) parsed = value as Record<string, unknown>;
+  } catch {
+    // A malformed package.json is replaced outright.
+  }
+  const record = (value: unknown): Record<string, string> =>
+    typeof value === 'object' && value !== null
+      ? Object.fromEntries(
+          Object.entries(value as Record<string, unknown>).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string'
+          )
+        )
+      : {};
+  const dropped = new Set(['next', 'react', 'react-dom', '@types/react', '@types/react-dom']);
+  const keep = (deps: Record<string, string>): Record<string, string> =>
+    Object.fromEntries(Object.entries(deps).filter(([name]) => !dropped.has(name)));
+  const scripts = record(parsed['scripts']);
+  for (const [name, command] of Object.entries(scripts)) {
+    if (/^next(\s|$)/.test(command)) delete scripts[name];
+  }
+  const devDependencies = keep(record(parsed['devDependencies']));
+  const out: Record<string, unknown> = {
+    ...parsed,
+    name: typeof parsed['name'] === 'string' ? parsed['name'] : projectName,
+    private: true,
+    type: 'module',
+    scripts: { dev: 'scamp dev', build: 'scamp build', preview: 'scamp preview', ...scripts },
+    dependencies: {
+      preact: '^10.29.0',
+      scampjs: scampjsRange,
+      ...keep(record(parsed['dependencies'])),
+    },
+    ...(Object.keys(devDependencies).length > 0 ? { devDependencies } : {}),
+  };
+  if (Object.keys(devDependencies).length === 0) delete out['devDependencies'];
+  return `${JSON.stringify(out, null, 2)}\n`;
+};
+
+export const migrateNextjsToScamp = async (
+  projectPath: string,
+  scampjsRange: string
+): Promise<MigrateResult> => {
+  const projectName = basename(projectPath);
+
+  // 1. Every page must already be a view; the renderer converts the
+  //    rest before calling. Refuse rather than guess.
+  const plainPages = await readProjectNextjs(projectPath);
+  if (plainPages.length > 0) {
+    throw new Error(
+      `Convert these pages to views first: ${plainPages.map((p) => p.name).join(', ')}.`
+    );
+  }
+  const wrappers = await readWrappers(projectPath);
+
+  // 2. Stage the new files.
+  const stageDir = join(projectPath, `.scamp-stage-${randomBytes(4).toString('hex')}`);
+  const template = projectTemplate({ name: projectName, scampjsVersion: scampjsRange });
+  try {
+    await fs.mkdir(join(stageDir, 'routes'), { recursive: true });
+    await fs.mkdir(join(stageDir, 'design'), { recursive: true });
+    for (const w of wrappers) {
+      const file = w.slug === 'home' ? 'index.tsx' : `${w.slug}.tsx`;
+      await fs.writeFile(join(stageDir, 'routes', file), routeTsx(w.viewName), 'utf-8');
+    }
+    const themePath = join(projectPath, 'app', 'theme.css');
+    let theme = (await exists(themePath)) ? await fs.readFile(themePath, 'utf-8') : DEFAULT_THEME_CSS;
+    // The Next.js layout set the body margin inline; the framework's
+    // shell leaves body rules to the theme.
+    if (!/body\s*\{[^}]*margin\s*:\s*0/.test(theme)) theme = `${theme.replace(/\s*$/, '\n')}\n${BODY_RULES}`;
+    await fs.writeFile(join(stageDir, 'design', 'theme.css'), theme, 'utf-8');
+    const designMd = join(projectPath, 'DESIGN.md');
+    if (await exists(designMd)) {
+      await fs.copyFile(designMd, join(stageDir, 'design', 'DESIGN.md'));
+    }
+    const pkgPath = join(projectPath, 'package.json');
+    const pkg = (await exists(pkgPath)) ? await fs.readFile(pkgPath, 'utf-8') : '{}';
+    await fs.writeFile(join(stageDir, 'package.json'), rewritePackageJsonForScamp(pkg, projectName, scampjsRange), 'utf-8');
+    await fs.writeFile(join(stageDir, 'scamp-env.d.ts'), template['scamp-env.d.ts'] ?? '', 'utf-8');
+    await fs.writeFile(join(stageDir, 'tsconfig.json'), template['tsconfig.json'] ?? '', 'utf-8');
+  } catch (err) {
+    await safeRm(stageDir);
+    throw err;
+  }
+
+  // 3. Move the Next.js files into the backup, keeping their paths.
+  const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+  const backupDir = join(projectPath, `.scamp-backup-${timestamp}`);
+  await fs.mkdir(backupDir, { recursive: false });
+  const moved: string[] = [];
+  const moveToBackup = async (relative: string): Promise<void> => {
+    const from = join(projectPath, relative);
+    if (!(await exists(from))) return;
+    const to = join(backupDir, relative);
+    await fs.mkdir(dirname(to), { recursive: true });
+    await fs.rename(from, to);
+    moved.push(relative);
+  };
+  const tsconfigPath = join(projectPath, 'tsconfig.json');
+  const tsconfigIsOurs =
+    !(await exists(tsconfigPath)) || (await fs.readFile(tsconfigPath, 'utf-8')) === DEFAULT_TSCONFIG_JSON;
+  try {
+    for (const w of wrappers) {
+      const dir = w.slug === 'home' ? 'app' : join('app', w.slug);
+      await moveToBackup(join(dir, 'page.tsx'));
+      await moveToBackup(join(dir, 'page.module.css'));
+    }
+    for (const relative of ['app/layout.tsx', 'app/theme.css', 'next.config.ts', 'next.config.js', 'next-env.d.ts', 'package.json', 'DESIGN.md', '.next', 'node_modules']) {
+      await moveToBackup(relative);
+    }
+    if (tsconfigIsOurs) await moveToBackup('tsconfig.json');
+  } catch (err) {
+    for (const relative of moved.reverse()) {
+      await fs.rename(join(backupDir, relative), join(projectPath, relative)).catch(() => undefined);
+    }
+    await safeRm(backupDir);
+    await safeRm(stageDir);
+    throw err;
+  }
+
+  // 4. Move the staged files into place. tsconfig.json is replaced only
+  //    when it was still the app's own; a customised one is kept and
+  //    reported, since its `react` path mapping needs a hand edit.
+  const unmovedFiles: string[] = [];
+  try {
+    for (const entry of await fs.readdir(stageDir)) {
+      if (entry === 'tsconfig.json' && !tsconfigIsOurs) {
+        unmovedFiles.push('tsconfig.json (kept: map react and react-dom to preact/compat)');
+        continue;
+      }
+      await fs.rename(join(stageDir, entry), join(projectPath, entry));
+    }
+    // A kept tsconfig.json leaves its staged copy behind.
+    await safeRm(stageDir);
+  } catch (err) {
+    throw new Error(
+      `Migration failed mid-swap. Your original project files are at ${backupDir}. Move them back into ${projectPath} and try again. (${errorMessage(err)})`
+    );
+  }
+
+  // 5. Whatever is left under app/ (API routes, hand-written pages) and
+  //    a features/ folder are the user's; list them.
+  const leftovers = async (dir: string, prefix: string): Promise<void> => {
+    let entries: { name: string; isDirectory: () => boolean }[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const relative = `${prefix}${entry.name}`;
+      if (entry.isDirectory()) await leftovers(join(dir, entry.name), `${relative}/`);
+      else unmovedFiles.push(relative);
+    }
+  };
+  await leftovers(join(projectPath, 'app'), 'app/');
+  await pruneEmptyDirs(join(projectPath, 'app'));
+  if (await exists(join(projectPath, 'features'))) unmovedFiles.push('features/');
+
+  return { backupPath: backupDir, unmovedFiles };
+};
+
+/** Remove `dir` and its empty subfolders, bottom up; leave anything with files. */
+const pruneEmptyDirs = async (dir: string): Promise<boolean> => {
+  let entries: { name: string; isDirectory: () => boolean }[];
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch {
+    return true;
+  }
+  let empty = true;
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (!(await pruneEmptyDirs(join(dir, entry.name)))) empty = false;
+    } else {
+      empty = false;
+    }
+  }
+  if (empty) await fs.rmdir(dir).catch(() => undefined);
+  return empty;
 };

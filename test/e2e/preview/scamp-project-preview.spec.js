@@ -4,13 +4,13 @@ import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { pageRoot } from '../fixtures/selectors';
 /**
- * Phase 3's exit: a new project on the Scamp framework, created behind
- * the flag, previews through `scamp dev`. The framework comes from the
+ * A new project on the Scamp framework, the default since phase 5,
+ * previews through `scamp dev`. The framework comes from the
  * repo's devDependency, linked into the project instead of installed, so
  * the test needs no network. see docs/plans/framework-phase-3-plan.md
  */
 const REPO_MODULES = path.resolve(__dirname, '../../../node_modules');
-test.describe('a flagged Scamp-framework project', () => {
+test.describe('a new Scamp-framework project', () => {
     let parent;
     test.beforeEach(async () => {
         parent = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-framework-'));
@@ -18,9 +18,9 @@ test.describe('a flagged Scamp-framework project', () => {
     test.afterEach(async () => {
         await fs.rm(parent, { recursive: true, force: true });
     });
-    test('scaffolds from scampjs/templates and previews a view at /_views/<Name>', async ({ window, app, }) => {
-        await expect(pageRoot(window)).toBeVisible();
-        const created = (await window.evaluate(({ parentPath }) => window.scamp.createProject({ parentPath, name: 'framework-app', format: 'scamp' }), { parentPath: parent }));
+    test('scaffolds from scampjs/templates and previews a view at /_views/<Name>', async ({ window: page, app, }) => {
+        await expect(pageRoot(page)).toBeVisible();
+        const created = (await page.evaluate(({ parentPath }) => window.scamp.createProject({ parentPath, name: 'framework-app' }), { parentPath: parent }));
         const dir = path.join(parent, 'framework-app');
         expect(created.format).toBe('scamp');
         expect(created.pages).toEqual([]);
@@ -48,7 +48,7 @@ test.describe('a flagged Scamp-framework project', () => {
             await fs.symlink(path.join(REPO_MODULES, name), path.join(dir, 'node_modules', name), 'dir');
         }
         const windowsBefore = app.windows().length;
-        await window.evaluate(({ projectPath }) => window.scamp.openPreview({
+        await page.evaluate(({ projectPath }) => window.scamp.openPreview({
             projectPath,
             pageName: 'home',
             pageNames: ['home'],
@@ -77,28 +77,15 @@ test.describe('a flagged Scamp-framework project', () => {
         });
         // The preview window navigated its webview to the view, not to `/`.
         await expect(preview.getByText('/_views/Home')).toBeVisible({ timeout: 15_000 });
-        await window.evaluate(({ projectPath }) => window.scamp.closePreview(projectPath), {
+        await page.evaluate(({ projectPath }) => window.scamp.closePreview(projectPath), {
             projectPath: dir,
         });
     });
-    test('is refused without the flag', async ({ window, app }) => {
-        await expect(pageRoot(window)).toBeVisible();
-        // The e2e launcher sets the flag; clear it in main for this check.
-        await app.evaluate(() => {
-            delete process.env['SCAMP_FRAMEWORK_PROJECTS'];
-        });
-        const error = await window.evaluate(async ({ parentPath }) => {
-            try {
-                await window.scamp.createProject({ parentPath, name: 'nope', format: 'scamp' });
-                return null;
-            }
-            catch (e) {
-                return e instanceof Error ? e.message : String(e);
-            }
-        }, { parentPath: parent });
-        expect(error).toContain('not enabled');
-        await app.evaluate(() => {
-            process.env['SCAMP_FRAMEWORK_PROJECTS'] = '1';
-        });
+    test('a Next.js project is still available on request, for the frozen path', async ({ window: page }) => {
+        await expect(pageRoot(page)).toBeVisible();
+        const created = (await page.evaluate(({ parentPath }) => window.scamp.createProject({ parentPath, name: 'next-app', format: 'nextjs' }), { parentPath: parent }));
+        expect(created.format).toBe('nextjs');
+        expect(created.pages.map((p) => p.name)).toEqual(['home']);
+        await expect(fs.access(path.join(parent, 'next-app', 'app', 'page.tsx'))).resolves.toBeUndefined();
     });
 });

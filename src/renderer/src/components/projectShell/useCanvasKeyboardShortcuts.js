@@ -171,7 +171,8 @@ export const useCanvasKeyboardShortcuts = (keyDeps, componentEditor) => {
                     if (result.kind === 'empty')
                         return;
                     const s = useCanvasStore.getState();
-                    if (!s.activePage || !s.elements[ROOT_ELEMENT_ID])
+                    // A page, a view, or a component: anything with a root to paste into.
+                    if ((!s.activePage && !s.activeComponent) || !s.elements[ROOT_ELEMENT_ID])
                         return;
                     // Insert into the currently-selected container (or its nearest
                     // container ancestor), falling back to the page root.

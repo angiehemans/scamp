@@ -31,3 +31,6 @@ export type MigrateResult = {
  * the recovery path. We surface its location to the user.
  */
 export declare const migrateLegacyToNextjs: (projectPath: string) => Promise<MigrateResult>;
+/** Swap the Next.js stack for the framework's; keep everything else. */
+export declare const rewritePackageJsonForScamp: (original: string, projectName: string, scampjsRange: string) => string;
+export declare const migrateNextjsToScamp: (projectPath: string, scampjsRange: string) => Promise<MigrateResult>;

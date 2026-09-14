@@ -157,10 +157,10 @@ export default defineConfig(({ mode }) => {
           // binary at require time, which Rollup can't follow.
           // see docs/plans/image-import-speed-plan.md
           external: [
-            // The framework is a devDependency for tests and the flagged
-            // scaffold; never bundled. see docs/plans/framework-phase-3-plan.md
+            // The framework is a devDependency: its templates subpath is
+            // bundled for the scaffold and the migration; nothing else of
+            // it is imported. see docs/notes/nextjs-sunset.md
             'scampjs',
-            'scampjs/templates',
             'chokidar',
             'postcss',
             'node-pty',

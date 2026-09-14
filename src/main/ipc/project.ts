@@ -32,13 +32,13 @@ import {
   readProjectNextjs,
   refreshAgentMdIfNeeded,
   refreshLayoutTemplateIfNeeded,
-  frameworkProjectsEnabled,
+  SCAFFOLDED_SCAMPJS_RANGE,
   scaffoldLegacyProject,
   scaffoldNextjsProject,
   scaffoldScampProject,
   themePathFor,
 } from './projectScaffold';
-import { migrateLegacyToNextjs } from './projectMigrate';
+import { migrateLegacyToNextjs, migrateNextjsToScamp } from './projectMigrate';
 import { readFrameworkInfo } from './frameworkVersion';
 import { createSnapshot } from './snapshotOps';
 
@@ -120,9 +120,6 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
   }
 
   const projectPath = join(args.parentPath, name);
-  if (args.format === 'scamp' && !frameworkProjectsEnabled()) {
-    throw new Error('Scamp-framework projects are not enabled in this build.');
-  }
 
   // Refuse to write into a folder that already exists. The user can pick
   // a different name; we never want to silently merge into a stranger's
@@ -137,7 +134,7 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
 
   await fs.mkdir(projectPath, { recursive: false });
 
-  const format: ProjectFormat = args.format ?? 'nextjs';
+  const format: ProjectFormat = args.format ?? 'scamp';
   if (format === 'scamp') {
     await scaffoldScampProject(projectPath, name);
   } else {
@@ -221,19 +218,21 @@ const migrateProject = async (
   // Re-detect to defend against a stale cache (a user may have hand-
   // converted the project on disk between open and migrate).
   const format = await detectProjectFormat(args.projectPath);
-  if (format === 'nextjs') {
-    throw new Error('This project is already in Next.js format.');
-  }
   if (format === 'scamp') {
     throw new Error('This project is already in Scamp format.');
   }
-  const result = await migrateLegacyToNextjs(args.projectPath);
-  setCachedProjectFormat(args.projectPath, 'nextjs');
-  await updateRecentProjectFormat(args.projectPath, 'nextjs');
+  // Each format migrates one step: legacy → nextjs, nextjs → scamp.
+  const target: ProjectFormat = format === 'legacy' ? 'nextjs' : 'scamp';
+  const result =
+    format === 'legacy'
+      ? await migrateLegacyToNextjs(args.projectPath)
+      : await migrateNextjsToScamp(args.projectPath, SCAFFOLDED_SCAMPJS_RANGE);
+  setCachedProjectFormat(args.projectPath, target);
+  await updateRecentProjectFormat(args.projectPath, target);
   // Re-read so the renderer gets the post-migration project data
   // (new page paths, new format, etc.) without a full close/reopen.
   const project = await readProject(args.projectPath);
-  return { project, backupPath: result.backupPath };
+  return { project, backupPath: result.backupPath, unmovedFiles: result.unmovedFiles };
 };
 
 export const registerProjectIpc = (): void => {

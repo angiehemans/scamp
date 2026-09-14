@@ -28,7 +28,14 @@ export const useActiveTarget = ({ project, onProjectChange, projectConfig, handl
     // the user entered the component from so Esc / breadcrumb-click
     // can put them back where they were. For Phase 2 the user only
     // enters from the sidebar list, so this stays null in practice.
-    const [activeComponent, setActiveComponentState] = useState(null);
+    // A framework project has no pages: its first view opens instead, so
+    // the canvas always has a target to draw on and save to.
+    const [activeComponent, setActiveComponentState] = useState(() => {
+        if (project.pages.length > 0)
+            return null;
+        const firstView = project.components.find((c) => componentKindOf(c) === 'view');
+        return firstView ? { name: firstView.name, kind: 'view', returnToPage: null } : null;
+    });
     // Set true when parseCode detected the legacy root three-tuple on
     // any page load in this session. Cleared when the user dismisses
     // the banner (which also persists `canvasMigrationAcknowledged` to

@@ -142,9 +142,29 @@ window says which, and asks you to update Scamp or install a matching
 write files in the shape this version knows. A file keeps the contract
 version it declares; new files get the newest.
 
-**Note:** Scamp can't yet create a Scamp framework project or convert
-a Next.js project into one. Create the project with the framework's
-own tooling, then open its folder in Scamp.
+New projects are Scamp framework projects. To move an existing Next.js
+project, see [Migrate a Next.js project](#migrate-a-nextjs-project).
+
+## Migrate a Next.js project
+
+A project in the Next.js layout shows a banner above the canvas. To
+migrate it:
+
+1. In the banner, click **Migrate to the Scamp framework**.
+2. Click **Migrate**.
+
+Scamp takes a [snapshot](snapshots.md), turns each page into a view
+with a route that renders it, moves `theme.css` and `DESIGN.md` under
+`design/`, and swaps Next.js for `scampjs` in `package.json`. The
+Next.js files move to a `.scamp-backup-` folder inside the project, at
+their original paths. Files Scamp didn't write, such as API routes
+under `app/api/` or a `features/` folder, stay where they are, and the
+app log lists them. A page's markup is unchanged inside its view, so
+the canvas looks the same when the project reopens.
+
+Run `npm install` in the project folder before the first preview. To
+keep using Next.js instead, click **Dismiss**; the banner stays hidden
+for that project.
 
 ## Work with agents
 

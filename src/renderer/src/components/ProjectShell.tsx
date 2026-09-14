@@ -31,6 +31,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
+import { ScampMigrationBanner } from './ScampMigrationBanner';
 import { FrameworkContractBanner } from './FrameworkContractBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
@@ -188,6 +189,7 @@ export const ProjectShell = ({
     convertPageBusy,
     convertPageError,
     requestConvertPageToView,
+    convertAllPagesToViews,
     handleConfirmConvertPage,
   } = useComponentManagement({
     project,
@@ -364,6 +366,24 @@ export const ProjectShell = ({
           targetName={parseError.targetName}
           reason={parseError.reason}
           onDismiss={clearParseError}
+        />
+      )}
+      {project.format === 'nextjs' && !projectConfig.scampMigrationDismissed && (
+        <ScampMigrationBanner
+          project={project}
+          convertPages={convertAllPagesToViews}
+          onMigrated={(next) => {
+            onProjectChange?.(next);
+            setActivePageName(null);
+            const firstView = next.components.find((c) => c.kind === 'view');
+            if (firstView) openComponent(firstView.name, null, 'view');
+          }}
+          onDismiss={() =>
+            handleProjectConfigChange({
+              ...projectConfig,
+              scampMigrationDismissed: true,
+            })
+          }
         />
       )}
       {project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (

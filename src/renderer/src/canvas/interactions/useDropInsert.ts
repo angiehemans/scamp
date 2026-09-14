@@ -24,6 +24,7 @@ export type DropInsert = {
  */
 export const useDropInsert = (geometry: CanvasGeometry): DropInsert => {
   const activePage = useCanvasStore((s) => s.activePage);
+  const activeComponent = useCanvasStore((s) => s.activeComponent);
   const projectPath = useCanvasStore((s) => s.projectPath);
   const createImage = useCanvasStore((s) => s.createImage);
   const createSvgElement = useCanvasStore((s) => s.createSvgElement);
@@ -38,7 +39,7 @@ export const useDropInsert = (geometry: CanvasGeometry): DropInsert => {
 
   const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
-    if (!activePage) return;
+    if (!activePage && !activeComponent) return;
     const files = e.dataTransfer.files;
     if (files.length === 0) return;
     const file = files[0]!;

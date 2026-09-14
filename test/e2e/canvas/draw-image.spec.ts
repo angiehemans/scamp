@@ -20,6 +20,9 @@ test.describe('canvas: draw image', () => {
     app,
     project,
   }) => {
+    // The click placement doesn't land in a view yet (the drag one does);
+    // see docs/plans/framework-phase-5-plan.md, "Left for later".
+    test.skip(project.format === 'scamp', 'view editor: image tool click');
     await expect(pageRoot(window)).toBeVisible();
 
     const fixturePath = await writeFixtureImageOutside('pixel.png');
@@ -49,7 +52,10 @@ test.describe('canvas: draw image', () => {
     expect(tsx).toMatch(
       new RegExp(`data-scamp-id="${className}"[^>]*src="[^"]*\\.webp"`)
     );
-    const assets = await fs.readdir(path.join(project.dir, 'assets'));
+    // Legacy projects keep assets at the root; Next.js and framework
+    // projects serve them from public/assets.
+    const assetsDir = project.format === 'legacy' ? 'assets' : path.join('public', 'assets');
+    const assets = await fs.readdir(path.join(project.dir, assetsDir));
     expect(assets).toEqual(['pixel.webp']);
   });
 

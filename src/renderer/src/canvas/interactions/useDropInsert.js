@@ -14,6 +14,7 @@ import { importImage } from '@renderer/src/lib/importImage';
  */
 export const useDropInsert = (geometry) => {
     const activePage = useCanvasStore((s) => s.activePage);
+    const activeComponent = useCanvasStore((s) => s.activeComponent);
     const projectPath = useCanvasStore((s) => s.projectPath);
     const createImage = useCanvasStore((s) => s.createImage);
     const createSvgElement = useCanvasStore((s) => s.createSvgElement);
@@ -26,7 +27,7 @@ export const useDropInsert = (geometry) => {
     };
     const handleDrop = (e) => {
         e.preventDefault();
-        if (!activePage)
+        if (!activePage && !activeComponent)
             return;
         const files = e.dataTransfer.files;
         if (files.length === 0)

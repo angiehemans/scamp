@@ -18,7 +18,8 @@ test('the contract fixture opens as a scamp project and is left byte-identical',
     await expect(pageSidebarItem(window, 'home')).toBeVisible();
     await expect(pageSidebarItem(window, 'lobby')).toBeVisible();
     await expect(window.getByTestId('framework-contract-banner')).toContainText('isn’t installed');
-    await expect(window.getByTestId('preview-button')).toBeDisabled();
+    // A framework project previews its views through scamp dev (phase 3); the first view is open.
+    await expect(window.getByTestId('preview-button')).toBeEnabled();
     await openComponentsSection(window);
     await expect(componentSidebarItem(window, 'LinkCard')).toBeVisible();
     await expect(componentSidebarItem(window, 'RoundTag')).toBeVisible();

@@ -1,5 +1,9 @@
 import { promises as fs } from 'fs';
 import { basename, dirname, join } from 'path';
+import { projectTemplate } from 'scampjs/templates';
+import { version as scampjsVersion } from 'scampjs/package.json';
+/** The `scampjs` range new projects pin: the version this build was tested with. */
+export const SCAFFOLDED_SCAMPJS_RANGE = `^${scampjsVersion}`;
 import { parseViewWrapper, AGENT_MD_CONTENT_SCAMP, } from '@shared/templates';
 import { AGENT_MD_CONTENT, AGENT_MD_CONTENT_LEGACY, CLAUDE_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_PAGE_CSS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, defaultPageTsx, } from '@shared/agentMd';
 import { decideLayoutMigration } from '@shared/layoutMigration';
@@ -371,37 +375,24 @@ export const scaffoldLegacyProject = async (projectPath) => {
     await writeGitignoreIfMissing(projectPath, LEGACY_GITIGNORE);
 };
 /**
- * New projects on the Scamp framework are behind a flag until phase 5
- * (the app doesn't yet migrate or fully support them in the UI).
- * see docs/plans/framework-phase-3-plan.md
- */
-export const frameworkProjectsEnabled = () => process.env['SCAMP_FRAMEWORK_PROJECTS'] === '1';
-const isTemplatesModule = (value) => typeof value === 'object' &&
-    value !== null &&
-    typeof value.projectTemplate === 'function';
-/**
  * Scaffold a Scamp-framework project from `scampjs/templates`, so the
- * app and `create-scampjs` write identical files. `scampjs` is a
- * devDependency the main bundle never includes: the specifier is
- * external in `electron.vite.config.ts`, so the import resolves from
- * node_modules in development and tests and fails, clearly, in a
- * packaged build.
+ * app and `create-scampjs` write identical files. The templates are
+ * bundled into the main process (the package is a devDependency; only
+ * this subpath is imported), and the scaffold pins the `scampjs`
+ * version the app was built against, which is the version its
+ * supported contract range was tested with. see docs/notes/nextjs-sunset.md
  */
 export const scaffoldScampProject = async (projectPath, name) => {
-    let templates;
-    try {
-        templates = await import('scampjs/templates');
-    }
-    catch (err) {
-        throw new Error(`scampjs/templates is unavailable in this build: ${err instanceof Error ? err.message : String(err)}`);
-    }
-    if (!isTemplatesModule(templates)) {
-        throw new Error('scampjs/templates has no projectTemplate export.');
-    }
-    const files = templates.projectTemplate({ name });
+    const files = projectTemplate({ name, scampjsVersion: SCAFFOLDED_SCAMPJS_RANGE });
     for (const [relative, content] of Object.entries(files)) {
         const absolute = join(projectPath, relative);
         await fs.mkdir(dirname(absolute), { recursive: true });
         await fs.writeFile(absolute, content, 'utf-8');
     }
+    // The template's agent.md is a stub for projects made outside Scamp;
+    // the app writes its full instructions, as it does on every open.
+    await fs.writeFile(join(projectPath, 'agent.md'), AGENT_MD_CONTENT_SCAMP, 'utf-8');
+    await fs.writeFile(join(projectPath, 'CLAUDE.md'), CLAUDE_MD_CONTENT, 'utf-8');
+    await fs.appendFile(join(projectPath, '.gitignore'), '\n# Scamp MCP server registration (machine-local — do not commit)\n.mcp.json\n', 'utf-8');
+    await fs.mkdir(join(projectPath, 'public', 'assets'), { recursive: true });
 };

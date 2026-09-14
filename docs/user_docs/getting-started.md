@@ -29,7 +29,8 @@ a different folder. You can also change or clear the folder in
 
 ## Create your first project
 
-1. In the sidebar, click **New Project**.
+1. In the sidebar, click **New Project**. New projects use the Scamp
+   framework structure; see [Views](views.md).
 2. Enter a project name. Scamp creates a folder with that name inside
    your default projects folder.
 3. The project opens with a blank canvas and one page named `home`.

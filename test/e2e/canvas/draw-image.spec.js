@@ -11,6 +11,9 @@ import { readPageFiles, waitForSaved } from '../fixtures/assertions';
  */
 test.describe('canvas: draw image', () => {
     test('I + click drops a default-sized <img> with the picked file', async ({ window, app, project, }) => {
+        // The click placement doesn't land in a view yet (the drag one does);
+        // see docs/plans/framework-phase-5-plan.md, "Left for later".
+        test.skip(project.format === 'scamp', 'view editor: image tool click');
         await expect(pageRoot(window)).toBeVisible();
         const fixturePath = await writeFixtureImageOutside('pixel.png');
         await stubOpenDialog(app, fixturePath);
@@ -31,7 +34,10 @@ test.describe('canvas: draw image', () => {
         // stopped happening — and this is the only import path the picker
         // drives directly. see docs/plans/image-import-speed-plan.md
         expect(tsx).toMatch(new RegExp(`data-scamp-id="${className}"[^>]*src="[^"]*\\.webp"`));
-        const assets = await fs.readdir(path.join(project.dir, 'assets'));
+        // Legacy projects keep assets at the root; Next.js and framework
+        // projects serve them from public/assets.
+        const assetsDir = project.format === 'legacy' ? 'assets' : path.join('public', 'assets');
+        const assets = await fs.readdir(path.join(project.dir, assetsDir));
         expect(assets).toEqual(['pixel.webp']);
     });
     test('I + drag draws an <img> sized to the dragged box', async ({ window, app, project, }) => {

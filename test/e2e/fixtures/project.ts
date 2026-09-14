@@ -2,9 +2,12 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import { projectTemplate, viewTemplate } from 'scampjs/templates';
+
 import {
   AGENT_MD_CONTENT,
   AGENT_MD_CONTENT_LEGACY,
+  AGENT_MD_CONTENT_SCAMP,
   CLAUDE_MD_CONTENT,
   DEFAULT_NEXT_CONFIG_TS,
   DEFAULT_PAGE_CSS,
@@ -13,6 +16,7 @@ import {
   defaultPackageJson,
   defaultPageTsx,
 } from '../../../src/shared/agentMd';
+import { viewNameForPage } from '../../../src/shared/templates';
 
 /**
  * A throwaway on-disk project for a single spec. Produces the legacy
@@ -34,7 +38,7 @@ export type TestProject = {
   /** Default page name, always 'home'. */
   pageName: string;
   /** 'legacy' (flat) or 'nextjs' (App Router). */
-  format: 'legacy' | 'nextjs';
+  format: 'legacy' | 'nextjs' | 'scamp';
   /** Read the home page's TSX from disk (path differs by format). */
   readTsx: () => Promise<string>;
   /** Read the home page's CSS module from disk. */
@@ -100,8 +104,18 @@ export type CreateTestProjectOptions = {
   sourceDir?: string;
   /** Project directory's basename. Defaults to `scamp-e2e`. */
   name?: string;
-  /** Project format. Defaults to `'legacy'` for back-compat. */
-  format?: 'legacy' | 'nextjs';
+  /**
+   * Project format. Defaults to `SCAMP_E2E_FORMAT` when set, else
+   * `'legacy'` for back-compat. Set the variable to run a spec folder
+   * against another format: `SCAMP_E2E_FORMAT=scamp npx playwright test test/e2e/canvas`.
+   */
+  format?: 'legacy' | 'nextjs' | 'scamp';
+  /**
+   * Show the nextjs → scamp migration banner on a Next.js project.
+   * Dismissed by default so the banner doesn't cover the canvas in
+   * specs that aren't about it.
+   */
+  scampMigrationBanner?: boolean;
   /**
    * Extra pages to seed beyond the default `home` page. Each name
    * gets a default TSX + CSS module written to disk. The app's page
@@ -172,13 +186,30 @@ const writeComponent = async (
   );
 };
 
+/** A view plus its route, as `+ Add Page` writes them in a framework project. */
+const writeScampView = async (dir: string, slug: string): Promise<void> => {
+  const view = viewNameForPage(slug);
+  for (const [relative, content] of Object.entries(viewTemplate(view))) {
+    await fs.mkdir(path.dirname(path.join(dir, relative)), { recursive: true });
+    await fs.writeFile(path.join(dir, relative), content, 'utf-8');
+  }
+  await fs.writeFile(
+    path.join(dir, 'routes', `${slug}.tsx`),
+    `import ${view} from '@/views/${view}/${view}';\n\nexport const render = 'static';\n\nexport default function ${view}Route() {\n  return <${view} />;\n}\n`,
+    'utf-8'
+  );
+};
+
 export const createTestProject = async (
   options: CreateTestProjectOptions | string = {}
 ): Promise<TestProject> => {
   const opts =
     typeof options === 'string' ? { name: options } : options;
   const name = opts.name ?? 'scamp-e2e';
-  const format = opts.format ?? 'legacy';
+  const envFormat = process.env['SCAMP_E2E_FORMAT'];
+  const format: 'legacy' | 'nextjs' | 'scamp' =
+    opts.format ??
+    (envFormat === 'nextjs' || envFormat === 'scamp' ? envFormat : 'legacy');
   const extraPages = opts.extraPages ?? [];
   const components = opts.components ?? [];
   const pageContent = opts.pageContent ?? {};
@@ -201,6 +232,30 @@ export const createTestProject = async (
 
   if (copied) {
     // A copied project brings its own files; nothing to scaffold.
+  } else if (format === 'scamp') {
+    // The framework's own templates, as the app's New project writes them.
+    for (const [relative, content] of Object.entries(
+      projectTemplate({ name, scampjsVersion: '^0.2.1' })
+    )) {
+      await fs.mkdir(path.dirname(path.join(dir, relative)), { recursive: true });
+      await fs.writeFile(path.join(dir, relative), content, 'utf-8');
+    }
+    await fs.writeFile(path.join(dir, 'agent.md'), AGENT_MD_CONTENT_SCAMP, 'utf-8');
+    // Stand in for an installed framework so the "scampjs isn't installed"
+    // banner doesn't sit above the canvas and shift every coordinate.
+    await fs.mkdir(path.join(dir, 'node_modules', 'scampjs'), { recursive: true });
+    await fs.writeFile(
+      path.join(dir, 'node_modules', 'scampjs', 'package.json'),
+      JSON.stringify({ name: 'scampjs', version: '0.2.1', scampjs: { contract: 1 } }),
+      'utf-8'
+    );
+    for (const extra of extraPages) {
+      await writeScampView(dir, extra);
+    }
+    await fs.mkdir(path.join(dir, 'public', 'assets'), { recursive: true });
+    for (const seed of components) {
+      await writeComponent(dir, seed);
+    }
   } else if (format === 'legacy') {
     await fs.writeFile(path.join(dir, 'agent.md'), AGENT_MD_CONTENT_LEGACY, 'utf-8');
     await writePage(dir, pageName);
@@ -248,21 +303,25 @@ export const createTestProject = async (
   // race the test's seed write.
   for (const [pn, overrides] of Object.entries(pageContent)) {
     const tsxPath =
-      format === 'nextjs'
-        ? path.join(
-            dir,
-            'app',
-            pn === pageName ? 'page.tsx' : path.join(pn, 'page.tsx')
-          )
-        : path.join(dir, `${pn}.tsx`);
+      format === 'scamp'
+        ? path.join(dir, 'views', viewNameForPage(pn), `${viewNameForPage(pn)}.tsx`)
+        : format === 'nextjs'
+          ? path.join(
+              dir,
+              'app',
+              pn === pageName ? 'page.tsx' : path.join(pn, 'page.tsx')
+            )
+          : path.join(dir, `${pn}.tsx`);
     const cssPath =
-      format === 'nextjs'
-        ? path.join(
-            dir,
-            'app',
+      format === 'scamp'
+        ? path.join(dir, 'views', viewNameForPage(pn), `${viewNameForPage(pn)}.module.css`)
+        : format === 'nextjs'
+          ? path.join(
+              dir,
+              'app',
             pn === pageName ? 'page.module.css' : path.join(pn, 'page.module.css')
           )
-        : path.join(dir, `${pn}.module.css`);
+          : path.join(dir, `${pn}.module.css`);
     if (overrides.tsx !== undefined) {
       await fs.writeFile(tsxPath, overrides.tsx, 'utf-8');
     }
@@ -274,17 +333,35 @@ export const createTestProject = async (
   // Suppress the legacy → nextjs migration banner during tests.
   await fs.writeFile(
     path.join(dir, 'scamp.config.json'),
-    JSON.stringify({ nextjsMigrationDismissed: true }, null, 2) + '\n',
+    JSON.stringify(
+      {
+        nextjsMigrationDismissed: true,
+        ...(opts.scampMigrationBanner === true ? {} : { scampMigrationDismissed: true }),
+      },
+      null,
+      2
+    ) + '\n',
     'utf-8'
   );
 
   const homeTsxPath =
-    format === 'nextjs' ? path.join('app', 'page.tsx') : `${pageName}.tsx`;
+    format === 'scamp'
+      ? path.join('views', 'Home', 'Home.tsx')
+      : format === 'nextjs'
+        ? path.join('app', 'page.tsx')
+        : `${pageName}.tsx`;
   const homeCssPath =
-    format === 'nextjs'
-      ? path.join('app', 'page.module.css')
-      : `${pageName}.module.css`;
-  const themePath = format === 'nextjs' ? path.join('app', 'theme.css') : 'theme.css';
+    format === 'scamp'
+      ? path.join('views', 'Home', 'Home.module.css')
+      : format === 'nextjs'
+        ? path.join('app', 'page.module.css')
+        : `${pageName}.module.css`;
+  const themePath =
+    format === 'scamp'
+      ? path.join('design', 'theme.css')
+      : format === 'nextjs'
+        ? path.join('app', 'theme.css')
+        : 'theme.css';
 
   const read = (file: string): Promise<string> =>
     fs.readFile(path.join(dir, file), 'utf-8');
@@ -292,6 +369,12 @@ export const createTestProject = async (
   const readPage = async (
     pn: string
   ): Promise<{ tsx: string; css: string }> => {
+    if (format === 'scamp') {
+      const view = viewNameForPage(pn);
+      const tsx = await read(path.join('views', view, `${view}.tsx`));
+      const css = await read(path.join('views', view, `${view}.module.css`));
+      return { tsx, css };
+    }
     if (format === 'nextjs') {
       const pageDir = pn === pageName ? 'app' : path.join('app', pn);
       const tsx = await read(path.join(pageDir, 'page.tsx'));

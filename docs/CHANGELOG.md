@@ -39,6 +39,16 @@ release time.
   its own. Each binding has one canonical form in the file, and
   hand-written files in that form round-trip. See
   [Views and components](user_docs/code-output.md#views-and-components).
+- **New projects run on the Scamp framework.** **New Project** writes
+  `views/`, `routes/`, `design/theme.css`, and a `package.json` on
+  `scampjs`, from the framework's own templates, instead of the Next.js
+  layout. Existing Next.js projects open unchanged. See
+  [Views](user_docs/views.md#scamp-framework-projects).
+- **Migrate a Next.js project to the framework.** A banner on a Next.js
+  project offers the move: each page becomes a view and a route, the
+  theme moves under `design/`, and the Next.js files go to a backup
+  folder. Anything Scamp didn't write stays in place and is listed. See
+  [Migrate a Next.js project](user_docs/views.md#migrate-a-nextjs-project).
 - **Scamp framework projects open in Scamp.** A project with a
   `views/` folder and a `scampjs` dependency opens with tokens under
   `design/`, no wrapper pages, and `routes/` left entirely to you. A

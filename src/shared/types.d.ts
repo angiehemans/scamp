@@ -260,6 +260,11 @@ export type ProjectConfig = {
      */
     nextjsMigrationDismissed?: boolean;
     /**
+     * Per-project dismissal of the nextjs → scamp migration banner, in
+     * the same shape as `nextjsMigrationDismissed`.
+     */
+    scampMigrationDismissed?: boolean;
+    /**
      * Auto-save snapshots (the 5-minutes-of-activity trigger). Enabled by
      * default; only stored when explicitly disabled (`false`). Disable it
      * if the 50-snapshot limit is being hit too often.
@@ -411,9 +416,9 @@ export type CreateProjectArgs = {
     /** The validated project name — used as both the folder name and display name. */
     name: string;
     /**
-     * The layout to scaffold. Defaults to `nextjs`. `scamp` scaffolds from
-     * `scampjs/templates` and is accepted only when the
-     * `SCAMP_FRAMEWORK_PROJECTS=1` flag is set (until phase 5).
+     * The layout to scaffold. Defaults to `scamp`, the Scamp framework
+     * structure written from `scampjs/templates`. `nextjs` is kept for
+     * tests and for the frozen Next.js path. see docs/notes/nextjs-sunset.md
      */
     format?: 'nextjs' | 'scamp';
 };
@@ -749,6 +754,11 @@ export type ProjectMigrateArgs = {
 export type ProjectMigrateResult = {
     project: ProjectData;
     backupPath: string;
+    /**
+     * Files the migration didn't own and left in place, project-relative,
+     * for the UI to surface. Always empty for legacy → nextjs today.
+     */
+    unmovedFiles: string[];
 };
 /**
  * Lifecycle of a per-project dev server.

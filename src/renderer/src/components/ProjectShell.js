@@ -31,6 +31,7 @@ import { HistoryPanel } from './HistoryPanel';
 import { ThemePanel } from './ThemePanel';
 import { MigrationBanner } from './MigrationBanner';
 import { NextjsMigrationBanner } from './NextjsMigrationBanner';
+import { ScampMigrationBanner } from './ScampMigrationBanner';
 import { FrameworkContractBanner } from './FrameworkContractBanner';
 import { ParseErrorBanner } from './ParseErrorBanner';
 import { SaveStatusToast } from './SaveStatusToast';
@@ -99,7 +100,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     const addViewRef = useRef(null);
     // Components sidebar inline-edit / context-menu state + the multi-file
     // add / rename / delete handlers.
-    const { componentEdit, setComponentEdit, componentEditError, setComponentEditError, creatingComponent, renamingComponent, handleAddComponent, handleRenameComponent, openComponentMenu, componentMenu, closeComponentMenu, requestDeleteComponent, deletingComponent, setDeletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, handleAddView, handleRenameView, convertingPage, setConvertingPage, convertPageBusy, convertPageError, requestConvertPageToView, handleConfirmConvertPage, } = useComponentManagement({
+    const { componentEdit, setComponentEdit, componentEditError, setComponentEditError, creatingComponent, renamingComponent, handleAddComponent, handleRenameComponent, openComponentMenu, componentMenu, closeComponentMenu, requestDeleteComponent, deletingComponent, setDeletingComponent, componentDeleteBusy, handleConfirmDeleteComponent, handleAddView, handleRenameView, convertingPage, setConvertingPage, convertPageBusy, convertPageError, requestConvertPageToView, convertAllPagesToViews, handleConfirmConvertPage, } = useComponentManagement({
         project,
         onProjectChange,
         activeComponent,
@@ -233,7 +234,16 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     useCanvasKeyboardShortcuts(keyDeps, { activeComponent, latestExit });
     useSvgAssetReload();
     const { exportHtml, status: exportStatus, message: exportMessage, location: exportLocation, } = useHtmlExport(project.path, project.name);
-    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview, onExportHtml: exportHtml, exportStatus: exportStatus, exportMessage: exportMessage, exportLocation: exportLocation }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'scamp' && project.framework && showFrameworkBanner && (_jsx(FrameworkContractBanner, { framework: project.framework, onDismiss: () => setShowFrameworkBanner(false) })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, reason: parseError.reason, onDismiss: clearParseError })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
+    return (_jsxs("div", { className: styles.shell, children: [_jsx(ProjectHeader, { projectName: project.name, canPreview: canPreview, projectFormat: projectFormatForPreview, onClose: onClose, onOpenPreview: openPreview, onExportHtml: exportHtml, exportStatus: exportStatus, exportMessage: exportMessage, exportLocation: exportLocation }), _jsx(SaveStatusToast, {}), showMigrationBanner && (_jsx(MigrationBanner, { onDismiss: handleDismissMigrationBanner })), project.format === 'scamp' && project.framework && showFrameworkBanner && (_jsx(FrameworkContractBanner, { framework: project.framework, onDismiss: () => setShowFrameworkBanner(false) })), parseError && (_jsx(ParseErrorBanner, { targetName: parseError.targetName, reason: parseError.reason, onDismiss: clearParseError })), project.format === 'nextjs' && !projectConfig.scampMigrationDismissed && (_jsx(ScampMigrationBanner, { project: project, convertPages: convertAllPagesToViews, onMigrated: (next) => {
+                    onProjectChange?.(next);
+                    setActivePageName(null);
+                    const firstView = next.components.find((c) => c.kind === 'view');
+                    if (firstView)
+                        openComponent(firstView.name, null, 'view');
+                }, onDismiss: () => handleProjectConfigChange({
+                    ...projectConfig,
+                    scampMigrationDismissed: true,
+                }) })), project.format === 'legacy' && !projectConfig.nextjsMigrationDismissed && (_jsx(NextjsMigrationBanner, { project: project, onMigrated: (next) => {
                     // Project flips to nextjs format — refresh upward and pick
                     // the home page so the renderer doesn't try to render a
                     // page whose paths just changed under it.

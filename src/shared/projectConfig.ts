@@ -196,6 +196,8 @@ export const parseProjectConfig = (raw: string | null): ProjectConfig => {
     obj['canvasMigrationAcknowledged'] === true ? true : undefined;
   const nextjsMigrationDismissed =
     obj['nextjsMigrationDismissed'] === true ? true : undefined;
+  const scampMigrationDismissed =
+    obj['scampMigrationDismissed'] === true ? true : undefined;
   // Auto-save snapshots default on; only persist an explicit disable.
   const snapshotAutoSave =
     obj['snapshotAutoSave'] === false ? false : undefined;
@@ -234,6 +236,7 @@ export const parseProjectConfig = (raw: string | null): ProjectConfig => {
     ...(canvasHeight !== undefined ? { canvasHeight } : {}),
     ...(canvasMigrationAcknowledged ? { canvasMigrationAcknowledged: true } : {}),
     ...(nextjsMigrationDismissed ? { nextjsMigrationDismissed: true } : {}),
+    ...(scampMigrationDismissed ? { scampMigrationDismissed: true } : {}),
     ...(snapshotAutoSave === false ? { snapshotAutoSave: false } : {}),
     ...(componentCanvas ? { componentCanvas } : {}),
     ...(isValidColor(cardBackground) ? { cardBackground } : {}),
