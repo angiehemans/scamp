@@ -13,9 +13,9 @@ export const FrameworkContractBanner = ({ framework, onDismiss }) => {
     const installed = framework.installedVersion !== null;
     if (installed && isSupportedContract(framework.contract))
         return null;
-    const range = SUPPORTED_CONTRACT.min === SUPPORTED_CONTRACT.max
-        ? `${SUPPORTED_CONTRACT.max}`
-        : `${SUPPORTED_CONTRACT.min}–${SUPPORTED_CONTRACT.max}`;
+    const min = SUPPORTED_CONTRACT.min;
+    const max = SUPPORTED_CONTRACT.max;
+    const range = min === max ? `${max}` : `${min}–${max}`;
     const title = installed
         ? `This project's scampjs uses contract ${framework.contract ?? '?'}`
         : 'scampjs isn’t installed in this project';

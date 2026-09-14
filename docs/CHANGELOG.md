@@ -50,7 +50,13 @@ release time.
   passes the right shape.
 - **The `_scamp` export.** Every component and view file now ends with
   `export const _scamp`, which records the file format version and the
-  event props. Scamp writes it on every save.
+  event props. Scamp writes it on every save. New files declare contract
+  1, and a file keeps the version it declares.
+- **Preview through the Scamp framework.** In a Scamp framework
+  project, **Preview** runs `scamp dev` from the project's `scampjs`
+  (0.1 or later) and opens the current view at `/_views/[Name]`. The
+  page list in the preview window holds the project's views. See
+  [Views](user_docs/views.md#preview-a-view).
 
 **Fixed**
 

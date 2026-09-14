@@ -459,6 +459,12 @@ export type CreateProjectArgs = {
   parentPath: string;
   /** The validated project name — used as both the folder name and display name. */
   name: string;
+  /**
+   * The layout to scaffold. Defaults to `nextjs`. `scamp` scaffolds from
+   * `scampjs/templates` and is accepted only when the
+   * `SCAMP_FRAMEWORK_PROJECTS=1` flag is set (until phase 5).
+   */
+  format?: 'nextjs' | 'scamp';
 };
 
 export type OpenProjectArgs = {
@@ -841,6 +847,8 @@ export type PreviewOpenArgs = {
    * canvas sidebar (alphabetical with `home` first).
    */
   pageNames: ReadonlyArray<string>;
+  /** See `PreviewNavigatePayload.routes`. */
+  routes?: Readonly<Record<string, string>>;
 };
 
 export type PreviewStopArgs = {
@@ -879,6 +887,12 @@ export type PreviewStatusChangedPayload = {
 export type PreviewNavigatePayload = {
   pageName: string;
   pageNames: ReadonlyArray<string>;
+  /**
+   * Route per page name, when the default `/` and `/<name>` mapping
+   * doesn't apply. A Scamp-framework project previews each view at
+   * `/_views/<Name>` and lists it by its slug.
+   */
+  routes?: Readonly<Record<string, string>>;
 };
 
 // Terminal IPC payloads

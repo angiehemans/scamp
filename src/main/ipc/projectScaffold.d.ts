@@ -98,3 +98,18 @@ export declare const ensureTsConfigIfNeeded: (projectPath: string) => Promise<vo
  * fixture-creation tests and for parity in the shared scaffold module.
  */
 export declare const scaffoldLegacyProject: (projectPath: string) => Promise<void>;
+/**
+ * New projects on the Scamp framework are behind a flag until phase 5
+ * (the app doesn't yet migrate or fully support them in the UI).
+ * see docs/plans/framework-phase-3-plan.md
+ */
+export declare const frameworkProjectsEnabled: () => boolean;
+/**
+ * Scaffold a Scamp-framework project from `scampjs/templates`, so the
+ * app and `create-scampjs` write identical files. `scampjs` is a
+ * devDependency the main bundle never includes: the specifier is
+ * external in `electron.vite.config.ts`, so the import resolves from
+ * node_modules in development and tests and fails, clearly, in a
+ * packaged build.
+ */
+export declare const scaffoldScampProject: (projectPath: string, name: string) => Promise<void>;

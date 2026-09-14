@@ -3,6 +3,7 @@ import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type {
   PreviewNavigatePayload,
+  PreviewOpenArgs,
   PreviewStatusChangedPayload,
 } from '@shared/types';
 import {
@@ -88,27 +89,26 @@ const wireStatus = (win: BrowserWindow, projectPath: string): (() => void) => {
  * is open for the project — we don't want this to silently spawn
  * a new preview just because pages shifted.
  */
-export const updatePreviewWindow = (
-  projectPath: string,
-  pageName: string,
-  pageNames: ReadonlyArray<string>
-): void => {
-  const existing = previewWindows.get(projectPath);
+const navigatePayload = (args: PreviewOpenArgs): PreviewNavigatePayload => ({
+  pageName: args.pageName,
+  pageNames: args.pageNames,
+  ...(args.routes !== undefined ? { routes: args.routes } : {}),
+});
+
+export const updatePreviewWindow = (args: PreviewOpenArgs): void => {
+  const existing = previewWindows.get(args.projectPath);
   if (!existing || existing.isDestroyed()) return;
-  const payload: PreviewNavigatePayload = { pageName, pageNames };
-  existing.webContents.send(IPC.PreviewNavigate, payload);
+  existing.webContents.send(IPC.PreviewNavigate, navigatePayload(args));
 };
 
 export const openPreviewWindow = async (
-  projectPath: string,
-  pageName: string,
-  pageNames: ReadonlyArray<string>
+  args: PreviewOpenArgs
 ): Promise<{ id: number }> => {
+  const { projectPath } = args;
   const existing = previewWindows.get(projectPath);
   if (existing && !existing.isDestroyed()) {
     existing.focus();
-    const payload: PreviewNavigatePayload = { pageName, pageNames };
-    existing.webContents.send(IPC.PreviewNavigate, payload);
+    existing.webContents.send(IPC.PreviewNavigate, navigatePayload(args));
     return { id: existing.id };
   }
 
@@ -162,10 +162,7 @@ export const openPreviewWindow = async (
     // Pass the initial pageName + full page list once the renderer
     // is up so it knows which route to navigate to when the server
     // reaches `ready` AND can populate the URL-bar page dropdown.
-    win.webContents.send(IPC.PreviewNavigate, {
-      pageName,
-      pageNames,
-    } satisfies PreviewNavigatePayload);
+    win.webContents.send(IPC.PreviewNavigate, navigatePayload(args));
   });
 
   await loadPreviewWindow(win, projectPath);

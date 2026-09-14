@@ -138,3 +138,63 @@ export default function Home() {
         expect(out.css.match(/color: red;/g)).toHaveLength(1);
     });
 });
+describe('the declared contract survives a save', () => {
+    const view = (contract) => `import styles from './Card.module.css';
+
+type CardProps = {
+  className?: string;
+};
+
+export default function Card({ className }: CardProps) {
+  return (
+    <div data-scamp-id="root" className={\`\${styles.root} \${className ?? ''}\`} />
+  );
+}
+
+export const _scamp = { contract: ${contract}, events: [] } as const;
+`;
+    const css = '.root {\n  width: 100%;\n  position: relative;\n}\n';
+    const regenerate = (tsx) => {
+        const parsed = parseCode(tsx, css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
+        return generateCode({
+            elements: parsed.elements,
+            rootId: parsed.rootId,
+            pageName: 'Card',
+            cssModuleImportName: 'Card',
+            breakpoints: DEFAULT_BREAKPOINTS,
+            customMediaBlocks: parsed.customMediaBlocks,
+            pageKeyframesBlocks: parsed.keyframesBlocks,
+            isComponent: true,
+        }).tsx;
+    };
+    it('keeps a contract-0 file at contract 0, byte for byte', () => {
+        expect(WRITTEN_CONTRACT).toBe(1);
+        const parsed = parseCode(view(0), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
+        expect(parsed.elements[parsed.rootId]?.contract).toBe(0);
+        expect(regenerate(view(0))).toBe(view(0));
+    });
+    it('records nothing on the root for a file already at the written contract', () => {
+        const parsed = parseCode(view(1), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
+        expect(parsed.elements[parsed.rootId]?.contract).toBeUndefined();
+        expect(regenerate(view(1))).toBe(view(1));
+    });
+    it('writes the current contract for a tree that declares none', () => {
+        const parsed = parseCode(view(0), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
+        const root = parsed.elements[parsed.rootId];
+        if (!root)
+            throw new Error('no root');
+        const { contract: _dropped, ...fresh } = root;
+        void _dropped;
+        const tsx = generateCode({
+            elements: { ...parsed.elements, [parsed.rootId]: fresh },
+            rootId: parsed.rootId,
+            pageName: 'Card',
+            cssModuleImportName: 'Card',
+            breakpoints: DEFAULT_BREAKPOINTS,
+            customMediaBlocks: parsed.customMediaBlocks,
+            pageKeyframesBlocks: parsed.keyframesBlocks,
+            isComponent: true,
+        }).tsx;
+        expect(tsx).toContain('export const _scamp = { contract: 1, events: [] } as const;');
+    });
+});

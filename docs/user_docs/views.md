@@ -113,9 +113,12 @@ shape.
 In a Next.js project, **Preview** opens the view at its page's route
 through the wrapper page. See [Preview mode](preview.md).
 
-In a Scamp framework project, **Preview** is unavailable until a
-scampjs release that ships the framework's dev server. The button's
-tooltip says so.
+In a Scamp framework project, **Preview** starts the framework's dev
+server (`scamp dev`) and opens the view at `/_views/[Name]`, rendered
+with its sample data. The page list in the preview window lists the
+project's views by slug. The project needs `scampjs` 0.1 or later
+installed; the first preview runs `npm install` if `node_modules` is
+missing.
 
 ## Scamp framework projects
 
@@ -131,12 +134,13 @@ differences from a Next.js project:
 - Assets go under `public/assets/`, as in Next.js projects.
 
 When you open the project, Scamp reads the installed `scampjs` version
-and the file format it implements. If `scampjs` isn't installed, or it
-implements a newer or older format than this version of Scamp
-supports, a banner across the top of the window says which, and asks
-you to update Scamp or install a matching `scampjs` before editing. The
-canvas still opens, but a save would write files in the shape this
-version knows.
+and the file format it implements. This version of Scamp reads and
+writes contracts 0 and 1. If `scampjs` isn't installed, or it
+implements a newer or older format, a banner across the top of the
+window says which, and asks you to update Scamp or install a matching
+`scampjs` before editing. The canvas still opens, but a save would
+write files in the shape this version knows. A file keeps the contract
+version it declares; new files get the newest.
 
 **Note:** Scamp can't yet create a Scamp framework project or convert
 a Next.js project into one. Create the project with the framework's

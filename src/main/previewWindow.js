@@ -71,19 +71,23 @@ const wireStatus = (win, projectPath) => {
  * is open for the project — we don't want this to silently spawn
  * a new preview just because pages shifted.
  */
-export const updatePreviewWindow = (projectPath, pageName, pageNames) => {
-    const existing = previewWindows.get(projectPath);
+const navigatePayload = (args) => ({
+    pageName: args.pageName,
+    pageNames: args.pageNames,
+    ...(args.routes !== undefined ? { routes: args.routes } : {}),
+});
+export const updatePreviewWindow = (args) => {
+    const existing = previewWindows.get(args.projectPath);
     if (!existing || existing.isDestroyed())
         return;
-    const payload = { pageName, pageNames };
-    existing.webContents.send(IPC.PreviewNavigate, payload);
+    existing.webContents.send(IPC.PreviewNavigate, navigatePayload(args));
 };
-export const openPreviewWindow = async (projectPath, pageName, pageNames) => {
+export const openPreviewWindow = async (args) => {
+    const { projectPath } = args;
     const existing = previewWindows.get(projectPath);
     if (existing && !existing.isDestroyed()) {
         existing.focus();
-        const payload = { pageName, pageNames };
-        existing.webContents.send(IPC.PreviewNavigate, payload);
+        existing.webContents.send(IPC.PreviewNavigate, navigatePayload(args));
         return { id: existing.id };
     }
     const win = new BrowserWindow({
@@ -134,10 +138,7 @@ export const openPreviewWindow = async (projectPath, pageName, pageNames) => {
         // Pass the initial pageName + full page list once the renderer
         // is up so it knows which route to navigate to when the server
         // reaches `ready` AND can populate the URL-bar page dropdown.
-        win.webContents.send(IPC.PreviewNavigate, {
-            pageName,
-            pageNames,
-        });
+        win.webContents.send(IPC.PreviewNavigate, navigatePayload(args));
     });
     await loadPreviewWindow(win, projectPath);
     return { id: win.id };

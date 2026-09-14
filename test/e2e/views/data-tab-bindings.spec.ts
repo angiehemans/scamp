@@ -93,7 +93,7 @@ test.describe('Data tab bindings', () => {
     expect(tsx).toContain(`key={item.id}`);
     expect(tsx).toContain(`data-scamp-id="${labelId}" className={styles.${labelId}}>{item.label}<`);
     expect(tsx).toContain('{hasNote && (');
-    expect(tsx).toContain("export const _scamp = { contract: 0, events: [] } as const;");
+    expect(tsx).toContain("export const _scamp = { contract: 1, events: [] } as const;");
 
     // The canvas shows one card per row.
     await expect(window.locator(`[data-scamp-id="${cardId}"]`)).toHaveCount(2);

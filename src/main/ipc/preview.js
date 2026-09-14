@@ -14,7 +14,7 @@ export const registerPreviewIpc = (windowApi) => {
         // renderer will subscribe to status changes via the IPC channel
         // PreviewStatusChanged; we kick the dev server in parallel so
         // the install / start work begins as soon as possible.
-        const win = await windowApi.open(args.projectPath, args.pageName, args.pageNames);
+        const win = await windowApi.open(args);
         void ensureDevServer(args.projectPath);
         return { windowId: win.id };
     });
@@ -24,7 +24,7 @@ export const registerPreviewIpc = (windowApi) => {
     ipcMain.handle(IPC.PreviewUpdate, (_e, args) => {
         // Update an existing preview window's active page + dropdown
         // list. No-op when no preview window is open for the project.
-        windowApi.update(args.projectPath, args.pageName, args.pageNames);
+        windowApi.update(args);
     });
     /**
      * Close the preview window AND stop the dev server for a project.

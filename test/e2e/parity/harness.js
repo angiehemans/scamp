@@ -348,3 +348,60 @@ export const computedInBrowser = async (browser, source, viewport, props) => {
         await page.close();
     }
 };
+export const startFrameworkServer = async (projectDir) => {
+    const { spawn } = await import('child_process');
+    const bin = path.resolve(__dirname, '../../../node_modules/scampjs/bin/scamp.js');
+    const child = spawn(process.execPath, [bin, 'dev'], {
+        cwd: projectDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk) => {
+        stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk) => {
+        stderr += chunk;
+    });
+    const close = () => new Promise((resolve) => {
+        if (child.exitCode !== null) {
+            resolve();
+            return;
+        }
+        child.once('exit', () => resolve());
+        child.kill('SIGTERM');
+        setTimeout(() => child.kill('SIGKILL'), 3000).unref();
+    });
+    const url = await new Promise((resolve, reject) => {
+        const started = Date.now();
+        const tick = () => {
+            const match = /^scamp dev ready (http:\/\/127\.0\.0\.1:\d+)$/m.exec(stdout);
+            if (match?.[1] !== undefined) {
+                resolve(match[1]);
+            }
+            else if (child.exitCode !== null) {
+                reject(new Error(`scamp dev exited with ${child.exitCode}\n${stderr}`));
+            }
+            else if (Date.now() - started > 30_000) {
+                reject(new Error(`scamp dev never became ready\n${stdout}\n${stderr}`));
+            }
+            else {
+                setTimeout(tick, 50);
+            }
+        };
+        tick();
+    });
+    return { url, close };
+};
+/** Measure a served page instead of hand-written HTML. */
+export const measureUrlInBrowser = async (browser, url, viewport) => {
+    const page = await browser.newPage({ viewport });
+    try {
+        await page.goto(url, { waitUntil: 'load' });
+        return await measure(page);
+    }
+    finally {
+        await page.close();
+    }
+};

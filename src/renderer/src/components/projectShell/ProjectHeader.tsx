@@ -87,7 +87,7 @@ export const ProjectHeader = ({
             : projectFormat === 'legacy'
               ? 'Preview is only available for Next.js-format projects. Migrate this project to enable preview.'
               : projectFormat === 'scamp'
-                ? 'Previews for this project need scampjs contract 1 (scamp dev), which isn\'t released yet.'
+                ? 'Open a view to preview it through scamp dev.'
                 : 'Open a page to enable preview.'
         }
       >

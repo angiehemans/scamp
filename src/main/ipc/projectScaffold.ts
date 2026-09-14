@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { basename, join } from 'path';
+import { basename, dirname, join } from 'path';
 import type {
   ComponentFile,
   ComponentKind,
@@ -516,4 +516,52 @@ export const scaffoldLegacyProject = async (
   );
 
   await writeGitignoreIfMissing(projectPath, LEGACY_GITIGNORE);
+};
+
+/**
+ * New projects on the Scamp framework are behind a flag until phase 5
+ * (the app doesn't yet migrate or fully support them in the UI).
+ * see docs/plans/framework-phase-3-plan.md
+ */
+export const frameworkProjectsEnabled = (): boolean =>
+  process.env['SCAMP_FRAMEWORK_PROJECTS'] === '1';
+
+type TemplatesModule = {
+  projectTemplate: (opts: { name: string }) => Record<string, string>;
+};
+
+const isTemplatesModule = (value: unknown): value is TemplatesModule =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { projectTemplate?: unknown }).projectTemplate === 'function';
+
+/**
+ * Scaffold a Scamp-framework project from `scampjs/templates`, so the
+ * app and `create-scampjs` write identical files. `scampjs` is a
+ * devDependency the main bundle never includes: the specifier is
+ * external in `electron.vite.config.ts`, so the import resolves from
+ * node_modules in development and tests and fails, clearly, in a
+ * packaged build.
+ */
+export const scaffoldScampProject = async (
+  projectPath: string,
+  name: string
+): Promise<void> => {
+  let templates: unknown;
+  try {
+    templates = await import('scampjs/templates');
+  } catch (err) {
+    throw new Error(
+      `scampjs/templates is unavailable in this build: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  if (!isTemplatesModule(templates)) {
+    throw new Error('scampjs/templates has no projectTemplate export.');
+  }
+  const files = templates.projectTemplate({ name });
+  for (const [relative, content] of Object.entries(files)) {
+    const absolute = join(projectPath, relative);
+    await fs.mkdir(dirname(absolute), { recursive: true });
+    await fs.writeFile(absolute, content, 'utf-8');
+  }
 };

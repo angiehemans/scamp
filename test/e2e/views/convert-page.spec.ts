@@ -46,7 +46,7 @@ test.describe('convert a page to a view', () => {
     const { tsx, css } = await project.readView('Home');
     expect(tsx).toContain(`data-scamp-id="${rectId}"`);
     expect(tsx).toContain('export default function Home({ className }: HomeProps)');
-    expect(tsx).toContain('export const _scamp = { contract: 0, events: [] } as const;');
+    expect(tsx).toContain('export const _scamp = { contract: 1, events: [] } as const;');
     expect(css).toContain(`.${rectId}`);
     expect(css).not.toContain('min-height: 100vh');
 

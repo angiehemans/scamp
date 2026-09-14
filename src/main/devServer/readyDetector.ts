@@ -15,6 +15,19 @@
  *
  * Returns null when the buffer doesn't yet contain a ready signal.
  */
+/**
+ * `scamp dev` (scampjs contract 1) prints exactly one readiness line on
+ * stdout and nothing before it: `scamp dev ready http://127.0.0.1:<port>`.
+ * Returns the port it reported, or null until the line arrives.
+ */
+export const SCAMP_READY_RE = /^scamp dev ready http:\/\/127\.0\.0\.1:(\d+)$/m;
+
+export const detectScampReady = (buffer: string): number | null => {
+  const match = SCAMP_READY_RE.exec(buffer);
+  const port = match?.[1];
+  return port === undefined ? null : Number(port);
+};
+
 export const detectReady = (buffer: string): boolean => {
   // Match either form. The Local URL form is robust against
   // version-specific phrasing ("Ready", "started server on", etc.).

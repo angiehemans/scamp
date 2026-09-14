@@ -18,6 +18,7 @@ export const PreviewApp = (): JSX.Element => {
   const [status, setStatus] = useState<DevServerStatus>({ kind: 'idle' });
   const [projectPath, setProjectPath] = useState<string>('');
   const [pageName, setPageName] = useState<string>('home');
+  const [routes, setRoutes] = useState<Readonly<Record<string, string>>>({});
   const [pageNames, setPageNames] = useState<ReadonlyArray<string>>([
     'home',
   ]);
@@ -70,6 +71,7 @@ export const PreviewApp = (): JSX.Element => {
       // adds / renames / deletes from the canvas land in the dropdown
       // without a separate IPC channel.
       setPageNames(payload.pageNames);
+      setRoutes(payload.routes ?? {});
     });
     return off;
   }, [previewApi]);
@@ -104,7 +106,7 @@ export const PreviewApp = (): JSX.Element => {
     if (port === null) return;
     const node = webviewRef.current;
     if (!node) return;
-    const url = previewUrl(port, pageNameToRoute(pageName));
+    const url = previewUrl(port, pageNameToRoute(pageName, routes));
     // Guard against same-URL re-navigation. The webview is also
     // navigated by the user (in-app links) and we shouldn't yank
     // them back here — only initialise / page-switch updates the
@@ -112,7 +114,7 @@ export const PreviewApp = (): JSX.Element => {
     if (node.getAttribute('src') === url) return;
     node.setAttribute('src', url);
     setCurrentUrl(url);
-  }, [port, pageName]);
+  }, [port, pageName, routes]);
 
   // Watch the webview for navigation events so the URL bar and
   // back/forward enabled state stay in sync.

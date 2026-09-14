@@ -18,10 +18,9 @@ type Props = {
 export const FrameworkContractBanner = ({ framework, onDismiss }: Props): JSX.Element | null => {
   const installed = framework.installedVersion !== null;
   if (installed && isSupportedContract(framework.contract)) return null;
-  const range =
-    SUPPORTED_CONTRACT.min === SUPPORTED_CONTRACT.max
-      ? `${SUPPORTED_CONTRACT.max}`
-      : `${SUPPORTED_CONTRACT.min}–${SUPPORTED_CONTRACT.max}`;
+  const min: number = SUPPORTED_CONTRACT.min;
+  const max: number = SUPPORTED_CONTRACT.max;
+  const range = min === max ? `${max}` : `${min}–${max}`;
   const title = installed
     ? `This project's scampjs uses contract ${framework.contract ?? '?'}`
     : 'scampjs isn’t installed in this project';

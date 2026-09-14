@@ -10,6 +10,14 @@ describe('pageNameToRoute', () => {
     expect(pageNameToRoute('')).toBe('/');
   });
 
+  it('prefers an explicit route, as a Scamp-framework view uses for /_views/<Name>', () => {
+    const routes = { home: '/_views/Home', lobby: '/_views/Lobby' };
+    expect(pageNameToRoute('lobby', routes)).toBe('/_views/Lobby');
+    expect(pageNameToRoute('home', routes)).toBe('/_views/Home');
+    // A name outside the map falls back to the Next.js convention.
+    expect(pageNameToRoute('about', routes)).toBe('/about');
+  });
+
   it('maps any other page name to /<name>', () => {
     expect(pageNameToRoute('about')).toBe('/about');
     expect(pageNameToRoute('checkout-flow')).toBe('/checkout-flow');

@@ -8,9 +8,15 @@ import type { Breakpoint, ComponentCanvasSize, ProjectConfig } from './types';
  */
 export declare const SUPPORTED_CONTRACT: {
     readonly min: 0;
-    readonly max: 0;
+    readonly max: 1;
 };
-/** The contract version the generator writes into every `_scamp` export. */
+/**
+ * The contract version the generator writes into a NEW file's `_scamp`
+ * export. A file that declares another version inside the range keeps
+ * it across saves: the parser records it on the root element, and the
+ * generator writes it back. Contract 1 added the CLI, not a file shape,
+ * so a contract-0 file is byte-identical under either number.
+ */
 export declare const WRITTEN_CONTRACT: number;
 export declare const isSupportedContract: (contract: unknown) => contract is number;
 /** Clamp a raw canvasWidth candidate to the supported range. */

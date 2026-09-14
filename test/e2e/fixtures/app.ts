@@ -174,6 +174,7 @@ export const test = base.extend<ScampFixtures & ScampOptions>({
         SCAMP_E2E: '1',
         SCAMP_E2E_OPEN_PROJECT: project.dir,
         NODE_ENV: 'test',
+        SCAMP_FRAMEWORK_PROJECTS: '1',
       },
     });
     try {

@@ -6,8 +6,14 @@ import { DEFAULT_BREAKPOINTS, DEFAULT_PROJECT_CONFIG, DESKTOP_BREAKPOINT_ID, MAX
  * shows a banner instead of guessing at a shape it doesn't know.
  * see docs/plans/framework-phase-1-plan.md
  */
-export const SUPPORTED_CONTRACT = { min: 0, max: 0 };
-/** The contract version the generator writes into every `_scamp` export. */
+export const SUPPORTED_CONTRACT = { min: 0, max: 1 };
+/**
+ * The contract version the generator writes into a NEW file's `_scamp`
+ * export. A file that declares another version inside the range keeps
+ * it across saves: the parser records it on the root element, and the
+ * generator writes it back. Contract 1 added the CLI, not a file shape,
+ * so a contract-0 file is byte-identical under either number.
+ */
 export const WRITTEN_CONTRACT = SUPPORTED_CONTRACT.max;
 export const isSupportedContract = (contract) => typeof contract === 'number' &&
     Number.isInteger(contract) &&

@@ -145,3 +145,19 @@ export declare const computedInBrowser: (browser: Browser, source: {
     width: number;
     height: number;
 }, props: ReadonlyArray<string>) => Promise<ComputedStyles>;
+/**
+ * A `scamp dev` server on a project folder, for the framework side of the
+ * parity comparison. Spawns the binary the app itself would spawn, from
+ * the repo's devDependency, and waits for the readiness line CONTRACT.md
+ * fixes. The oracle still imports nothing from `src/`.
+ */
+export type FrameworkServer = {
+    url: string;
+    close: () => Promise<void>;
+};
+export declare const startFrameworkServer: (projectDir: string) => Promise<FrameworkServer>;
+/** Measure a served page instead of hand-written HTML. */
+export declare const measureUrlInBrowser: (browser: Browser, url: string, viewport: {
+    width: number;
+    height: number;
+}) => Promise<Geometry>;

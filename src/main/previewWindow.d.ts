@@ -1,17 +1,6 @@
-/**
- * Open or reuse the preview window for a project. Returns the
- * BrowserWindow for the IPC layer to surface its `id` to callers.
- */
-/**
- * Update the active page + page list on an EXISTING preview window
- * without creating one. Called by the parent renderer when the
- * project's page list changes (page added / renamed / deleted) so
- * the URL-bar dropdown stays accurate. No-op when no preview window
- * is open for the project — we don't want this to silently spawn
- * a new preview just because pages shifted.
- */
-export declare const updatePreviewWindow: (projectPath: string, pageName: string, pageNames: ReadonlyArray<string>) => void;
-export declare const openPreviewWindow: (projectPath: string, pageName: string, pageNames: ReadonlyArray<string>) => Promise<{
+import type { PreviewOpenArgs } from '@shared/types';
+export declare const updatePreviewWindow: (args: PreviewOpenArgs) => void;
+export declare const openPreviewWindow: (args: PreviewOpenArgs) => Promise<{
     id: number;
 }>;
 /**

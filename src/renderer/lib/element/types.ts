@@ -618,6 +618,13 @@ export type ScampElement = {
    */
   samples?: Record<string, SampleValue>;
   /**
+   * Root only: the contract version the file's `_scamp` export declared,
+   * recorded only when it differs from `WRITTEN_CONTRACT` so a file inside
+   * the supported range keeps its version across saves. Absent means the
+   * generator writes `WRITTEN_CONTRACT`.
+   */
+  contract?: number;
+  /**
    * Component-side SLOT name on a container rectangle (component editor
    * only). When set, the element emits `{slotName}` and declares a
    * `slotName?: React.ReactNode` prop — page instances fill it with their

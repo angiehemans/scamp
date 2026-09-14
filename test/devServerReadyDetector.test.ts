@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectReady } from '../src/main/devServer/readyDetector';
+import { detectReady, detectScampReady } from '../src/main/devServer/readyDetector';
 
 describe('detectReady', () => {
   it('returns false for empty input', () => {
@@ -37,5 +37,26 @@ describe('detectReady', () => {
     // No leading bullet AND no checkmark — bare word "Ready" alone
     // shouldn't trigger.
     expect(detectReady('not Ready in the way you think\n')).toBe(false);
+  });
+});
+
+describe('detectScampReady', () => {
+  it('returns the port from the exact readiness line scamp dev prints', () => {
+    expect(detectScampReady('scamp dev ready http://127.0.0.1:41337\n')).toBe(41337);
+  });
+
+  it('finds the line after earlier output that landed in the buffer', () => {
+    expect(detectScampReady('vite warn: something\nscamp dev ready http://127.0.0.1:3000\n')).toBe(3000);
+  });
+
+  it('ignores partial lines, other hosts, and the Next.js signals', () => {
+    expect(detectScampReady('scamp dev ready http://127.0.0.1:')).toBeNull();
+    expect(detectScampReady('scamp dev ready http://localhost:3000\n')).toBeNull();
+    expect(detectScampReady('- Local: http://localhost:3000\n✓ Ready in 5ms\n')).toBeNull();
+    expect(detectScampReady('')).toBeNull();
+  });
+
+  it('is not matched by the Next.js detector', () => {
+    expect(detectReady('scamp dev ready http://127.0.0.1:3000\n')).toBe(false);
   });
 });

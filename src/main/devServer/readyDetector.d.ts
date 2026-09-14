@@ -15,4 +15,11 @@
  *
  * Returns null when the buffer doesn't yet contain a ready signal.
  */
+/**
+ * `scamp dev` (scampjs contract 1) prints exactly one readiness line on
+ * stdout and nothing before it: `scamp dev ready http://127.0.0.1:<port>`.
+ * Returns the port it reported, or null until the line arrives.
+ */
+export declare const SCAMP_READY_RE: RegExp;
+export declare const detectScampReady: (buffer: string) => number | null;
 export declare const detectReady: (buffer: string) => boolean;

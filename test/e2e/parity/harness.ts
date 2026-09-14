@@ -474,3 +474,73 @@ export const computedInBrowser = async (
     await page.close();
   }
 };
+
+/**
+ * A `scamp dev` server on a project folder, for the framework side of the
+ * parity comparison. Spawns the binary the app itself would spawn, from
+ * the repo's devDependency, and waits for the readiness line CONTRACT.md
+ * fixes. The oracle still imports nothing from `src/`.
+ */
+export type FrameworkServer = { url: string; close: () => Promise<void> };
+
+export const startFrameworkServer = async (
+  projectDir: string
+): Promise<FrameworkServer> => {
+  const { spawn } = await import('child_process');
+  const bin = path.resolve(__dirname, '../../../node_modules/scampjs/bin/scamp.js');
+  const child = spawn(process.execPath, [bin, 'dev'], {
+    cwd: projectDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+  const close = (): Promise<void> =>
+    new Promise((resolve) => {
+      if (child.exitCode !== null) {
+        resolve();
+        return;
+      }
+      child.once('exit', () => resolve());
+      child.kill('SIGTERM');
+      setTimeout(() => child.kill('SIGKILL'), 3000).unref();
+    });
+  const url = await new Promise<string>((resolve, reject) => {
+    const started = Date.now();
+    const tick = (): void => {
+      const match = /^scamp dev ready (http:\/\/127\.0\.0\.1:\d+)$/m.exec(stdout);
+      if (match?.[1] !== undefined) {
+        resolve(match[1]);
+      } else if (child.exitCode !== null) {
+        reject(new Error(`scamp dev exited with ${child.exitCode}\n${stderr}`));
+      } else if (Date.now() - started > 30_000) {
+        reject(new Error(`scamp dev never became ready\n${stdout}\n${stderr}`));
+      } else {
+        setTimeout(tick, 50);
+      }
+    };
+    tick();
+  });
+  return { url, close };
+};
+
+/** Measure a served page instead of hand-written HTML. */
+export const measureUrlInBrowser = async (
+  browser: Browser,
+  url: string,
+  viewport: { width: number; height: number }
+): Promise<Geometry> => {
+  const page = await browser.newPage({ viewport });
+  try {
+    await page.goto(url, { waitUntil: 'load' });
+    return await measure(page);
+  } finally {
+    await page.close();
+  }
+};

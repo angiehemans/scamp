@@ -7,7 +7,10 @@
  * `src/main/ipc/projectScaffold.ts`, which keys the home page
  * internally as `'home'`.
  */
-export const pageNameToRoute = (pageName) => {
+export const pageNameToRoute = (pageName, routes) => {
+    const explicit = routes?.[pageName];
+    if (explicit !== undefined)
+        return explicit;
     if (pageName === 'home' || pageName.length === 0)
         return '/';
     return `/${pageName}`;

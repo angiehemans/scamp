@@ -37,7 +37,7 @@ test.describe('pages are views', () => {
     expect(tsx).toContain(
       'export default function HeroCard({ className }: HeroCardProps)'
     );
-    expect(tsx).toContain('export const _scamp = { contract: 0, events: [] } as const;');
+    expect(tsx).toContain('export const _scamp = { contract: 1, events: [] } as const;');
     expect(css).toContain('.root');
 
     const wrapper = await project.readFile('app/hero-card/page.tsx');

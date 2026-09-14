@@ -19,7 +19,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 // Render is split into ProjectHeader, PageSidebar, ComponentSidebar,
 // CanvasArea, and ProjectModals; only the panel toggles and a thin layout
 // frame stay here.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { viewSlugFor } from '@shared/templates';
 import { componentKindOf } from '@shared/types';
 import { useCanvasStore } from '@store/canvasSlice';
@@ -164,47 +164,49 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // shortcut and the buttons can't drift apart.
     const toggleCodePanel = () => toggleBottomPanel('code');
     const toggleTerminalPanel = () => toggleBottomPanel('terminal');
-    // Preview is gated on the nextjs project format — legacy projects
-    // don't have a `package.json` and can't run `next dev`. The button
-    // stays visible (so users discover the feature) but is disabled
-    // with a tooltip pointing at the migration banner.
+    // A Next.js project previews a page at its route through `next dev`;
+    // a view previews at its wrapper page's route. A Scamp-framework
+    // project has no wrapper pages: each view previews at `/_views/<Name>`
+    // through `scamp dev`, listed by its slug. Legacy projects can't
+    // preview at all — the button stays visible but disabled with a
+    // tooltip pointing at the migration banner.
     const projectFormatForPreview = useCanvasStore((s) => s.projectFormat);
     const projectPathForPreview = useCanvasStore((s) => s.projectPath);
-    // A view previews at its wrapper page's route; anything else at the
-    // active page.
-    const previewPageName = activeComponent !== null && activeComponent.kind === 'view'
-        ? viewSlugFor(activeComponent.name)
-        : activePageName;
-    const canPreview = projectFormatForPreview === 'nextjs' &&
-        projectPathForPreview.length > 0 &&
-        previewPageName !== null;
+    const activeViewName = activeComponent !== null && activeComponent.kind === 'view' ? activeComponent.name : null;
+    const previewTarget = useMemo(() => {
+        if (projectFormatForPreview === 'nextjs') {
+            const pageName = activeViewName !== null ? viewSlugFor(activeViewName) : activePageName;
+            if (pageName === null)
+                return null;
+            return { pageName, pageNames: project.pages.map((p) => p.name) };
+        }
+        if (projectFormatForPreview === 'scamp') {
+            if (activeViewName === null)
+                return null;
+            const views = project.components.filter((c) => c.kind === 'view').map((c) => c.name);
+            return {
+                pageName: viewSlugFor(activeViewName),
+                pageNames: views.map((v) => viewSlugFor(v)),
+                routes: Object.fromEntries(views.map((v) => [viewSlugFor(v), `/_views/${v}`])),
+            };
+        }
+        return null;
+    }, [projectFormatForPreview, activeViewName, activePageName, project.pages, project.components]);
+    const canPreview = previewTarget !== null && projectPathForPreview.length > 0;
     const openPreview = useCallback(() => {
-        if (!canPreview || previewPageName === null)
+        if (!canPreview || previewTarget === null)
             return;
-        void window.scamp.openPreview({
-            projectPath: projectPathForPreview,
-            pageName: previewPageName,
-            pageNames: project.pages.map((p) => p.name),
-        });
-    }, [canPreview, projectPathForPreview, previewPageName, project.pages]);
+        void window.scamp.openPreview({ projectPath: projectPathForPreview, ...previewTarget });
+    }, [canPreview, projectPathForPreview, previewTarget]);
     // Push page-list updates to an already-open preview window so the
     // URL-bar dropdown stays current as the user adds / renames /
     // deletes pages in the canvas. No-op when preview isn't open —
     // main bails on a missing window for this project.
     useEffect(() => {
-        if (!canPreview || activePageName === null)
+        if (!canPreview || previewTarget === null)
             return;
-        void window.scamp.updatePreview({
-            projectPath: projectPathForPreview,
-            pageName: activePageName,
-            pageNames: project.pages.map((p) => p.name),
-        });
-    }, [
-        canPreview,
-        projectPathForPreview,
-        activePageName,
-        project.pages,
-    ]);
+        void window.scamp.updatePreview({ projectPath: projectPathForPreview, ...previewTarget });
+    }, [canPreview, projectPathForPreview, previewTarget]);
     // Multi-file component-instance flows (convert-to-component, lock-prop,
     // delete-prop-text, detach) + their confirmation-modal state. The
     // delete-prop-text request is raised from the keyboard handler below via

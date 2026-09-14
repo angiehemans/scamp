@@ -426,9 +426,12 @@ const formatDestructureEntry = (prop: ViewProp, rowIndent: string): string => {
  * handlers (the framework's build reads it to decide which views need
  * JavaScript). see docs/notes/view-bindings.md
  */
-const formatScampMeta = (events: ReadonlyArray<string>): string => {
+const formatScampMeta = (
+  events: ReadonlyArray<string>,
+  contract: number
+): string => {
   const list = events.map((name) => `'${name}'`).join(', ');
-  return `export const _scamp = { contract: ${WRITTEN_CONTRACT}, events: [${list}] } as const;`;
+  return `export const _scamp = { contract: ${contract}, events: [${list}] } as const;`;
 };
 
 export const generateTsx = (
@@ -476,7 +479,9 @@ export const generateTsx = (
       : `{ ${entries.join(', ')} }: ${propsTypeName}`;
 
   // Components and views end with the `_scamp` export; pages don't.
-  const metaBlock = isComponent ? `\n${formatScampMeta(viewEventNames(props))}\n` : '';
+  const metaBlock = isComponent
+    ? `\n${formatScampMeta(viewEventNames(props), root?.contract ?? WRITTEN_CONTRACT)}\n`
+    : '';
 
   if (!root) {
     return `${importLines}\n\n${propsTypeBlock}export default function ${componentName}(${signatureArgs}) {\n  return null;\n}\n${metaBlock}`;

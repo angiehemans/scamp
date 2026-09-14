@@ -2,8 +2,9 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { errorMessage } from '@shared/errorMessage';
+import { getProjectFormat } from '../ipc/projectFormatCache';
 import { allocateFreePort } from './portAlloc';
-import { detectReady } from './readyDetector';
+import { detectReady, detectScampReady } from './readyDetector';
 /** Cap on log lines kept per server so memory doesn't grow without bound. */
 const MAX_LOG_LINES = 1000;
 /** SIGTERM grace period before falling back to SIGKILL on stop. */
@@ -91,19 +92,53 @@ const runNpmInstall = (entry) => {
     });
 };
 /**
- * Spawn `next dev` on a free port and wait for the ready signal.
+ * What to spawn for the project's format. A Next.js project runs its
+ * own `npm run dev` (the `dev` script is `next dev`). A Scamp-framework
+ * project runs the installed `scampjs` binary directly, so the app
+ * knows exactly which process it is watching for the readiness line
+ * (CONTRACT.md section 2.1). see docs/notes/framework-preview.md
+ */
+const devCommand = (format, projectPath, port) => format === 'scamp'
+    ? {
+        command: 'node',
+        args: [scampBinPath(projectPath), 'dev', '--port', String(port)],
+        label: 'scamp dev',
+        shell: false,
+    }
+    : {
+        command: 'npm',
+        args: ['run', 'dev', '--', '-p', String(port)],
+        label: 'next dev',
+        // On Windows `npm` is a .cmd shim — `shell: true` lets the OS
+        // resolve it via PATH the same way as a manual terminal run.
+        shell: process.platform === 'win32',
+    };
+const scampBinPath = (projectPath) => join(projectPath, 'node_modules', 'scampjs', 'bin', 'scamp.js');
+const scampInstalled = async (projectPath) => {
+    try {
+        await fs.access(scampBinPath(projectPath));
+        return true;
+    }
+    catch {
+        return false;
+    }
+};
+/**
+ * Spawn the dev server on a free port and wait for its ready signal.
  * Resolves with the port once the server is accepting requests.
  */
-const startNextDev = async (entry) => {
+const startDevProcess = async (entry, format) => {
     const port = await allocateFreePort();
-    const proc = spawn('npm', ['run', 'dev', '--', '-p', String(port)], {
+    const cmd = devCommand(format, entry.projectPath, port);
+    const proc = spawn(cmd.command, cmd.args, {
         cwd: entry.projectPath,
         env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' },
         stdio: ['ignore', 'pipe', 'pipe'],
-        shell: process.platform === 'win32',
+        shell: cmd.shell,
     });
     entry.process = proc;
     setStatus(entry, { kind: 'starting', port, logs: entry.logs });
+    const isReady = (buffer) => format === 'scamp' ? detectScampReady(buffer) !== null : detectReady(buffer);
     // Use a buffer to handle ready-line detection across chunk boundaries.
     let stdoutBuffer = '';
     let resolved = false;
@@ -115,7 +150,7 @@ const startNextDev = async (entry) => {
             if (stdoutBuffer.length > 4096) {
                 stdoutBuffer = stdoutBuffer.slice(-4096);
             }
-            if (!resolved && detectReady(stdoutBuffer)) {
+            if (!resolved && isReady(stdoutBuffer)) {
                 resolved = true;
                 setStatus(entry, { kind: 'ready', port, logs: entry.logs });
                 resolve(port);
@@ -127,7 +162,7 @@ const startNextDev = async (entry) => {
             check(text);
             // Only broadcast status while we're still starting up so the
             // install/start spinner can refresh its log tail. After we
-            // reach `ready`, every line of `next dev`'s output (HMR
+            // reach `ready`, every line of the server's output (HMR
             // notices, request logs, etc.) would otherwise re-fire the
             // status push — which makes the renderer re-navigate the
             // webview to the same URL and produce a flood of
@@ -141,19 +176,21 @@ const startNextDev = async (entry) => {
             const text = data.toString('utf8');
             appendLog(entry, text);
             // Some `next dev` versions print "Local:" to stderr; check both.
+            // `scamp dev` prints its line on stdout only, and the matcher is
+            // anchored to a whole line, so stderr can't false-positive.
             check(text);
         });
         proc.on('exit', (code) => {
             entry.process = null;
             const exitCode = code ?? -1;
             if (!resolved) {
-                appendLog(entry, `next dev exited before becoming ready (code ${exitCode})`);
+                appendLog(entry, `${cmd.label} exited before becoming ready (code ${exitCode})`);
                 setStatus(entry, {
                     kind: 'crashed',
                     logs: entry.logs,
                     exitCode,
                 });
-                reject(new Error(`next dev failed (exit ${exitCode})`));
+                reject(new Error(`${cmd.label} failed (exit ${exitCode})`));
                 return;
             }
             // Crashed after ready — flip to crashed so the preview UI can
@@ -166,7 +203,7 @@ const startNextDev = async (entry) => {
         });
         proc.on('error', (err) => {
             entry.process = null;
-            appendLog(entry, `Failed to spawn next dev: ${err.message}`);
+            appendLog(entry, `Failed to spawn ${cmd.label}: ${err.message}`);
             if (!resolved)
                 reject(err);
         });
@@ -203,10 +240,17 @@ export const ensureDevServer = async (projectPath) => {
     entry.process = null;
     const promise = (async () => {
         try {
+            const format = await getProjectFormat(projectPath);
+            if (format === 'legacy') {
+                throw new Error('Preview needs a Next.js or Scamp-framework project.');
+            }
             if (!(await nodeModulesExists(projectPath))) {
                 await runNpmInstall(entry);
             }
-            await startNextDev(entry);
+            if (format === 'scamp' && !(await scampInstalled(projectPath))) {
+                throw new Error("scampjs isn't installed in this project. Add it to package.json and run npm install, then restart the preview.");
+            }
+            await startDevProcess(entry, format);
         }
         catch (err) {
             const message = errorMessage(err);

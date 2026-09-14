@@ -70,9 +70,10 @@
     "electron-vite": "^5.0.0",
     "jsdom": "^29.1.1",
     "patch-package": "^8.0.1",
+    "preact": "^10.29.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "scampjs": "^0.0.5",
+    "scampjs": "^0.1.0",
     "typescript": "^5.4.5",
     "vite": "^7.3.1",
     "vitest": "^1.6.0"

@@ -13,6 +13,7 @@ export const PreviewApp = () => {
     const [status, setStatus] = useState({ kind: 'idle' });
     const [projectPath, setProjectPath] = useState('');
     const [pageName, setPageName] = useState('home');
+    const [routes, setRoutes] = useState({});
     const [pageNames, setPageNames] = useState([
         'home',
     ]);
@@ -66,6 +67,7 @@ export const PreviewApp = () => {
             // adds / renames / deletes from the canvas land in the dropdown
             // without a separate IPC channel.
             setPageNames(payload.pageNames);
+            setRoutes(payload.routes ?? {});
         });
         return off;
     }, [previewApi]);
@@ -87,7 +89,7 @@ export const PreviewApp = () => {
         const node = webviewRef.current;
         if (!node)
             return;
-        const url = previewUrl(port, pageNameToRoute(pageName));
+        const url = previewUrl(port, pageNameToRoute(pageName, routes));
         // Guard against same-URL re-navigation. The webview is also
         // navigated by the user (in-app links) and we shouldn't yank
         // them back here — only initialise / page-switch updates the
@@ -96,7 +98,7 @@ export const PreviewApp = () => {
             return;
         node.setAttribute('src', url);
         setCurrentUrl(url);
-    }, [port, pageName]);
+    }, [port, pageName, routes]);
     // Watch the webview for navigation events so the URL bar and
     // back/forward enabled state stay in sync.
     useEffect(() => {

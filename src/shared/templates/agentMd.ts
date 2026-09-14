@@ -1129,6 +1129,8 @@ Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
 `;
 
 
+import { WRITTEN_CONTRACT } from '../projectConfig';
+
 /**
  * `agent.md` written into projects using the Next.js App Router layout
  * (the default for new projects). Differs from the legacy template in
@@ -1552,7 +1554,7 @@ export default function Card({ className }: CardProps) {
   );
 }
 
-export const _scamp = { contract: 0, events: [] } as const;
+export const _scamp = { contract: ${WRITTEN_CONTRACT}, events: [] } as const;
 \`\`\`
 
 \`\`\`css
@@ -1604,7 +1606,7 @@ export default function Button({ label = "Get started", className }: ButtonProps
   );
 }
 
-export const _scamp = { contract: 0, events: [] } as const;
+export const _scamp = { contract: ${WRITTEN_CONTRACT}, events: [] } as const;
 \`\`\`
 
 Text that should never vary between instances stays a literal.
@@ -1686,7 +1688,7 @@ export default function Lobby({
   );
 }
 
-export const _scamp = { contract: 0, events: ['onStart'] } as const;
+export const _scamp = { contract: ${WRITTEN_CONTRACT}, events: ['onStart'] } as const;
 \`\`\`
 
 The rules:

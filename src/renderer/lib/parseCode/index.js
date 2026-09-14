@@ -9,6 +9,7 @@ import { parseCssDeclarations } from "./css";
 import { parseTsxStructure, parseScampMeta, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
 import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID } from "@shared/types";
+import { WRITTEN_CONTRACT } from "@shared/projectConfig";
 /**
  * Return the set of CSS property names that appear more than once in
  * a declaration list. Used to surface a warning indicator in the
@@ -473,6 +474,13 @@ export const parseCode = (tsx, css, options) => {
     const duplicateIdRepairs = rawElements
         .filter((raw) => raw.dedupedFrom !== undefined)
         .map((raw) => ({ from: raw.dedupedFrom, to: raw.className }));
+    // A declared contract other than the one new files get is kept on the
+    // root, so saving doesn't rewrite a file's version. see projectConfig.ts
+    if (viewMeta && viewMeta.contract !== WRITTEN_CONTRACT) {
+        const root = elements[ROOT_ELEMENT_ID];
+        if (root)
+            elements[ROOT_ELEMENT_ID] = { ...root, contract: viewMeta.contract };
+    }
     return {
         elements,
         rootId: ROOT_ELEMENT_ID,

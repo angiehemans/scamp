@@ -7,7 +7,7 @@
  * `src/main/ipc/projectScaffold.ts`, which keys the home page
  * internally as `'home'`.
  */
-export declare const pageNameToRoute: (pageName: string) => string;
+export declare const pageNameToRoute: (pageName: string, routes?: Readonly<Record<string, string>>) => string;
 /**
  * Compose a full preview URL from the dev-server port and a route.
  */

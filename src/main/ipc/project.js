@@ -12,7 +12,7 @@ import { startMcpForProject } from '../mcp/lifecycle';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
-import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponentsAndViews, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, scaffoldLegacyProject, scaffoldNextjsProject, themePathFor, } from './projectScaffold';
+import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponentsAndViews, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, frameworkProjectsEnabled, scaffoldLegacyProject, scaffoldNextjsProject, scaffoldScampProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs } from './projectMigrate';
 import { readFrameworkInfo } from './frameworkVersion';
 import { createSnapshot } from './snapshotOps';
@@ -90,6 +90,9 @@ const createProject = async (args) => {
         throw new Error(`Parent folder does not exist: ${args.parentPath}`);
     }
     const projectPath = join(args.parentPath, name);
+    if (args.format === 'scamp' && !frameworkProjectsEnabled()) {
+        throw new Error('Scamp-framework projects are not enabled in this build.');
+    }
     // Refuse to write into a folder that already exists. The user can pick
     // a different name; we never want to silently merge into a stranger's
     // folder.
@@ -103,8 +106,13 @@ const createProject = async (args) => {
         // ENOENT — proceed
     }
     await fs.mkdir(projectPath, { recursive: false });
-    const format = 'nextjs';
-    await scaffoldNextjsProject(projectPath, name);
+    const format = args.format ?? 'nextjs';
+    if (format === 'scamp') {
+        await scaffoldScampProject(projectPath, name);
+    }
+    else {
+        await scaffoldNextjsProject(projectPath, name);
+    }
     await ensureProjectConfig(projectPath);
     setCachedProjectFormat(projectPath, format);
     await addRecentProject({ name, path: projectPath, format });

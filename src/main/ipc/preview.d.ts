@@ -1,8 +1,9 @@
+import type { PreviewOpenArgs } from '@shared/types';
 type PreviewWindowApi = {
-    open: (projectPath: string, pageName: string, pageNames: ReadonlyArray<string>) => Promise<{
+    open: (args: PreviewOpenArgs) => Promise<{
         id: number;
     }>;
-    update: (projectPath: string, pageName: string, pageNames: ReadonlyArray<string>) => void;
+    update: (args: PreviewOpenArgs) => void;
     close: (projectPath: string) => void;
 };
 /**
