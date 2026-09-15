@@ -22,6 +22,20 @@ release time.
 
 ## Releases
 
+### 0.7.2 (2026-09-15)
+
+**Fixed**
+
+- **Adding text to a box in a flex or grid container no longer shifts
+  the box.** A box drawn into a layout container kept the coordinates it
+  was drawn at, and a box drawn before its parent became a flex or grid
+  container kept its old position. The moment a text was placed inside,
+  those leftover numbers were written as `left` and `top` on the box's
+  positioning context, and it jumped by that much. New boxes under a
+  layout parent now start at zero, and the generated CSS always writes
+  `left: 0px; top: 0px` for a positioning context, so the layout owns
+  the position and every save is stable.
+
 ### 0.7.1 (2026-09-10)
 
 **Changed**
