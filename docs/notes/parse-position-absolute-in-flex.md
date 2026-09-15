@@ -49,3 +49,17 @@ would have masked a correct model anyway — see
 [canvas-flex-main-axis-stretch.md](canvas-flex-main-axis-stretch.md) for
 the sibling bug, and the parity plan for why re-deriving styles keeps
 producing this class of defect.
+
+## The positioning context never carries the stored point
+
+A flex or grid child that contains an absolute descendant gets
+`position: relative` so the descendant anchors to it. The offsets
+written with it are **always `left: 0px; top: 0px`**, never the
+element's stored `x` / `y`. A layout child's `x` / `y` are leftovers —
+from the point it was drawn at, or from a time its parent was not a
+layout container — and writing them here shifted the box by that much
+the moment a text was placed inside it. The parser reads the zeros back
+as an explicit `relative` at (0, 0), so every later save is stable.
+New elements drawn into a layout parent also store `x: 0, y: 0`
+(`dropDrawnOffset` in `lib/flexChild.ts`), so the model doesn't carry
+the stale point in the first place.

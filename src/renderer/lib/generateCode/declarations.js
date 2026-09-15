@@ -470,9 +470,14 @@ mustEstablishPositioningContext = false) => {
             // branch below does so round-trips stay text-stable: on parse,
             // `el.position` flips from `'auto'` to `'relative'`, and every
             // subsequent save lands byte-identical via the explicit branch.
+            // The offsets are ZERO, never the stored x/y: the parent lays this
+            // element out, so any x/y it carries is a leftover from being drawn
+            // or from a time its parent was not a layout container, and writing
+            // it here shifted the box by that much the moment a text was
+            // placed inside it. see docs/notes/parse-position-absolute-in-flex.md
             lines.push(`position: relative;`);
-            lines.push(`left: ${el.x}px;`);
-            lines.push(`top: ${el.y}px;`);
+            lines.push(`left: 0px;`);
+            lines.push(`top: 0px;`);
         }
     }
     else {

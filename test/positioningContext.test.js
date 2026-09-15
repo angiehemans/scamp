@@ -180,3 +180,27 @@ const extractBlock = (css, selector) => {
         throw new Error(`block ${selector} not terminated`);
     return css.slice(start, end + 1);
 };
+describe('generateCode — the positioning context never carries the stored point', () => {
+    it('writes zero offsets for a flex child that still holds drawing coordinates', () => {
+        const elements = {
+            [ROOT_ELEMENT_ID]: { ...makeRoot(['card']), display: 'flex', flexDirection: 'column' },
+            card: makeRect({
+                id: 'card',
+                parentId: ROOT_ELEMENT_ID,
+                childIds: ['label'],
+                // Drawn before the root became a flex column: the point is stale.
+                x: 96,
+                y: 140,
+            }),
+            label: makeRect({ id: 'label', parentId: 'card', type: 'text', text: 'Text', x: 111, y: 76 }),
+        };
+        const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+        const block = extractBlock(css, '.rect_card');
+        expect(block).toContain('position: relative;');
+        expect(block).toContain('left: 0px;');
+        expect(block).toContain('top: 0px;');
+        expect(block).not.toContain('left: 96px;');
+        // The text keeps its real position inside the card.
+        expect(extractBlock(css, '.text_label')).toContain('left: 111px;');
+    });
+});
