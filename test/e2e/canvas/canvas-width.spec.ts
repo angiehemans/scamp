@@ -16,9 +16,6 @@ test.describe('canvas: custom width input', () => {
     window,
     project,
   }) => {
-    // A view keeps the component artboard, not the page's breakpoint
-    // canvas; see docs/plans/framework-phase-5-plan.md, "Left for later".
-    test.skip(project.format === 'scamp', 'page-only canvas controls');
     await expect(pageRoot(window)).toBeVisible();
 
     // Start at a non-desktop breakpoint so the desktop-revert is observable.

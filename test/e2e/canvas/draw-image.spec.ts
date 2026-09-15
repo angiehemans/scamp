@@ -20,9 +20,6 @@ test.describe('canvas: draw image', () => {
     app,
     project,
   }) => {
-    // The click placement doesn't land in a view yet (the drag one does);
-    // see docs/plans/framework-phase-5-plan.md, "Left for later".
-    test.skip(project.format === 'scamp', 'view editor: image tool click');
     await expect(pageRoot(window)).toBeVisible();
 
     const fixturePath = await writeFixtureImageOutside('pixel.png');

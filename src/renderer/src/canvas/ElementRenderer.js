@@ -363,8 +363,9 @@ export const ElementRenderer = ({ elementId, row }) => {
     // canvas regardless of content size.
     const canvasMinHeight = useCanvasStore((s) => s.canvasMinHeight);
     // In the component editor a fixed-height root keeps its own size instead of
-    // filling the artboard (a page root always grows). see elementToStyle.
-    const inComponentEditor = useCanvasStore((s) => s.activeComponent !== null);
+    // filling the artboard. A page root always grows, and so does a view's: a
+    // view is a page's design and gets the page canvas. see elementToStyle.
+    const inComponentEditor = useCanvasStore((s) => s.activeComponent?.kind === 'component');
     // Canvas animation preview — set when the user clicks Play in the
     // AnimationSection. The matching element re-renders with a fresh
     // `key` so React forces a remount and the CSS animation plays

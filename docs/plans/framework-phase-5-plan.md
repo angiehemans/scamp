@@ -32,24 +32,17 @@ same, and an unmigrated Next.js project behaves exactly as before.
 - `test/e2e/migration/nextjs-to-scamp.spec.ts`; integration tests for the main-process migration.
 - `docs/notes/nextjs-sunset.md`; user docs and the changelog.
 
-## Left for later
+## Left for later (closed)
 
-Found by running the canvas specs under `SCAMP_E2E_FORMAT=scamp`. Each
-is skipped there with a comment pointing here, so the suite stays green
-and the gap stays visible.
-
-- **Views keep the component artboard.** The canvas width input, the
-  breakpoint canvas, and the clip toggle are page controls
-  (`canvas-width.spec.ts`, `clip-content.spec.ts`). A view is a page's
-  design and should get them; that means the view frame following the
-  breakpoint width the way a page does, which phase 1 deferred.
-- **An empty-canvas click in a view doesn't clear the selection**
-  (`select-move-resize.spec.ts`). The view root doesn't fill the
-  artboard the way a page root does, so the click hits nothing the
-  interaction layer listens to. Needs a manual look at the view
-  editor's root sizing and the frame's pointer handling together.
-- **The image tool's click placement doesn't land in a view**
-  (`draw-image.spec.ts`, the click case; the drag case passes).
+Running the canvas specs under `SCAMP_E2E_FORMAT=scamp` found four
+cases that failed in a view. All four had one cause: a view kept the
+component artboard, with its corner resize handles and its own size,
+instead of the page canvas. A view is a page's design, so it now gets
+the page canvas: the breakpoint width and clip controls, the page
+root's floor, and no artboard handles (`CanvasArea`, `ElementRenderer`,
+`useProjectStoreSync` branch on `kind === 'component'`). The image
+tool's click placement was a separate page-only gate, also removed.
+The four specs run unskipped under both formats.
 
 ## Done when
 

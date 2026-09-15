@@ -41,7 +41,10 @@ export const CanvasArea = ({
 }: Props): JSX.Element => {
   const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
   const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
-  const isComponent = activeComponent !== null;
+  // A view is a page's design: it gets the page canvas (breakpoint width,
+  // clip, no artboard handles). Only a component has its own artboard.
+  const component = activeComponent !== null && activeComponent.kind === 'component' ? activeComponent : null;
+  const isComponent = component !== null;
   // Clip: component editor has no breakpoints → single legacy flag; page
   // canvas → per-breakpoint map. Fixed height applies to the page canvas
   // only (component canvas already carries an explicit design height).
@@ -172,23 +175,19 @@ export const CanvasArea = ({
             <CanvasSizeControl
               config={projectConfig}
               onChange={onProjectConfigChange}
-              componentName={
-                activeComponent !== null
-                  ? activeComponent.name
-                  : undefined
-              }
-              componentKind={activeComponent?.kind}
+              componentName={component !== null ? component.name : undefined}
+              componentKind={component !== null ? 'component' : undefined}
             />
           </div>
           <Viewport
             canvasWidth={
-              activeComponent !== null
-                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).width
+              component !== null
+                ? componentCanvasSizeFor(projectConfig, component.name, 'component').width
                 : projectConfig.canvasWidth
             }
             canvasHeight={
-              activeComponent !== null
-                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
+              component !== null
+                ? componentCanvasSizeFor(projectConfig, component.name, 'component').height
                 : pageHeightIsFixed
                   ? projectConfig.canvasHeight
                   : undefined
@@ -202,9 +201,9 @@ export const CanvasArea = ({
             // explicit height — page canvases grow with
             // content).
             onResize={
-              activeComponent !== null
+              component !== null
                 ? (width, height) => {
-                    const name = activeComponent.name;
+                    const name = component.name;
                     const nextMap = {
                       ...(projectConfig.componentCanvas ?? {}),
                       [name]: { width, height },

@@ -20,7 +20,10 @@ import styles from '../ProjectShell.module.css';
 export const CanvasArea = ({ activeComponent, activePageName, projectConfig, artboardScrollRef, onProjectConfigChange, onExitComponentEditor, }) => {
     const snapshotPreview = useCanvasStore((s) => s.snapshotPreview);
     const activeBreakpointId = useCanvasStore((s) => s.activeBreakpointId);
-    const isComponent = activeComponent !== null;
+    // A view is a page's design: it gets the page canvas (breakpoint width,
+    // clip, no artboard handles). Only a component has its own artboard.
+    const component = activeComponent !== null && activeComponent.kind === 'component' ? activeComponent : null;
+    const isComponent = component !== null;
     // Clip: component editor has no breakpoints → single legacy flag; page
     // canvas → per-breakpoint map. Fixed height applies to the page canvas
     // only (component canvas already carries an explicit design height).
@@ -47,12 +50,10 @@ export const CanvasArea = ({ activeComponent, activePageName, projectConfig, art
                                         .getState()
                                         .selectElement(ROOT_ELEMENT_ID), title: "Select page root", children: activeComponent !== null
                                         ? viewSlugFor(activeComponent.name)
-                                        : activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(ThemeSwitcher, {}), _jsx(CanvasSizeControl, { config: projectConfig, onChange: onProjectConfigChange, componentName: activeComponent !== null
-                                        ? activeComponent.name
-                                        : undefined, componentKind: activeComponent?.kind })] }), _jsx(Viewport, { canvasWidth: activeComponent !== null
-                                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).width
-                                : projectConfig.canvasWidth, canvasHeight: activeComponent !== null
-                                ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
+                                        : activePageName ?? 'Page' })), _jsx("span", { className: styles.canvasHeaderSpacer }), _jsx(ThemeSwitcher, {}), _jsx(CanvasSizeControl, { config: projectConfig, onChange: onProjectConfigChange, componentName: component !== null ? component.name : undefined, componentKind: component !== null ? 'component' : undefined })] }), _jsx(Viewport, { canvasWidth: component !== null
+                                ? componentCanvasSizeFor(projectConfig, component.name, 'component').width
+                                : projectConfig.canvasWidth, canvasHeight: component !== null
+                                ? componentCanvasSizeFor(projectConfig, component.name, 'component').height
                                 : pageHeightIsFixed
                                     ? projectConfig.canvasHeight
                                     : undefined, heightIsFixed: pageHeightIsFixed, clipContent: clipContent, scrollContainerRef: artboardScrollRef, 
@@ -61,9 +62,9 @@ export const CanvasArea = ({ activeComponent, activePageName, projectConfig, art
                             // `canvasWidth` setting (no resize handle, no
                             // explicit height — page canvases grow with
                             // content).
-                            onResize: activeComponent !== null
+                            onResize: component !== null
                                 ? (width, height) => {
-                                    const name = activeComponent.name;
+                                    const name = component.name;
                                     const nextMap = {
                                         ...(projectConfig.componentCanvas ?? {}),
                                         [name]: { width, height },

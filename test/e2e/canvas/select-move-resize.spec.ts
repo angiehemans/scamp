@@ -36,9 +36,6 @@ test.describe('canvas: select / move / resize', () => {
     window,
     project,
   }) => {
-    // In a view the empty-canvas click doesn't clear the selection yet;
-    // see docs/plans/framework-phase-5-plan.md, "Left for later".
-    test.skip(project.format === 'scamp', 'view editor: empty-canvas click');
     await expect(pageRoot(window)).toBeVisible();
     const className = await drawRect(window, { x: 100, y: 100 }, { x: 250, y: 220 });
     // After drawing, select tool is active and rect is selected — resize

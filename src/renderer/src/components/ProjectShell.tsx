@@ -279,7 +279,9 @@ export const ProjectShell = ({
     };
     node.addEventListener('mousedown', handler);
     return () => node.removeEventListener('mousedown', handler);
-  }, []);
+    // The scroll node is remounted when the editor switches between a
+    // page and a component or view; bind to whichever one is current.
+  }, [activeComponent, activePageName]);
 
   // Same store action the canvas-toolbar buttons call, so the keyboard
   // shortcut and the buttons can't drift apart.

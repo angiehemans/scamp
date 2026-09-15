@@ -18,9 +18,6 @@ test.describe('canvas clip content', () => {
         expect(await frameOverflow(window)).toBe('visible');
     });
     test('remembers clip state per breakpoint', async ({ window, project }) => {
-        // Clip is a page canvas control; a view keeps the component artboard.
-        // see docs/plans/framework-phase-5-plan.md, "Left for later".
-        test.skip(project.format === 'scamp', 'page-only canvas controls');
         await expect(pageRoot(window)).toBeVisible();
         // Turn clip ON at desktop only.
         await setClipContent(window, true);

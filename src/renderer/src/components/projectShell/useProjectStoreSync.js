@@ -67,8 +67,9 @@ export const useProjectStoreSync = ({ project, projectConfig, activeComponent, }
     // root fills the visible canvas frame regardless of content
     // size, and clicks on "empty" canvas area still hit the root.
     useEffect(() => {
-        const next = activeComponent !== null
-            ? componentCanvasSizeFor(projectConfig, activeComponent.name, activeComponent.kind).height
+        // A view gets the page canvas, so its floor is the page's.
+        const next = activeComponent !== null && activeComponent.kind === 'component'
+            ? componentCanvasSizeFor(projectConfig, activeComponent.name, 'component').height
             : 900;
         useCanvasStore.getState().setCanvasMinHeight(next);
     }, [activeComponent, projectConfig.componentCanvas]);
