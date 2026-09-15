@@ -188,7 +188,7 @@ describe('generateCode — binding forms', () => {
         expect(tsx).toContain('<a data-scamp-id="text_a" className={styles.text_a} target="_blank" href={url}>Home</a>');
         expect(tsx).toContain('<button data-scamp-id="text_b" className={styles.text_b} type="button" disabled={!canStart} onClick={onStart}>Go</button>');
         expect(tsx).toContain('url = "https://x", canStart = false, onStart, className');
-        expect(tsx).toContain("export const _scamp = { contract: 1, events: ['onStart'] } as const;");
+        expect(tsx).toContain("export const _scamp = { contract: 2, events: ['onStart'] } as const;");
     });
     it('wraps a repeated instance and a shown element, with the key and row bindings', () => {
         const elements = {

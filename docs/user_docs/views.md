@@ -166,12 +166,39 @@ Run `npm install` in the project folder before the first preview. To
 keep using Next.js instead, click **Dismiss**; the banner stays hidden
 for that project.
 
+## Routes
+
+In a Scamp framework project, the **Routes** section below the Pages
+list shows every file under `routes/`: page routes with their URL and
+render mode, and API handlers under `routes/api/`. Click a route to
+read it in the code panel.
+
+A view that no route renders yet has a **Generate route** button. It
+writes `routes/[slug].tsx` with a `load()` that returns the view's
+sample data and a component that renders the view with it. The route
+is yours from there: replace the sample with real data and keep the
+shape, which is the view's props. A view with event handlers gets a
+`client` route, so the handlers can run in the browser.
+
+The three buttons beside a page route set its render mode by writing
+the file's `render` export: **static** prerenders at build time,
+**server** renders per request (and needs an adapter to deploy),
+**client** prerenders and then runs in the browser. Nothing else in the
+file changes.
+
+**Environment.** Local values for `env` in `load()` and API handlers
+live in `.dev.vars`, one `KEY=value` per line. **Project Settings**
+lists its keys under **Environment** and opens the file in your
+editor; the values never appear in Scamp, and the file is gitignored.
+
 ## Work with agents
 
 `agent.md` explains views to an [AI agent](ai-agents.md): the file
 shape, the five binding kinds and how each is written, and the rule
 that data is computed in the route and bound in the view. The MCP
 server's `scamp_get_view_props` tool returns a view's exact props type
-and sample data, so an agent writing the route passes the right shape.
-Ask the agent to "write the route for the lobby view" and it has what
-it needs.
+and sample data, and `scamp_list_routes` lists every route and API
+handler. Ask the agent to "write the route for the lobby view" and it
+has what it needs. When the project has a database through the
+framework's `scamp add drizzle`, the **Database** section that command
+adds to `agent.md` survives Scamp's own updates to the file.

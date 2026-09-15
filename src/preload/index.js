@@ -11,6 +11,25 @@ const api = {
     openProject: (args) => ipcRenderer.invoke(IPC.ProjectOpen, args),
     readProject: (args) => ipcRenderer.invoke(IPC.ProjectRead, args),
     migrateProject: (args) => ipcRenderer.invoke(IPC.ProjectMigrate, args),
+    // Routes in a Scamp-framework project: the framework owns them, the
+    // app lists and lightly edits them. see docs/notes/routes-in-the-app.md
+    listRoutes: (args) => ipcRenderer.invoke(IPC.RoutesList, args),
+    readRoute: (args) => ipcRenderer.invoke(IPC.RoutesRead, args),
+    setRouteRender: (args) => ipcRenderer.invoke(IPC.RoutesSetRender, args),
+    writeRoute: (args) => ipcRenderer.invoke(IPC.RoutesWrite, args),
+    /** `.dev.vars` keys only; the values never reach the renderer. */
+    readDevVars: (args) => ipcRenderer.invoke(IPC.DevVarsRead, args),
+    openDevVars: (args) => ipcRenderer.invoke(IPC.DevVarsOpen, args),
+    onRoutesChanged: (handler) => {
+        const listener = () => handler();
+        ipcRenderer.on(IPC.RoutesChanged, listener);
+        return () => ipcRenderer.removeListener(IPC.RoutesChanged, listener);
+    },
+    onDevServerLog: (handler) => {
+        const listener = (_e, payload) => handler(payload);
+        ipcRenderer.on(IPC.DevServerLog, listener);
+        return () => ipcRenderer.removeListener(IPC.DevServerLog, listener);
+    },
     /**
      * Open (or focus + navigate) the preview window for the project.
      * Returns the window id so callers can correlate; main spawns the

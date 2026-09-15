@@ -4,6 +4,7 @@ import { stepZoom } from '@lib/zoom';
 import { useCanvasStore, } from '../../canvasSlice';
 export const createUiSlice = (set) => ({
     bottomPanel: 'none',
+    routeSource: null,
     panelMode: 'ui',
     sidebarSection: 'pages',
     userZoom: null,
@@ -41,6 +42,7 @@ export const createUiSlice = (set) => ({
     clearCollapsed: () => set({ collapsedIds: {} }),
     setImageImportBusy: (imageImportBusy) => set({ imageImportBusy }),
     setBottomPanel: (panel) => set({ bottomPanel: panel }),
+    setRouteSource: (source) => set({ routeSource: source }),
     // Open the panel, or close it if it's already the open one. Lives in the
     // store because three call sites need it — the canvas toolbar buttons and
     // the Ctrl+` shortcut — and prop-drilling a toggle from ProjectShell down

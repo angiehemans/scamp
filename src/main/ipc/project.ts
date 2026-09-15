@@ -40,6 +40,7 @@ import {
 } from './projectScaffold';
 import { migrateLegacyToNextjs, migrateNextjsToScamp } from './projectMigrate';
 import { readFrameworkInfo } from './frameworkVersion';
+import { listRoutes } from './routeOps';
 import { createSnapshot } from './snapshotOps';
 
 export { detectProjectFormat };
@@ -90,6 +91,13 @@ const readProject = async (folderPath: string): Promise<ProjectData> => {
   const components =
     format === 'legacy' ? [] : await readProjectComponentsAndViews(folderPath);
   const framework = format === 'scamp' ? await readFrameworkInfo(folderPath) : undefined;
+  const routes = format === 'scamp' ? await listRoutes(folderPath) : undefined;
+  const hasDatabase =
+    format === 'scamp'
+      ? await fs
+          .access(join(folderPath, 'lib', 'db.ts'))
+          .then(() => true, () => false)
+      : undefined;
   return {
     path: folderPath,
     name: basename(folderPath),
@@ -97,6 +105,8 @@ const readProject = async (folderPath: string): Promise<ProjectData> => {
     pages,
     components,
     ...(framework ? { framework } : {}),
+    ...(routes ? { routes } : {}),
+    ...(hasDatabase !== undefined ? { hasDatabase } : {}),
   };
 };
 

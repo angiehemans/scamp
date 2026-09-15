@@ -13,6 +13,7 @@ import type {
 } from '@shared/types';
 import { parseViewWrapper,
   AGENT_MD_CONTENT_SCAMP,
+  withRecipeSections,
 } from '@shared/templates';
 import {
   AGENT_MD_CONTENT,
@@ -390,13 +391,20 @@ export const refreshAgentMdIfNeeded = async (
   projectPath: string,
   format: ProjectFormat
 ): Promise<void> => {
+  const agentPath = join(projectPath, 'agent.md');
+  // A framework project's agent.md may carry sections a recipe appended
+  // (the Database section from `scamp add drizzle`); the app's template
+  // is regenerated around them. see docs/notes/routes-in-the-app.md
   const agentTarget =
     format === 'nextjs'
       ? AGENT_MD_CONTENT
       : format === 'scamp'
-        ? AGENT_MD_CONTENT_SCAMP
+        ? withRecipeSections(
+            AGENT_MD_CONTENT_SCAMP,
+            await fs.readFile(agentPath, 'utf-8').catch(() => null)
+          )
         : AGENT_MD_CONTENT_LEGACY;
-  await refreshManagedFile(join(projectPath, 'agent.md'), agentTarget);
+  await refreshManagedFile(agentPath, agentTarget);
   await refreshManagedFile(
     join(projectPath, 'CLAUDE.md'),
     CLAUDE_MD_CONTENT

@@ -15,6 +15,7 @@ import { setCachedProjectFormat } from './projectFormatCache';
 import { ensureThemeDefaultsIfNeeded, ensureTsConfigIfNeeded, readProjectComponentsAndViews, readProjectLegacy, readProjectNextjs, refreshAgentMdIfNeeded, refreshLayoutTemplateIfNeeded, SCAFFOLDED_SCAMPJS_RANGE, scaffoldLegacyProject, scaffoldNextjsProject, scaffoldScampProject, themePathFor, } from './projectScaffold';
 import { migrateLegacyToNextjs, migrateNextjsToScamp } from './projectMigrate';
 import { readFrameworkInfo } from './frameworkVersion';
+import { listRoutes } from './routeOps';
 import { createSnapshot } from './snapshotOps';
 export { detectProjectFormat };
 export { scaffoldLegacyProject, scaffoldNextjsProject };
@@ -60,6 +61,12 @@ const readProject = async (folderPath) => {
     // for the rationale.
     const components = format === 'legacy' ? [] : await readProjectComponentsAndViews(folderPath);
     const framework = format === 'scamp' ? await readFrameworkInfo(folderPath) : undefined;
+    const routes = format === 'scamp' ? await listRoutes(folderPath) : undefined;
+    const hasDatabase = format === 'scamp'
+        ? await fs
+            .access(join(folderPath, 'lib', 'db.ts'))
+            .then(() => true, () => false)
+        : undefined;
     return {
         path: folderPath,
         name: basename(folderPath),
@@ -67,6 +74,8 @@ const readProject = async (folderPath) => {
         pages,
         components,
         ...(framework ? { framework } : {}),
+        ...(routes ? { routes } : {}),
+        ...(hasDatabase !== undefined ? { hasDatabase } : {}),
     };
 };
 const createProject = async (args) => {

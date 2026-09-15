@@ -5,6 +5,15 @@ type Props = {
     config: ProjectConfig;
     onChange: (next: ProjectConfig) => void;
     onBack: () => void;
+    /**
+     * Scamp-framework projects: the keys in `.dev.vars`, the local secrets
+     * `load()` and API routes read through `env`. Values stay on disk.
+     */
+    environment?: {
+        exists: boolean;
+        keys: ReadonlyArray<string>;
+        onOpen: () => void;
+    };
 };
-export declare const ProjectSettingsPage: ({ projectName, projectPath, config, onChange, onBack, }: Props) => JSX.Element;
+export declare const ProjectSettingsPage: ({ projectName, projectPath, environment, config, onChange, onBack, }: Props) => JSX.Element;
 export {};

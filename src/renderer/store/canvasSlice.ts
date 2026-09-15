@@ -316,6 +316,11 @@ export type CanvasState = {
 
   // UI: which bottom panel is open. M5 will add 'terminal'.
   bottomPanel: BottomPanel;
+  /**
+   * A route file opened from the Routes list, shown read-only in the code
+   * panel in place of the open view's code. see docs/notes/routes-in-the-app.md
+   */
+  routeSource: { file: string; content: string } | null;
 
   // UI: which view of the properties panel is active. See `PanelMode`.
   panelMode: PanelMode;
@@ -798,6 +803,7 @@ export type CanvasState = {
   setCollapsed: (ids: ReadonlyArray<string>, collapsed: boolean) => void;
   clearCollapsed: () => void;
   setBottomPanel: (panel: BottomPanel) => void;
+  setRouteSource: (source: { file: string; content: string } | null) => void;
   /** Open `panel`, or close it when it is already the open one. */
   toggleBottomPanel: (panel: Exclude<BottomPanel, 'none'>) => void;
   setPanelMode: (mode: PanelMode) => void;

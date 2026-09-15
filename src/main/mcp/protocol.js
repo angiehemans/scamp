@@ -36,7 +36,7 @@ export const SERVER_INSTRUCTIONS = [
     'Reusable UI belongs in Scamp components — `components/<Name>/<Name>.tsx` + `<Name>.module.css` — not on a page of examples.',
     'When the user asks for components, a kit, or a library, create component folders; call scamp_get_component_scaffold for the exact starter files.',
     'A page whose design lives under `views/<Name>/` (kind `view` in scamp_list_pages) is edited there; its `app/<slug>/page.tsx` is a one-line wrapper Scamp regenerates — never edit the wrapper.',
-    'Before writing the route or page that renders a view, call scamp_get_view_props for its exact props type and sample data — compute values in the route, bind them in the view.',
+    'Before writing the route or page that renders a view, call scamp_get_view_props for its exact props type and sample data — compute values in the route, bind them in the view. In a Scamp-framework project, scamp_list_routes shows every route file and API handler under routes/.',
     'Do not run `next build`, `next dev`, or install packages to verify your work: Scamp renders files as you save them, and scamp_get_element_tree confirms they parsed.',
     'Full rules, including the component file format, are in agent.md at the project root.',
 ].join(' ');

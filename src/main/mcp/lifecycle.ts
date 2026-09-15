@@ -14,6 +14,8 @@ import { ensureToken, markMcpStopped, writeMcpConfig } from './mcpOps';
 import { createQueryRegistry, type QueryRegistry } from './pendingQueries';
 import { startMcpServer, type RunningMcpServer } from './server';
 import { createToolInvoker, TOOL_DESCRIPTORS } from './tools';
+import { listRoutes } from '../ipc/routeOps';
+import { getProjectFormat } from '../ipc/projectFormatCache';
 
 /**
  * The Electron glue: owns the window reference, the IPC listener, the query
@@ -74,10 +76,15 @@ export const startMcpForProject = async (projectPath: string): Promise<void> => 
       },
       deps: {
         tools: TOOL_DESCRIPTORS,
-        invoke: createToolInvoker((tool, args) =>
-          registry === null
-            ? Promise.reject(new Error('The Scamp MCP server is not running.'))
-            : registry.query(tool, args)
+        invoke: createToolInvoker(
+          (tool, args) =>
+            registry === null
+              ? Promise.reject(new Error('The Scamp MCP server is not running.'))
+              : registry.query(tool, args),
+          {
+            listRoutes: async () =>
+              (await getProjectFormat(projectPath)) === 'scamp' ? listRoutes(projectPath) : [],
+          }
         ),
       },
     });

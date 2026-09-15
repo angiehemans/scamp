@@ -68,7 +68,7 @@ export const createTestProject = async (options = {}) => {
     }
     else if (format === 'scamp') {
         // The framework's own templates, as the app's New project writes them.
-        for (const [relative, content] of Object.entries(projectTemplate({ name, scampjsVersion: '^0.2.1' }))) {
+        for (const [relative, content] of Object.entries(projectTemplate({ name, scampjsVersion: '^0.3.0' }))) {
             await fs.mkdir(path.dirname(path.join(dir, relative)), { recursive: true });
             await fs.writeFile(path.join(dir, relative), content, 'utf-8');
         }
@@ -76,7 +76,7 @@ export const createTestProject = async (options = {}) => {
         // Stand in for an installed framework so the "scampjs isn't installed"
         // banner doesn't sit above the canvas and shift every coordinate.
         await fs.mkdir(path.join(dir, 'node_modules', 'scampjs'), { recursive: true });
-        await fs.writeFile(path.join(dir, 'node_modules', 'scampjs', 'package.json'), JSON.stringify({ name: 'scampjs', version: '0.2.1', scampjs: { contract: 1 } }), 'utf-8');
+        await fs.writeFile(path.join(dir, 'node_modules', 'scampjs', 'package.json'), JSON.stringify({ name: 'scampjs', version: '0.3.0', scampjs: { contract: 2 } }), 'utf-8');
         for (const extra of extraPages) {
             await writeScampView(dir, extra);
         }

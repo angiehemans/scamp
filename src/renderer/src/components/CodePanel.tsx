@@ -39,6 +39,8 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
   const themeCssRaw = useCanvasStore((s) => s.themeCssRaw);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+  const routeSource = useCanvasStore((s) => s.routeSource);
+  const setRouteSource = useCanvasStore((s) => s.setRouteSource);
   const editorTheme = editorThemeFor(useAppTheme());
 
   const tsx = pageSource?.tsx ?? '';
@@ -101,6 +103,39 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
                 }}
               />
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // A route file opened from the Routes list: the user's logic, shown
+  // read-only beside the design it renders. see docs/notes/routes-in-the-app.md
+  if (routeSource !== null) {
+    return (
+      <div className={styles.panel} data-testid="code-panel-route">
+        <div className={styles.header}>
+          <span className={styles.title}>routes/{routeSource.file}</span>
+          <span className={styles.spacer} />
+          <Tooltip label="Back to the open view's code">
+            <button className={styles.closeButton} onClick={() => setRouteSource(null)} type="button">
+              ←
+            </button>
+          </Tooltip>
+          <Tooltip label="Hide code panel">
+            <button className={styles.closeButton} onClick={() => setBottomPanel('none')} type="button">
+              ×
+            </button>
+          </Tooltip>
+        </div>
+        <div className={styles.body}>
+          <div className={styles.pane}>
+            <CodeMirror
+              value={routeSource.content}
+              extensions={[JS_LANG, READ_ONLY]}
+              theme={editorTheme}
+              basicSetup={{ lineNumbers: true, foldGutter: false }}
+            />
           </div>
         </div>
       </div>

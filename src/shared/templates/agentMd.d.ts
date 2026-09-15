@@ -28,3 +28,12 @@ export declare const AGENT_MD_CONTENT: string;
  * views paragraph's Next-only wrapper-page note is replaced too.
  */
 export declare const AGENT_MD_CONTENT_SCAMP: string;
+/**
+ * Sections a recipe appended to the project's agent.md, under
+ * `<!-- scamp:recipe:<name> -->` markers (scampjs CONTRACT.md section
+ * 3.2). The app regenerates agent.md on every open; these are the
+ * framework's, and survive the regeneration verbatim.
+ */
+export declare const recipeSectionsOf: (agentMd: string) => string;
+/** The managed template plus whatever recipe sections the existing file carries. */
+export declare const withRecipeSections: (template: string, existing: string | null) => string;

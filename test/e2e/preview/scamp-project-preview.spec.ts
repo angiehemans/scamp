@@ -80,7 +80,7 @@ test.describe('a new Scamp-framework project', () => {
     expect(Object.keys(pkg.dependencies).sort()).toEqual(['preact', 'scampjs']);
     // The view is the empty form at the contract this build writes.
     expect(await fs.readFile(path.join(dir, 'views/Home/Home.tsx'), 'utf-8')).toContain(
-      'export const _scamp = { contract: 1, events: [] } as const;'
+      'export const _scamp = { contract: 2, events: [] } as const;'
     );
 
     // Stand in for `npm install`: link the framework and preact the repo

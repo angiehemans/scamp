@@ -48,6 +48,9 @@ import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
+import { useRoutes } from './projectShell/useRoutes';
+import { RoutesSection } from './projectShell/RoutesSection';
+import { useAppLogStore } from '@store/appLogSlice';
 import { useHtmlExport } from './projectShell/useHtmlExport';
 import {
   useFontLinkReconciler,
@@ -120,6 +123,28 @@ export const ProjectShell = ({
   // deeply-nested readers (format, root path, page list, component-tree
   // cache, active-target canvas min-height).
   useProjectStoreSync({ project, projectConfig, activeComponent });
+
+  // Routes in a Scamp-framework project, and the dev server's request
+  // log in the app log. see docs/notes/routes-in-the-app.md
+  const routesApi = useRoutes(project);
+  useEffect(() => {
+    if (project.format !== 'scamp') return;
+    return window.scamp.onDevServerLog((payload) => {
+      if (payload.projectPath !== project.path) return;
+      useAppLogStore.getState().log(payload.level, `preview: ${payload.message}`);
+    });
+  }, [project.format, project.path]);
+  const [devVars, setDevVars] = useState<{ exists: boolean; keys: string[] } | null>(null);
+  useEffect(() => {
+    if (project.format !== 'scamp' || !showProjectSettings) return;
+    let cancelled = false;
+    void window.scamp.readDevVars({ projectPath: project.path }).then((result) => {
+      if (!cancelled) setDevVars(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [project.format, project.path, showProjectSettings]);
 
   // Pages sidebar inline-edit / context-menu state + page CRUD handlers.
   const {
@@ -280,14 +305,22 @@ export const ProjectShell = ({
     if (projectFormatForPreview === 'scamp') {
       if (activeViewName === null) return null;
       const views = project.components.filter((c) => c.kind === 'view').map((c) => c.name);
+      // A view a page route renders previews at that route, which runs its
+      // load(); a view without one previews with its defaults at /_views/.
+      const routeFor = (view: string): string => {
+        const route = (project.routes ?? []).find(
+          (r) => r.kind === 'page' && r.view === view && !r.path.includes(':')
+        );
+        return route?.path ?? `/_views/${view}`;
+      };
       return {
         pageName: viewSlugFor(activeViewName),
         pageNames: views.map((v) => viewSlugFor(v)),
-        routes: Object.fromEntries(views.map((v) => [viewSlugFor(v), `/_views/${v}`])),
+        routes: Object.fromEntries(views.map((v) => [viewSlugFor(v), routeFor(v)])),
       };
     }
     return null;
-  }, [projectFormatForPreview, activeViewName, activePageName, project.pages, project.components]);
+  }, [projectFormatForPreview, activeViewName, activePageName, project.pages, project.components, project.routes]);
   const canPreview = previewTarget !== null && projectPathForPreview.length > 0;
   const openPreview = useCallback((): void => {
     if (!canPreview || previewTarget === null) return;
@@ -461,6 +494,16 @@ export const ProjectShell = ({
             setActiveComponentState={setActiveComponentState}
             setActivePageName={setActivePageName}
           />
+              {project.format === 'scamp' && (
+                <RoutesSection
+                  routes={routesApi.routes}
+                  views={project.components.filter((c) => componentKindOf(c) === 'view')}
+                  busy={routesApi.busy}
+                  onOpen={(file) => void routesApi.openRoute(file)}
+                  onSetRender={(file, render) => void routesApi.setRender(file, render)}
+                  onGenerate={(name) => void routesApi.generateRoute(name)}
+                />
+              )}
               <div
                 className={`${styles.sidebarSection} ${styles.sidebarLayers}`}
                 data-testid="layers-panel"
@@ -521,6 +564,15 @@ export const ProjectShell = ({
             config={projectConfig}
             onChange={handleProjectConfigChange}
             onBack={() => setShowProjectSettings(false)}
+            environment={
+              project.format === 'scamp'
+                ? {
+                    exists: devVars?.exists ?? false,
+                    keys: devVars?.keys ?? [],
+                    onOpen: () => void window.scamp.openDevVars({ projectPath: project.path }),
+                  }
+                : undefined
+            }
           />
         )}
         </div>

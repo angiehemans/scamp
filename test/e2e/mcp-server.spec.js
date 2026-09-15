@@ -93,6 +93,7 @@ test.describe('MCP server, live', () => {
             'scamp_get_view_props',
             'scamp_list_components',
             'scamp_list_pages',
+            'scamp_list_routes',
         ]);
     });
     test('answers from the live canvas, across the main↔renderer seam', async ({ window, project, }) => {

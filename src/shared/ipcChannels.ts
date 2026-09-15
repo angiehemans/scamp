@@ -112,6 +112,18 @@ export const IPC = {
   DesignMdWrite: 'designMd:write',
   DesignMdChanged: 'designMd:changed',
 
+  // Routes (Scamp-framework projects)
+  RoutesList: 'routes:list',
+  RoutesRead: 'routes:read',
+  RoutesSetRender: 'routes:setRender',
+  RoutesWrite: 'routes:write',
+  DevVarsRead: 'devVars:read',
+  DevVarsOpen: 'devVars:open',
+  /** main → renderer: a request or error line from `scamp dev --json`. */
+  DevServerLog: 'preview:devLog',
+  /** main → renderer: a file under routes/ was added, changed, or removed. */
+  RoutesChanged: 'routes:changed',
+
   // Preview mode
   PreviewOpen: 'preview:open',
   PreviewStop: 'preview:stop',

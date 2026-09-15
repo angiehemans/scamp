@@ -64,11 +64,33 @@ export type FrameworkInfo = {
     /** The contract that install implements, or null when not installed. */
     contract: number | null;
 };
+/** A route's rendering mode, the `render` export of a page route file. */
+export type RouteRender = 'static' | 'server' | 'client';
+/**
+ * One file under `routes/` in a Scamp-framework project, as the Routes
+ * list shows it. The framework owns the routing; the app only reads.
+ * see docs/notes/routes-in-the-app.md
+ */
+export type RouteFile = {
+    /** POSIX path relative to `routes/`, e.g. `game/[token]/lobby.tsx`. */
+    file: string;
+    kind: 'page' | 'api';
+    /** The URL pattern: `/`, `/game/:token/lobby`, `/api/health`. */
+    path: string;
+    /** Page routes: the `render` export, `static` when the file has none. */
+    render?: RouteRender;
+    /** Page routes: the view under `views/` the file imports, when one. */
+    view?: string;
+};
 export type ProjectData = {
     path: string;
     name: string;
     format: ProjectFormat;
     pages: PageFile[];
+    /** Scamp-format projects: every file under `routes/`. */
+    routes?: RouteFile[];
+    /** Scamp-format projects: a database recipe is present (`lib/db.ts`). */
+    hasDatabase?: boolean;
     /**
      * Reusable component definitions scanned from `components/` at
      * project open. Always an empty array for legacy-format
@@ -759,6 +781,38 @@ export type ProjectMigrateResult = {
      * for the UI to surface. Always empty for legacy → nextjs today.
      */
     unmovedFiles: string[];
+};
+export type RoutesListArgs = {
+    projectPath: string;
+};
+export type RouteReadArgs = {
+    projectPath: string;
+    file: string;
+};
+export type RouteSetRenderArgs = {
+    projectPath: string;
+    file: string;
+    render: RouteRender;
+};
+/** Writes a new route file; refused when the file exists. */
+export type RouteWriteArgs = {
+    projectPath: string;
+    file: string;
+    content: string;
+};
+export type DevVarsReadArgs = {
+    projectPath: string;
+};
+/** `.dev.vars` keys only: values never leave the main process. */
+export type DevVarsReadResult = {
+    exists: boolean;
+    keys: string[];
+};
+/** One line of `scamp dev --json`, forwarded to the app log. */
+export type DevServerLogPayload = {
+    projectPath: string;
+    level: 'info' | 'error';
+    message: string;
 };
 /**
  * Lifecycle of a per-project dev server.

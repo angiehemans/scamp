@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Breakpoint, ProjectConfig } from '@shared/types';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
+import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { NumberInput } from './controls/NumberInput';
 import { PrefixSuffixInput } from './controls/PrefixSuffixInput';
@@ -17,11 +18,17 @@ type Props = {
   config: ProjectConfig;
   onChange: (next: ProjectConfig) => void;
   onBack: () => void;
+  /**
+   * Scamp-framework projects: the keys in `.dev.vars`, the local secrets
+   * `load()` and API routes read through `env`. Values stay on disk.
+   */
+  environment?: { exists: boolean; keys: ReadonlyArray<string>; onOpen: () => void };
 };
 
 export const ProjectSettingsPage = ({
   projectName,
   projectPath,
+  environment,
   config,
   onChange,
   onBack,
@@ -87,6 +94,31 @@ export const ProjectSettingsPage = ({
           </div>
         </div>
 
+        {environment !== undefined && (
+          <div className={styles.section} data-testid="settings-environment">
+            <h2 className={styles.sectionTitle}>Environment</h2>
+            <div className={styles.row}>
+              <span className={styles.rowLabel}>
+                <code>.dev.vars</code>
+              </span>
+              <div className={styles.rowControl}>
+                {environment.exists ? (
+                  <span>{environment.keys.length === 0 ? 'No keys yet' : environment.keys.join(', ')}</span>
+                ) : (
+                  <span>Not created yet</span>
+                )}
+                <Button variant="secondary" size="sm" onClick={environment.onOpen}>
+                  Open
+                </Button>
+              </div>
+            </div>
+            <p className={styles.hint}>
+              Local values for <code>env</code> in <code>load()</code> and API routes, one{' '}
+              <code>KEY=value</code> per line. Gitignored, never in snapshots, and never shown
+              here.
+            </p>
+          </div>
+        )}
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Breakpoints</h2>
           <BreakpointsEditor

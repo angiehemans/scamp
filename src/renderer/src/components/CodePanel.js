@@ -32,6 +32,8 @@ export const CodePanel = ({ showTheme = false }) => {
     const themeCssRaw = useCanvasStore((s) => s.themeCssRaw);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
     const setBottomPanel = useCanvasStore((s) => s.setBottomPanel);
+    const routeSource = useCanvasStore((s) => s.routeSource);
+    const setRouteSource = useCanvasStore((s) => s.setRouteSource);
     const editorTheme = editorThemeFor(useAppTheme());
     const tsx = pageSource?.tsx ?? '';
     const css = pageSource?.css ?? '';
@@ -55,6 +57,11 @@ export const CodePanel = ({ showTheme = false }) => {
                                         foldGutter: false,
                                         highlightActiveLine: false,
                                     } }) })] }) })] }));
+    }
+    // A route file opened from the Routes list: the user's logic, shown
+    // read-only beside the design it renders. see docs/notes/routes-in-the-app.md
+    if (routeSource !== null) {
+        return (_jsxs("div", { className: styles.panel, "data-testid": "code-panel-route", children: [_jsxs("div", { className: styles.header, children: [_jsxs("span", { className: styles.title, children: ["routes/", routeSource.file] }), _jsx("span", { className: styles.spacer }), _jsx(Tooltip, { label: "Back to the open view's code", children: _jsx("button", { className: styles.closeButton, onClick: () => setRouteSource(null), type: "button", children: "\u2190" }) }), _jsx(Tooltip, { label: "Hide code panel", children: _jsx("button", { className: styles.closeButton, onClick: () => setBottomPanel('none'), type: "button", children: "\u00D7" }) })] }), _jsx("div", { className: styles.body, children: _jsx("div", { className: styles.pane, children: _jsx(CodeMirror, { value: routeSource.content, extensions: [JS_LANG, READ_ONLY], theme: editorTheme, basicSetup: { lineNumbers: true, foldGutter: false } }) }) })] }));
     }
     return (_jsxs("div", { className: styles.panel, children: [_jsxs("div", { className: styles.header, children: [_jsx("span", { className: styles.title, children: "Code" }), _jsx("span", { className: styles.spacer }), _jsx(Tooltip, { label: "Hide code panel", children: _jsx("button", { className: styles.closeButton, onClick: () => setBottomPanel('none'), type: "button", children: "\u00D7" }) })] }), _jsxs("div", { className: styles.split, children: [_jsxs("div", { className: styles.pane, "data-pane": "tsx", children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: activePage ? `${activePage.name}.tsx` : '— no page —' }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(HighlightedCode, { value: tsx, language: JS_LANG, ranges: tsxRanges, theme: editorTheme }) })] }), _jsxs("div", { className: styles.pane, "data-pane": "css", children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: activePage ? `${activePage.name}.module.css` : '— no page —' }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(HighlightedCode, { value: css, language: CSS_LANG, ranges: cssRanges, theme: editorTheme }) })] })] })] }));
 };

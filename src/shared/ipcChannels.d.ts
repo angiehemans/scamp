@@ -54,6 +54,16 @@ export declare const IPC: {
     readonly DesignMdRead: "designMd:read";
     readonly DesignMdWrite: "designMd:write";
     readonly DesignMdChanged: "designMd:changed";
+    readonly RoutesList: "routes:list";
+    readonly RoutesRead: "routes:read";
+    readonly RoutesSetRender: "routes:setRender";
+    readonly RoutesWrite: "routes:write";
+    readonly DevVarsRead: "devVars:read";
+    readonly DevVarsOpen: "devVars:open";
+    /** main → renderer: a request or error line from `scamp dev --json`. */
+    readonly DevServerLog: "preview:devLog";
+    /** main → renderer: a file under routes/ was added, changed, or removed. */
+    readonly RoutesChanged: "routes:changed";
     readonly PreviewOpen: "preview:open";
     readonly PreviewStop: "preview:stop";
     readonly PreviewClose: "preview:close";

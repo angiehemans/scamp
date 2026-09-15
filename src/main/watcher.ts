@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron';
 import chokidar, { FSWatcher } from 'chokidar';
 import { promises as fs } from 'fs';
-import { extname, basename, dirname, join, relative } from 'path';
+import { extname, basename, dirname, join, relative, sep } from 'path';
 import { IPC } from '@shared/ipcChannels';
 import type { FileChangedPayload } from '@shared/types';
 import {
@@ -69,6 +69,7 @@ export const watchProject = async (folderPath: string): Promise<void> => {
 
   const handleChange = (changedPath: string): void => {
     void emitChange(changedPath);
+    maybeNotifyRoutesChanged(changedPath);
   };
 
   // `add` and `unlink` may indicate a new / removed page. Run the
@@ -85,6 +86,7 @@ export const watchProject = async (folderPath: string): Promise<void> => {
   const handleAddOrUnlink = (changedPath: string): void => {
     void emitChange(changedPath);
     maybeNotifyPagesChanged(changedPath);
+    maybeNotifyRoutesChanged(changedPath);
   };
 
   watcher.on('add', handleAddOrUnlink);
@@ -97,6 +99,18 @@ export const watchProject = async (folderPath: string): Promise<void> => {
  * so the renderer isn't woken up for unrelated file system noise
  * (config edits, log files, etc.).
  */
+/**
+ * Anything under routes/ — a page route, an API handler, any extension —
+ * re-lists the Routes section. The file itself is never read here; the
+ * renderer asks main for the list. see docs/notes/routes-in-the-app.md
+ */
+const maybeNotifyRoutesChanged = (changedPath: string): void => {
+  if (!mainWindow || mainWindow.isDestroyed() || !watchedPath) return;
+  const rel = relative(watchedPath, changedPath);
+  if (rel !== 'routes' && !rel.startsWith(`routes${sep}`)) return;
+  mainWindow.webContents.send(IPC.RoutesChanged);
+};
+
 const maybeNotifyPagesChanged = (changedPath: string): void => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const isTsx = extname(changedPath) === '.tsx';

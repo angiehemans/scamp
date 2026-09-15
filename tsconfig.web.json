@@ -55,6 +55,8 @@
     "src/main/ipc/terminalForeground.ts",
     "src/main/ipc/projectFormat.ts",
     "src/main/ipc/frameworkVersion.ts",
+    "src/main/ipc/routeOps.ts",
+    "src/main/devServer/devLog.ts",
     "src/main/ipc/designMdOps.ts",
     "src/main/ipc/designMd.ts",
     "src/main/ipc/projectFormatCache.ts",

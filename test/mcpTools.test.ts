@@ -13,7 +13,7 @@ const invoker = (data: unknown = { ok: true }) =>
   createToolInvoker(async () => data);
 
 describe('TOOL_DESCRIPTORS', () => {
-  it('exposes the eight canvas tools from the brief plus the component scaffold and view props', () => {
+  it('exposes the canvas tools plus the component scaffold, view props, and routes', () => {
     expect(TOOL_NAMES).toEqual([
       'scamp_get_active_page',
       'scamp_get_selected_element',
@@ -24,6 +24,7 @@ describe('TOOL_DESCRIPTORS', () => {
       'scamp_list_components',
       'scamp_get_component_scaffold',
       'scamp_get_view_props',
+      'scamp_list_routes',
       'scamp_get_theme_tokens',
     ]);
   });
@@ -243,5 +244,27 @@ describe('scamp_get_view_props', () => {
       name: 'Lobby',
       propsType: 'type LobbyProps = {\n  className?: string;\n};',
     });
+  });
+});
+
+describe('scamp_list_routes', () => {
+  it('answers from the injected lister, not the renderer', async () => {
+    const runQuery = vi.fn(async () => ({ never: true }));
+    const invoke = createToolInvoker(runQuery, {
+      listRoutes: async () => [{ file: 'index.tsx', kind: 'page', path: '/', render: 'static', view: 'Home' }],
+    });
+    const result = await invoke('scamp_list_routes', {});
+    expect(runQuery).not.toHaveBeenCalled();
+    expect(JSON.parse(result.content[0]?.text ?? '')).toEqual([
+      { file: 'index.tsx', kind: 'page', path: '/', render: 'static', view: 'Home' },
+    ]);
+  });
+
+  it('is an empty list without a lister, and an isError result when the lister throws', async () => {
+    expect((await createToolInvoker(async () => null)('scamp_list_routes', {})).content[0]?.text).toBe('[]');
+    const failing = createToolInvoker(async () => null, { listRoutes: async () => { throw new Error('disk'); } });
+    const result = await failing('scamp_list_routes', {});
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain('disk');
   });
 });

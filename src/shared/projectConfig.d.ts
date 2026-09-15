@@ -8,7 +8,7 @@ import type { Breakpoint, ComponentCanvasSize, ProjectConfig } from './types';
  */
 export declare const SUPPORTED_CONTRACT: {
     readonly min: 0;
-    readonly max: 1;
+    readonly max: 2;
 };
 /**
  * The contract version the generator writes into a NEW file's `_scamp`

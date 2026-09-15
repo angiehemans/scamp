@@ -4,7 +4,7 @@ import { projectTemplate } from 'scampjs/templates';
 import { version as scampjsVersion } from 'scampjs/package.json';
 /** The `scampjs` range new projects pin: the version this build was tested with. */
 export const SCAFFOLDED_SCAMPJS_RANGE = `^${scampjsVersion}`;
-import { parseViewWrapper, AGENT_MD_CONTENT_SCAMP, } from '@shared/templates';
+import { parseViewWrapper, AGENT_MD_CONTENT_SCAMP, withRecipeSections, } from '@shared/templates';
 import { AGENT_MD_CONTENT, AGENT_MD_CONTENT_LEGACY, CLAUDE_MD_CONTENT, DEFAULT_NEXT_CONFIG_TS, DEFAULT_PAGE_CSS, DEFAULT_THEME_CSS, defaultLayoutTsx, defaultPackageJson, defaultPageTsx, } from '@shared/agentMd';
 import { decideLayoutMigration } from '@shared/layoutMigration';
 import { backfillThemeDefaults } from '@shared/themeBackfill';
@@ -277,12 +277,16 @@ export const refreshLayoutTemplateIfNeeded = async (projectPath) => {
  * event when there's no actual change.
  */
 export const refreshAgentMdIfNeeded = async (projectPath, format) => {
+    const agentPath = join(projectPath, 'agent.md');
+    // A framework project's agent.md may carry sections a recipe appended
+    // (the Database section from `scamp add drizzle`); the app's template
+    // is regenerated around them. see docs/notes/routes-in-the-app.md
     const agentTarget = format === 'nextjs'
         ? AGENT_MD_CONTENT
         : format === 'scamp'
-            ? AGENT_MD_CONTENT_SCAMP
+            ? withRecipeSections(AGENT_MD_CONTENT_SCAMP, await fs.readFile(agentPath, 'utf-8').catch(() => null))
             : AGENT_MD_CONTENT_LEGACY;
-    await refreshManagedFile(join(projectPath, 'agent.md'), agentTarget);
+    await refreshManagedFile(agentPath, agentTarget);
     await refreshManagedFile(join(projectPath, 'CLAUDE.md'), CLAUDE_MD_CONTENT);
 };
 const refreshManagedFile = async (path, target) => {

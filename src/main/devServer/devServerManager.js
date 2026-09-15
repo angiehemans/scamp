@@ -4,12 +4,18 @@ import { join } from 'path';
 import { errorMessage } from '@shared/errorMessage';
 import { getProjectFormat } from '../ipc/projectFormatCache';
 import { allocateFreePort } from './portAlloc';
+import { parseDevJsonLine } from './devLog';
 import { detectReady, detectScampReady } from './readyDetector';
 /** Cap on log lines kept per server so memory doesn't grow without bound. */
 const MAX_LOG_LINES = 1000;
 /** SIGTERM grace period before falling back to SIGKILL on stop. */
 const KILL_GRACE_MS = 2000;
 const entries = new Map();
+let logSink = null;
+/** Where `scamp dev --json` lines go once the window exists. */
+export const setDevServerLogSink = (sink) => {
+    logSink = sink;
+};
 const setStatus = (entry, status) => {
     entry.status = status;
     for (const listener of entry.listeners) {
@@ -101,7 +107,7 @@ const runNpmInstall = (entry) => {
 const devCommand = (format, projectPath, port) => format === 'scamp'
     ? {
         command: 'node',
-        args: [scampBinPath(projectPath), 'dev', '--port', String(port)],
+        args: [scampBinPath(projectPath), 'dev', '--port', String(port), '--json'],
         label: 'scamp dev',
         shell: false,
     }
@@ -158,7 +164,22 @@ const startDevProcess = async (entry, format) => {
         };
         proc.stdout?.on('data', (data) => {
             const text = data.toString('utf8');
-            appendLog(entry, text);
+            if (format === 'scamp') {
+                // `--json` lines become app-log entries and readable preview logs.
+                for (const line of text.split(/\r?\n/)) {
+                    const parsed = parseDevJsonLine(line);
+                    if (parsed === null) {
+                        if (line.length > 0)
+                            appendLog(entry, line);
+                        continue;
+                    }
+                    appendLog(entry, parsed.message);
+                    logSink?.({ projectPath: entry.projectPath, ...parsed });
+                }
+            }
+            else {
+                appendLog(entry, text);
+            }
             check(text);
             // Only broadcast status while we're still starting up so the
             // install/start spinner can refresh its log tail. After we

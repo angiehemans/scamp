@@ -25,8 +25,9 @@ import { registerHtmlExportIpc } from './ipc/htmlExport';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
 import { registerPreviewIpc } from './ipc/preview';
+import { registerRoutesIpc } from './ipc/routes';
 import { closeAllPreviewWindows, closePreviewWindow, openPreviewWindow, updatePreviewWindow, } from './previewWindow';
-import { stopAllDevServers } from './devServer/devServerManager';
+import { setDevServerLogSink, stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher, getWatchedPath } from './watcher';
 import { initMcp, stopMcp } from './mcp/lifecycle';
 import { resolveInsideProject } from './ipc/pathContainment';
@@ -190,6 +191,11 @@ const createWindow = () => {
         win.loadFile(join(__dirname, '../renderer/index.html'));
     }
     initWatcher(win);
+    // Request and error lines from `scamp dev --json` land in the app log.
+    setDevServerLogSink((payload) => {
+        if (!win.isDestroyed())
+            win.webContents.send(IPC.DevServerLog, payload);
+    });
     // MCP reply listener. The server itself starts when a project opens
     // (see ipc/project.ts). docs/plans/mcp-server-plan.md
     initMcp(win);
@@ -296,6 +302,7 @@ app.whenReady().then(() => {
         close: closePreviewWindow,
         update: updatePreviewWindow,
     });
+    registerRoutesIpc();
     registerTestIpc();
     // Sentry opt-in toggle — called from the renderer when the
     // Privacy switch (or the first-launch prompt) flips. The SDK

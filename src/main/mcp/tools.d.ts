@@ -9,4 +9,8 @@ export declare const TOOL_NAMES: ReadonlyArray<string>;
  * it's a stub. Keeping the boundary here is what lets the whole tool surface
  * be tested without an Electron window.
  */
-export declare const createToolInvoker: (runQuery: (tool: string, args: Record<string, unknown>) => Promise<unknown>) => ToolInvoker;
+export type ToolInvokerOptions = {
+    /** Answers scamp_list_routes from disk; the routes aren't canvas state. */
+    listRoutes?: () => Promise<unknown>;
+};
+export declare const createToolInvoker: (runQuery: (tool: string, args: Record<string, unknown>) => Promise<unknown>, options?: ToolInvokerOptions) => ToolInvoker;

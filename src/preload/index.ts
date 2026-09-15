@@ -22,6 +22,14 @@ import type {
   ExportResult,
   ExportSvgArgs,
   FileChangedPayload,
+  DevServerLogPayload,
+  DevVarsReadArgs,
+  DevVarsReadResult,
+  RouteFile,
+  RouteReadArgs,
+  RouteSetRenderArgs,
+  RouteWriteArgs,
+  RoutesListArgs,
   SvgAssetChangedPayload,
   FilePatchArgs,
   FilePatchResult,
@@ -102,6 +110,32 @@ const api = {
 
   migrateProject: (args: ProjectMigrateArgs): Promise<ProjectMigrateResult> =>
     ipcRenderer.invoke(IPC.ProjectMigrate, args),
+
+  // Routes in a Scamp-framework project: the framework owns them, the
+  // app lists and lightly edits them. see docs/notes/routes-in-the-app.md
+  listRoutes: (args: RoutesListArgs): Promise<RouteFile[]> =>
+    ipcRenderer.invoke(IPC.RoutesList, args),
+  readRoute: (args: RouteReadArgs): Promise<string> =>
+    ipcRenderer.invoke(IPC.RoutesRead, args),
+  setRouteRender: (args: RouteSetRenderArgs): Promise<void> =>
+    ipcRenderer.invoke(IPC.RoutesSetRender, args),
+  writeRoute: (args: RouteWriteArgs): Promise<void> =>
+    ipcRenderer.invoke(IPC.RoutesWrite, args),
+  /** `.dev.vars` keys only; the values never reach the renderer. */
+  readDevVars: (args: DevVarsReadArgs): Promise<DevVarsReadResult> =>
+    ipcRenderer.invoke(IPC.DevVarsRead, args),
+  openDevVars: (args: DevVarsReadArgs): Promise<void> =>
+    ipcRenderer.invoke(IPC.DevVarsOpen, args),
+  onRoutesChanged: (handler: () => void): (() => void) => {
+    const listener = (): void => handler();
+    ipcRenderer.on(IPC.RoutesChanged, listener);
+    return () => ipcRenderer.removeListener(IPC.RoutesChanged, listener);
+  },
+  onDevServerLog: (handler: (payload: DevServerLogPayload) => void): (() => void) => {
+    const listener = (_e: IpcRendererEvent, payload: DevServerLogPayload): void => handler(payload);
+    ipcRenderer.on(IPC.DevServerLog, listener);
+    return () => ipcRenderer.removeListener(IPC.DevServerLog, listener);
+  },
 
   /**
    * Open (or focus + navigate) the preview window for the project.

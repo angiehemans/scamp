@@ -20,7 +20,8 @@ and is ready when stdout carries the one line the contract fixes,
 `scamp dev ready http://127.0.0.1:<port>`, matched whole-line by
 `detectScampReady`. The binary is spawned by path rather than through
 `npm run dev` so the app knows exactly which process it is watching and
-needs no shell on Windows. If the binary is missing after the
+needs no shell on Windows. It runs with `--json`, and each request or
+error line is forwarded to the app log (see `routes-in-the-app.md`). If the binary is missing after the
 first-preview `npm install`, the status flips to crashed with a message
 naming the fix; the install itself is unchanged and installs whatever
 the project's `package.json` asks for.

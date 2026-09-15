@@ -1,5 +1,8 @@
-import type { DevServerStatus } from '@shared/types';
+import type { DevServerLogPayload, DevServerStatus } from '@shared/types';
 type Listener = (status: DevServerStatus) => void;
+type LogSink = (payload: DevServerLogPayload) => void;
+/** Where `scamp dev --json` lines go once the window exists. */
+export declare const setDevServerLogSink: (sink: LogSink | null) => void;
 export declare const ensureDevServer: (projectPath: string) => Promise<DevServerStatus>;
 /**
  * Kill the dev server for a project and remove it from the cache.

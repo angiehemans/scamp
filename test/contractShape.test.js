@@ -168,15 +168,15 @@ export const _scamp = { contract: ${contract}, events: [] } as const;
         }).tsx;
     };
     it('keeps a contract-0 file at contract 0, byte for byte', () => {
-        expect(WRITTEN_CONTRACT).toBe(1);
+        expect(WRITTEN_CONTRACT).toBe(2);
         const parsed = parseCode(view(0), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
         expect(parsed.elements[parsed.rootId]?.contract).toBe(0);
         expect(regenerate(view(0))).toBe(view(0));
     });
     it('records nothing on the root for a file already at the written contract', () => {
-        const parsed = parseCode(view(1), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
+        const parsed = parseCode(view(2), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
         expect(parsed.elements[parsed.rootId]?.contract).toBeUndefined();
-        expect(regenerate(view(1))).toBe(view(1));
+        expect(regenerate(view(2))).toBe(view(2));
     });
     it('writes the current contract for a tree that declares none', () => {
         const parsed = parseCode(view(0), css, { breakpoints: DEFAULT_BREAKPOINTS, isComponent: true });
@@ -195,6 +195,6 @@ export const _scamp = { contract: ${contract}, events: [] } as const;
             pageKeyframesBlocks: parsed.keyframesBlocks,
             isComponent: true,
         }).tsx;
-        expect(tsx).toContain('export const _scamp = { contract: 1, events: [] } as const;');
+        expect(tsx).toContain('export const _scamp = { contract: 2, events: [] } as const;');
     });
 });

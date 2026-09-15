@@ -117,6 +117,12 @@ export const TOOL_DESCRIPTORS: ToolDescriptor[] = [
     },
   },
   {
+    name: 'scamp_list_routes',
+    description:
+      'Every file under routes/ in a Scamp-framework project: page routes with their URL pattern, render mode, and the view they render, and API routes (routes/api/**) with their URL. Call this before writing or editing a route, or to find which route renders a view; then read the file. Empty for a Next.js or legacy project.',
+    inputSchema: { ...NO_ARGS },
+  },
+  {
     name: 'scamp_get_theme_tokens',
     description:
       'The design tokens defined in the project’s theme.css, as a flat list of CSS custom properties, plus the available themes. Call this before writing any colour, spacing, or typography value so you use an existing token instead of a raw literal.',
@@ -192,8 +198,14 @@ const componentScaffoldResult = (name: unknown): ToolResult => {
  * it's a stub. Keeping the boundary here is what lets the whole tool surface
  * be tested without an Electron window.
  */
+export type ToolInvokerOptions = {
+  /** Answers scamp_list_routes from disk; the routes aren't canvas state. */
+  listRoutes?: () => Promise<unknown>;
+};
+
 export const createToolInvoker = (
-  runQuery: (tool: string, args: Record<string, unknown>) => Promise<unknown>
+  runQuery: (tool: string, args: Record<string, unknown>) => Promise<unknown>,
+  options: ToolInvokerOptions = {}
 ): ToolInvoker => {
   return async (name, args): Promise<ToolResult> => {
     if (!TOOL_NAMES.includes(name)) {
@@ -224,6 +236,15 @@ export const createToolInvoker = (
     // function of the name and needs no canvas state.
     if (name === 'scamp_get_component_scaffold') {
       return componentScaffoldResult(args['name']);
+    }
+    // Routes live on disk, not on the canvas.
+    if (name === 'scamp_list_routes') {
+      if (options.listRoutes === undefined) return textResult('[]');
+      try {
+        return textResult(JSON.stringify(await options.listRoutes(), null, 2));
+      } catch (err) {
+        return errorResult(`scamp_list_routes failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
     try {

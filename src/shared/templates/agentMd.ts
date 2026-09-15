@@ -1146,9 +1146,19 @@ const SCAMP_LAYOUT_PARAGRAPH = `This project uses the **Scamp framework** layout
 - \`views/<Name>/<Name>.tsx\` + \`.module.css\` — a page's design. Scamp
   owns and regenerates these.
 - \`components/<Name>/\` — reusable pieces, same file shape.
-- \`routes/\` — YOUR logic: a route file loads data and renders a view.
-  Scamp never reads, lists, or regenerates anything under \`routes/\`.
+- \`routes/\` — YOUR logic: a route file loads data and renders a view;
+  \`routes/api/\` holds API handlers (\`GET\`, \`POST\`, … over a
+  \`LoadContext\`, or a default-exported Hono app). Scamp lists these in
+  its Routes section and writes only a \`render\` export or a generated
+  route; it never regenerates them. \`scamp_list_routes\` lists them.
 - \`design/theme.css\` — the design tokens.
+- \`.dev.vars\` — local values for \`env\` in \`load()\` and API handlers,
+  \`KEY=value\` per line; gitignored, never committed.
+
+**Generate route** in Scamp writes \`routes/<slug>.tsx\` whose \`load()\`
+returns the view's sample data; replace the samples with real data and
+keep the shape, which is the view's props. A **Database** section below
+appears when the project has a Drizzle recipe (\`scamp add drizzle\`).
 
 There is no \`app/\` folder and no wrapper pages; a page IS its view.
 \`npm run dev\` runs the framework's dev server (\`scamp dev\`).`;
@@ -2501,3 +2511,20 @@ export const AGENT_MD_CONTENT_SCAMP = AGENT_MD_CONTENT.replace(
   NEXT_LAYOUT_PARAGRAPH,
   SCAMP_LAYOUT_PARAGRAPH
 ).replace(NEXT_WRAPPER_NOTE, SCAMP_WRAPPER_NOTE);
+
+/**
+ * Sections a recipe appended to the project's agent.md, under
+ * `<!-- scamp:recipe:<name> -->` markers (scampjs CONTRACT.md section
+ * 3.2). The app regenerates agent.md on every open; these are the
+ * framework's, and survive the regeneration verbatim.
+ */
+export const recipeSectionsOf = (agentMd: string): string => {
+  const index = agentMd.search(/<!-- scamp:recipe:[^>]+ -->/);
+  return index === -1 ? '' : agentMd.slice(index).replace(/\s*$/, '\n');
+};
+
+/** The managed template plus whatever recipe sections the existing file carries. */
+export const withRecipeSections = (template: string, existing: string | null): string => {
+  const sections = existing === null ? '' : recipeSectionsOf(existing);
+  return sections === '' ? template : `${template.replace(/\s*$/, '\n')}\n${sections}`;
+};

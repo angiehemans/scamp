@@ -20,7 +20,7 @@ import {
  * shows a banner instead of guessing at a shape it doesn't know.
  * see docs/plans/framework-phase-1-plan.md
  */
-export const SUPPORTED_CONTRACT = { min: 0, max: 1 } as const;
+export const SUPPORTED_CONTRACT = { min: 0, max: 2 } as const;
 
 /**
  * The contract version the generator writes into a NEW file's `_scamp`

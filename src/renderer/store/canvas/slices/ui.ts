@@ -80,6 +80,8 @@ export const createUiSlice: StateCreator<
   | 'exportSettings'
   | 'canvasMinHeight'
   | 'setBottomPanel'
+  | 'routeSource'
+  | 'setRouteSource'
   | 'toggleBottomPanel'
   | 'setPanelMode'
   | 'setSidebarSection'
@@ -100,6 +102,7 @@ export const createUiSlice: StateCreator<
 >
 > = (set) => ({
   bottomPanel: 'none',
+  routeSource: null,
   panelMode: 'ui',
   sidebarSection: 'pages',
   userZoom: null,
@@ -139,6 +142,8 @@ export const createUiSlice: StateCreator<
   setImageImportBusy: (imageImportBusy) => set({ imageImportBusy }),
 
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
+
+  setRouteSource: (source) => set({ routeSource: source }),
 
   // Open the panel, or close it if it's already the open one. Lives in the
   // store because three call sites need it — the canvas toolbar buttons and

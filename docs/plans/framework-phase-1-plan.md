@@ -327,7 +327,7 @@ Files: `src/shared/templates/agentMd.ts`, `src/main/mcp/tools.ts`,
 |---|---|---|
 | `scamp dev` preview, `/_views/<Name>`, the readiness line | contract 1 | tech plan phase 3 (landed; see `framework-phase-3-plan.md`) |
 | Scaffolding `scamp`-format projects, the Next → Scamp migration | contract 1 plus `scampjs/templates` implementations | phase 5 |
-| Routes list, Generate route, API routes | contract 2 | phase 7 |
+| Routes list, Generate route, API routes | contract 2 | phase 7 (landed; see `framework-phase-7-plan.md`) |
 
 Phase 1 leaves the app able to open, list, render, and edit a
 contract-0 project and to write every file in the contract's shape,

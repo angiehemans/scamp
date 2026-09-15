@@ -48,6 +48,9 @@ import { useProjectConfig } from './projectShell/useProjectConfig';
 import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
+import { useRoutes } from './projectShell/useRoutes';
+import { RoutesSection } from './projectShell/RoutesSection';
+import { useAppLogStore } from '@store/appLogSlice';
 import { useHtmlExport } from './projectShell/useHtmlExport';
 import { useFontLinkReconciler, useProjectTheme, } from './projectShell/useProjectFonts';
 import { useDesignMdSync } from './projectShell/useDesignMdSync';
@@ -79,6 +82,31 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // deeply-nested readers (format, root path, page list, component-tree
     // cache, active-target canvas min-height).
     useProjectStoreSync({ project, projectConfig, activeComponent });
+    // Routes in a Scamp-framework project, and the dev server's request
+    // log in the app log. see docs/notes/routes-in-the-app.md
+    const routesApi = useRoutes(project);
+    useEffect(() => {
+        if (project.format !== 'scamp')
+            return;
+        return window.scamp.onDevServerLog((payload) => {
+            if (payload.projectPath !== project.path)
+                return;
+            useAppLogStore.getState().log(payload.level, `preview: ${payload.message}`);
+        });
+    }, [project.format, project.path]);
+    const [devVars, setDevVars] = useState(null);
+    useEffect(() => {
+        if (project.format !== 'scamp' || !showProjectSettings)
+            return;
+        let cancelled = false;
+        void window.scamp.readDevVars({ projectPath: project.path }).then((result) => {
+            if (!cancelled)
+                setDevVars(result);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [project.format, project.path, showProjectSettings]);
     // Pages sidebar inline-edit / context-menu state + page CRUD handlers.
     const { existingPageNames, pageEdit, setPageEdit, pageEditBusy, pageEditError, setPageEditError, isEditingPage, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, buildMenuItems, pageMenu, closePageMenu, deletingPageName, setDeletingPageName, deletePageError, setDeletePageError, handleDeletePage, } = usePageManagement({
         project,
@@ -185,14 +213,20 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
             if (activeViewName === null)
                 return null;
             const views = project.components.filter((c) => c.kind === 'view').map((c) => c.name);
+            // A view a page route renders previews at that route, which runs its
+            // load(); a view without one previews with its defaults at /_views/.
+            const routeFor = (view) => {
+                const route = (project.routes ?? []).find((r) => r.kind === 'page' && r.view === view && !r.path.includes(':'));
+                return route?.path ?? `/_views/${view}`;
+            };
             return {
                 pageName: viewSlugFor(activeViewName),
                 pageNames: views.map((v) => viewSlugFor(v)),
-                routes: Object.fromEntries(views.map((v) => [viewSlugFor(v), `/_views/${v}`])),
+                routes: Object.fromEntries(views.map((v) => [viewSlugFor(v), routeFor(v)])),
             };
         }
         return null;
-    }, [projectFormatForPreview, activeViewName, activePageName, project.pages, project.components]);
+    }, [projectFormatForPreview, activeViewName, activePageName, project.pages, project.components, project.routes]);
     const canPreview = previewTarget !== null && projectPathForPreview.length > 0;
     const openPreview = useCallback(() => {
         if (!canPreview || previewTarget === null)
@@ -265,7 +299,13 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                         }, designSystemOpen: showThemePanel, settingsOpen: showProjectSettings }), _jsxs("div", { className: styles.bodyContent, children: [_jsx("aside", { className: styles.sidebar, children: showThemePanel ? (_jsx(ThemeSectionNav, {})) : (_jsxs(_Fragment, { children: [sidebarSection === 'history' && (_jsx(HistoryPanel, { projectPath: project.path })), sidebarSection === 'pages' && (_jsxs(_Fragment, { children: [_jsx(PageSidebar, { pages: project.pages, views: project.components.filter((c) => componentKindOf(c) === 'view'), existingPageNames: existingPageNames, pageEdit: pageEdit, pageEditError: pageEditError, pageEditBusy: pageEditBusy, isEditingPage: isEditingPage, activePageName: activePageName, activeComponent: activeComponent, setPageEdit: setPageEdit, setPageEditError: setPageEditError, resetPageEdit: resetPageEdit, handleAddPage: handleAddPage, handleDuplicatePage: handleDuplicatePage, handleRenamePage: handleRenamePage, openPageMenu: openPageMenu, openView: (name) => openComponent(name, null, 'view'), openViewMenu: openComponentMenu, handleRenameView: async (name, slug) => {
                                                         await handleRenameView(name, slug);
                                                         resetPageEdit();
-                                                    }, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })), sidebarSection === 'components' && (_jsxs(_Fragment, { children: [_jsx(ComponentSidebar, { components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] }))] })) }), showThemePanel ? (_jsx(ThemePanel, { projectPath: project.path })) : (_jsxs(_Fragment, { children: [_jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor }), _jsx(PropertiesPanel, {})] })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false) }))] })] }), bottomPanel === 'code' && _jsx(CodePanel, { showTheme: showThemePanel }), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), _jsx(ProjectModals, { components: project.components, instanceFlows: instanceFlows, pageMenu: pageMenu, buildMenuItems: buildMenuItems, closePageMenu: closePageMenu, deletingPageName: deletingPageName, deletePageError: deletePageError, handleDeletePage: handleDeletePage, setDeletingPageName: setDeletingPageName, setDeletePageError: setDeletePageError, componentMenu: componentMenu, closeComponentMenu: closeComponentMenu, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, requestDeleteComponent: requestDeleteComponent, startRenameView: (name) => {
+                                                    }, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName }), project.format === 'scamp' && (_jsx(RoutesSection, { routes: routesApi.routes, views: project.components.filter((c) => componentKindOf(c) === 'view'), busy: routesApi.busy, onOpen: (file) => void routesApi.openRoute(file), onSetRender: (file, render) => void routesApi.setRender(file, render), onGenerate: (name) => void routesApi.generateRoute(name) })), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })), sidebarSection === 'components' && (_jsxs(_Fragment, { children: [_jsx(ComponentSidebar, { components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] }))] })) }), showThemePanel ? (_jsx(ThemePanel, { projectPath: project.path })) : (_jsxs(_Fragment, { children: [_jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor }), _jsx(PropertiesPanel, {})] })), showProjectSettings && (_jsx(ProjectSettingsPage, { projectName: project.name, projectPath: project.path, config: projectConfig, onChange: handleProjectConfigChange, onBack: () => setShowProjectSettings(false), environment: project.format === 'scamp'
+                                    ? {
+                                        exists: devVars?.exists ?? false,
+                                        keys: devVars?.keys ?? [],
+                                        onOpen: () => void window.scamp.openDevVars({ projectPath: project.path }),
+                                    }
+                                    : undefined }))] })] }), bottomPanel === 'code' && _jsx(CodePanel, { showTheme: showThemePanel }), terminalEverOpened && (_jsx(TerminalPanel, { cwd: project.path, hidden: bottomPanel !== 'terminal' }, project.path)), _jsx(ProjectModals, { components: project.components, instanceFlows: instanceFlows, pageMenu: pageMenu, buildMenuItems: buildMenuItems, closePageMenu: closePageMenu, deletingPageName: deletingPageName, deletePageError: deletePageError, handleDeletePage: handleDeletePage, setDeletingPageName: setDeletingPageName, setDeletePageError: setDeletePageError, componentMenu: componentMenu, closeComponentMenu: closeComponentMenu, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, requestDeleteComponent: requestDeleteComponent, startRenameView: (name) => {
                     setPageEditError(null);
                     setPageEdit({ rename: viewSlugFor(name) });
                 }, convertingPage: convertingPage, setConvertingPage: setConvertingPage, convertPageBusy: convertPageBusy, convertPageError: convertPageError, handleConfirmConvertPage: handleConfirmConvertPage, deletingComponent: deletingComponent, componentDeleteBusy: componentDeleteBusy, handleConfirmDeleteComponent: handleConfirmDeleteComponent, setDeletingComponent: setDeletingComponent })] }));
