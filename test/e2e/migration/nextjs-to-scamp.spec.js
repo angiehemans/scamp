@@ -59,11 +59,13 @@ test.describe('migrate a Next.js project to the Scamp framework', () => {
         // Something Scamp never wrote: an API route the migration must leave alone.
         await fs.mkdir(path.join(project.dir, 'app', 'api', 'ping'), { recursive: true });
         await fs.writeFile(path.join(project.dir, 'app', 'api', 'ping', 'route.ts'), "export async function GET() { return new Response('pong'); }\n", 'utf-8');
-        const banner = window.getByTestId('scamp-migration-banner');
-        await expect(banner).toBeVisible();
-        await banner.getByRole('button', { name: 'Migrate to the Scamp framework' }).click();
+        // The offer is a section of the properties panel, shown while nothing
+        // is selected. see docs/notes/nextjs-sunset.md
+        const notice = window.getByTestId('scamp-migration-notice');
+        await expect(notice).toBeVisible();
+        await notice.getByRole('button', { name: 'Migrate this project' }).click();
         await window.getByRole('button', { name: 'Migrate', exact: true }).click();
-        await expect(banner).toBeHidden({ timeout: 30_000 });
+        await expect(notice).toBeHidden({ timeout: 30_000 });
         const dir = project.dir;
         const read = (file) => fs.readFile(path.join(dir, file), 'utf-8');
         const exists = (file) => fs.access(path.join(dir, file)).then(() => true, () => false);
