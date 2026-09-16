@@ -279,3 +279,10 @@
   color: var(--text-primary);
   border-color: var(--accent);
 }
+
+/* The Data SECTION's rows: a plain column. The surrounding panel owns
+   the scroll, unlike the Data tab's own body. */
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+}

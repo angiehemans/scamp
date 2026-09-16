@@ -18,8 +18,7 @@ from the main process, since routes are not canvas state.
 
 ## What the app writes
 
-- **The `render` export.** The Routes section (in the properties
-  panel's empty state, since a route is page-level) and its control
+- **The `render` export.** The Routes section and its control
   calls `setRouteRender`, which replaces an existing export in place or
   inserts one after the imports. Nothing else in the file changes.
 - **A generated route.** `lib/generateRoute.ts` writes
@@ -31,6 +30,18 @@ from the main process, since routes are not canvas state.
   (`lib/db.ts`), a commented query shows the shape of the real one.
   `writeRouteFile` refuses to overwrite: an existing route is the
   user's.
+
+## Where the sections live
+
+With nothing selected, the properties panel is page-level, so it holds
+Routes, then the view's Data (`ViewDataSection`, the same rows the Data
+tab renders, without the tab's own scroll), then the keyboard shortcuts
+as a collapsed reference. All three use the `Section` primitive, so
+they read like the element sections below a selection. The mode toggle
+is not rendered there: Visual and CSS describe a selected element, and
+Data no longer needs a tab to be reachable. `PropertiesPanel` takes the
+Routes section as a node rather than reading routes itself, so it stays
+about the selection.
 
 Opening a route from the list shows it read-only in the code panel
 (`routeSource` in the store) in place of the open view's code, with a

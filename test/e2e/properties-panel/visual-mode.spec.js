@@ -8,10 +8,24 @@ import { canvasElementsByPrefix, pageRoot } from '../fixtures/selectors';
  * that drops a section can't silently ship.
  */
 test.describe('properties panel: visual mode section layout', () => {
-    test('shows a shortcuts table when nothing is selected', async ({ window }) => {
+    test('offers the shortcuts as a collapsed reference when nothing is selected', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await expect(propertiesPanel(window)).toHaveAttribute('data-panel-mode', 'empty');
-        await expect(window.getByRole('heading', { name: 'Keyboard Shortcuts' })).toBeVisible();
+        // A reference, not the main event: the section shows, the table waits.
+        const disclosure = window.getByRole('button', { name: 'Keyboard Shortcuts' });
+        await expect(disclosure).toBeVisible();
+        await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+        await expect(window.getByText('Select tool')).toHaveCount(0);
+        await disclosure.click();
+        await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+        await expect(window.getByText('Select tool')).toBeVisible();
+    });
+    test('keeps the element-level mode toggle out of the empty state', async ({ window }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        // Visual and CSS describe a selected element; with none, they'd show
+        // nothing. see docs/notes/routes-in-the-app.md
+        await expect(window.getByRole('radio', { name: 'Visual' })).toHaveCount(0);
+        await expect(window.getByRole('radio', { name: 'CSS' })).toHaveCount(0);
     });
     test('rectangle shows Element, Position, Size, Layout, Spacing, Background, Border, Visibility', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();

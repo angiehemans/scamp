@@ -6,3 +6,10 @@ export type RequestLockPropEventDetail = {
     propName: string;
 };
 export declare const DataPanel: () => JSX.Element;
+/**
+ * The open view's data as a section of the properties panel's empty
+ * state, beside Routes: its props, slots, repeats, show flags, bound
+ * attributes, and events. Page-level, like a route, which is why it
+ * doesn't wait for a selection. see docs/notes/routes-in-the-app.md
+ */
+export declare const ViewDataSection: () => JSX.Element;

@@ -291,7 +291,18 @@ const DataRow = ({
 };
 
 /** Component-editor: list text descendants with prop/locked toggle. */
-const ComponentDataView = (): JSX.Element => {
+type ViewBodyProps = {
+  /**
+   * The wrapper for the rows. The Data TAB owns the panel body and its
+   * scroll; the Data SECTION in the empty state sits in a column that
+   * scrolls as a whole, so it must not grab the height.
+   */
+  bodyClassName?: string;
+};
+
+const ComponentDataView = ({
+  bodyClassName = propStyles.uiPanelBody,
+}: ViewBodyProps = {}): JSX.Element => {
   const elements = useCanvasStore((s) => s.elements);
   const rootElementId = useCanvasStore((s) => s.rootElementId);
 
@@ -331,18 +342,18 @@ const ComponentDataView = (): JSX.Element => {
 
   if (rows.length === 0 && slotRows.length === 0 && !hasBindings && !hasAttributeCandidates) {
     return (
-      <div className={propStyles.uiPanelBody}>
+      <div className={bodyClassName}>
         <div className={styles.empty}>
-          No props yet. Mark a text element as a prop, right-click an element
-          → "Repeat this…" or "Show only when…", or right-click a rectangle →
-          "Make slot" to let pages nest content inside this component.
+          No props yet. Mark a text element as a prop, or right-click an
+          element → "Repeat this…" or "Show only when…". A rectangle can
+          also become a slot, so a page can nest content inside it.
         </div>
       </div>
     );
   }
 
   return (
-    <div className={propStyles.uiPanelBody}>
+    <div className={bodyClassName}>
       {rows.length > 0 && (
         <>
           <div className={styles.intro}>
@@ -595,3 +606,13 @@ export const DataPanel = (): JSX.Element => {
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
   return isComponentEditing ? <ComponentDataView /> : <InstanceDataView />;
 };
+
+/**
+ * The open view's data as a section of the properties panel's empty
+ * state, beside Routes: its props, slots, repeats, show flags, bound
+ * attributes, and events. Page-level, like a route, which is why it
+ * doesn't wait for a selection. see docs/notes/routes-in-the-app.md
+ */
+export const ViewDataSection = (): JSX.Element => (
+  <ComponentDataView bodyClassName={styles.sectionBody} />
+);

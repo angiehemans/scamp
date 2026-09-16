@@ -179,8 +179,7 @@ const DataRow = ({ row, otherPropNames, }) => {
                     }));
                 } }), isProp && (_jsxs("div", { className: styles.renameWrap, children: [_jsx("input", { ref: inputRef, className: styles.renameInput, type: "text", value: draftName, onChange: (e) => setDraftName(e.target.value), onBlur: commitRename, onKeyDown: handleKeyDown, spellCheck: false, "aria-label": "Prop name" }), validationError && (_jsx("div", { className: styles.renameError, children: validationError }))] }))] }));
 };
-/** Component-editor: list text descendants with prop/locked toggle. */
-const ComponentDataView = () => {
+const ComponentDataView = ({ bodyClassName = propStyles.uiPanelBody, } = {}) => {
     const elements = useCanvasStore((s) => s.elements);
     const rootElementId = useCanvasStore((s) => s.rootElementId);
     const rows = useMemo(() => collectTextDescendants(elements, rootElementId), [elements, rootElementId]);
@@ -195,9 +194,9 @@ const ComponentDataView = () => {
         (el.type === 'component-instance' || Object.keys(el.attributes ?? {}).length > 0 ||
             ['a', 'button', 'input', 'textarea', 'select', 'form', 'dialog', 'video', 'iframe', 'label', 'time', 'blockquote'].includes(el.tag ?? ''))), [elements, rootElementId]);
     if (rows.length === 0 && slotRows.length === 0 && !hasBindings && !hasAttributeCandidates) {
-        return (_jsx("div", { className: propStyles.uiPanelBody, children: _jsx("div", { className: styles.empty, children: "No props yet. Mark a text element as a prop, right-click an element \u2192 \"Repeat this\u2026\" or \"Show only when\u2026\", or right-click a rectangle \u2192 \"Make slot\" to let pages nest content inside this component." }) }));
+        return (_jsx("div", { className: bodyClassName, children: _jsx("div", { className: styles.empty, children: "No props yet. Mark a text element as a prop, or right-click an element \u2192 \"Repeat this\u2026\" or \"Show only when\u2026\". A rectangle can also become a slot, so a page can nest content inside it." }) }));
     }
-    return (_jsxs("div", { className: propStyles.uiPanelBody, children: [rows.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.intro, children: "Mark a text element as a prop to let pages override its content per-instance. Locked text stays the same on every instance." }), _jsx("div", { className: styles.rows, children: rows.map((row) => (_jsx(DataRow, { row: row, otherPropNames: allPropNames.filter((n) => n !== row.prop) }, row.id))) })] })), slotRows.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.intro, children: ["Slots let pages nest their own elements inside this component (React ", _jsx("code", { children: "children" }), "). Rename or remove them here."] }), _jsx("div", { className: styles.rows, children: slotRows.map((row) => (_jsx(SlotRow, { row: row, otherSlotNames: allSlotNames.filter((n) => n !== row.slot) }, row.id))) })] })), _jsx(BindingSections, {})] }));
+    return (_jsxs("div", { className: bodyClassName, children: [rows.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.intro, children: "Mark a text element as a prop to let pages override its content per-instance. Locked text stays the same on every instance." }), _jsx("div", { className: styles.rows, children: rows.map((row) => (_jsx(DataRow, { row: row, otherPropNames: allPropNames.filter((n) => n !== row.prop) }, row.id))) })] })), slotRows.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.intro, children: ["Slots let pages nest their own elements inside this component (React ", _jsx("code", { children: "children" }), "). Rename or remove them here."] }), _jsx("div", { className: styles.rows, children: slotRows.map((row) => (_jsx(SlotRow, { row: row, otherSlotNames: allSlotNames.filter((n) => n !== row.slot) }, row.id))) })] })), _jsx(BindingSections, {})] }));
 };
 const collectPropDeclarations = (elements, rootId) => {
     const out = [];
@@ -312,3 +311,10 @@ export const DataPanel = () => {
     const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
     return isComponentEditing ? _jsx(ComponentDataView, {}) : _jsx(InstanceDataView, {});
 };
+/**
+ * The open view's data as a section of the properties panel's empty
+ * state, beside Routes: its props, slots, repeats, show flags, bound
+ * attributes, and events. Page-level, like a route, which is why it
+ * doesn't wait for a selection. see docs/notes/routes-in-the-app.md
+ */
+export const ViewDataSection = () => (_jsx(ComponentDataView, { bodyClassName: styles.sectionBody }));

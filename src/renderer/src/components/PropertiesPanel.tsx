@@ -5,7 +5,8 @@ import { PanelModeToggle } from './PanelModeToggle';
 import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
-import { DataPanel } from './DataPanel';
+import { DataPanel, ViewDataSection } from './DataPanel';
+import { Section } from './sections/Section';
 import styles from './PropertiesPanel.module.css';
 
 const SHORTCUTS: ReadonlyArray<{ keys: string; description: string }> = [
@@ -29,19 +30,16 @@ const SHORTCUTS: ReadonlyArray<{ keys: string; description: string }> = [
 ];
 
 const ShortcutsTable = (): JSX.Element => (
-  <div className={styles.shortcutsWrap}>
-    <h3 className={styles.shortcutsTitle}>Keyboard Shortcuts</h3>
-    <table className={styles.shortcutsTable}>
+  <table className={styles.shortcutsTable}>
       <tbody>
         {SHORTCUTS.map((s) => (
           <tr key={s.keys}>
             <td className={styles.shortcutKeys}>{s.keys}</td>
             <td className={styles.shortcutDesc}>{s.description}</td>
           </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
+      ))}
+    </tbody>
+  </table>
 );
 
 type Props = {
@@ -58,20 +56,30 @@ export const PropertiesPanel = ({ routesSection }: Props): JSX.Element => {
   const panelMode = useCanvasStore((s) => s.panelMode);
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
 
-  // Data tab is component-scoped; render even without a selection.
-  const showDataWithoutSelection =
-    !selectedId && isComponentEditing && panelMode === 'data';
-
-  if (!selectedId && !showDataWithoutSelection) {
+  // Nothing selected: the panel shows what belongs to the page rather
+  // than to an element — its routes and its data — with the shortcuts
+  // as a reference the user can open. Visual and CSS are element-level
+  // and have nothing to say here, so the mode toggle stays out of it.
+  if (!selectedId) {
     return (
       <aside
         className={styles.panel}
         data-testid="properties-panel"
         data-panel-mode="empty"
       >
-        {isComponentEditing && <PanelModeToggle />}
-        {routesSection}
-        <ShortcutsTable />
+        <div className={styles.emptyBody}>
+          {routesSection}
+          {isComponentEditing && (
+            <div data-testid="view-data-section">
+              <Section title="Data" collapsible defaultOpen>
+                <ViewDataSection />
+              </Section>
+            </div>
+          )}
+          <Section title="Keyboard Shortcuts" collapsible defaultOpen={false}>
+            <ShortcutsTable />
+          </Section>
+        </div>
       </aside>
     );
   }
@@ -82,9 +90,9 @@ export const PropertiesPanel = ({ routesSection }: Props): JSX.Element => {
       data-testid="properties-panel"
       data-panel-mode={panelMode}
     >
-      {selectedId && <PanelHeader />}
+      <PanelHeader />
       <PanelModeToggle />
-      {selectedId && panelMode === 'ui' && <StateSwitcher />}
+      {panelMode === 'ui' && <StateSwitcher />}
       {panelMode === 'data' ? (
         <DataPanel />
       ) : panelMode === 'ui' ? (

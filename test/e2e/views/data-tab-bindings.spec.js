@@ -38,7 +38,9 @@ test.describe('Data tab bindings', () => {
         const note = window.locator(`[data-scamp-id="${noteId}"]`).first();
         await rightClickInFrame(window, { x: 220, y: 290 });
         await clickContextMenuItem(window, 'Show only when');
-        // Open the Data tab with nothing selected.
+        // Click empty canvas: that selects the page root, so the Data tab is
+        // the way in. (With nothing selected at all, the panel shows the same
+        // rows as a section — see properties-panel/visual-mode.spec.ts.)
         await window.keyboard.press('Escape');
         await dragInFrame(window, { x: 700, y: 700 }, { x: 700, y: 700 });
         await window.getByRole('radio', { name: 'Data' }).click();
@@ -101,7 +103,7 @@ test.describe('Data tab bindings', () => {
         await url.fill('https://example.com');
         await url.press('Enter');
         await waitForSaved(window);
-        // Bind href in the Data tab.
+        // Bind href in the Data tab, with the page root selected.
         await window.keyboard.press('Escape');
         await dragInFrame(window, { x: 700, y: 700 }, { x: 700, y: 700 });
         await window.getByRole('radio', { name: 'Data' }).click();

@@ -14,18 +14,13 @@
   text-align: center;
 }
 
-.shortcutsWrap {
-  padding: 16px 12px;
+/* Nothing selected: the page-level sections stack and scroll together. */
+.emptyBody {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-}
-
-.shortcutsTitle {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 .shortcutsTable {

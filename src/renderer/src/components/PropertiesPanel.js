@@ -5,7 +5,8 @@ import { PanelModeToggle } from './PanelModeToggle';
 import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
-import { DataPanel } from './DataPanel';
+import { DataPanel, ViewDataSection } from './DataPanel';
+import { Section } from './sections/Section';
 import styles from './PropertiesPanel.module.css';
 const SHORTCUTS = [
     { keys: 'V', description: 'Select tool' },
@@ -26,15 +27,17 @@ const SHORTCUTS = [
     { keys: 'Double-click', description: 'Edit text / Rename layer' },
     { keys: 'Shift+click', description: 'Multi-select' },
 ];
-const ShortcutsTable = () => (_jsxs("div", { className: styles.shortcutsWrap, children: [_jsx("h3", { className: styles.shortcutsTitle, children: "Keyboard Shortcuts" }), _jsx("table", { className: styles.shortcutsTable, children: _jsx("tbody", { children: SHORTCUTS.map((s) => (_jsxs("tr", { children: [_jsx("td", { className: styles.shortcutKeys, children: s.keys }), _jsx("td", { className: styles.shortcutDesc, children: s.description })] }, s.keys))) }) })] }));
+const ShortcutsTable = () => (_jsx("table", { className: styles.shortcutsTable, children: _jsx("tbody", { children: SHORTCUTS.map((s) => (_jsxs("tr", { children: [_jsx("td", { className: styles.shortcutKeys, children: s.keys }), _jsx("td", { className: styles.shortcutDesc, children: s.description })] }, s.keys))) }) }));
 export const PropertiesPanel = ({ routesSection }) => {
     const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
     const panelMode = useCanvasStore((s) => s.panelMode);
     const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
-    // Data tab is component-scoped; render even without a selection.
-    const showDataWithoutSelection = !selectedId && isComponentEditing && panelMode === 'data';
-    if (!selectedId && !showDataWithoutSelection) {
-        return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: [isComponentEditing && _jsx(PanelModeToggle, {}), routesSection, _jsx(ShortcutsTable, {})] }));
+    // Nothing selected: the panel shows what belongs to the page rather
+    // than to an element — its routes and its data — with the shortcuts
+    // as a reference the user can open. Visual and CSS are element-level
+    // and have nothing to say here, so the mode toggle stays out of it.
+    if (!selectedId) {
+        return (_jsx("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: _jsxs("div", { className: styles.emptyBody, children: [routesSection, isComponentEditing && (_jsx("div", { "data-testid": "view-data-section", children: _jsx(Section, { title: "Data", collapsible: true, defaultOpen: true, children: _jsx(ViewDataSection, {}) }) })), _jsx(Section, { title: "Keyboard Shortcuts", collapsible: true, defaultOpen: false, children: _jsx(ShortcutsTable, {}) })] }) }));
     }
-    return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": panelMode, children: [selectedId && _jsx(PanelHeader, {}), _jsx(PanelModeToggle, {}), selectedId && panelMode === 'ui' && _jsx(StateSwitcher, {}), panelMode === 'data' ? (_jsx(DataPanel, {})) : panelMode === 'ui' ? (_jsx(UiPanel, {})) : (_jsx(CssPanel, {}))] }));
+    return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": panelMode, children: [_jsx(PanelHeader, {}), _jsx(PanelModeToggle, {}), panelMode === 'ui' && _jsx(StateSwitcher, {}), panelMode === 'data' ? (_jsx(DataPanel, {})) : panelMode === 'ui' ? (_jsx(UiPanel, {})) : (_jsx(CssPanel, {}))] }));
 };

@@ -174,10 +174,15 @@ for that project.
 
 In a Scamp framework project, the **Routes** section shows every file
 under `routes/`: page routes with their URL and render mode, and API
-handlers under `routes/api/`. It's in the properties panel on the
-right, above the keyboard shortcuts, and appears whenever no element is
-selected, because a route belongs to the page rather than to anything
-on it. Click a route to read it in the code panel.
+handlers under `routes/api/`. Click a route to read it in the code
+panel.
+
+Routes are in the properties panel on the right, and appear whenever no
+element is selected, because a route belongs to the page rather than to
+anything on it. **Data** sits below it, with the same props, slots, and
+bindings the [Data tab](components.md#the-data-tab) shows, for the same
+reason. **Keyboard shortcuts** is below both, collapsed until you open
+it.
 
 A view that no route renders yet has a **Generate route** button. It
 writes `routes/[slug].tsx` with a `load()` that returns the view's

@@ -61,9 +61,13 @@ release time.
   exact props type and sample data, so an agent writing the route
   passes the right shape.
 - **Routes in the properties panel.** In a Scamp framework project, a
-  **Routes** section above the keyboard shortcuts lists every route and
-  API handler, sets a page route's render mode, and opens a route in
-  the code panel. It shows whenever no element is selected. **Generate route**
+  **Routes** section lists every route and API handler, sets a page
+  route's render mode, and opens a route in the code panel.
+- **The properties panel shows what belongs to the page when nothing is
+  selected.** Routes, then **Data** with the view's props and bindings,
+  then **Keyboard shortcuts** as a section you open when you want it.
+  The Visual and CSS tabs describe a selected element, so they no
+  longer appear with nothing selected. **Generate route**
   writes a route for a view with the view's sample data in `load()`.
   The preview's request log lands in the app log, Project Settings
   shows the keys in `.dev.vars`, and agents get `scamp_list_routes`.

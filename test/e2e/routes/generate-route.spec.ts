@@ -20,6 +20,10 @@ test.describe('routes in a Scamp-framework project', () => {
     await expect(pageRoot(window)).toBeVisible();
     const routes = window.getByTestId('routes-section');
     await expect(routes).toBeVisible();
+    // Page-level, both of them: with nothing selected the panel shows the
+    // view's data beside its routes, and no element-level mode toggle.
+    await expect(window.getByTestId('view-data-section')).toBeVisible();
+    await expect(window.getByRole('radio', { name: 'Visual' })).toHaveCount(0);
     // The template's index route renders Home.
     await expect(routes.getByTestId('route-index.tsx')).toContainText('/');
     await expect(routes.getByTestId('route-index.tsx').getByRole('button', { name: 'static', exact: true })).toHaveAttribute('aria-pressed', 'true');
