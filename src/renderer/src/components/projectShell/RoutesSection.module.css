@@ -1,3 +1,28 @@
+.wrap {
+  padding: 16px 12px 12px;
+  border-bottom: 1px solid var(--border);
+  max-height: 40%;
+  overflow-y: auto;
+  flex: none;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .routeRow {
   display: flex;
   align-items: center;

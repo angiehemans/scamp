@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { PanelHeader } from './PanelHeader';
 import { PanelModeToggle } from './PanelModeToggle';
@@ -43,7 +44,16 @@ const ShortcutsTable = (): JSX.Element => (
   </div>
 );
 
-export const PropertiesPanel = (): JSX.Element => {
+type Props = {
+  /**
+   * Page-level content for the empty state, above the shortcuts: the
+   * Routes section of a Scamp-framework project. Passed in rather than
+   * read here so this panel stays about the selected element.
+   */
+  routesSection?: ReactNode;
+};
+
+export const PropertiesPanel = ({ routesSection }: Props): JSX.Element => {
   const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
   const panelMode = useCanvasStore((s) => s.panelMode);
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
@@ -60,6 +70,7 @@ export const PropertiesPanel = (): JSX.Element => {
         data-panel-mode="empty"
       >
         {isComponentEditing && <PanelModeToggle />}
+        {routesSection}
         <ShortcutsTable />
       </aside>
     );

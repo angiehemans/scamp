@@ -2,7 +2,6 @@ import type { ComponentFile, RouteFile, RouteRender } from '@shared/types';
 import { viewSlugFor } from '@shared/templates';
 
 import { Tooltip } from '../controls/Tooltip';
-import shellStyles from '../ProjectShell.module.css';
 import styles from './RoutesSection.module.css';
 
 type Props = {
@@ -24,22 +23,26 @@ const RENDER_HELP: Record<RouteRender, string> = {
 };
 
 /**
- * The Routes section of the sidebar in a Scamp-framework project: every
- * file under routes/, its render mode, and Generate route for a view no
- * route renders yet. The framework owns the routes; the app lists them
- * and writes only the `render` export and a generated file.
+ * The Routes section of a Scamp-framework project: every file under
+ * routes/, its render mode, and Generate route for a view no route
+ * renders yet. The framework owns the routes; the app lists them and
+ * writes only the `render` export and a generated file.
+ *
+ * It sits in the properties panel's empty state, above the keyboard
+ * shortcuts: a route is page-level, so it belongs with what that panel
+ * shows when no element is selected.
  * see docs/notes/routes-in-the-app.md
  */
 export const RoutesSection = ({ routes, views, busy, onOpen, onSetRender, onGenerate }: Props): JSX.Element => {
   const rendered = new Set(routes.filter((r) => r.kind === 'page').map((r) => r.view));
   const unrouted = views.filter((v) => !rendered.has(v.name));
   return (
-    <div className={shellStyles.sidebarSection} data-testid="routes-section">
-      <h2 className={shellStyles.sidebarTitle}>Routes</h2>
+    <div className={styles.wrap} data-testid="routes-section">
+      <h3 className={styles.title}>Routes</h3>
       {routes.length === 0 && unrouted.length === 0 && (
         <p className={styles.empty}>No routes yet. Add a page to get a view, then generate its route.</p>
       )}
-      <ul className={shellStyles.pageList}>
+      <ul className={styles.list}>
         {routes.map((route) => (
           <li key={route.file} className={styles.routeRow} data-testid={`route-${route.file}`}>
             <Tooltip label={`routes/${route.file} — open in the code panel`}>

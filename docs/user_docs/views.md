@@ -172,10 +172,12 @@ for that project.
 
 ## Routes
 
-In a Scamp framework project, the **Routes** section below the Pages
-list shows every file under `routes/`: page routes with their URL and
-render mode, and API handlers under `routes/api/`. Click a route to
-read it in the code panel.
+In a Scamp framework project, the **Routes** section shows every file
+under `routes/`: page routes with their URL and render mode, and API
+handlers under `routes/api/`. It's in the properties panel on the
+right, above the keyboard shortcuts, and appears whenever no element is
+selected, because a route belongs to the page rather than to anything
+on it. Click a route to read it in the code panel.
 
 A view that no route renders yet has a **Generate route** button. It
 writes `routes/[slug].tsx` with a `load()` that returns the view's

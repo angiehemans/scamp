@@ -27,14 +27,14 @@ const SHORTCUTS = [
     { keys: 'Shift+click', description: 'Multi-select' },
 ];
 const ShortcutsTable = () => (_jsxs("div", { className: styles.shortcutsWrap, children: [_jsx("h3", { className: styles.shortcutsTitle, children: "Keyboard Shortcuts" }), _jsx("table", { className: styles.shortcutsTable, children: _jsx("tbody", { children: SHORTCUTS.map((s) => (_jsxs("tr", { children: [_jsx("td", { className: styles.shortcutKeys, children: s.keys }), _jsx("td", { className: styles.shortcutDesc, children: s.description })] }, s.keys))) }) })] }));
-export const PropertiesPanel = () => {
+export const PropertiesPanel = ({ routesSection }) => {
     const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
     const panelMode = useCanvasStore((s) => s.panelMode);
     const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
     // Data tab is component-scoped; render even without a selection.
     const showDataWithoutSelection = !selectedId && isComponentEditing && panelMode === 'data';
     if (!selectedId && !showDataWithoutSelection) {
-        return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: [isComponentEditing && _jsx(PanelModeToggle, {}), _jsx(ShortcutsTable, {})] }));
+        return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: [isComponentEditing && _jsx(PanelModeToggle, {}), routesSection, _jsx(ShortcutsTable, {})] }));
     }
     return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": panelMode, children: [selectedId && _jsx(PanelHeader, {}), _jsx(PanelModeToggle, {}), selectedId && panelMode === 'ui' && _jsx(StateSwitcher, {}), panelMode === 'data' ? (_jsx(DataPanel, {})) : panelMode === 'ui' ? (_jsx(UiPanel, {})) : (_jsx(CssPanel, {}))] }));
 };

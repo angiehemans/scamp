@@ -18,7 +18,8 @@ from the main process, since routes are not canvas state.
 
 ## What the app writes
 
-- **The `render` export.** The Routes section's segmented control
+- **The `render` export.** The Routes section (in the properties
+  panel's empty state, since a route is page-level) and its control
   calls `setRouteRender`, which replaces an existing export in place or
   inserts one after the imports. Nothing else in the file changes.
 - **A generated route.** `lib/generateRoute.ts` writes

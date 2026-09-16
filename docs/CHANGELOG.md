@@ -60,9 +60,10 @@ release time.
   the MCP server's new `scamp_get_view_props` tool returns a view's
   exact props type and sample data, so an agent writing the route
   passes the right shape.
-- **Routes in the sidebar.** In a Scamp framework project, a **Routes**
-  section lists every route and API handler, sets a page route's
-  render mode, and opens a route in the code panel. **Generate route**
+- **Routes in the properties panel.** In a Scamp framework project, a
+  **Routes** section above the keyboard shortcuts lists every route and
+  API handler, sets a page route's render mode, and opens a route in
+  the code panel. It shows whenever no element is selected. **Generate route**
   writes a route for a view with the view's sample data in `load()`.
   The preview's request log lands in the app log, Project Settings
   shows the keys in `.dev.vars`, and agents get `scamp_list_routes`.

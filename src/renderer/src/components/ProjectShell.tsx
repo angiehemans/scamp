@@ -496,16 +496,6 @@ export const ProjectShell = ({
             setActiveComponentState={setActiveComponentState}
             setActivePageName={setActivePageName}
           />
-              {project.format === 'scamp' && (
-                <RoutesSection
-                  routes={routesApi.routes}
-                  views={project.components.filter((c) => componentKindOf(c) === 'view')}
-                  busy={routesApi.busy}
-                  onOpen={(file) => void routesApi.openRoute(file)}
-                  onSetRender={(file, render) => void routesApi.setRender(file, render)}
-                  onGenerate={(name) => void routesApi.generateRoute(name)}
-                />
-              )}
               <div
                 className={`${styles.sidebarSection} ${styles.sidebarLayers}`}
                 data-testid="layers-panel"
@@ -556,7 +546,20 @@ export const ProjectShell = ({
               onProjectConfigChange={handleProjectConfigChange}
               onExitComponentEditor={exitComponentEditor}
             />
-            <PropertiesPanel />
+            <PropertiesPanel
+              routesSection={
+                project.format === 'scamp' ? (
+                  <RoutesSection
+                    routes={routesApi.routes}
+                    views={project.components.filter((c) => componentKindOf(c) === 'view')}
+                    busy={routesApi.busy}
+                    onOpen={(file) => void routesApi.openRoute(file)}
+                    onSetRender={(file, render) => void routesApi.setRender(file, render)}
+                    onGenerate={(name) => void routesApi.generateRoute(name)}
+                  />
+                ) : null
+              }
+            />
           </>
         )}
         {showProjectSettings && (
