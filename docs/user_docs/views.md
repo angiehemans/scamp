@@ -151,10 +151,11 @@ project, see [Migrate a Next.js project](#migrate-a-nextjs-project).
 
 ## Migrate a Next.js project
 
-A project in the Next.js layout shows a banner above the canvas. To
-migrate it:
+A project in the Next.js layout offers the move in a **Scamp framework**
+section of the properties panel, which appears when no element is
+selected. To migrate it:
 
-1. In the banner, click **Migrate to the Scamp framework**.
+1. In that section, click **Migrate this project**.
 2. Click **Migrate**.
 
 Scamp takes a [snapshot](snapshots.md), turns each page into a view

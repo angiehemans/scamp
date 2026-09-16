@@ -4,7 +4,8 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useAppLogStore } from '@store/appLogSlice';
 import type { ProjectData } from '@shared/types';
 import { errorMessage } from '@shared/errorMessage';
-import styles from './NextjsMigrationBanner.module.css';
+import { Section } from './sections/Section';
+import styles from './ScampMigrationNotice.module.css';
 
 type Props = {
   project: ProjectData;
@@ -15,13 +16,17 @@ type Props = {
 };
 
 /**
- * Shown above the canvas on Next.js-format projects. Offers the
- * one-click move to the Scamp framework structure: a snapshot, every
+ * A section of the properties panel on Next.js-format projects, offering
+ * the one-click move to the Scamp framework structure: a snapshot, every
  * page converted to a view, then the main process turns wrappers into
  * routes and swaps the Next.js files for the framework's. Dismissal is
- * persisted per project by the parent. see docs/notes/nextjs-sunset.md
+ * persisted per project by the parent.
+ *
+ * A section rather than a banner across the top: the offer is optional
+ * and open-ended, and a persistent bar costs every project that hasn't
+ * taken it a strip of canvas. see docs/notes/nextjs-sunset.md
  */
-export const ScampMigrationBanner = ({
+export const ScampMigrationNotice = ({
   project,
   convertPages,
   onMigrated,
@@ -63,36 +68,29 @@ export const ScampMigrationBanner = ({
 
   return (
     <>
-      <div className={styles.banner} role="status" data-testid="scamp-migration-banner">
-        <div className={styles.content}>
-          <span className={styles.icon} aria-hidden="true">
-            ℹ
+      <div data-testid="scamp-migration-notice">
+        <Section title="Scamp framework" collapsible defaultOpen>
+          <span className={styles.message}>
+            This project uses the Next.js layout. On the Scamp framework each
+            page is a view, a route, and the theme in <code>design/</code>.
+            Your Next.js files move to a backup folder, and anything Scamp
+            didn&apos;t write stays where it is.
           </span>
-          <div className={styles.text}>
-            <strong className={styles.title}>This project uses the Next.js layout</strong>
-            <span className={styles.message}>
-              New Scamp projects run on the Scamp framework: each page is a
-              view (<code>views/</code>), a route (<code>routes/</code>), and
-              the theme in <code>design/</code>. Migrate when convenient. Your
-              Next.js files are saved to a backup folder, and anything Scamp
-              didn&apos;t write is left in place and listed.
-            </span>
-            {error !== null && <span className={styles.message}>{error}</span>}
+          {error !== null && <span className={styles.error}>{error}</span>}
+          <div className={styles.actions}>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowConfirm(true)}
+              disabled={migrating}
+            >
+              {migrating ? 'Migrating…' : 'Migrate this project'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={onDismiss} disabled={migrating}>
+              Dismiss
+            </Button>
           </div>
-        </div>
-        <div className={styles.actions}>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowConfirm(true)}
-            disabled={migrating}
-          >
-            {migrating ? 'Migrating…' : 'Migrate to the Scamp framework'}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={onDismiss} disabled={migrating}>
-            Dismiss
-          </Button>
-        </div>
+        </Section>
       </div>
 
       {showConfirm && (

@@ -49,9 +49,18 @@ type Props = {
    * read here so this panel stays about the selected element.
    */
   routesSection?: ReactNode;
+  /**
+   * An offer that belongs to the project rather than to an element: the
+   * Next.js → Scamp framework migration. Below the page's own sections,
+   * above the shortcuts. see docs/notes/nextjs-sunset.md
+   */
+  migrationNotice?: ReactNode;
 };
 
-export const PropertiesPanel = ({ routesSection }: Props): JSX.Element => {
+export const PropertiesPanel = ({
+  routesSection,
+  migrationNotice,
+}: Props): JSX.Element => {
   const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
   const panelMode = useCanvasStore((s) => s.panelMode);
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
@@ -76,6 +85,7 @@ export const PropertiesPanel = ({ routesSection }: Props): JSX.Element => {
               </Section>
             </div>
           )}
+          {migrationNotice}
           <Section title="Keyboard Shortcuts" collapsible defaultOpen={false}>
             <ShortcutsTable />
           </Section>

@@ -13,6 +13,9 @@ import { pageRoot } from '../fixtures/selectors';
 
 const REPO_MODULES = path.resolve(__dirname, '../../../node_modules');
 
+/** Waiting on the file watcher, which is slower than any in-app action. */
+const WATCHER_TIMEOUT = 30_000;
+
 test.describe('routes in a Scamp-framework project', () => {
   test.use({ projectOptions: { format: 'scamp' } });
 
@@ -62,7 +65,12 @@ test.describe('routes in a Scamp-framework project', () => {
     const routes = window.getByTestId('routes-section');
     await fs.mkdir(path.join(project.dir, 'routes', 'api'), { recursive: true });
     await fs.writeFile(path.join(project.dir, 'routes', 'api', 'ping.ts'), "export const GET = () => new Response('pong');\n", 'utf-8');
-    await expect(routes.getByTestId('route-api/ping.ts')).toContainText('/api/ping', { timeout: 10_000 });
+    // The watcher's turnaround, not the app's: chokidar's write-stability
+    // window, the IPC hop, and a re-list. Generous so a loaded parallel
+    // run doesn't read as a failure.
+    await expect(routes.getByTestId('route-api/ping.ts')).toContainText('/api/ping', {
+      timeout: WATCHER_TIMEOUT,
+    });
 
     // A view with a text prop, written the way the app writes one.
     const view = path.join(project.dir, 'views', 'Hello');
@@ -91,7 +99,7 @@ test.describe('routes in a Scamp-framework project', () => {
       ].join('\n'),
       'utf-8'
     );
-    await expect(routes.getByTestId('generate-Hello')).toBeVisible({ timeout: 10_000 });
+    await expect(routes.getByTestId('generate-Hello')).toBeVisible({ timeout: WATCHER_TIMEOUT });
     await routes.getByTestId('generate-Hello').getByRole('button', { name: 'Generate route' }).click();
     await expect(routes.getByTestId('route-hello.tsx')).toBeVisible({ timeout: 10_000 });
     const tsx = await fs.readFile(path.join(project.dir, 'routes', 'hello.tsx'), 'utf-8');

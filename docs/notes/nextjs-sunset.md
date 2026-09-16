@@ -25,7 +25,7 @@ branch on `format === 'nextjs'` and every file below.
 | `src/main/ipc/snapshotOps.ts`, `themeOps.ts`, `designMdOps.ts` | `app/`-shaped enumeration, `app/theme.css`, root `DESIGN.md` |
 | `src/main/devServer/devServerManager.ts`, `readyDetector.ts` | `npm run dev` for `next dev` and its `Local:` / `Ready in` detection |
 | `src/renderer/preview/route.ts` | the `/` and `/<name>` route mapping |
-| `src/renderer/src/components/ProjectShell.tsx` | the wrapper-route preview target, the `ScampMigrationBanner` gate |
+| `src/renderer/src/components/ProjectShell.tsx` | the wrapper-route preview target, the `ScampMigrationNotice` gate |
 | `src/renderer/src/components/NextjsMigrationBanner.tsx` | legacy → Next.js |
 | `src/shared/templates/agentMd.ts` | `NEXT_LAYOUT_PARAGRAPH`, `NEXT_WRAPPER_NOTE` |
 | `test/e2e/fixtures/project.ts` | the `nextjs` scaffold branch |
@@ -36,7 +36,9 @@ and generator.
 
 ## The migration
 
-`ScampMigrationBanner` on a Next.js project: a snapshot, every plain
+`ScampMigrationNotice` on a Next.js project, a section of the
+properties panel rather than a bar across the top of the app: a
+snapshot, every plain
 page converted to a view in the renderer (`convertAllPagesToViews`,
 the same code as the page menu's Convert), then `migrateNextjsToScamp`
 in the main process turns each wrapper into a route, moves the theme

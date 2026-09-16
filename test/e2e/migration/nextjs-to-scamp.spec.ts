@@ -73,11 +73,13 @@ test.describe('migrate a Next.js project to the Scamp framework', () => {
       'utf-8'
     );
 
-    const banner = window.getByTestId('scamp-migration-banner');
-    await expect(banner).toBeVisible();
-    await banner.getByRole('button', { name: 'Migrate to the Scamp framework' }).click();
+    // The offer is a section of the properties panel, shown while nothing
+    // is selected. see docs/notes/nextjs-sunset.md
+    const notice = window.getByTestId('scamp-migration-notice');
+    await expect(notice).toBeVisible();
+    await notice.getByRole('button', { name: 'Migrate this project' }).click();
     await window.getByRole('button', { name: 'Migrate', exact: true }).click();
-    await expect(banner).toBeHidden({ timeout: 30_000 });
+    await expect(notice).toBeHidden({ timeout: 30_000 });
 
     const dir = project.dir;
     const read = (file: string): Promise<string> => fs.readFile(path.join(dir, file), 'utf-8');

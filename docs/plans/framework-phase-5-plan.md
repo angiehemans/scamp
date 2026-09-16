@@ -27,7 +27,7 @@ same, and an unmigrated Next.js project behaves exactly as before.
 - `src/main/ipc/projectScaffold.ts`: `scaffoldScampProject` from the bundled templates, pinning `SCAFFOLDED_SCAMPJS_RANGE`; the flag is gone.
 - `src/main/ipc/project.ts`: `createProject` defaults to `scamp`; `migrateProject` steps `legacy → nextjs → scamp`.
 - `src/main/ipc/projectMigrate.ts`: `migrateNextjsToScamp`, `rewritePackageJsonForScamp`.
-- `src/renderer/src/components/ScampMigrationBanner.tsx`; `convertAllPagesToViews` in `useComponentManagement`; `scampMigrationDismissed` in `scamp.config.json`.
+- `src/renderer/src/components/ScampMigrationNotice.tsx` (a properties-panel section); `convertAllPagesToViews` in `useComponentManagement`; `scampMigrationDismissed` in `scamp.config.json`.
 - `test/e2e/fixtures/project.ts`: `format: 'scamp'`, `SCAMP_E2E_FORMAT`, `scampMigrationBanner`.
 - `test/e2e/migration/nextjs-to-scamp.spec.ts`; integration tests for the main-process migration.
 - `docs/notes/nextjs-sunset.md`; user docs and the changelog.

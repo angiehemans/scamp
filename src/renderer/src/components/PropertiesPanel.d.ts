@@ -6,6 +6,12 @@ type Props = {
      * read here so this panel stays about the selected element.
      */
     routesSection?: ReactNode;
+    /**
+     * An offer that belongs to the project rather than to an element: the
+     * Next.js → Scamp framework migration. Below the page's own sections,
+     * above the shortcuts. see docs/notes/nextjs-sunset.md
+     */
+    migrationNotice?: ReactNode;
 };
-export declare const PropertiesPanel: ({ routesSection }: Props) => JSX.Element;
+export declare const PropertiesPanel: ({ routesSection, migrationNotice, }: Props) => JSX.Element;
 export {};

@@ -1,0 +1,23 @@
+.message {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.message code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.error {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-error, #f87171);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
