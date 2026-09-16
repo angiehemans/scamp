@@ -51,9 +51,11 @@ release time.
   [Migrate a Next.js project](user_docs/views.md#migrate-a-nextjs-project).
 - **Scamp framework projects open in Scamp.** A project with a
   `views/` folder and a `scampjs` dependency opens with tokens under
-  `design/`, no wrapper pages, and `routes/` left entirely to you. A
-  banner says when `scampjs` isn't installed or implements a file
-  format this version can't read.
+  `design/`, no wrapper pages, and `routes/` left entirely to you. You
+  don't need the framework installed to design; a banner appears only
+  when an installed `scampjs` implements a file format this version
+  can't read, which is the case where a save would write the wrong
+  shape.
 - **Agents learn views.** `agent.md` gains a data bindings section, and
   the MCP server's new `scamp_get_view_props` tool returns a view's
   exact props type and sample data, so an agent writing the route

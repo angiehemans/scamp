@@ -133,14 +133,18 @@ differences from a Next.js project:
   the files in it, but [snapshots](snapshots.md) include them.
 - Assets go under `public/assets/`, as in Next.js projects.
 
+You don't need `scampjs` installed to design. Scamp reads and writes
+the files itself, and the first [preview](#preview-a-view) installs the
+project's dependencies.
+
 When you open the project, Scamp reads the installed `scampjs` version
-and the file format it implements. This version of Scamp reads and
-writes contracts 0 and 1. If `scampjs` isn't installed, or it
-implements a newer or older format, a banner across the top of the
-window says which, and asks you to update Scamp or install a matching
-`scampjs` before editing. The canvas still opens, but a save would
-write files in the shape this version knows. A file keeps the contract
-version it declares; new files get the newest.
+and the file format it implements. This version reads and writes
+contracts 0 through 2. If an installed `scampjs` implements a newer or
+older format, a banner across the top of the window says which, and
+asks you to update Scamp or install a matching `scampjs` before
+editing: the canvas still opens, but a save would write files in the
+shape this version knows. A file keeps the contract version it
+declares, and new files get the newest.
 
 New projects are Scamp framework projects. To move an existing Next.js
 project, see [Migrate a Next.js project](#migrate-a-nextjs-project).
