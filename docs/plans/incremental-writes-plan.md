@@ -1,6 +1,6 @@
 # Incremental writes — Plan
 
-Status: **phase 1 landed, 2026-09-17.** Phases 2-6 not started.
+Status: **phases 1 and 2 landed, 2026-09-17.** Phases 3-6 not started.
 
 Today a design change rewrites both of a target's files end to end.
 This plan replaces that with an edit that touches only the lines that
@@ -137,13 +137,41 @@ So the premise holds, including the awkward one: a binding is three
 disjoint regions, and phase 3 has to carry them rather than widen to
 the file. `test/incrementalWrites.test.ts` pins each row.
 
-**2. CSS writes become edits.** Generalise `patchClassBlock` to cover
-what the generator emits: base rules, `@media` blocks, state variants
-(`:hover`, `:active`, `:focus`), keyframes, rule deletion, and selector
-rename. Route the debounced CSS save through it. Fold the CSS panel's
-existing `file:patch` onto the same path so there is one mechanism.
-Done when a design change rewrites one rule and a `git diff` of the
-CSS module shows one hunk.
+**2. CSS writes become edits.** *Landed.* `lib/cssRuleEdits.ts`
+addresses a stylesheet by slot — a top-level rule, a rule inside a
+`@media`, or a whole at-rule such as `@keyframes` — and produces the
+changes that make one stylesheet's rules say what another's do.
+`syncBridge/cssWrite.ts` applies them to the file on disk and verifies
+the result parses to the same element map before offering it, falling
+back to the generated file otherwise.
+
+The case it is really for turned out to be the first save after opening
+a project Scamp did not write, because `lastSerialized` is anchored to
+disk on load and the canonical write then reformatted the whole file.
+Three things fell out of testing against a hand-written stylesheet, and
+each is now a rule the module follows:
+
+- **Only remove what the generator owns.** A slot missing from the
+  generated stylesheet is deleted only if it is a class rule or a
+  `@keyframes`. A `:root`, an `@supports`, an `@font-face` that Scamp
+  has no opinion about is left alone rather than treated as deleted.
+- **Declaration order is not a change** while every property appears
+  once, since reordering renders the same and rewriting someone's rule
+  to do it is the gratuitous churn this phase exists to stop. A
+  repeated property makes the comparison strict again, because order
+  then decides the winner.
+- **Keep the file's own whitespace.** Replacement declarations take the
+  `raws.before` the rule already used, so a four-space file stays a
+  four-space file.
+
+The CSS panel's `file:patch` was left as it is. It edits one rule from
+a body the user typed, which this path does not have; folding them
+together is worth doing when phase 4 gives them the same merge.
+
+Done: `test/e2e/save/css-rule-writes.spec.ts` keeps a comment, a custom
+property, and an `@supports` block across a move, and leaves a
+hand-written stylesheet byte-identical when nothing about the rules
+changed.
 
 **3. TSX writes become edits.** Derive hunks from the generated-text
 diff, apply, verify by parsing. Done when the three change classes

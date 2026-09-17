@@ -3,6 +3,7 @@
 // of initSyncBridge (Phase 5.4); reads/writes the shared cache via `ctx`.
 import { generateCode } from '@lib/generateCode';
 import { reportShadowEdits } from './shadowEdits';
+import { cssWriteFor } from './cssWrite';
 import { parseCode } from '@lib/parseCode';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useSaveStatusStore } from '@store/saveStatusSlice';
@@ -150,7 +151,16 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
         cssModuleImportName: importNameForTarget(target, store.projectFormat),
         isComponent: target.kind === 'component',
     });
-    if (code.tsx === ctx.lastSerializedTsx && code.css === ctx.lastSerializedCss) {
+    // Rewrite only the rules that changed, keeping whatever else the
+    // stylesheet on disk holds. see docs/plans/incremental-writes-plan.md
+    const cssOut = cssWriteFor({
+        baseCss: ctx.lastSerializedCss,
+        generatedCss: code.css,
+        tsx: code.tsx,
+        breakpoints: store.breakpoints,
+        isComponent: target.kind === 'component',
+    });
+    if (code.tsx === ctx.lastSerializedTsx && cssOut.css === ctx.lastSerializedCss) {
         // No-op dedupe: the debounce fired but the generated code matches
         // what's already on disk. Advance the indicator out of "unsaved"
         // anyway so idle canvases don't get stuck showing pending work.
@@ -167,19 +177,19 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
     // see docs/plans/incremental-writes-plan.md, phase 1
     reportShadowEdits(target.name, [
         { label: 'tsx', base: expectedTsx, next: code.tsx },
-        { label: 'css', base: expectedCss, next: code.css },
+        { label: 'css', base: expectedCss, next: cssOut.css },
     ]);
     ctx.lastSerializedTsx = code.tsx;
-    ctx.lastSerializedCss = code.css;
+    ctx.lastSerializedCss = cssOut.css;
     // Mirror the just-written content into the store so the bottom code
     // panel reflects what's on disk without waiting for chokidar.
-    useCanvasStore.getState().setPageSource({ tsx: code.tsx, css: code.css });
+    useCanvasStore.getState().setPageSource({ tsx: code.tsx, css: cssOut.css });
     dispatchPageWrite({
         kind: 'write',
         tsxPath: target.tsxPath,
         cssPath: target.cssPath,
         tsxContent: code.tsx,
-        cssContent: code.css,
+        cssContent: cssOut.css,
         ...(expectedTsx !== null && expectedCss !== null
             ? {
                 expectedTsxContent: expectedTsx,
