@@ -123,8 +123,9 @@ missing.
 ## Scamp framework projects
 
 A project that has a `views/` folder and depends on the `scampjs`
-package is a Scamp framework project. Scamp opens it with a few
-differences from a Next.js project:
+package is a Scamp framework project. For what such a project is made
+of, see [The Scamp framework](scamp-framework.md). Scamp opens it with
+a few differences from a Next.js project:
 
 - Design tokens live in `design/theme.css`, and the design document in
   `design/DESIGN.md`.

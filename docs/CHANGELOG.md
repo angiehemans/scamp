@@ -74,6 +74,11 @@ release time.
   The preview's request log lands in the app log, Project Settings
   shows the keys in `.dev.vars`, and agents get `scamp_list_routes`.
   See [Routes](user_docs/views.md#routes).
+- **A page on the Scamp framework** in the user docs: what a project is
+  made of, which files Scamp owns and which are yours, how a design's
+  data becomes the shape a route provides, and where the framework's
+  own documentation lives. See
+  [The Scamp framework](user_docs/scamp-framework.md).
 - **The `_scamp` export.** Every component and view file now ends with
   `export const _scamp`, which records the file format version and the
   event props. Scamp writes it on every save. New files declare contract

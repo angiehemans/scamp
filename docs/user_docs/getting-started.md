@@ -38,20 +38,24 @@ a different folder. You can also change or clear the folder in
 ## The project folder
 
 Scamp stores projects in a default folder that you can change in
-[Settings](settings.md). Each project folder contains the following
-files:
+[Settings](settings.md). A new project runs on the
+[Scamp framework](scamp-framework.md), and its folder contains the
+following:
 
-- `home.tsx`: The TSX component for your first page
-- `home.module.css`: The matching CSS Module
-- `theme.css`: Your project's [theme tokens](themes.md)
+- `views/Home/`: The TSX and CSS Module for your first page
+- `routes/index.tsx`: The logic that puts that page at `/`
+- `design/theme.css`: Your project's [theme tokens](themes.md)
 - `agent.md`: Instructions for AI coding agents (see
   [Bidirectional sync](bidirectional-sync.md))
+- `package.json`: The project's dependencies and scripts
 
 These files are real, editable code. Open them in any editor, and your
 changes sync back to the canvas.
 
 ## Next steps
 
+- Learn what a project is made of in
+  [The Scamp framework](scamp-framework.md).
 - Learn how to [draw on the canvas](canvas.md).
 - Explore the [properties panel](properties-panel.md).
 - Read about [bidirectional sync](bidirectional-sync.md) to understand

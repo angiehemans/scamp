@@ -16,6 +16,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Flex layout](flex-layout.md)—Flex containers (direction, wrap, alignment, and gaps) and flex-child controls (grow, shrink, basis, align self, and order)
 - [Grid layout](grid-layout.md)—CSS Grid containers, columns, rows, and grid-item placement
 - [Components](components.md)—Reusable components across pages, the component editor, the Data tab, and per-instance text overrides
+- [The Scamp framework](scamp-framework.md)—What a project is made of, which files Scamp owns, and how design, routes, and agents fit together
 - [Views](views.md)—A page's design as a component-shaped file, data bindings in the Data tab, and Scamp framework projects
 - [Element states](element-states.md)—Hover, active, and focus styles through the state switcher
 - [Transitions](transitions.md)—Smooth state changes through the Transitions section
@@ -24,7 +25,7 @@ Scamp is a local-first design tool that generates real code as you design. Draw 
 - [Transforms](transforms.md)—Translate, rotate, scale, and skew, plus the transform origin, through the Transform section
 - [Links between pages](linking.md)—Internal and external links through the Element section
 - [Export](export.md)—Save a page or element as PNG or SVG, or export the whole project as static HTML and CSS
-- [Preview mode](preview.md)—Open the project in a real Next.js dev server window
+- [Preview mode](preview.md)—Open the project in a real browser preview window
 - [Layers panel](layers-panel.md)—The element tree: selection, collapsing branches, reordering, and nesting
 - [Code output](code-output.md)—What Scamp generates, save status, and the live code preview
 - [Bidirectional sync](bidirectional-sync.md)—External editing and sharing files with AI agents
