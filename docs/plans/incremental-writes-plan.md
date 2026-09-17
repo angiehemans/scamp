@@ -1,6 +1,6 @@
 # Incremental writes — Plan
 
-Status: **proposed, 2026-09-17.** Not started.
+Status: **phase 1 landed, 2026-09-17.** Phases 2-6 not started.
 
 Today a design change rewrites both of a target's files end to end.
 This plan replaces that with an edit that touches only the lines that
@@ -113,12 +113,29 @@ changing the write path.
 
 ## Phases
 
-**1. The edit type, in shadow.** Introduce the edit representation and
-an `applyEdits` function. Keep writing whole files. At save time, also
-compute the edits, apply them to `lastSerialized`, and assert the
-result equals the generated text. Ship it behind a dev-only assertion
-that logs a divergence. No behaviour change, and it proves the
-derivation on every real edit the team makes.
+**1. The edit type, in shadow.** *Landed.* `lib/textEdits.ts` holds
+`TextEdit`, a line-granular `diffText`, a strict `applyEdits`, and
+`editStats`. `syncBridge/shadowEdits.ts` runs beside every save: it
+derives the edits, checks that applying them to `lastSerialized`
+reproduces the generated text, and accumulates totals, which
+`localStorage['scamp.debugWrites'] = '1'` prints per save and
+`__scampShadowEdits()` returns. No behaviour change; the save still
+writes both files whole.
+
+What it measured, on a 14-line view with a 37-line stylesheet:
+
+| Change | TSX | CSS |
+| --- | --- | --- |
+| Recolour an element | untouched | 1 hunk, 1 line |
+| Resize an element | untouched | 1 hunk, 1 line |
+| Edit text | 1 hunk, 1 line | untouched |
+| Add an element | 1 hunk, +1 line | 1 hunk, +6 lines |
+| Delete a subtree | 1 hunk, -3 lines | 1 hunk, -13 lines |
+| Mark a text as a prop | 3 hunks, -2/+3 | untouched |
+
+So the premise holds, including the awkward one: a binding is three
+disjoint regions, and phase 3 has to carry them rather than widen to
+the file. `test/incrementalWrites.test.ts` pins each row.
 
 **2. CSS writes become edits.** Generalise `patchClassBlock` to cover
 what the generator emits: base rules, `@media` blocks, state variants

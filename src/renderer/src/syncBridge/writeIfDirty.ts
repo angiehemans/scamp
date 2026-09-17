@@ -2,6 +2,7 @@
 // logic, plus the write-conflict resolver it dispatches with. Lifted out
 // of initSyncBridge (Phase 5.4); reads/writes the shared cache via `ctx`.
 import { generateCode } from '@lib/generateCode';
+import { reportShadowEdits } from './shadowEdits';
 import { parseCode } from '@lib/parseCode';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useSaveStatusStore } from '@store/saveStatusSlice';
@@ -205,6 +206,13 @@ export const makeWriteIfDirty =
     // the new content so subsequent dedupes work.
     const expectedTsx = ctx.lastSerializedTsx;
     const expectedCss = ctx.lastSerializedCss;
+    // Shadow: derive the edits this save would write instead of the
+    // whole file, check them, and measure them. No behaviour change.
+    // see docs/plans/incremental-writes-plan.md, phase 1
+    reportShadowEdits(target.name, [
+      { label: 'tsx', base: expectedTsx, next: code.tsx },
+      { label: 'css', base: expectedCss, next: code.css },
+    ]);
     ctx.lastSerializedTsx = code.tsx;
     ctx.lastSerializedCss = code.css;
     // Mirror the just-written content into the store so the bottom code
