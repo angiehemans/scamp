@@ -44,6 +44,29 @@ The two signals overlap but cover different timing: the tracker is sub-milliseco
 
 Phase 4 (terminal-busy heuristic) is planned but not yet shipped. It will add a third signal — `agent-terminal` — fired when Scamp's integrated terminal has a non-shell foreground process. Until then, agents running in Scamp's terminal only get protection via the chokidar signals above (which is sufficient — every file write triggers them).
 
+## When the compare-and-swap refuses
+
+The pause signals above are the common case. Underneath them a canvas
+write still carries `expectedTsxContent` / `expectedCssContent`, and
+main refuses it when disk says something else — the race the signals
+are too coarse to catch.
+
+That refusal used to cost the user their edit: Scamp adopted the disk
+version, logged "your in-flight edit was dropped", and put the
+indicator in `reloaded-from-disk`. Since phase 4 of
+`docs/plans/incremental-writes-plan.md` it tries a three-way merge
+first (`syncBridge/mergeWrite.ts` over `lib/threeWayMerge.ts`): base is
+the version the write claimed, ours is what it carried, theirs is what
+disk holds. Both files have to merge, and the merged pair has to read
+back with every field the design change touched, or the old behaviour
+runs unchanged.
+
+A merge writes immediately against the disk version it merged with, and
+carries no intent of its own, so a second refusal on the same write
+adopts disk rather than looping. What the user sees is the save
+completing plus one app-log line: "<page> was edited outside Scamp;
+merged that edit with yours."
+
 ## What's exempt
 
 These files don't pause the sync engine and aren't covered by the quiet window:

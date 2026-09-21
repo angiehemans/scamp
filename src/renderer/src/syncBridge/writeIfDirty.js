@@ -17,6 +17,7 @@ import { captureAndPersistProjectThumbnail } from '../lib/projectThumbnail';
 import { importNameForTarget, toEditTarget } from './editTarget';
 import { notifyWriteAborted } from './pendingSaves';
 import { dispatchPageWrite } from './writeDispatch';
+import { mergeWrite } from './mergeWrite';
 /**
  * Resync the canvas to a competing on-disk version when main rejects our
  * write with a conflict. See docs/notes/agent-coexistence.md. Adopts the
@@ -27,8 +28,14 @@ import { dispatchPageWrite } from './writeDispatch';
  * reload still happens (we adopt disk content), but we suppress the
  * `reloaded-from-disk` indicator and the "your in-flight edit was dropped"
  * app-log line, because the user had NO in-flight edit.
+ *
+ * Phase 4 of docs/plans/incremental-writes-plan.md puts a merge in
+ * front of all that: with `intent` — what the refused write was trying
+ * to do — a drift that touches other lines is merged and written,
+ * and only a real overlap reaches the reload below. The merged write
+ * carries no intent of its own, so a second conflict adopts disk.
  */
-export const makeOnWriteConflict = (ctx) => (target, conflict, silent = false) => {
+export const makeOnWriteConflict = (ctx) => (target, conflict, silent = false, intent) => {
     const store = useCanvasStore.getState();
     // The write was kicked off against `target`, but the user may
     // have navigated away in the meantime. Reloading the store's
@@ -45,6 +52,39 @@ export const makeOnWriteConflict = (ctx) => (target, conflict, silent = false) =
             .getState()
             .log('warn', `Write conflict on ${target.name} arrived after navigation; skipping canvas reload.`);
         return;
+    }
+    if (intent !== undefined) {
+        const merged = mergeWrite({
+            baseTsx: intent.baseTsx,
+            baseCss: intent.baseCss,
+            oursTsx: intent.oursTsx,
+            oursCss: intent.oursCss,
+            theirsTsx: conflict.actualTsxContent,
+            theirsCss: conflict.actualCssContent,
+            breakpoints: store.breakpoints,
+            isComponent: target.kind === 'component',
+        });
+        if (merged) {
+            ctx.lastSerializedTsx = merged.tsx;
+            ctx.lastSerializedCss = merged.css;
+            store.setPageSource({ tsx: merged.tsx, css: merged.css });
+            store.reloadElements(merged.parsed.elements, { tsx: merged.tsx, css: merged.css }, merged.parsed.customMediaBlocks, merged.parsed.keyframesBlocks, merged.parsed.cssDuplicates);
+            dispatchPageWrite({
+                kind: 'write',
+                tsxPath: target.tsxPath,
+                cssPath: target.cssPath,
+                tsxContent: merged.tsx,
+                cssContent: merged.css,
+                expectedTsxContent: conflict.actualTsxContent,
+                expectedCssContent: conflict.actualCssContent,
+            }, (next) => ctx.onWriteConflict(target, next, silent));
+            if (!silent) {
+                useAppLogStore
+                    .getState()
+                    .log('info', `${target.name} was edited outside Scamp; merged that edit with yours.`);
+            }
+            return;
+        }
     }
     ctx.lastSerializedTsx = conflict.actualTsxContent;
     ctx.lastSerializedCss = conflict.actualCssContent;
@@ -204,7 +244,14 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
                 expectedCssContent: expectedCss,
             }
             : {}),
-    }, (conflict) => ctx.onWriteConflict(target, conflict, silent));
+    }, (conflict) => ctx.onWriteConflict(target, conflict, silent, expectedTsx !== null && expectedCss !== null
+        ? {
+            baseTsx: expectedTsx,
+            baseCss: expectedCss,
+            oursTsx: tsxOut.tsx,
+            oursCss: cssOut.css,
+        }
+        : undefined));
     // Sidebar thumbnail capture for component saves.
     // see docs/notes/components-thumbnails.md
     if (target.kind === 'component') {

@@ -15,6 +15,21 @@ export type WriteConflict = {
   actualCssContent: string;
 };
 
+/**
+ * What a refused write was trying to do, so the conflict handler can
+ * merge instead of discarding it. Absent means fall back to adopting
+ * disk, which is also what a second conflict on the merged write does.
+ * see docs/plans/incremental-writes-plan.md, phase 4
+ */
+export type WriteIntent = {
+  /** The version the write claimed was on disk. */
+  baseTsx: string;
+  baseCss: string;
+  /** What it carried. */
+  oursTsx: string;
+  oursCss: string;
+};
+
 export type SaveContext = {
   // ---- Mutable cache (was initSyncBridge's closure vars) ----
   writeTimer: ReturnType<typeof setTimeout> | null;
@@ -38,7 +53,8 @@ export type SaveContext = {
   onWriteConflict: (
     target: EditTarget,
     conflict: WriteConflict,
-    silent?: boolean
+    silent?: boolean,
+    intent?: WriteIntent
   ) => void;
   writeIfDirty: (
     elements: Record<string, ScampElement>,

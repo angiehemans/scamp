@@ -213,10 +213,44 @@ opens a legacy project and quits without editing is left with a broken
 stylesheet import. Pre-existing and unrelated to this phase, but worth
 a fix of its own.
 
-**4. Merge instead of refuse.** Use the three-way merge on both files.
-A conflict is now only a real overlap. Done when an agent rewriting a
-route's `load()` and a designer resizing a box both land, and the
-`externalEdit` integration tests grow the merge cases.
+**4. Merge instead of refuse.** *Landed.* `lib/threeWayMerge.ts` diffs
+both sides against the base they share and applies both sets of edits
+when they do not overlap. `syncBridge/mergeWrite.ts` runs it over the
+pair on a refused write — base is the version the write claimed, ours
+is what it carried, theirs is what disk holds — and the conflict
+handler writes the merged result instead of discarding the user's edit.
+Adjacent edits are not a conflict; two insertions at the same point
+are, unless they insert the same text.
+
+Both files have to merge. Merging one and reloading the other would
+leave the pair describing different designs.
+
+The safety valve turned out to need rewriting. The plan said to parse
+the merged result, but `parseCode` is deliberately lenient — it returns
+a tree for `<<<<<<< not tsx` rather than throwing — so parsing proves
+nothing. What it checks instead is the model: every field the design
+change touched has to read back with the value it wanted, and no
+element the save knew about may have disappeared. That catches the case
+the per-file merges cannot see, where both files merge cleanly but the
+agent deleted the element the design change is about.
+
+It is conservative in one place worth naming: if both sides added a
+child to the same parent, `childIds` reads back as neither side's
+version and the merge is refused. The cost is the behaviour we had
+before this phase, not a damaged file.
+
+A merged write carries no intent of its own, so a second refusal adopts
+disk rather than looping.
+
+Done: `test/integration/writeMerge.integration.test.ts` runs the whole
+loop on real files — an agent adding a `load()` above the component and
+a designer resizing a box both land, an agent adding a declaration to
+one rule survives the designer moving another element, and the same
+declaration changed twice still refuses. `test/threeWayMerge.test.ts`
+pins the merge itself.
+
+The CSS panel's `file:patch` is still its own path. Folding it in is
+worth doing once phase 5 gives the two the same anchors.
 
 **5. Ranges from the parser.** Carry source positions through the
 hoisting passes, record a range per element, and derive edits directly

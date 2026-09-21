@@ -5,6 +5,20 @@ export type WriteConflict = {
     actualTsxContent: string;
     actualCssContent: string;
 };
+/**
+ * What a refused write was trying to do, so the conflict handler can
+ * merge instead of discarding it. Absent means fall back to adopting
+ * disk, which is also what a second conflict on the merged write does.
+ * see docs/plans/incremental-writes-plan.md, phase 4
+ */
+export type WriteIntent = {
+    /** The version the write claimed was on disk. */
+    baseTsx: string;
+    baseCss: string;
+    /** What it carried. */
+    oursTsx: string;
+    oursCss: string;
+};
 export type SaveContext = {
     writeTimer: ReturnType<typeof setTimeout> | null;
     lastSerializedTsx: string | null;
@@ -20,7 +34,7 @@ export type SaveContext = {
     quietResumeTimer: ReturnType<typeof setTimeout> | null;
     readonly quietWindow: QuietWindow;
     cancelWriteTimer: () => void;
-    onWriteConflict: (target: EditTarget, conflict: WriteConflict, silent?: boolean) => void;
+    onWriteConflict: (target: EditTarget, conflict: WriteConflict, silent?: boolean, intent?: WriteIntent) => void;
     writeIfDirty: (elements: Record<string, ScampElement>, rootElementId: string, target: EditTarget, customMediaBlocks: ReadonlyArray<string>, pageKeyframesBlocks: ReadonlyArray<KeyframesBlock>, silent?: boolean) => void;
     flushDebouncedWrite: () => void;
     reconcileAfterQuiet: () => void;

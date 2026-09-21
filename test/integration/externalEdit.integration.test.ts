@@ -5,74 +5,9 @@ import path from 'path';
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
 import { patchClassBlock } from '@shared/patchClass';
-import { DEFAULT_RECT_STYLES } from '@lib/defaults';
 import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
 
-const makeRoot = (childIds: string[] = []): ScampElement => ({
-  id: ROOT_ELEMENT_ID,
-  type: 'rectangle',
-  parentId: null,
-  childIds,
-  widthMode: 'stretch',
-  widthValue: 1440,
-  heightMode: 'auto',
-  heightValue: 900,
-  minHeight: '100vh',
-  x: 0,
-  y: 0,
-  display: 'none',
-  flexDirection: 'row',
-  gap: 0,
-  alignItems: 'flex-start',
-  justifyContent: 'flex-start',
-  gridTemplateColumns: '',
-  gridTemplateRows: '',
-  columnGap: 0,
-  rowGap: 0,
-  justifyItems: 'stretch',
-  flexWrap: 'nowrap',
-  alignContent: 'normal',
-  flexGrow: 0,
-  flexShrink: 1,
-  flexBasis: '',
-  order: 0,
-  gridColumn: '',
-  gridRow: '',
-  alignSelf: 'auto',
-  justifySelf: 'stretch',
-  padding: [0, 0, 0, 0],
-  margin: [0, 0, 0, 0],
-  backgroundColor: '#ffffff',
-  borderRadius: [0, 0, 0, 0],
-  borderWidth: [0, 0, 0, 0],
-  borderStyle: 'none',
-  borderColor: '#000000',
-  opacity: 1,
-  visibilityMode: 'visible',
-  position: 'auto',
-  mixBlendMode: 'normal',
-  backgroundBlendMode: 'normal',
-  boxShadows: [],
-  filters: [],
-  backdropFilters: [],
-  transforms: [],
-  transformOrigin: '',
-  toggledOffGroups: [],
-  transitions: [],
-  inlineFragments: [],
-  customProperties: {},
-});
-
-const makeRect = (overrides: Partial<ScampElement> & { id: string }): ScampElement => ({
-  ...DEFAULT_RECT_STYLES,
-  type: 'rectangle',
-  parentId: ROOT_ELEMENT_ID,
-  childIds: [],
-  x: 0,
-  y: 0,
-  customProperties: {},
-  ...overrides,
-});
+import { makeRect, makeRoot } from './fixtures/elements';
 
 /**
  * Simulates an external agent editing a CSS module file:

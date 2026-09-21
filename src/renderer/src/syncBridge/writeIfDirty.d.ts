@@ -1,6 +1,6 @@
 import type { KeyframesBlock, ScampElement } from '@lib/element';
 import { type EditTarget } from './editTarget';
-import type { SaveContext, WriteConflict } from './saveContext';
+import type { SaveContext, WriteConflict, WriteIntent } from './saveContext';
 /**
  * Resync the canvas to a competing on-disk version when main rejects our
  * write with a conflict. See docs/notes/agent-coexistence.md. Adopts the
@@ -11,8 +11,14 @@ import type { SaveContext, WriteConflict } from './saveContext';
  * reload still happens (we adopt disk content), but we suppress the
  * `reloaded-from-disk` indicator and the "your in-flight edit was dropped"
  * app-log line, because the user had NO in-flight edit.
+ *
+ * Phase 4 of docs/plans/incremental-writes-plan.md puts a merge in
+ * front of all that: with `intent` — what the refused write was trying
+ * to do — a drift that touches other lines is merged and written,
+ * and only a real overlap reaches the reload below. The merged write
+ * carries no intent of its own, so a second conflict adopts disk.
  */
-export declare const makeOnWriteConflict: (ctx: SaveContext) => (target: EditTarget, conflict: WriteConflict, silent?: boolean) => void;
+export declare const makeOnWriteConflict: (ctx: SaveContext) => (target: EditTarget, conflict: WriteConflict, silent?: boolean, intent?: WriteIntent) => void;
 /**
  * Generate code for the given (elements, rootId, page) tuple and write
  * it to disk if it differs from the last-written cache. Pure with
