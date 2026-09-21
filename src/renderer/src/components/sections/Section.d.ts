@@ -8,6 +8,12 @@ type Props = {
     /** Initial open state when `collapsible` is true. Ignored otherwise. */
     defaultOpen?: boolean;
     /**
+     * How many things the section holds, shown beside the title. Lets a
+     * collapsed section say whether it is worth opening. Omit, or pass
+     * 0, for sections where a count means nothing.
+     */
+    count?: number;
+    /**
      * The element this section edits. Paired with `fields` to drive
      * the breakpoint-override indicator next to the section title.
      */
@@ -69,7 +75,7 @@ type Props = {
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export declare const Section: ({ title, children, collapsible, defaultOpen, elementId, fields, cssProperties, groupToggle, titleAccessory, groupAccessory, }: Props) => JSX.Element;
+export declare const Section: ({ title, children, collapsible, defaultOpen, count, elementId, fields, cssProperties, groupToggle, titleAccessory, groupAccessory, }: Props) => JSX.Element;
 type RowProps = {
     label: string;
     children: ReactNode;

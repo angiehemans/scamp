@@ -25,6 +25,14 @@
   gap: 6px;
   /* Above the stretched toggle button, and these ARE the click targets. */
   position: relative;
+  /* Except the chevron, which is chrome. The cluster passes clicks
+     through so hitting the chevron toggles the section like the rest of
+     the header does; the real controls inside opt back in below. */
+  pointer-events: none;
+}
+
+.titleActions > *:not(.caret) {
+  pointer-events: auto;
 }
 
 /* Size's ratio-lock toggle etc. — plain inline-flex now that the parent
@@ -32,6 +40,21 @@
 .titleAccessory {
   display: flex;
   align-items: center;
+}
+
+/* How many things a collapsed section holds. Sits with the title, and
+   like the title it passes its clicks through to the toggle. */
+.count {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-raised);
+  border-radius: 999px;
+  padding: 0 5px;
+  min-width: 16px;
+  text-align: center;
+  position: relative;
+  pointer-events: none;
 }
 
 .heading {

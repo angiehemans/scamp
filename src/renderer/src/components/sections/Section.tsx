@@ -18,6 +18,12 @@ type Props = {
   /** Initial open state when `collapsible` is true. Ignored otherwise. */
   defaultOpen?: boolean;
   /**
+   * How many things the section holds, shown beside the title. Lets a
+   * collapsed section say whether it is worth opening. Omit, or pass
+   * 0, for sections where a count means nothing.
+   */
+  count?: number;
+  /**
    * The element this section edits. Paired with `fields` to drive
    * the breakpoint-override indicator next to the section title.
    */
@@ -85,6 +91,7 @@ export const Section = ({
   children,
   collapsible = false,
   defaultOpen = true,
+  count,
   elementId,
   fields,
   cssProperties,
@@ -136,6 +143,15 @@ export const Section = ({
   // is still rendered (and right-clickable to reset) but its tooltip
   // doesn't claim the wider title-row hit area.
   const tooltipInfo = duplicateInfo ?? overrideInfo;
+
+  // Chrome, not a control: it sits above the stretched toggle button
+  // and must not take the click away from it.
+  const countBadge =
+    count !== undefined && count > 0 ? (
+      <span className={styles.count} aria-hidden="true">
+        {count}
+      </span>
+    ) : null;
 
   const duplicateDot = duplicateInfo ? (
     <span
@@ -193,6 +209,7 @@ export const Section = ({
         {wrapWithTooltip(
           <div className={styles.titleRow}>
             <h3 className={styles.heading}>{title}</h3>
+            {countBadge}
             {duplicateDot}
             {overrideDot}
             {hasActions && (
@@ -233,10 +250,11 @@ export const Section = ({
             aria-expanded={open}
             // Explicit name so the sibling controls don't leak their
             // labels into the toggle's accessible name.
-            aria-label={title}
+            aria-label={count !== undefined && count > 0 ? `${title}, ${count}` : title}
           />
         )}
         <span className={styles.heading}>{title}</span>
+        {countBadge}
         {duplicateDot}
         {overrideDot}
         {/* Preset accessory + eye toggle + chevron cluster right. */}

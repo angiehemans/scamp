@@ -15,7 +15,7 @@ import styles from './Section.module.css';
  * this section. Right-click the dot to reset every overridden field
  * in the section at the active breakpoint.
  */
-export const Section = ({ title, children, collapsible = false, defaultOpen = true, elementId, fields, cssProperties, groupToggle, titleAccessory, groupAccessory, }) => {
+export const Section = ({ title, children, collapsible = false, defaultOpen = true, count, elementId, fields, cssProperties, groupToggle, titleAccessory, groupAccessory, }) => {
     const [open, setOpen] = useState(defaultOpen);
     const overrideInfo = useOverrideIndicator(elementId, fields);
     const duplicateInfo = useDuplicateIndicator(elementId, cssProperties);
@@ -42,6 +42,9 @@ export const Section = ({ title, children, collapsible = false, defaultOpen = tr
     // is still rendered (and right-clickable to reset) but its tooltip
     // doesn't claim the wider title-row hit area.
     const tooltipInfo = duplicateInfo ?? overrideInfo;
+    // Chrome, not a control: it sits above the stretched toggle button
+    // and must not take the click away from it.
+    const countBadge = count !== undefined && count > 0 ? (_jsx("span", { className: styles.count, "aria-hidden": "true", children: count })) : null;
     const duplicateDot = duplicateInfo ? (_jsx("span", { className: styles.duplicateDot, "aria-label": duplicateInfo.ariaLabel, "data-testid": "duplicate-dot" })) : null;
     const overrideDot = overrideInfo ? (_jsx("span", { className: styles.overrideDot, onContextMenu: overrideInfo.onContextMenu, "aria-label": overrideInfo.ariaLabel, "data-testid": "override-dot" })) : null;
     const wrapWithTooltip = (node) => {
@@ -65,10 +68,10 @@ export const Section = ({ title, children, collapsible = false, defaultOpen = tr
     // free space between them and spread them apart. see docs/notes/section-header-actions.md
     const hasActions = Boolean(groupAccessory || groupToggleButton || titleAccessory);
     if (!collapsible) {
-        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), duplicateDot, overrideDot, hasActions && (_jsxs("div", { className: styles.titleActions, children: [groupAccessory && (_jsx("span", { className: styles.groupAccessory, children: groupAccessory })), groupToggleButton, titleAccessory && (_jsx("span", { className: styles.titleAccessory, children: titleAccessory }))] }))] })), wrappedContent] }));
+        return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [wrapWithTooltip(_jsxs("div", { className: styles.titleRow, children: [_jsx("h3", { className: styles.heading, children: title }), countBadge, duplicateDot, overrideDot, hasActions && (_jsxs("div", { className: styles.titleActions, children: [groupAccessory && (_jsx("span", { className: styles.groupAccessory, children: groupAccessory })), groupToggleButton, titleAccessory && (_jsx("span", { className: styles.titleAccessory, children: titleAccessory }))] }))] })), wrappedContent] }));
     }
     const handleToggle = () => setOpen((v) => !v);
-    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("div", { className: styles.titleRow, children: [wrapWithTooltip(_jsx("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, "aria-label": title })), _jsx("span", { className: styles.heading, children: title }), duplicateDot, overrideDot, _jsxs("span", { className: styles.titleActions, children: [groupAccessory && (_jsx("span", { className: styles.groupAccessory, children: groupAccessory })), groupToggleButton, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] })] }), open && wrappedContent] }));
+    return (_jsxs("section", { className: styles.section, "data-panel-section": title, children: [_jsxs("div", { className: styles.titleRow, children: [wrapWithTooltip(_jsx("button", { className: styles.toggle, type: "button", onClick: handleToggle, "aria-expanded": open, "aria-label": count !== undefined && count > 0 ? `${title}, ${count}` : title })), _jsx("span", { className: styles.heading, children: title }), countBadge, duplicateDot, overrideDot, _jsxs("span", { className: styles.titleActions, children: [groupAccessory && (_jsx("span", { className: styles.groupAccessory, children: groupAccessory })), groupToggleButton, _jsx(IconChevronDown, { size: 14, stroke: 2, className: `${styles.caret} ${open ? '' : styles.caretCollapsed}`, "aria-hidden": "true" })] })] }), open && wrappedContent] }));
 };
 /**
  * Yellow warning state for a section title — fires when the parser

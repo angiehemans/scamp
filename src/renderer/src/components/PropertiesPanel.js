@@ -5,7 +5,7 @@ import { PanelModeToggle } from './PanelModeToggle';
 import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
-import { DataPanel, ViewDataSection } from './DataPanel';
+import { DataPanel, useViewDataCount, ViewDataSection } from './DataPanel';
 import { Section } from './sections/Section';
 import styles from './PropertiesPanel.module.css';
 const SHORTCUTS = [
@@ -32,12 +32,13 @@ export const PropertiesPanel = ({ routesSection, migrationNotice, }) => {
     const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
     const panelMode = useCanvasStore((s) => s.panelMode);
     const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
+    const dataCount = useViewDataCount();
     // Nothing selected: the panel shows what belongs to the page rather
     // than to an element — its routes and its data — with the shortcuts
     // as a reference the user can open. Visual and CSS are element-level
     // and have nothing to say here, so the mode toggle stays out of it.
     if (!selectedId) {
-        return (_jsx("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: _jsxs("div", { className: styles.emptyBody, children: [routesSection, isComponentEditing && (_jsx("div", { "data-testid": "view-data-section", children: _jsx(Section, { title: "Data", collapsible: true, defaultOpen: true, children: _jsx(ViewDataSection, {}) }) })), migrationNotice, _jsx(Section, { title: "Keyboard Shortcuts", collapsible: true, defaultOpen: false, children: _jsx(ShortcutsTable, {}) })] }) }));
+        return (_jsx("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": "empty", children: _jsxs("div", { className: styles.emptyBody, children: [routesSection, isComponentEditing && (_jsx("div", { "data-testid": "view-data-section", children: _jsx(Section, { title: "Data", collapsible: true, defaultOpen: false, count: dataCount, children: _jsx(ViewDataSection, {}) }) })), migrationNotice, _jsx(Section, { title: "Keyboard Shortcuts", collapsible: true, defaultOpen: false, children: _jsx(ShortcutsTable, {}) })] }) }));
     }
     return (_jsxs("aside", { className: styles.panel, "data-testid": "properties-panel", "data-panel-mode": panelMode, children: [_jsx(PanelHeader, {}), _jsx(PanelModeToggle, {}), panelMode === 'ui' && _jsx(StateSwitcher, {}), panelMode === 'data' ? (_jsx(DataPanel, {})) : panelMode === 'ui' ? (_jsx(UiPanel, {})) : (_jsx(CssPanel, {}))] }));
 };

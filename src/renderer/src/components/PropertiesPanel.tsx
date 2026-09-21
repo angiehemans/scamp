@@ -5,7 +5,7 @@ import { PanelModeToggle } from './PanelModeToggle';
 import { StateSwitcher } from './StateSwitcher';
 import { UiPanel } from './UiPanel';
 import { CssPanel } from './CssPanel';
-import { DataPanel, ViewDataSection } from './DataPanel';
+import { DataPanel, useViewDataCount, ViewDataSection } from './DataPanel';
 import { Section } from './sections/Section';
 import styles from './PropertiesPanel.module.css';
 
@@ -64,6 +64,7 @@ export const PropertiesPanel = ({
   const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
   const panelMode = useCanvasStore((s) => s.panelMode);
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
+  const dataCount = useViewDataCount();
 
   // Nothing selected: the panel shows what belongs to the page rather
   // than to an element — its routes and its data — with the shortcuts
@@ -80,7 +81,7 @@ export const PropertiesPanel = ({
           {routesSection}
           {isComponentEditing && (
             <div data-testid="view-data-section">
-              <Section title="Data" collapsible defaultOpen>
+              <Section title="Data" collapsible defaultOpen={false} count={dataCount}>
                 <ViewDataSection />
               </Section>
             </div>

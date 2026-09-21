@@ -317,4 +317,15 @@ export const DataPanel = () => {
  * attributes, and events. Page-level, like a route, which is why it
  * doesn't wait for a selection. see docs/notes/routes-in-the-app.md
  */
+/**
+ * How many props the open view declares — what the Data section's
+ * header shows, so a collapsed section still says whether there is
+ * anything in it. Counts every kind: text, attribute, boolean,
+ * repeat, show, event, slot.
+ */
+export const useViewDataCount = () => {
+    const elements = useCanvasStore((s) => s.elements);
+    const rootElementId = useCanvasStore((s) => s.rootElementId);
+    return useMemo(() => collectViewProps(elements, rootElementId).length, [elements, rootElementId]);
+};
 export const ViewDataSection = () => (_jsx(ComponentDataView, { bodyClassName: styles.sectionBody }));
