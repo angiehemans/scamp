@@ -7,15 +7,18 @@
   gap: 2px;
 }
 
+/* The path on one line, its render mode under it. Side by side, the
+   three mode buttons crowded the path out of a narrow sidebar. */
 .routeRow {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
 }
 
 .routeButton {
-  flex: 1;
+  align-self: stretch;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -42,6 +45,8 @@
 
 .render {
   display: inline-flex;
+  /* Line up with the path's text, which its button pads by 6px. */
+  margin-left: 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;

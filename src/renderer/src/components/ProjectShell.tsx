@@ -554,6 +554,7 @@ export const ProjectShell = ({
                   <RoutesSection
                     routes={routesApi.routes}
                     views={project.components.filter((c) => componentKindOf(c) === 'view')}
+                    activeViewName={activeViewName}
                     busy={routesApi.busy}
                     onOpen={(file) => void routesApi.openRoute(file)}
                     onSetRender={(file, render) => void routesApi.setRender(file, render)}
