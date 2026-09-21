@@ -2,6 +2,8 @@ import { answerSnapshotTool, type SnapshotInput } from '@lib/canvasSnapshot';
 import type { ContextTarget } from '@lib/contextModel';
 import { useCanvasStore, type CanvasState } from '@store/canvasSlice';
 
+import { patchLog } from './patchStream';
+
 /**
  * Answers MCP tool calls from the main process out of live store state.
  *
@@ -73,6 +75,7 @@ export const snapshotInputFrom = (state: CanvasState): SnapshotInput => {
     breakpointId: state.activeBreakpointId,
     breakpointLabel: breakpoint?.label ?? state.activeBreakpointId,
     canvasWidth: breakpoint?.width ?? state.breakpoints[0]?.width ?? 0,
+    recentEdits: patchLog.entries(),
   };
 };
 

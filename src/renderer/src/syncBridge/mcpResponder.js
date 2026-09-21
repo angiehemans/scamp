@@ -1,5 +1,6 @@
 import { answerSnapshotTool } from '@lib/canvasSnapshot';
 import { useCanvasStore } from '@store/canvasSlice';
+import { patchLog } from './patchStream';
 /**
  * Answers MCP tool calls from the main process out of live store state.
  *
@@ -64,6 +65,7 @@ export const snapshotInputFrom = (state) => {
         breakpointId: state.activeBreakpointId,
         breakpointLabel: breakpoint?.label ?? state.activeBreakpointId,
         canvasWidth: breakpoint?.width ?? state.breakpoints[0]?.width ?? 0,
+        recentEdits: patchLog.entries(),
     };
 };
 /**

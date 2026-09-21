@@ -10,6 +10,7 @@ import {
   getElementTree,
   getSelectedElement,
   getThemeTokens,
+  getRecentEdits,
   getViewProps,
   listComponents,
   listPages,
@@ -582,5 +583,78 @@ describe('getViewProps', () => {
       kind: 'view',
     });
     expect(answerSnapshotTool('scamp_get_view_props', {}, withTrees())).toBeNull();
+  });
+});
+
+describe('getRecentEdits', () => {
+  const save = (revision: number, target: string, line: number, text: string) => ({
+    revision,
+    at: Date.UTC(2026, 0, 1),
+    target,
+    kind: 'page' as const,
+    files: [
+      {
+        file: 'css' as const,
+        path: `${target}.module.css`,
+        hunks: [{ line, removed: 1, added: 1, text }],
+        edits: [{ start: 0, end: 1, replacement: text }],
+      },
+    ],
+  });
+
+  it('reports nothing, at revision 0, when no save has happened', () => {
+    expect(getRecentEdits(build(), 0)).toEqual({ revision: 0, saves: [] });
+  });
+
+  it('reports every save, with the line each change starts at', () => {
+    const result = getRecentEdits(
+      build({ recentEdits: [save(1, 'home', 12, '    width: 240px;\n')] }),
+      0
+    );
+    expect(result.revision).toBe(1);
+    expect(result.saves).toEqual([
+      {
+        revision: 1,
+        at: '2026-01-01T00:00:00.000Z',
+        target: 'home',
+        kind: 'page',
+        files: [
+          {
+            path: 'home.module.css',
+            changes: [{ line: 12, removed: 1, added: 1, text: '    width: 240px;\n' }],
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('reports only what came after the revision it is given', () => {
+    const input = build({
+      recentEdits: [save(1, 'home', 1, 'a'), save(2, 'about', 2, 'b'), save(3, 'home', 3, 'c')],
+    });
+    expect(getRecentEdits(input, 2).saves.map((s) => s.revision)).toEqual([3]);
+    // The newest revision comes back regardless, so a caller can keep paging.
+    expect(getRecentEdits(input, 3)).toEqual({ revision: 3, saves: [] });
+  });
+
+  it('treats a nonsense `since` as "everything"', () => {
+    const input = build({ recentEdits: [save(1, 'home', 1, 'a')] });
+    expect(getRecentEdits(input, Number.NaN).saves).toHaveLength(1);
+    expect(getRecentEdits(input, -5).saves).toHaveLength(1);
+  });
+
+  it('truncates a hunk too large to hand an agent', () => {
+    const huge = 'x'.repeat(5000);
+    const result = getRecentEdits(build({ recentEdits: [save(1, 'home', 1, huge)] }), 0);
+    const text = result.saves[0]?.files[0]?.changes[0]?.text ?? '';
+    expect(text.length).toBeLessThan(huge.length);
+    expect(text).toContain('more characters');
+  });
+
+  it('answers through the tool dispatcher', () => {
+    const input = build({ recentEdits: [save(1, 'home', 4, 'a')] });
+    expect(answerSnapshotTool('scamp_get_recent_edits', { since: 0 }, input)).toEqual(
+      getRecentEdits(input, 0)
+    );
   });
 });

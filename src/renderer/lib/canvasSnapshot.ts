@@ -7,6 +7,7 @@ import {
   type ContextTarget,
 } from './contextModel';
 import type { SampleValue, ScampElement } from './element';
+import type { PatchEntry } from './patchLog';
 import { classNameFor, tagFor } from './generateCode';
 import {
   collectViewProps,
@@ -49,6 +50,8 @@ export type SnapshotInput = {
   breakpointId: string;
   breakpointLabel: string;
   canvasWidth: number;
+  /** The session's saves, for `scamp_get_recent_edits`. Oldest first. */
+  recentEdits?: ReadonlyArray<PatchEntry>;
 };
 
 export type SnapshotTree = {
@@ -393,9 +396,63 @@ export const answerSnapshotTool = (
       return getThemeTokens(input);
     case 'scamp_get_view_props':
       return getViewProps(input, String(args['name'] ?? ''));
+    case 'scamp_get_recent_edits':
+      return getRecentEdits(input, Number(args['since'] ?? 0));
     default:
       throw new Error(`Unknown snapshot tool: ${tool}`);
   }
+};
+
+/** Long enough to read, short enough not to flood an agent's context. */
+const MAX_HUNK_CHARS = 1000;
+
+export type RecentEditsResult = {
+  /** Pass back as `since` to get only what follows. */
+  revision: number;
+  saves: Array<{
+    revision: number;
+    at: string;
+    target: string;
+    kind: 'page' | 'component';
+    files: Array<{
+      path: string;
+      changes: Array<{ line: number; removed: number; added: number; text: string }>;
+    }>;
+  }>;
+};
+
+/**
+ * What the designer changed, in lines rather than offsets: an agent has
+ * the file, not the version the offsets were taken against.
+ */
+export const getRecentEdits = (
+  input: SnapshotInput,
+  since: number
+): RecentEditsResult => {
+  const all = input.recentEdits ?? [];
+  const from = Number.isFinite(since) && since > 0 ? since : 0;
+  const saves = all.filter((entry) => entry.revision > from);
+  return {
+    revision: all.length > 0 ? (all[all.length - 1]?.revision ?? 0) : 0,
+    saves: saves.map((entry) => ({
+      revision: entry.revision,
+      at: new Date(entry.at).toISOString(),
+      target: entry.target,
+      kind: entry.kind,
+      files: entry.files.map((file) => ({
+        path: file.path,
+        changes: file.hunks.map((hunk) => ({
+          line: hunk.line,
+          removed: hunk.removed,
+          added: hunk.added,
+          text:
+            hunk.text.length > MAX_HUNK_CHARS
+              ? `${hunk.text.slice(0, MAX_HUNK_CHARS)}\n… (${hunk.text.length - MAX_HUNK_CHARS} more characters)`
+              : hunk.text,
+        })),
+      })),
+    })),
+  };
 };
 
 export const getCanvasState = (input: SnapshotInput): CanvasStateResult => {

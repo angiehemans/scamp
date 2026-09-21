@@ -99,6 +99,20 @@ export const TOOL_DESCRIPTORS = [
         inputSchema: { ...NO_ARGS },
     },
     {
+        name: 'scamp_get_recent_edits',
+        description: 'What the designer has changed in Scamp, newest last: one entry per save, with the file, the line each change starts at, and the text that replaced what was there. Call it after the user says they changed something, or before editing a file you read earlier, so you work from what is on disk now. Pass the `revision` from a previous call as `since` to get only what happened after it; omit it for everything this session.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                since: {
+                    type: 'number',
+                    description: 'A `revision` from an earlier call. Only later saves are returned.',
+                },
+            },
+            additionalProperties: false,
+        },
+    },
+    {
         name: 'scamp_get_theme_tokens',
         description: 'The design tokens defined in the project’s theme.css, as a flat list of CSS custom properties, plus the available themes. Call this before writing any colour, spacing, or typography value so you use an existing token instead of a raw literal.',
         inputSchema: { ...NO_ARGS },

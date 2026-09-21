@@ -142,6 +142,8 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
 - \`scamp_get_view_props\` — a view's or component's exact props type and
   sample data; call before writing the route or page that renders it
+- \`scamp_get_recent_edits\` — what the user has changed since you last
+  looked; call it before editing a file you read earlier
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
   or typography value so you use a token instead of a literal
 - \`scamp_get_canvas_state\` — everything at once; large, and capped
@@ -1282,6 +1284,8 @@ written on selection, the tools read the canvas at the moment you ask.
   sample data; call before writing the route or page that renders it
 - \`scamp_get_component_scaffold\` — the exact starter files for a new
   component; call it before creating one
+- \`scamp_get_recent_edits\` — what the user has changed since you last
+  looked; call it before editing a file you read earlier
 - \`scamp_get_theme_tokens\` — call before writing any colour, spacing,
   or typography value so you use a token instead of a literal
 - \`scamp_get_canvas_state\` — everything at once; large, and capped

@@ -224,9 +224,42 @@ export const answerSnapshotTool = (tool, args, input) => {
             return getThemeTokens(input);
         case 'scamp_get_view_props':
             return getViewProps(input, String(args['name'] ?? ''));
+        case 'scamp_get_recent_edits':
+            return getRecentEdits(input, Number(args['since'] ?? 0));
         default:
             throw new Error(`Unknown snapshot tool: ${tool}`);
     }
+};
+/** Long enough to read, short enough not to flood an agent's context. */
+const MAX_HUNK_CHARS = 1000;
+/**
+ * What the designer changed, in lines rather than offsets: an agent has
+ * the file, not the version the offsets were taken against.
+ */
+export const getRecentEdits = (input, since) => {
+    const all = input.recentEdits ?? [];
+    const from = Number.isFinite(since) && since > 0 ? since : 0;
+    const saves = all.filter((entry) => entry.revision > from);
+    return {
+        revision: all.length > 0 ? (all[all.length - 1]?.revision ?? 0) : 0,
+        saves: saves.map((entry) => ({
+            revision: entry.revision,
+            at: new Date(entry.at).toISOString(),
+            target: entry.target,
+            kind: entry.kind,
+            files: entry.files.map((file) => ({
+                path: file.path,
+                changes: file.hunks.map((hunk) => ({
+                    line: hunk.line,
+                    removed: hunk.removed,
+                    added: hunk.added,
+                    text: hunk.text.length > MAX_HUNK_CHARS
+                        ? `${hunk.text.slice(0, MAX_HUNK_CHARS)}\n… (${hunk.text.length - MAX_HUNK_CHARS} more characters)`
+                        : hunk.text,
+                })),
+            })),
+        })),
+    };
 };
 export const getCanvasState = (input) => {
     const ids = Object.keys(input.elements);

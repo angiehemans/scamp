@@ -88,6 +88,21 @@ release time.
   (0.1 or later) and opens the current view at `/_views/[Name]`. The
   page list in the preview window holds the project's views. See
   [Views](user_docs/views.md#preview-a-view).
+- **Agents can ask what you changed.** The new
+  `scamp_get_recent_edits` tool reports your recent saves as the lines
+  each one rewrote, so an agent can catch up before editing a file it
+  read earlier. See [Work with AI agents](user_docs/ai-agents.md).
+
+**Changed**
+
+- **Scamp writes only the lines a change touches.** A design change
+  rewrites the CSS rules and the elements it affects instead of
+  replacing both files. A file Scamp didn't write keeps its comments,
+  its extra imports, its module-level code, and its formatting.
+- **An edit from outside is merged, not dropped.** When a file changes
+  on disk while you're designing, Scamp merges the two changes if they
+  touch different lines, instead of reloading and losing yours. Only a
+  real overlap still stops the save.
 
 **Fixed**
 

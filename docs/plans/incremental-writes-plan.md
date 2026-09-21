@@ -298,9 +298,40 @@ hand-formatted page and the sibling keeps its line breaks to the byte.
 through a braced attribute, a repeat wrapper, and a component root
 passthrough — the three rewrites that would otherwise drift them.
 
-**6. Expose the stream.** With edits as the unit, the same patches can
-feed a multiplayer session or be handed to an agent as a proposed
-change. Out of scope here; phase 5 is the thing that makes it possible.
+**6. Expose the stream.** *Landed.* `lib/patchLog.ts` is the session's
+record of what it wrote: an ordered, bounded list of patches, each with
+a monotonic revision, the target, and per file both the offsets and a
+line-numbered view of every changed region.
+`syncBridge/patchStream.ts` records one per save and hands out the
+subscription.
+
+What is recorded is the net effect on disk — the difference between
+what was there and what the save wrote — not whichever internal path
+produced it. A reader should not have to know whether a change went
+through the element, region, or whole-file route.
+
+Three readers:
+
+- **An agent**, through the `scamp_get_recent_edits` tool. It answers
+  in lines rather than offsets, because an agent has the file and not
+  the version the offsets were taken against, and a hunk too large to
+  hand over is truncated. Pass back the `revision` from a previous call
+  to get only what followed it, which is the loop the tool is for:
+  read, work, ask again before editing what you read.
+- **Anyone debugging a save**, through `__scampPatches(since)`, beside
+  the `__scampShadowEdits()` of phase 1.
+- **A transport that does not exist yet**, through
+  `patchLog.subscribe`. Multiplayer wants exactly this shape: a
+  monotonic revision, and the edits between two of them.
+
+The inbound direction already exists and is not duplicated here. An
+agent's own edits arrive through the file watcher, and phase 4 merges
+them.
+
+Done: `test/e2e/save/patch-stream.spec.ts` draws on the canvas and
+reads the patches back out of the running app, including paging from a
+revision. `test/patchLog.test.ts` pins the log and the line numbering,
+and `test/canvasSnapshot.test.ts` pins what the agent is handed.
 
 ## Done when
 

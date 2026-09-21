@@ -1,6 +1,7 @@
 import type { ProjectFormat, ThemeDef, ThemeToken } from '@shared/types';
 import { type ContextTarget } from './contextModel';
 import type { SampleValue, ScampElement } from './element';
+import type { PatchEntry } from './patchLog';
 import { type ViewPropKind } from './viewProps';
 /**
  * The canvas, in the shapes the MCP tools return.
@@ -35,6 +36,8 @@ export type SnapshotInput = {
     breakpointId: string;
     breakpointLabel: string;
     canvasWidth: number;
+    /** The session's saves, for `scamp_get_recent_edits`. Oldest first. */
+    recentEdits?: ReadonlyArray<PatchEntry>;
 };
 export type SnapshotTree = {
     kind: 'component' | 'view';
@@ -205,4 +208,28 @@ export declare const getThemeTokens: (input: SnapshotInput) => ThemeTokensResult
  * that as an `isError` result rather than a confusing `null`.
  */
 export declare const answerSnapshotTool: (tool: string, args: Record<string, unknown>, input: SnapshotInput) => unknown;
+export type RecentEditsResult = {
+    /** Pass back as `since` to get only what follows. */
+    revision: number;
+    saves: Array<{
+        revision: number;
+        at: string;
+        target: string;
+        kind: 'page' | 'component';
+        files: Array<{
+            path: string;
+            changes: Array<{
+                line: number;
+                removed: number;
+                added: number;
+                text: string;
+            }>;
+        }>;
+    }>;
+};
+/**
+ * What the designer changed, in lines rather than offsets: an agent has
+ * the file, not the version the offsets were taken against.
+ */
+export declare const getRecentEdits: (input: SnapshotInput, since: number) => RecentEditsResult;
 export declare const getCanvasState: (input: SnapshotInput) => CanvasStateResult;

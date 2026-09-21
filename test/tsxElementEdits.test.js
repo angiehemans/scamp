@@ -117,10 +117,21 @@ describe('a text change to a hand-formatted file', () => {
     });
 });
 describe('tsxSurgicalEdits', () => {
-    it('gives up when the change is not element-shaped', () => {
-        const next = GENERATED('Hello').replace('export default function Home() {', 'export default function Home({ title = "Hi" }: HomeProps) {');
-        // The destructure is not an element, so the region path has to take it.
-        expect(tsxSurgicalEdits(side(GENERATED('Hello')), side(next))).toBeNull();
+    it('leaves the caller to catch a change the elements cannot carry', () => {
+        // Marking the text as a prop touches the element AND the function
+        // signature, and only the element is in range. The edit is
+        // offered, but the file it produces does not read back as the save
+        // meant it — which is what `tsxWrite` verifies before writing.
+        const next = GENERATED('Hello')
+            .replace('export default function Home() {', 'export default function Home({ title = "Hello" }: HomeProps) {')
+            .replace('>Hello</h1>', '>{title}</h1>');
+        const edits = tsxSurgicalEdits(side(GENERATED('Hello')), side(next));
+        expect(edits).not.toBeNull();
+        const out = applyEdits(GENERATED('Hello'), edits ?? []);
+        expect(out).not.toContain('title = "Hello"');
+        const applied = parseCode(out, CSS, { breakpoints: [], isComponent: false });
+        const wanted = parseCode(next, CSS, { breakpoints: [], isComponent: false });
+        expect(applied.elements).not.toEqual(wanted.elements);
     });
     it('carries a change outside the component alongside the element edit', () => {
         const next = GENERATED('Goodbye').replace("import styles from './home.module.css';", "import styles from './home.module.css';\nimport LinkCard from '@/components/LinkCard/LinkCard';");

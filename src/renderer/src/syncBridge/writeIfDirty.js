@@ -3,6 +3,7 @@
 // of initSyncBridge (Phase 5.4); reads/writes the shared cache via `ctx`.
 import { generateCode } from '@lib/generateCode';
 import { reportShadowEdits } from './shadowEdits';
+import { recordPatch } from './patchStream';
 import { cssWriteFor } from './cssWrite';
 import { tsxWriteFor } from './tsxWrite';
 import { parseCode } from '@lib/parseCode';
@@ -226,6 +227,12 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
     reportShadowEdits(target.name, [
         { label: 'tsx', base: expectedTsx, next: tsxOut.tsx },
         { label: 'css', base: expectedCss, next: cssOut.css },
+    ]);
+    // The patch stream: what this save changed, for anything that
+    // wants to read it. see docs/plans/incremental-writes-plan.md
+    recordPatch({ name: target.name, kind: target.kind }, store.projectPath, [
+        { file: 'tsx', path: target.tsxPath, base: expectedTsx, next: tsxOut.tsx },
+        { file: 'css', path: target.cssPath, base: expectedCss, next: cssOut.css },
     ]);
     ctx.lastSerializedTsx = tsxOut.tsx;
     ctx.lastSerializedCss = cssOut.css;
