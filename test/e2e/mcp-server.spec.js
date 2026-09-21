@@ -3,6 +3,7 @@ import { join } from 'path';
 import { test, expect } from './fixtures/app';
 import { dragInFrame, selectTool } from './fixtures/canvas';
 import { pageRoot } from './fixtures/selectors';
+import { waitForSaved } from './fixtures/assertions';
 /**
  * The MCP server, end to end in a real Electron session.
  *
@@ -140,6 +141,33 @@ test.describe('MCP server, live', () => {
         const config = await readConfig(project.dir);
         const tree = JSON.parse(await callTool(config, 'scamp_get_element_tree'));
         expect(tree.root.children.length).toBeGreaterThan(0);
+    });
+    test('tells an agent what the designer changed, and only what is new', async ({ window, project, }) => {
+        // Phase 6 of docs/plans/incremental-writes-plan.md, over the wire.
+        await expect(pageRoot(window)).toBeVisible();
+        const config = await readConfig(project.dir);
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 60, y: 60 }, { x: 200, y: 160 });
+        await waitForSaved(window);
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 240, y: 60 }, { x: 380, y: 160 });
+        await waitForSaved(window);
+        const first = JSON.parse(await callTool(config, 'scamp_get_recent_edits'));
+        expect(first.saves.length).toBeGreaterThan(0);
+        expect(first.revision).toBeGreaterThan(0);
+        const change = first.saves[first.saves.length - 1].files[0].changes[0];
+        expect(change.line).toBeGreaterThan(0);
+        expect(typeof change.text).toBe('string');
+        // Nothing new since then.
+        const caughtUp = JSON.parse(await callTool(config, 'scamp_get_recent_edits', { since: first.revision }));
+        expect(caughtUp.saves).toEqual([]);
+        // One more edit, and only that one comes back.
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 60, y: 220 }, { x: 200, y: 320 });
+        await waitForSaved(window);
+        const next = JSON.parse(await callTool(config, 'scamp_get_recent_edits', { since: first.revision }));
+        expect(next.saves.length).toBeGreaterThan(0);
+        expect(next.saves.every((s) => s.revision > first.revision)).toBe(true);
     });
     test('reports an unknown element id as isError, keeping the turn alive', async ({ window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();

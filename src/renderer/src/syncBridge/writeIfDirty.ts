@@ -291,6 +291,23 @@ export const makeWriteIfDirty =
       { file: 'tsx', path: target.tsxPath, base: expectedTsx, next: tsxOut.tsx },
       { file: 'css', path: target.cssPath, base: expectedCss, next: cssOut.css },
     ]);
+    // The fallback is observable. A patch that failed to verify still
+    // writes the file whole, which is safe but loses whatever the file
+    // held that Scamp doesn't model — so say so rather than only
+    // warning in devtools.
+    // see docs/plans/incremental-writes-plan.md
+    const fellBack = [
+      ...(expectedTsx !== null && !tsxOut.patched ? ['view'] : []),
+      ...(expectedCss !== null && !cssOut.patched ? ['stylesheet'] : []),
+    ];
+    if (fellBack.length > 0) {
+      useAppLogStore
+        .getState()
+        .log(
+          'warn',
+          `${target.name}: couldn't patch the ${fellBack.join(' or ')} safely; wrote the whole file instead.`
+        );
+    }
     ctx.lastSerializedTsx = tsxOut.tsx;
     ctx.lastSerializedCss = cssOut.css;
     // Mirror the just-written content into the store so the bottom code

@@ -344,6 +344,12 @@ and `test/canvasSnapshot.test.ts` pins what the agent is handed.
 - The fallback is observable: when a merge or a verify fails, the save
   still lands as a whole-file write and says so in the log.
 
+All four hold. A merge that fails says so through the existing
+"edited outside Scamp" line; a patch that fails to verify logs
+`couldn't patch the view or stylesheet safely; wrote the whole file
+instead` — `console.warn` alone was not observable to anyone but a
+developer with devtools open.
+
 ## Risks, and what would change my mind
 
 - **A patch that is valid but wrong.** The merged text parses, but into
