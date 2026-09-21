@@ -135,6 +135,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
         setActiveComponentState,
         activePageName,
         setActivePageName,
+        ensureRouteFor: routesApi.ensureRoute,
         openComponent,
         persistActiveSource,
     });

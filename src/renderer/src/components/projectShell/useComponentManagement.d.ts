@@ -9,6 +9,13 @@ type Args = {
     setActiveComponentState: (next: ActiveComponent | null) => void;
     activePageName: string | null;
     setActivePageName: (next: string | null) => void;
+    /**
+     * Scamp-framework projects: write the route that renders a page just
+     * created. A page nothing routes is a page nobody can open, and the
+     * Next.js format has always written its wrapper — this is the same
+     * courtesy for the format that replaced it. Absent for other formats.
+     */
+    ensureRouteFor?: (viewName: string) => Promise<void>;
     openComponent: (name: string, fromPage: string | null, kind?: ComponentKind) => void;
     persistActiveSource: () => void;
 };
@@ -52,5 +59,5 @@ export type UseComponentManagement = {
  * suppression so the watcher doesn't fight the in-flight multi-file write.
  * see docs/notes/components-multi-file-ops.md
  */
-export declare const useComponentManagement: ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, openComponent, persistActiveSource, }: Args) => UseComponentManagement;
+export declare const useComponentManagement: ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, ensureRouteFor, openComponent, persistActiveSource, }: Args) => UseComponentManagement;
 export {};

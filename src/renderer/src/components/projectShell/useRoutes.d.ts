@@ -5,6 +5,12 @@ export type UseRoutes = {
     openRoute: (file: string) => Promise<void>;
     setRender: (file: string, render: RouteRender) => Promise<void>;
     generateRoute: (viewName: string) => Promise<void>;
+    /**
+     * Write the route for a page just created, unless one already
+     * renders it. Quieter than `generateRoute`: it doesn't open the
+     * route, because the user asked for a page and is looking at it.
+     */
+    ensureRoute: (viewName: string) => Promise<void>;
 };
 /**
  * The routes of a Scamp-framework project as the sidebar shows them:

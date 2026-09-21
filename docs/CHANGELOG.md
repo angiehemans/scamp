@@ -95,6 +95,10 @@ release time.
 
 **Changed**
 
+- **Adding a page writes its route.** In a Scamp framework project,
+  **+ Add Page** now creates the view and the route that renders it, so
+  the page has an address straight away. **Generate route** stays for a
+  view that has no route — one you converted, or one an agent wrote.
 - **The Routes section shows the open page's route.** The properties
   panel is about the page in front of you, so its route list is too,
   with the render mode on the line under the path. Project Settings

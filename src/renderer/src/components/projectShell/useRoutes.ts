@@ -13,6 +13,12 @@ export type UseRoutes = {
   openRoute: (file: string) => Promise<void>;
   setRender: (file: string, render: RouteRender) => Promise<void>;
   generateRoute: (viewName: string) => Promise<void>;
+  /**
+   * Write the route for a page just created, unless one already
+   * renders it. Quieter than `generateRoute`: it doesn't open the
+   * route, because the user asked for a page and is looking at it.
+   */
+  ensureRoute: (viewName: string) => Promise<void>;
 };
 
 /**
@@ -75,18 +81,26 @@ export const useRoutes = (project: ProjectData): UseRoutes => {
     [project.path, refresh]
   );
 
-  const generateRoute = useCallback(
-    async (viewName: string): Promise<void> => {
+  const writeRouteFor = useCallback(
+    async (
+      viewName: string,
+      opts: { open: boolean; allowUnloaded: boolean }
+    ): Promise<void> => {
       setBusy(true);
       try {
         const tree = useCanvasStore.getState().componentTrees[viewName];
-        if (!tree) throw new Error(`The view "${viewName}" is not loaded.`);
+        // A page created a moment ago may not have loaded its tree yet.
+        // It has no props either — it is the empty scaffold — so an
+        // empty list is the right answer rather than a reason to fail.
+        if (!tree && !opts.allowUnloaded) {
+          throw new Error(`The view "${viewName}" is not loaded.`);
+        }
         const slug = viewSlugFor(viewName);
         const file = routeFileForSlug(slug);
         const content = generateRouteTsx({
           viewName,
           slug,
-          props: collectViewProps(tree.elements, tree.rootId),
+          props: tree ? collectViewProps(tree.elements, tree.rootId) : [],
           hasDatabase: project.hasDatabase === true,
         });
         await window.scamp.writeRoute({ projectPath: project.path, file, content });
@@ -94,7 +108,7 @@ export const useRoutes = (project: ProjectData): UseRoutes => {
         useAppLogStore
           .getState()
           .log('info', `Wrote routes/${file}: load() returns the ${viewName} view's sample data. Replace it with real data.`);
-        await openRoute(file);
+        if (opts.open) await openRoute(file);
       } catch (err) {
         useAppLogStore.getState().log('error', `Generate route failed: ${errorMessage(err)}`);
       } finally {
@@ -104,5 +118,21 @@ export const useRoutes = (project: ProjectData): UseRoutes => {
     [openRoute, project.hasDatabase, project.path, refresh]
   );
 
-  return { routes, busy, openRoute, setRender, generateRoute };
+  const generateRoute = useCallback(
+    (viewName: string): Promise<void> =>
+      writeRouteFor(viewName, { open: true, allowUnloaded: false }),
+    [writeRouteFor]
+  );
+
+  const ensureRoute = useCallback(
+    async (viewName: string): Promise<void> => {
+      if (!enabled) return;
+      const already = routes.some((r) => r.kind === 'page' && r.view === viewName);
+      if (already) return;
+      await writeRouteFor(viewName, { open: false, allowUnloaded: true });
+    },
+    [enabled, routes, writeRouteFor]
+  );
+
+  return { routes, busy, openRoute, setRender, generateRoute, ensureRoute };
 };

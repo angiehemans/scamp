@@ -18,7 +18,7 @@ import { armTargetSwapSuppression, disarmTargetSwapSuppression, flushPendingPage
  * suppression so the watcher doesn't fight the in-flight multi-file write.
  * see docs/notes/components-multi-file-ops.md
  */
-export const useComponentManagement = ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, openComponent, persistActiveSource, }) => {
+export const useComponentManagement = ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, ensureRouteFor, openComponent, persistActiveSource, }) => {
     // Brief in-progress flag while `+ component` is creating a new
     // component on disk. Disables the add-button + name input.
     const [creatingComponent, setCreatingComponent] = useState(false);
@@ -325,6 +325,10 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
             components: [...prev.components, created],
         }));
         openComponent(created.name, null, 'view');
+        // The route is the page's address. Writing it here is what makes
+        // "add a page" produce something the user can open; `routes/` is
+        // still theirs afterwards, and an existing route is never touched.
+        await ensureRouteFor?.(viewName);
     };
     const handleRenameView = async (viewName, newSlug) => {
         await handleRenameComponent(viewName, viewNameForPage(newSlug));

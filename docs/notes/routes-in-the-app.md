@@ -21,6 +21,13 @@ from the main process, since routes are not canvas state.
 - **The `render` export.** The Routes section and its control
   calls `setRouteRender`, which replaces an existing export in place or
   inserts one after the imports. Nothing else in the file changes.
+- **The route for a new page.** Adding a page in a scamp project
+  writes `routes/<slug>.tsx` as part of creating it. The rule that
+  `routes/` is the developer's still holds — the app writes a file
+  that does not exist and never touches one that does — but a page
+  nothing routes is a page nobody can open, and the Next.js format
+  always wrote its wrapper. `ensureRoute` skips the write when a route
+  already renders the view, and never fails the page creation.
 - **A generated route.** `lib/generateRoute.ts` writes
   `routes/<slug>.tsx` for a view no route renders yet: `load()` returns
   the view's sample data, shaped by `collectViewProps`, and the
