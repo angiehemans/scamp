@@ -28,6 +28,7 @@ import type {
   RouteFile,
   RouteReadArgs,
   RouteSetRenderArgs,
+  RouteRenameViewArgs,
   RouteWriteArgs,
   RoutesListArgs,
   SvgAssetChangedPayload,
@@ -117,6 +118,8 @@ const api = {
     ipcRenderer.invoke(IPC.RoutesList, args),
   readRoute: (args: RouteReadArgs): Promise<string> =>
     ipcRenderer.invoke(IPC.RoutesRead, args),
+  renameRouteView: (args: RouteRenameViewArgs): Promise<string | null> =>
+    ipcRenderer.invoke(IPC.RoutesRenameView, args),
   setRouteRender: (args: RouteSetRenderArgs): Promise<void> =>
     ipcRenderer.invoke(IPC.RoutesSetRender, args),
   writeRoute: (args: RouteWriteArgs): Promise<void> =>

@@ -99,6 +99,10 @@ release time.
   **+ Add Page** now creates the view and the route that renders it, so
   the page has an address straight away. **Generate route** stays for a
   view that has no route — one you converted, or one an agent wrote.
+- **Renaming a page takes its route with it.** The route that renders
+  the page follows the rename, so the project still builds and the page
+  keeps an address. A route you placed yourself stays where it is, with
+  only its references updated.
 - **The Routes section shows the open page's route.** The properties
   panel is about the page in front of you, so its route list is too,
   with the render mode on the line under the path. Project Settings

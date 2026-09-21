@@ -7,10 +7,18 @@ import type {
   RouteFile,
   RouteReadArgs,
   RouteSetRenderArgs,
+  RouteRenameViewArgs,
   RouteWriteArgs,
   RoutesListArgs,
 } from '@shared/types';
-import { listRoutes, readDevVarsKeys, readRouteFile, setRouteRender, writeRouteFile } from './routeOps';
+import {
+  listRoutes,
+  readDevVarsKeys,
+  readRouteFile,
+  renameRouteForView,
+  setRouteRender,
+  writeRouteFile,
+} from './routeOps';
 
 /** Register the routes IPC: listing, reading, the render export, generation, and `.dev.vars` keys. */
 export const registerRoutesIpc = (): void => {
@@ -25,6 +33,9 @@ export const registerRoutesIpc = (): void => {
   );
   ipcMain.handle(IPC.RoutesWrite, (_e, args: RouteWriteArgs): Promise<void> =>
     writeRouteFile(args.projectPath, args.file, args.content)
+  );
+  ipcMain.handle(IPC.RoutesRenameView, (_e, args: RouteRenameViewArgs): Promise<string | null> =>
+    renameRouteForView(args.projectPath, args.oldView, args.newView)
   );
   ipcMain.handle(IPC.DevVarsRead, (_e, args: DevVarsReadArgs): Promise<DevVarsReadResult> =>
     readDevVarsKeys(args.projectPath)

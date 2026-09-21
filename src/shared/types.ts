@@ -849,6 +849,12 @@ export type RouteReadArgs = { projectPath: string; file: string };
 export type RouteSetRenderArgs = { projectPath: string; file: string; render: RouteRender };
 /** Writes a new route file; refused when the file exists. */
 export type RouteWriteArgs = { projectPath: string; file: string; content: string };
+/** Follow a renamed view into the route that renders it. */
+export type RouteRenameViewArgs = {
+  projectPath: string;
+  oldView: string;
+  newView: string;
+};
 export type DevVarsReadArgs = { projectPath: string };
 /** `.dev.vars` keys only: values never leave the main process. */
 export type DevVarsReadResult = { exists: boolean; keys: string[] };

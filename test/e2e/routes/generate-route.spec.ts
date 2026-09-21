@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import * as path from 'path';
 
 import { test, expect } from '../fixtures/app';
-import { openPagesSection } from '../fixtures/components';
+import { clickContextMenuItem, openPageContextMenu, openPagesSection } from '../fixtures/components';
 import { pageRoot, pageSidebarItem } from '../fixtures/selectors';
 
 /**
@@ -54,6 +54,32 @@ test.describe('routes in a Scamp-framework project', () => {
     const after = await fs.readFile(file, 'utf-8');
     expect(after.replace("export const render = 'client';", "export const render = 'static';")).toBe(tsx);
     await expect(routes.getByTestId('route-about.tsx').getByRole('button', { name: 'client', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('renaming a page takes its route with it', async ({ window, project }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    const routes = window.getByTestId('routes-section');
+
+    await window.getByRole('button', { name: '+ Add Page' }).click();
+    await window.keyboard.type('about');
+    await window.keyboard.press('Enter');
+    await expect(routes.getByTestId('route-about.tsx')).toBeVisible({ timeout: 10_000 });
+
+    await openPageContextMenu(window, 'about');
+    await clickContextMenuItem(window, 'Rename');
+    const input = window.getByPlaceholder('page-name');
+    await input.fill('contact');
+    await input.press('Enter');
+
+    await expect(routes.getByTestId('route-contact.tsx')).toBeVisible({ timeout: 10_000 });
+    const tsx = await fs.readFile(path.join(project.dir, 'routes', 'contact.tsx'), 'utf-8');
+    // The route points at the view that exists, not the folder that moved.
+    expect(tsx).toContain("import Contact from '@/views/Contact/Contact';");
+    expect(tsx).toContain('<Contact />');
+    expect(tsx).not.toContain('About');
+    await expect(
+      fs.access(path.join(project.dir, 'routes', 'about.tsx'))
+    ).rejects.toThrow();
   });
 
   test('a route written from outside shows up, and a view with props gets its samples in load()', async ({

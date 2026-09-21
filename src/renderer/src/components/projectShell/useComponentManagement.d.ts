@@ -16,6 +16,12 @@ type Args = {
      * courtesy for the format that replaced it. Absent for other formats.
      */
     ensureRouteFor?: (viewName: string) => Promise<void>;
+    /**
+     * Scamp-framework projects: point the route at a renamed view, and
+     * move it when its name was the one the app gave it. Without this a
+     * rename leaves a route importing a folder that no longer exists.
+     */
+    renameRouteFor?: (oldView: string, newView: string) => Promise<void>;
     openComponent: (name: string, fromPage: string | null, kind?: ComponentKind) => void;
     persistActiveSource: () => void;
 };
@@ -59,5 +65,5 @@ export type UseComponentManagement = {
  * suppression so the watcher doesn't fight the in-flight multi-file write.
  * see docs/notes/components-multi-file-ops.md
  */
-export declare const useComponentManagement: ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, ensureRouteFor, openComponent, persistActiveSource, }: Args) => UseComponentManagement;
+export declare const useComponentManagement: ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, ensureRouteFor, renameRouteFor, openComponent, persistActiveSource, }: Args) => UseComponentManagement;
 export {};

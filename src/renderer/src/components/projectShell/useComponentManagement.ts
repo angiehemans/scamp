@@ -53,6 +53,12 @@ type Args = {
    * courtesy for the format that replaced it. Absent for other formats.
    */
   ensureRouteFor?: (viewName: string) => Promise<void>;
+  /**
+   * Scamp-framework projects: point the route at a renamed view, and
+   * move it when its name was the one the app gave it. Without this a
+   * rename leaves a route importing a folder that no longer exists.
+   */
+  renameRouteFor?: (oldView: string, newView: string) => Promise<void>;
   openComponent: (
     name: string,
     fromPage: string | null,
@@ -110,6 +116,7 @@ export const useComponentManagement = ({
   activePageName,
   setActivePageName,
   ensureRouteFor,
+  renameRouteFor,
   openComponent,
   persistActiveSource,
 }: Args): UseComponentManagement => {
@@ -479,7 +486,11 @@ export const useComponentManagement = ({
     viewName: string,
     newSlug: string
   ): Promise<void> => {
-    await handleRenameComponent(viewName, viewNameForPage(newSlug));
+    const newName = viewNameForPage(newSlug);
+    await handleRenameComponent(viewName, newName);
+    // After the view moved, not before: the route should point at a
+    // folder that exists by the time anything reads it.
+    await renameRouteFor?.(viewName, newName);
   };
 
   const requestConvertPageToView = (pageName: string): void => {

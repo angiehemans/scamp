@@ -15,6 +15,7 @@ const api = {
     // app lists and lightly edits them. see docs/notes/routes-in-the-app.md
     listRoutes: (args) => ipcRenderer.invoke(IPC.RoutesList, args),
     readRoute: (args) => ipcRenderer.invoke(IPC.RoutesRead, args),
+    renameRouteView: (args) => ipcRenderer.invoke(IPC.RoutesRenameView, args),
     setRouteRender: (args) => ipcRenderer.invoke(IPC.RoutesSetRender, args),
     writeRoute: (args) => ipcRenderer.invoke(IPC.RoutesWrite, args),
     /** `.dev.vars` keys only; the values never reach the renderer. */

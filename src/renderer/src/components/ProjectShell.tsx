@@ -224,6 +224,7 @@ export const ProjectShell = ({
     activePageName,
     setActivePageName,
     ensureRouteFor: routesApi.ensureRoute,
+    renameRouteFor: routesApi.renameRouteView,
     openComponent,
     persistActiveSource,
   });

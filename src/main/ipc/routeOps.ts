@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { join, relative, sep } from 'path';
 import type { DevVarsReadResult, RouteFile, RouteRender } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 
 /**
  * Reading and small edits to `routes/` in a Scamp-framework project.
@@ -55,6 +56,85 @@ export const parseRenderExport = (tsx: string): RouteRender | null => {
 export const parseViewImport = (tsx: string): string | null => {
   const match = /^import\s+(\w+)\s+from\s+['"]@\/views\/(\w+)\/\2['"]\s*;?\s*$/m.exec(tsx);
   return match?.[2] ?? null;
+};
+
+const escapeRe = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Point a route at a renamed view: its import, the tag it renders, and
+ * the route function's own name when it was named after the view.
+ *
+ * A rewrite rather than a regeneration. By the time a view is renamed
+ * the route may hold a real `load()`, a query, or anything else its
+ * author put there, and none of that is the app's to rewrite.
+ */
+export const renameRouteView = (
+  tsx: string,
+  oldName: string,
+  newName: string
+): string => {
+  const old = escapeRe(oldName);
+  return tsx
+    .replace(
+      new RegExp(`^import\\s+${old}\\s+from\\s+(['"])@/views/${old}/${old}\\1\\s*;?\\s*$`, 'm'),
+      `import ${newName} from '@/views/${newName}/${newName}';`
+    )
+    .replace(new RegExp(`<${old}(?=[\\s/>])`, 'g'), `<${newName}`)
+    .replace(new RegExp(`</${old}>`, 'g'), `</${newName}>`)
+    .replace(
+      new RegExp(`(export\\s+default\\s+function\\s+)${old}Route\\b`),
+      `$1${newName}Route`
+    );
+};
+
+/** `home` is the root route; every other slug is its own file. */
+export const routeFileForSlug = (slug: string): string =>
+  slug === 'home' ? 'index.tsx' : `${slug}.tsx`;
+
+/**
+ * Follow a view rename into the route that renders it: rewrite the
+ * references, and move the file when its name was the one the app
+ * would have given it. A route the developer put somewhere else —
+ * nested, or named for the URL rather than the view — keeps its place;
+ * only its references change, because the URL is their decision and
+ * the broken import is not.
+ *
+ * Returns the route's file after the rename, or null when no route
+ * renders that view.
+ */
+export const renameRouteForView = async (
+  projectPath: string,
+  oldView: string,
+  newView: string
+): Promise<string | null> => {
+  const routes = await listRoutes(projectPath);
+  const route = routes.find((r) => r.kind === 'page' && r.view === oldView);
+  if (!route) return null;
+
+  const source = await readRouteFile(projectPath, route.file);
+  const rewritten = renameRouteView(source, oldView, newView);
+
+  const generatedName = routeFileForSlug(viewSlugFor(oldView));
+  if (route.file !== generatedName) {
+    await fs.writeFile(routeFilePath(projectPath, route.file), rewritten, 'utf-8');
+    return route.file;
+  }
+  const target = routeFileForSlug(viewSlugFor(newView));
+  const targetPath = routeFilePath(projectPath, target);
+  if (target !== route.file) {
+    const taken = await fs
+      .access(targetPath)
+      .then(() => true)
+      .catch(() => false);
+    if (taken) {
+      throw new Error(
+        `routes/${target} already exists, so routes/${route.file} was left as it is.`
+      );
+    }
+  }
+  await fs.writeFile(targetPath, rewritten, 'utf-8');
+  if (target !== route.file) await fs.rm(routeFilePath(projectPath, route.file));
+  return target;
 };
 
 /**

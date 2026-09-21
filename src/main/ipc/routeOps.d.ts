@@ -7,6 +7,29 @@ export declare const parseRenderExport: (tsx: string) => RouteRender | null;
 /** The view a route imports from `views/<Name>/<Name>`, or null. */
 export declare const parseViewImport: (tsx: string) => string | null;
 /**
+ * Point a route at a renamed view: its import, the tag it renders, and
+ * the route function's own name when it was named after the view.
+ *
+ * A rewrite rather than a regeneration. By the time a view is renamed
+ * the route may hold a real `load()`, a query, or anything else its
+ * author put there, and none of that is the app's to rewrite.
+ */
+export declare const renameRouteView: (tsx: string, oldName: string, newName: string) => string;
+/** `home` is the root route; every other slug is its own file. */
+export declare const routeFileForSlug: (slug: string) => string;
+/**
+ * Follow a view rename into the route that renders it: rewrite the
+ * references, and move the file when its name was the one the app
+ * would have given it. A route the developer put somewhere else —
+ * nested, or named for the URL rather than the view — keeps its place;
+ * only its references change, because the URL is their decision and
+ * the broken import is not.
+ *
+ * Returns the route's file after the rename, or null when no route
+ * renders that view.
+ */
+export declare const renameRouteForView: (projectPath: string, oldView: string, newView: string) => Promise<string | null>;
+/**
  * Write a `render` export: replace the existing one, or add it after the
  * imports. `static` is the framework's default, but writing it keeps the
  * user's choice visible in the file.

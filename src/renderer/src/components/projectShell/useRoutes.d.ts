@@ -11,6 +11,8 @@ export type UseRoutes = {
      * route, because the user asked for a page and is looking at it.
      */
     ensureRoute: (viewName: string) => Promise<void>;
+    /** Follow a renamed view into the route that renders it. */
+    renameRouteView: (oldView: string, newView: string) => Promise<void>;
 };
 /**
  * The routes of a Scamp-framework project as the sidebar shows them:

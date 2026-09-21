@@ -800,6 +800,12 @@ export type RouteWriteArgs = {
     file: string;
     content: string;
 };
+/** Follow a renamed view into the route that renders it. */
+export type RouteRenameViewArgs = {
+    projectPath: string;
+    oldView: string;
+    newView: string;
+};
 export type DevVarsReadArgs = {
     projectPath: string;
 };

@@ -28,6 +28,16 @@ from the main process, since routes are not canvas state.
   nothing routes is a page nobody can open, and the Next.js format
   always wrote its wrapper. `ensureRoute` skips the write when a route
   already renders the view, and never fails the page creation.
+- **A renamed page's route.** Renaming a page renames its view folder,
+  which used to leave the route importing a folder that no longer
+  exists — a project that wouldn't build, and a page with no address.
+  `renameRouteForView` rewrites the route's import, the tag it renders,
+  and the route function's name, and moves the file when its name was
+  the one the app would have given it. A route the developer put
+  somewhere else — nested, or named for the URL — keeps its place and
+  gets only its references fixed, because the URL is their decision and
+  the broken import is not. It is a rewrite, never a regeneration: by
+  then the route may hold a real `load()`.
 - **A generated route.** `lib/generateRoute.ts` writes
   `routes/<slug>.tsx` for a view no route renders yet: `load()` returns
   the view's sample data, shaped by `collectViewProps`, and the

@@ -8,6 +8,8 @@ import {
   parseRenderExport,
   parseViewImport,
   readDevVarsKeys,
+  renameRouteForView,
+  renameRouteView,
   routePathFor,
   setRenderExport,
   setRouteRender,
@@ -101,6 +103,100 @@ describe('writes', () => {
     await expect(readDevVarsKeys(dir)).resolves.toEqual({ exists: false, keys: [] });
     await fs.writeFile(path.join(dir, '.dev.vars'), '# local\nDATABASE_URL=file:./dev.db\nexport TOKEN=abc\nBROKEN\n', 'utf-8');
     await expect(readDevVarsKeys(dir)).resolves.toEqual({ exists: true, keys: ['DATABASE_URL', 'TOKEN'] });
+  });
+});
+
+describe('renameRouteView', () => {
+  const ROUTE = `import Lobby from '@/views/Lobby/Lobby';
+import type { LoadContext } from 'scampjs';
+
+export const render = 'server';
+
+export async function load(ctx: LoadContext) {
+  // The author's own query, which a rename must not touch.
+  return { players: await ctx.env.DB.select('Lobby players') };
+}
+
+export default function LobbyRoute({ data }: { data: { players: string[] } }) {
+  return <Lobby players={data.players} />;
+}
+`;
+
+  it('points the import, the tag, and the route function at the new name', () => {
+    const out = renameRouteView(ROUTE, 'Lobby', 'Waiting');
+    expect(out).toContain("import Waiting from '@/views/Waiting/Waiting';");
+    expect(out).toContain('export default function WaitingRoute(');
+    expect(out).toContain('<Waiting players={data.players} />');
+    expect(out).not.toContain('Lobby/Lobby');
+  });
+
+  it("leaves the author's own code alone, strings included", () => {
+    const out = renameRouteView(ROUTE, 'Lobby', 'Waiting');
+    expect(out).toContain("ctx.env.DB.select('Lobby players')");
+    expect(out).toContain("export const render = 'server';");
+    expect(out).toContain('// The author’s own query'.replace('’', "'"));
+  });
+
+  it('rewrites a closing tag as well as a self-closing one', () => {
+    const paired = "import A from '@/views/A/A';\n\nexport default function ARoute() {\n  return <A>x</A>;\n}\n";
+    const out = renameRouteView(paired, 'A', 'B');
+    expect(out).toContain('<B>x</B>');
+  });
+
+  it('changes nothing when the route renders a different view', () => {
+    expect(renameRouteView(ROUTE, 'Other', 'Renamed')).toBe(ROUTE);
+  });
+});
+
+describe('renameRouteForView', () => {
+  let dir: string;
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'scamp-route-rename-'));
+    await fs.cp(FIXTURE, dir, { recursive: true });
+  });
+  afterEach(async () => {
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
+  it('moves the route the app named and points it at the new view', async () => {
+    await writeRouteFile(dir, 'about.tsx', "import About from '@/views/About/About';\n\nexport default function AboutRoute() {\n  return <About />;\n}\n");
+
+    const file = await renameRouteForView(dir, 'About', 'Contact');
+
+    expect(file).toBe('contact.tsx');
+    expect(await fs.readFile(path.join(dir, 'routes/contact.tsx'), 'utf-8')).toContain(
+      "import Contact from '@/views/Contact/Contact';"
+    );
+    await expect(fs.access(path.join(dir, 'routes/about.tsx'))).rejects.toThrow();
+  });
+
+  it('leaves a route the developer placed where it is, and only fixes its references', async () => {
+    await fs.mkdir(path.join(dir, 'routes', 'company'), { recursive: true });
+    await fs.writeFile(
+      path.join(dir, 'routes', 'company', 'story.tsx'),
+      "import About from '@/views/About/About';\n\nexport default function AboutRoute() {\n  return <About />;\n}\n",
+      'utf-8'
+    );
+
+    const file = await renameRouteForView(dir, 'About', 'Contact');
+
+    // The URL was their decision; the broken import was not.
+    expect(file).toBe('company/story.tsx');
+    expect(await fs.readFile(path.join(dir, 'routes/company/story.tsx'), 'utf-8')).toContain(
+      "import Contact from '@/views/Contact/Contact';"
+    );
+  });
+
+  it('reports nothing to do when no route renders the view', async () => {
+    await expect(renameRouteForView(dir, 'Nothing', 'Renamed')).resolves.toBeNull();
+  });
+
+  it('refuses rather than overwrite a route already at the new name', async () => {
+    await writeRouteFile(dir, 'about.tsx', "import About from '@/views/About/About';\n\nexport default function AboutRoute() {\n  return <About />;\n}\n");
+    await writeRouteFile(dir, 'contact.tsx', '// someone else got here first\n');
+
+    await expect(renameRouteForView(dir, 'About', 'Contact')).rejects.toThrow('already exists');
+    expect(await fs.readFile(path.join(dir, 'routes/contact.tsx'), 'utf-8')).toContain('someone else');
   });
 });
 

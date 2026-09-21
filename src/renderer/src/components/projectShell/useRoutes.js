@@ -101,5 +101,37 @@ export const useRoutes = (project) => {
             return;
         await writeRouteFor(viewName, { open: false, allowUnloaded: true });
     }, [enabled, routes, writeRouteFor]);
-    return { routes, busy, openRoute, setRender, generateRoute, ensureRoute };
+    const renameRouteView = useCallback(async (oldView, newView) => {
+        if (!enabled)
+            return;
+        try {
+            const file = await window.scamp.renameRouteView({
+                projectPath: project.path,
+                oldView,
+                newView,
+            });
+            if (file === null)
+                return;
+            await refresh();
+            useAppLogStore
+                .getState()
+                .log('info', `routes/${file} now renders ${newView}.`);
+        }
+        catch (err) {
+            // The view is already renamed; say what is left to fix rather
+            // than failing the rename the user asked for.
+            useAppLogStore
+                .getState()
+                .log('error', `The route for "${oldView}" could not follow the rename: ${errorMessage(err)}`);
+        }
+    }, [enabled, project.path, refresh]);
+    return {
+        routes,
+        busy,
+        openRoute,
+        setRender,
+        generateRoute,
+        ensureRoute,
+        renameRouteView,
+    };
 };

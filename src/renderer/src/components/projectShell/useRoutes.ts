@@ -19,6 +19,8 @@ export type UseRoutes = {
    * route, because the user asked for a page and is looking at it.
    */
   ensureRoute: (viewName: string) => Promise<void>;
+  /** Follow a renamed view into the route that renders it. */
+  renameRouteView: (oldView: string, newView: string) => Promise<void>;
 };
 
 /**
@@ -134,5 +136,41 @@ export const useRoutes = (project: ProjectData): UseRoutes => {
     [enabled, routes, writeRouteFor]
   );
 
-  return { routes, busy, openRoute, setRender, generateRoute, ensureRoute };
+  const renameRouteView = useCallback(
+    async (oldView: string, newView: string): Promise<void> => {
+      if (!enabled) return;
+      try {
+        const file = await window.scamp.renameRouteView({
+          projectPath: project.path,
+          oldView,
+          newView,
+        });
+        if (file === null) return;
+        await refresh();
+        useAppLogStore
+          .getState()
+          .log('info', `routes/${file} now renders ${newView}.`);
+      } catch (err) {
+        // The view is already renamed; say what is left to fix rather
+        // than failing the rename the user asked for.
+        useAppLogStore
+          .getState()
+          .log(
+            'error',
+            `The route for "${oldView}" could not follow the rename: ${errorMessage(err)}`
+          );
+      }
+    },
+    [enabled, project.path, refresh]
+  );
+
+  return {
+    routes,
+    busy,
+    openRoute,
+    setRender,
+    generateRoute,
+    ensureRoute,
+    renameRouteView,
+  };
 };

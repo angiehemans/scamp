@@ -58,6 +58,7 @@ export declare const IPC: {
     readonly RoutesRead: "routes:read";
     readonly RoutesSetRender: "routes:setRender";
     readonly RoutesWrite: "routes:write";
+    readonly RoutesRenameView: "routes:renameView";
     readonly DevVarsRead: "devVars:read";
     readonly DevVarsOpen: "devVars:open";
     /** main → renderer: a request or error line from `scamp dev --json`. */

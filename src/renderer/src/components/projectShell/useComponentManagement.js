@@ -18,7 +18,7 @@ import { armTargetSwapSuppression, disarmTargetSwapSuppression, flushPendingPage
  * suppression so the watcher doesn't fight the in-flight multi-file write.
  * see docs/notes/components-multi-file-ops.md
  */
-export const useComponentManagement = ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, ensureRouteFor, openComponent, persistActiveSource, }) => {
+export const useComponentManagement = ({ project, onProjectChange, activeComponent, setActiveComponentState, activePageName, setActivePageName, ensureRouteFor, renameRouteFor, openComponent, persistActiveSource, }) => {
     // Brief in-progress flag while `+ component` is creating a new
     // component on disk. Disables the add-button + name input.
     const [creatingComponent, setCreatingComponent] = useState(false);
@@ -331,7 +331,11 @@ export const useComponentManagement = ({ project, onProjectChange, activeCompone
         await ensureRouteFor?.(viewName);
     };
     const handleRenameView = async (viewName, newSlug) => {
-        await handleRenameComponent(viewName, viewNameForPage(newSlug));
+        const newName = viewNameForPage(newSlug);
+        await handleRenameComponent(viewName, newName);
+        // After the view moved, not before: the route should point at a
+        // folder that exists by the time anything reads it.
+        await renameRouteFor?.(viewName, newName);
     };
     const requestConvertPageToView = (pageName) => {
         setConvertPageError(null);

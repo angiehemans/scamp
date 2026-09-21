@@ -101,6 +101,7 @@ export const IPC = {
     RoutesRead: 'routes:read',
     RoutesSetRender: 'routes:setRender',
     RoutesWrite: 'routes:write',
+    RoutesRenameView: 'routes:renameView',
     DevVarsRead: 'devVars:read',
     DevVarsOpen: 'devVars:open',
     /** main → renderer: a request or error line from `scamp dev --json`. */
