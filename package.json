@@ -59,6 +59,8 @@
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
     "@playwright/test": "^1.62.1",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/culori": "^4.0.1",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.10.1",

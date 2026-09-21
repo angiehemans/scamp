@@ -182,6 +182,24 @@ it('parses border', () => {
 });
 ```
 
+### Hook tests
+
+A React hook whose *ordering* matters — not just its result — is tested
+directly with `@testing-library/react`, under jsdom via a
+`// @vitest-environment jsdom` pragma at the top of the file. There is
+one, `test/useComponentManagement.test.ts`, and the bar for adding
+another is high: e2e is still how UI behaviour is covered here.
+
+Reach for a hook test only when a race decides correctness and the
+end-to-end fixtures are too small to lose it. The case that earned the
+dependency: the Next.js → Scamp migration has to move the canvas off a
+page *before* replacing that page's files, and the migration specs pass
+either way because the fixture project settles too fast to collide.
+
+Write the assertion so it fails without the fix, and check that it
+does — a test that passes both ways is worse than none, because it
+reads like coverage.
+
 ### Integration Tests
 
 Integration tests live in `test/integration/` and are also run with Vitest. They test across module boundaries — things unit tests can't catch — without needing to launch the full Electron app.
