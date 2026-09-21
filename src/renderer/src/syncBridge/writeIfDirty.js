@@ -4,6 +4,7 @@
 import { generateCode } from '@lib/generateCode';
 import { reportShadowEdits } from './shadowEdits';
 import { cssWriteFor } from './cssWrite';
+import { tsxWriteFor } from './tsxWrite';
 import { parseCode } from '@lib/parseCode';
 import { useCanvasStore } from '@store/canvasSlice';
 import { useSaveStatusStore } from '@store/saveStatusSlice';
@@ -160,7 +161,14 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
         breakpoints: store.breakpoints,
         isComponent: target.kind === 'component',
     });
-    if (code.tsx === ctx.lastSerializedTsx && cssOut.css === ctx.lastSerializedCss) {
+    const tsxOut = tsxWriteFor({
+        baseTsx: ctx.lastSerializedTsx,
+        generatedTsx: code.tsx,
+        css: code.css,
+        breakpoints: store.breakpoints,
+        isComponent: target.kind === 'component',
+    });
+    if (tsxOut.tsx === ctx.lastSerializedTsx && cssOut.css === ctx.lastSerializedCss) {
         // No-op dedupe: the debounce fired but the generated code matches
         // what's already on disk. Advance the indicator out of "unsaved"
         // anyway so idle canvases don't get stuck showing pending work.
@@ -176,19 +184,19 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
     // whole file, check them, and measure them. No behaviour change.
     // see docs/plans/incremental-writes-plan.md, phase 1
     reportShadowEdits(target.name, [
-        { label: 'tsx', base: expectedTsx, next: code.tsx },
+        { label: 'tsx', base: expectedTsx, next: tsxOut.tsx },
         { label: 'css', base: expectedCss, next: cssOut.css },
     ]);
-    ctx.lastSerializedTsx = code.tsx;
+    ctx.lastSerializedTsx = tsxOut.tsx;
     ctx.lastSerializedCss = cssOut.css;
     // Mirror the just-written content into the store so the bottom code
     // panel reflects what's on disk without waiting for chokidar.
-    useCanvasStore.getState().setPageSource({ tsx: code.tsx, css: cssOut.css });
+    useCanvasStore.getState().setPageSource({ tsx: tsxOut.tsx, css: cssOut.css });
     dispatchPageWrite({
         kind: 'write',
         tsxPath: target.tsxPath,
         cssPath: target.cssPath,
-        tsxContent: code.tsx,
+        tsxContent: tsxOut.tsx,
         cssContent: cssOut.css,
         ...(expectedTsx !== null && expectedCss !== null
             ? {

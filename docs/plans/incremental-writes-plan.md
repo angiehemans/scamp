@@ -173,10 +173,45 @@ property, and an `@supports` block across a move, and leaves a
 hand-written stylesheet byte-identical when nothing about the rules
 changed.
 
-**3. TSX writes become edits.** Derive hunks from the generated-text
-diff, apply, verify by parsing. Done when the three change classes
-above each produce a minimal diff, and when a file with a comment
-between two elements keeps the comment across an unrelated change.
+**3. TSX writes become edits.** *Landed.* `lib/tsxRegions.ts` finds the
+regions the generator owns in a view file — the styles import, each
+component import, the props type, the component itself, the `_scamp`
+export — and produces the edits that make one file's owned regions say
+what another's do. Each replaced region is then narrowed with
+`diffText`, so a steady-state save stays line-sized rather than
+function-sized. `syncBridge/tsxWrite.ts` applies the result to the file
+on disk and verifies it parses to the same element map before offering
+it, falling back to the generated file otherwise. Same shape as phase 2.
+
+The plan as written here said to derive the hunks from the diff of the
+generated text alone. That turns out to buy nothing: applying a full
+text diff of disk against generated reproduces the generated file
+exactly, which is the write we already had. Anchoring to regions is
+what makes the difference, so phase 3 borrowed phase 2's approach
+instead.
+
+What a save destroyed before this, measured on a view Scamp had not
+written: a comment above the component, an extra import, a
+module-level constant, and an export beside the default one. All four
+now survive. A JSX comment inside the tree already survived, because
+`parseCode` carries it into the model and `generateCode` emits it back.
+
+The component function stays wholly owned: a hook call or a local
+variable inside it is still lost on the next save, which is what the
+framework contract says. Phase 5 is what would change that.
+
+Done: `test/e2e/save/tsx-region-writes.spec.ts` keeps all four across a
+move and writes nothing at all when the markup did not change.
+`test/tsxRegions.test.ts` pins region detection, import insertion and
+removal, and minimality.
+
+**Found on the way, not fixed here.** The store's `projectFormat`
+starts as `nextjs`, so the write that follows opening a *legacy*
+project can emit `./page.module.css` before format detection lands, and
+only the next save corrects it to `./<page>.module.css`. A user who
+opens a legacy project and quits without editing is left with a broken
+stylesheet import. Pre-existing and unrelated to this phase, but worth
+a fix of its own.
 
 **4. Merge instead of refuse.** Use the three-way merge on both files.
 A conflict is now only a real overlap. Done when an agent rewriting a
