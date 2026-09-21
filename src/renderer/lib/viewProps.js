@@ -1,4 +1,5 @@
 import { PASSTHROUGH_PROP } from './classNamePassthrough';
+import { attributeSample } from './element';
 /** HTML attributes whose presence is the value; bound, they type as boolean. */
 export const BOOLEAN_ATTRIBUTES = new Set([
     'disabled',
@@ -107,7 +108,7 @@ export const collectViewProps = (elements, rootId) => {
                 });
                 continue;
             }
-            const literal = isInstance ? el.propOverrides?.[attr] : el.attributes?.[attr];
+            const literal = isInstance ? el.propOverrides?.[attr] : attributeSample(el, attr);
             add(props, {
                 name,
                 kind: 'attribute',

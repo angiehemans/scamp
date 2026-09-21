@@ -38,6 +38,21 @@ export const resolveText = (el, scope) => {
         return '';
     return String(value);
 };
+/**
+ * A row-bound attribute's value for the current row; undefined when the
+ * attribute isn't bound to a row path, in which case the sample on the
+ * element is the value. `src` on a repeated `<img>` is the case that
+ * made this necessary. see docs/notes/view-bindings.md
+ */
+export const resolveAttr = (el, attr, scope) => {
+    const expr = el.bind?.[attr];
+    if (expr === undefined || !isRowPath(expr))
+        return undefined;
+    const value = resolveRef(expr, scope);
+    if (value === undefined || Array.isArray(value))
+        return '';
+    return String(value);
+};
 /** False only when the element has a show flag that resolves falsy. A flag with no sample shows. */
 export const isShown = (el, scope) => {
     if (el.showIf === undefined)

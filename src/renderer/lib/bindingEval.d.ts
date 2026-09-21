@@ -26,6 +26,13 @@ type Resolved = string | number | boolean | SampleRow[] | undefined;
 export declare const resolveRef: (ref: string, scope: BindingScope) => Resolved;
 /** A row-bound text element's text; undefined when the element isn't one. */
 export declare const resolveText: (el: ScampElement, scope: BindingScope) => string | undefined;
+/**
+ * A row-bound attribute's value for the current row; undefined when the
+ * attribute isn't bound to a row path, in which case the sample on the
+ * element is the value. `src` on a repeated `<img>` is the case that
+ * made this necessary. see docs/notes/view-bindings.md
+ */
+export declare const resolveAttr: (el: ScampElement, attr: string, scope: BindingScope) => string | undefined;
 /** False only when the element has a show flag that resolves falsy. A flag with no sample shows. */
 export declare const isShown: (el: ScampElement, scope: BindingScope) => boolean;
 /** The rows a repeated element renders for; empty when the sample is missing. */

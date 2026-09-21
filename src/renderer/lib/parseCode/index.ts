@@ -8,7 +8,7 @@ import {
   isInvertedBinding,
   isRowPath,
 } from '../viewProps';
-import { ELEMENT_STATES, ROOT_ELEMENT_ID, type BreakpointOverride, type ElementStateName, type KeyframesBlock, type ScampElement, type StateOverride } from "../element";
+import { ELEMENT_STATES, ROOT_ELEMENT_ID, hasTypedSrcAlt, withAttributeSample, type BreakpointOverride, type ElementStateName, type KeyframesBlock, type ScampElement, type StateOverride } from "../element";
 import { DEFAULT_RECT_STYLES } from '../defaults';
 import { composeMaps } from '../sourceMap';
 import { requireAt, requireGroup } from "../safeAccess";
@@ -554,6 +554,12 @@ export const parseCode = (
             [attr]: typeof sample === 'string' ? sample : '',
           },
         };
+        continue;
+      }
+      // An <img>'s src / alt sample belongs in the typed field, not
+      // the bag. see docs/notes/view-bindings.md
+      if (hasTypedSrcAlt(next) && (attr === 'src' || attr === 'alt')) {
+        next = withAttributeSample(next, attr, typeof sample === 'string' ? sample : '');
         continue;
       }
       const attributes = { ...(next.attributes ?? {}) };

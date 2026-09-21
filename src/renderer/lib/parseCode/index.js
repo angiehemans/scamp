@@ -1,7 +1,7 @@
 // parseCode/index.ts — split out of parseCode.ts (4.4).
 import { hoistBindingsWithMap, parsePropsDefaults } from './bindings';
 import { BOOLEAN_ATTRIBUTES, bindPropName, enclosingRepeat, isInvertedBinding, isRowPath, } from '../viewProps';
-import { ELEMENT_STATES, ROOT_ELEMENT_ID } from "../element";
+import { ELEMENT_STATES, ROOT_ELEMENT_ID, hasTypedSrcAlt, withAttributeSample } from "../element";
 import { DEFAULT_RECT_STYLES } from '../defaults';
 import { composeMaps } from '../sourceMap';
 import { requireAt, requireGroup } from "../safeAccess";
@@ -412,6 +412,12 @@ export const parseCode = (tsx, css, options) => {
                         [attr]: typeof sample === 'string' ? sample : '',
                     },
                 };
+                continue;
+            }
+            // An <img>'s src / alt sample belongs in the typed field, not
+            // the bag. see docs/notes/view-bindings.md
+            if (hasTypedSrcAlt(next) && (attr === 'src' || attr === 'alt')) {
+                next = withAttributeSample(next, attr, typeof sample === 'string' ? sample : '');
                 continue;
             }
             const attributes = { ...(next.attributes ?? {}) };

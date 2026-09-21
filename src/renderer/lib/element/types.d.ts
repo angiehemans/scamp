@@ -735,3 +735,14 @@ export type RawSelectorBlock = {
  * all pages so other code can rely on a known anchor.
  */
 export declare const ROOT_ELEMENT_ID = "root";
+/**
+ * True when this element keeps `src` / `alt` in the typed fields. Other
+ * image-family tags (video, iframe, svg) keep theirs in the bag: `alt`
+ * is invalid on them and `src` has tag-specific semantics. The tag is
+ * absent when it's the type's default, which for an image is `img`.
+ */
+export declare const hasTypedSrcAlt: (el: ScampElement) => boolean;
+/** Where this attribute's sample lives on this element, if it has one. */
+export declare const attributeSample: (el: ScampElement, attr: string) => string | undefined;
+/** The element with this attribute's sample set, wherever it belongs. */
+export declare const withAttributeSample: (el: ScampElement, attr: string, value: string) => ScampElement;

@@ -48,6 +48,14 @@ const text = (id: string, parentId: string, body: string, extra: Partial<ScampEl
   ...extra,
 });
 
+const image = (id: string, parentId: string, extra: Partial<ScampElement> = {}): ScampElement => ({
+  ...rect(id, parentId),
+  type: 'image',
+  src: '',
+  alt: '',
+  ...extra,
+});
+
 const root = (childIds: string[], extra: Partial<ScampElement> = {}): ScampElement => ({
   ...DEFAULT_ROOT_STYLES,
   id: ROOT_ELEMENT_ID,
@@ -244,6 +252,32 @@ describe('generateCode — binding forms', () => {
     expect(tsx).toContain('players?: Array<{ id: string; label: string }>;');
   });
 
+  it('emits a bound image src and alt as expressions, not as the sample literal', () => {
+    const elements = {
+      [ROOT_ELEMENT_ID]: root(['i']),
+      i: image('i', ROOT_ELEMENT_ID, {
+        src: 'https://example.com/sample.png',
+        alt: 'A sample',
+        bind: { src: 'photo', alt: 'caption' },
+      }),
+    };
+    const line = gen(elements).tsx.split('\n').find((l) => l.includes('<img'));
+    expect(line?.trim()).toBe(
+      '<img data-scamp-id="img_i" className={styles.img_i} src={photo} alt={caption} />'
+    );
+  });
+
+  it('quotes an empty alt rather than emitting it bare, which JSX reads as true', () => {
+    const elements = {
+      [ROOT_ELEMENT_ID]: root(['i']),
+      i: image('i', ROOT_ELEMENT_ID, { src: '/hero.png', alt: '' }),
+    };
+    const line = gen(elements).tsx.split('\n').find((l) => l.includes('<img'));
+    expect(line?.trim()).toBe(
+      '<img data-scamp-id="img_i" className={styles.img_i} src="/hero.png" alt="" />'
+    );
+  });
+
   it('writes a verbatim {expr} attribute back unquoted', () => {
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: root(['a']),
@@ -312,6 +346,38 @@ describe('round trip — one case per binding kind', () => {
       row: rect('row', ROOT_ELEMENT_ID, { repeat: { over: 'items', as: 'item', key: 'slug' } }),
     };
     expect(gen(elements).tsx).toContain('key={item.slug}');
+    expect(roundTrip(elements)).toEqual(elements);
+  });
+
+  it('an image src and alt bound to props', () => {
+    const elements = {
+      [ROOT_ELEMENT_ID]: root(['i']),
+      i: image('i', ROOT_ELEMENT_ID, {
+        src: 'https://example.com/sample.png',
+        alt: 'A sample',
+        bind: { src: 'photo', alt: 'caption' },
+      }),
+    };
+    expect(roundTrip(elements)).toEqual(elements);
+  });
+
+  it('an image src and alt bound to row fields inside a repeat', () => {
+    const rows = [
+      { id: '1', src: 'https://example.com/one.png', label: 'One' },
+      { id: '2', src: 'https://example.com/two.png', label: 'Two' },
+    ];
+    const elements = {
+      [ROOT_ELEMENT_ID]: root(['i'], { samples: { shots: rows } }),
+      // No `src` / `alt` of its own: a row-bound attribute's sample is
+      // the rows on the root, the same as row-bound text carries no
+      // `text`. see docs/notes/view-bindings.md
+      i: {
+        ...rect('i', ROOT_ELEMENT_ID),
+        type: 'image' as const,
+        bind: { src: 'shot.src', alt: 'shot.label' },
+        repeat: { over: 'shots', as: 'shot' },
+      },
+    };
     expect(roundTrip(elements)).toEqual(elements);
   });
 

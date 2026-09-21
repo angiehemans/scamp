@@ -10,11 +10,31 @@ side of it. see docs/plans/framework-phase-1-plan.md, step 3.
 | Kind | On the element | Sample lives | Emitted as |
 |---|---|---|---|
 | Text | `prop: 'code'` (a text element) | `el.text` | `{code}` |
-| Attribute | `bind: { href: 'url' }` | `el.attributes.href` (instances: `propOverrides.label`) | `href={url}` |
+| Attribute | `bind: { href: 'url' }` | `el.attributes.href` (instances: `propOverrides.label`; an `<img>`'s src/alt: `el.src` / `el.alt`) | `href={url}` |
 | Boolean attribute | `bind: { disabled: '!canStart' }` | presence of `el.attributes.disabled` | `disabled={!canStart}` |
 | Event | `on: { onClick: 'onStart' }` | none | `onClick={onStart}` |
 | Repeat | `repeat: { over: 'players', as: 'player', key? }` on the repeated element | `root.samples.players` (rows) | `{players.map((player) => (…))}` + `key={player.id}` |
 | Show | `showIf: 'waiting'` on the shown element | `root.samples.waiting` | `{waiting && (…)}` |
+
+### `src` and `alt` are the exception to "the sample is in the bag"
+
+A real `<img>` keeps `src` and `alt` in typed fields rather than in
+`attributes`, so every reader and writer of a bound attribute's sample
+has to ask where it lives. `hasTypedSrcAlt` / `attributeSample` /
+`withAttributeSample` in `lib/element/types.ts` are that question asked
+once; use them rather than reaching for `el.attributes[attr]` directly.
+Other image-family tags (video, iframe, svg) keep theirs in the bag —
+`alt` is invalid on them and `src` has tag-specific semantics.
+
+This is load-bearing because the parser has to decode the binding
+BEFORE lifting the value into the typed field. It used to do the
+opposite: `src` and `alt` went into `skipAttrs`, never reached
+`decodeBinding`, and `src={photo.src}` parsed to the literal string
+`"__scamp_bind__:photo.src"` — which the canvas rendered as a dead URL
+and the generator wrote back into the TSX, destroying the binding on
+the next save. The generator emitted the sample AND the binding, so the
+file also carried a duplicate `src` attribute. Round-trip cases for a
+prop-bound and a row-bound image live in `test/viewBindings.test.ts`.
 
 Inside a repeat, text and attribute bindings may be **row paths**
 (`prop: 'player.label'`, `bind: { url: 'player.url' }`); those are not
@@ -81,7 +101,10 @@ show flags and repeat rows on the root as `samples`.
 
 `lib/bindingEval.ts` resolves references against the root's samples and
 the current row: a row path reads the row, anything else reads the
-samples, `.length` works on rows, and `!` inverts. A flag with no
+samples, `.length` works on rows, and `!` inverts. `resolveAttr` does
+the same for a row-bound attribute, and returns undefined when the
+attribute is unbound or bound to a prop — in both of those cases the
+sample on the element is already the value. A flag with no
 sample reads as true (the props type's default), so `!flag` hides.
 
 Both render paths — `ElementRenderer` for pages, components, and views,
@@ -90,8 +113,11 @@ parent's children through `expandChildren`: a hidden child is dropped,
 a repeated child renders once per sample row with that row in scope,
 everything else inherits the row. A row-bound text resolves from the
 row and isn't an editable prop; a row-bound instance prop resolves
-into the instance's overrides. Attribute samples need no evaluation:
-the literal in `attributes` is the sample. Events render nothing.
+into the instance's overrides. A prop-bound attribute needs no
+evaluation — the literal sample on the element is the value — but a
+ROW-bound one does, through `resolveAttr`; `ElementRenderer` calls it
+for an `<img>`'s src and alt before falling back to the sample. Events
+render nothing.
 
 Copies of a repeated element beyond the first carry no
 `data-element-id` and no ref, so hit-testing, selection, and

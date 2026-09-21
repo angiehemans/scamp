@@ -13,6 +13,7 @@ import { type FlexDirection, type ScampElement, ROOT_ELEMENT_ID } from '@lib/ele
 import {
   childBindingKey,
   expandChildren,
+  resolveAttr,
   resolveInstanceOverrides,
   resolveText,
   type BindingScope,
@@ -209,7 +210,7 @@ const renderComponentSubtree = (
   // page renderer so component-defined images load correctly on
   // the canvas preview.
   if (element.type === 'image' && storedTag === 'img') {
-    let resolvedSrc = element.src ?? '';
+    let resolvedSrc = resolveAttr(element, 'src', scope) ?? element.src ?? '';
     if (projectPath && resolvedSrc.startsWith('./')) {
       const absPath = `${projectPath.replace(/\\/g, '/')}/${resolvedSrc.slice(2)}`;
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
@@ -222,7 +223,7 @@ const renderComponentSubtree = (
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
     }
     props['src'] = resolvedSrc;
-    props['alt'] = element.alt ?? '';
+    props['alt'] = resolveAttr(element, 'alt', scope) ?? element.alt ?? '';
   }
 
   if (VOID_TAGS.has(tag as string)) {
@@ -960,7 +961,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
     // at the URL root). In the Electron renderer neither resolves
     // against the project folder, so map both to the custom
     // `scamp-asset://` protocol registered in the main process.
-    let resolvedSrc = element.src ?? '';
+    let resolvedSrc = resolveAttr(element, 'src', scope) ?? element.src ?? '';
     if (projectPath && resolvedSrc.startsWith('./')) {
       const absPath = `${projectPath.replace(/\\/g, '/')}/${resolvedSrc.slice(2)}`;
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
@@ -974,7 +975,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
       resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
     }
     props['src'] = resolvedSrc;
-    props['alt'] = element.alt ?? '';
+    props['alt'] = resolveAttr(element, 'alt', scope) ?? element.alt ?? '';
   }
 
   // Void HTML elements (img, input, br, hr, etc.) cannot have children

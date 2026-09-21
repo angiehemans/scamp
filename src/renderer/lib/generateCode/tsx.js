@@ -50,6 +50,16 @@ const formatAttribute = (name, value) => {
     return `${name}="${escapeHtml(value)}"`;
 };
 /**
+ * A typed `src` / `alt` value. Unlike a bag entry, `""` is a real empty
+ * value here — `alt=""` is the correct markup for a decorative image,
+ * and emitting a bare `alt` would mean `alt={true}` in JSX, which React
+ * renders as the string "true". A verbatim `{expr}` the parser kept
+ * still goes out unquoted.
+ */
+const formatTypedValue = (name, value) => value.startsWith('{') && value.endsWith('}')
+    ? `${name}=${value}`
+    : `${name}="${escapeHtml(value)}"`;
+/**
  * The bound and event attributes of an element, in binding order:
  * `attr={prop}`, `attr={!prop}`, `attr={row.field}`, `onX={handler}`, and
  * inside a repeat `onX={() => handler?.(row.key)}`.
@@ -197,14 +207,19 @@ const renderElement = (el, elements, level, isComponent, repeatRow) => {
             ? rootClassNameAttribute(className)
             : `className={styles.${className}}`,
     ];
+    // A bound attribute's literal is its sample and is skipped here; the
+    // binding emits after the literals, the same as for the generic bag.
+    // Emitting both produced `src="…" src={photo}` — a duplicate JSX
+    // attribute. see docs/notes/view-bindings.md
+    const bound = el.bind ?? {};
     if (el.type === 'image' && tag === 'img') {
-        baseAttrs.push(`src="${escapeHtml(el.src ?? '')}"`);
-        baseAttrs.push(`alt="${escapeHtml(el.alt ?? '')}"`);
+        if (!('src' in bound))
+            baseAttrs.push(formatTypedValue('src', el.src ?? ''));
+        if (!('alt' in bound))
+            baseAttrs.push(formatTypedValue('alt', el.alt ?? ''));
     }
     // Generic attribute bag. Iteration order matches insertion order so
-    // round-trips stay text-stable. A bound attribute's literal is its
-    // sample and is skipped here; the binding emits after the literals.
-    const bound = el.bind ?? {};
+    // round-trips stay text-stable.
     if (el.attributes) {
         for (const [name, value] of Object.entries(el.attributes)) {
             if (name in bound)

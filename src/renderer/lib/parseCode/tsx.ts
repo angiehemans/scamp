@@ -678,12 +678,23 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
         // Collect every attribute not already typed-captured into the
         // generic bag (bindings split off). Preserves unknown attrs verbatim.
         const skipAttrs = new Set(['data-scamp-id', 'className', 'classname']);
-        if (typedImgSrcAlt) {
-          skipAttrs.add('src');
-          skipAttrs.add('alt');
-        }
         const elementBindings = readBindings(attribs, skipAttrs);
         const extraAttributes: Record<string, string> = elementBindings.literals;
+
+        // `src` / `alt` bind like any other attribute, so they go
+        // through readBindings FIRST and are lifted into the typed
+        // fields after — skipping the decode left the `__scamp_bind__`
+        // marker sitting in `src`, which the canvas rendered as a dead
+        // URL and the generator wrote back as a literal.
+        // see docs/notes/view-bindings.md
+        let typedSrc: string | null = null;
+        let typedAlt: string | null = null;
+        if (typedImgSrcAlt) {
+          typedSrc = extraAttributes['src'] ?? null;
+          typedAlt = extraAttributes['alt'] ?? null;
+          delete extraAttributes['src'];
+          delete extraAttributes['alt'];
+        }
 
         const el: RawElement = {
           id,
@@ -695,8 +706,8 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
           text: null,
           inlineFragments: [],
           name: parsedName,
-          src: typedImgSrcAlt ? (attribs['src'] ?? null) : null,
-          alt: typedImgSrcAlt ? (attribs['alt'] ?? null) : null,
+          src: typedSrc,
+          alt: typedAlt,
           attributes: extraAttributes,
           svgSource: null,
           selectOptions: null,

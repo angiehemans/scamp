@@ -2,7 +2,7 @@ import { jsxs as _jsxs, jsx as _jsx } from "react/jsx-runtime";
 import { createElement, useEffect, useMemo, useRef, cloneElement } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { ROOT_ELEMENT_ID } from '@lib/element';
-import { childBindingKey, expandChildren, resolveInstanceOverrides, resolveText, } from '@lib/bindingEval';
+import { childBindingKey, expandChildren, resolveAttr, resolveInstanceOverrides, resolveText, } from '@lib/bindingEval';
 import { classNameFor, tagFor } from '@lib/generateCode';
 import { instanceClassPrefix } from '@lib/generateHtml';
 import { CANVAS_SKIP_ATTRS_BY_TAG, canvasRenderTag, elementToStyle, } from '@lib/elementToStyle';
@@ -148,7 +148,7 @@ row = null) => {
     // page renderer so component-defined images load correctly on
     // the canvas preview.
     if (element.type === 'image' && storedTag === 'img') {
-        let resolvedSrc = element.src ?? '';
+        let resolvedSrc = resolveAttr(element, 'src', scope) ?? element.src ?? '';
         if (projectPath && resolvedSrc.startsWith('./')) {
             const absPath = `${projectPath.replace(/\\/g, '/')}/${resolvedSrc.slice(2)}`;
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
@@ -160,7 +160,7 @@ row = null) => {
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
         }
         props['src'] = resolvedSrc;
-        props['alt'] = element.alt ?? '';
+        props['alt'] = resolveAttr(element, 'alt', scope) ?? element.alt ?? '';
     }
     if (VOID_TAGS.has(tag)) {
         return createElement(tag, { ...props, key: element.id });
@@ -757,7 +757,7 @@ export const ElementRenderer = ({ elementId, row }) => {
         // at the URL root). In the Electron renderer neither resolves
         // against the project folder, so map both to the custom
         // `scamp-asset://` protocol registered in the main process.
-        let resolvedSrc = element.src ?? '';
+        let resolvedSrc = resolveAttr(element, 'src', scope) ?? element.src ?? '';
         if (projectPath && resolvedSrc.startsWith('./')) {
             const absPath = `${projectPath.replace(/\\/g, '/')}/${resolvedSrc.slice(2)}`;
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
@@ -770,7 +770,7 @@ export const ElementRenderer = ({ elementId, row }) => {
             resolvedSrc = `scamp-asset://localhost/${encodeURI(absPath.replace(/^\/+/, ''))}`;
         }
         props['src'] = resolvedSrc;
-        props['alt'] = element.alt ?? '';
+        props['alt'] = resolveAttr(element, 'alt', scope) ?? element.alt ?? '';
     }
     // Void HTML elements (img, input, br, hr, etc.) cannot have children
     // in React — even an empty array throws. Short-circuit for any void

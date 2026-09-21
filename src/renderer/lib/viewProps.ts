@@ -1,5 +1,5 @@
 import { PASSTHROUGH_PROP } from './classNamePassthrough';
-import type { SampleRow, SampleValue, ScampElement } from './element';
+import { attributeSample, type SampleRow, type SampleValue, type ScampElement } from './element';
 
 /**
  * The props type of a view or component, inferred from its elements'
@@ -143,7 +143,7 @@ export const collectViewProps = (
         });
         continue;
       }
-      const literal = isInstance ? el.propOverrides?.[attr] : el.attributes?.[attr];
+      const literal = isInstance ? el.propOverrides?.[attr] : attributeSample(el, attr);
       add(props, {
         name,
         kind: 'attribute',

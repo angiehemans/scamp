@@ -1,4 +1,4 @@
-import type { SampleRow, SampleValue, ScampElement } from './element';
+import { type SampleRow, type SampleValue, type ScampElement } from './element';
 /**
  * The props type of a view or component, inferred from its elements'
  * bindings and sample data. Pure. The generator writes the type and

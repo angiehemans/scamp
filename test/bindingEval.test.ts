@@ -5,6 +5,7 @@ import {
   childBindingKey,
   expandChildren,
   isShown,
+  resolveAttr,
   resolveInstanceOverrides,
   resolveRef,
   resolveText,
@@ -98,6 +99,38 @@ describe('resolveInstanceOverrides', () => {
       bind: { label: 'player.label', joined: 'joinedLabel' },
     });
     expect(resolveInstanceOverrides(inst, scope)).toEqual({ title: 'Pricing', label: 'Bea' });
+  });
+});
+
+describe('resolveAttr', () => {
+  it('resolves a row-bound image src and alt against the current row', () => {
+    const img = el('i', {
+      type: 'image',
+      src: '',
+      alt: '',
+      bind: { src: 'player.avatar', alt: 'player.label' },
+    });
+    const withAvatar: BindingScope = {
+      ...scope,
+      row: { as: 'player', data: { id: '2', label: 'Bea', avatar: '/a/bea.png' }, index: 1 },
+    };
+    expect(resolveAttr(img, 'src', withAvatar)).toBe('/a/bea.png');
+    expect(resolveAttr(img, 'alt', withAvatar)).toBe('Bea');
+  });
+
+  it('returns undefined for an unbound attribute, so the sample on the element wins', () => {
+    const img = el('i', { type: 'image', src: '/a/fallback.png', alt: 'Fallback' });
+    expect(resolveAttr(img, 'src', scope)).toBeUndefined();
+  });
+
+  it('returns undefined for a prop binding, whose sample is already on the element', () => {
+    const img = el('i', { type: 'image', src: '/a/sample.png', bind: { src: 'photo' } });
+    expect(resolveAttr(img, 'src', scope)).toBeUndefined();
+  });
+
+  it('resolves a row field the row does not carry to an empty string, not the marker', () => {
+    const img = el('i', { type: 'image', src: '', bind: { src: 'player.missing' } });
+    expect(resolveAttr(img, 'src', scope)).toBe('');
   });
 });
 
