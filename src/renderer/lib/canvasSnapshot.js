@@ -1,5 +1,6 @@
 import { viewSlugFor } from '@shared/templates';
 import { buildContextModel, } from './contextModel';
+import { lintView } from './viewLint';
 import { classNameFor, tagFor } from './generateCode';
 import { collectViewProps, propsTypeSource, viewEventNames, } from './viewProps';
 /**
@@ -188,6 +189,30 @@ export const listComponents = (input) => input.componentNames.map((name) => ({
  * shape, and the grouping would have to be guessed from name prefixes, which
  * breaks silently the first time a token is named unconventionally.
  */
+/**
+ * What a view lost on the way into the canvas. Answers the same names
+ * `scamp_get_view_props` takes, so an agent that just wrote a view can
+ * check it without first working out what Scamp calls the thing.
+ * see docs/notes/view-lint.md
+ */
+export const getViewCheck = (input, name) => {
+    const trees = input.trees ?? {};
+    const match = trees[name] !== undefined
+        ? name
+        : Object.keys(trees).find((candidate) => trees[candidate]?.kind === 'view' && viewSlugFor(candidate) === name);
+    const tree = match === undefined ? undefined : trees[match];
+    if (match === undefined || tree === undefined)
+        return null;
+    return {
+        name: match,
+        kind: tree.kind,
+        findings: lintView({
+            elements: tree.elements,
+            rootId: tree.rootId,
+            themeTokens: input.themeTokens.map((token) => token.name),
+        }),
+    };
+};
 export const getThemeTokens = (input) => ({
     tokens: input.themeTokens.map(({ name, value }) => ({ name, value })),
     themes: input.themes.map(({ id, label }) => ({ id, label })),
@@ -224,6 +249,8 @@ export const answerSnapshotTool = (tool, args, input) => {
             return getThemeTokens(input);
         case 'scamp_get_view_props':
             return getViewProps(input, String(args['name'] ?? ''));
+        case 'scamp_check_view':
+            return getViewCheck(input, String(args['name'] ?? ''));
         case 'scamp_get_recent_edits':
             return getRecentEdits(input, Number(args['since'] ?? 0));
         default:

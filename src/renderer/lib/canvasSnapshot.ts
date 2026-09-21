@@ -8,6 +8,7 @@ import {
 } from './contextModel';
 import type { SampleValue, ScampElement } from './element';
 import type { PatchEntry } from './patchLog';
+import { lintView, type ViewFinding } from './viewLint';
 import { classNameFor, tagFor } from './generateCode';
 import {
   collectViewProps,
@@ -78,6 +79,13 @@ export type ViewPropsResult = {
   events: string[];
   /** The sample data the design renders with, per prop. */
   samples: Record<string, SampleValue>;
+} | null;
+
+export type ViewCheckResult = {
+  name: string;
+  kind: 'component' | 'view';
+  /** Findings in document order; empty when the view arrived intact. */
+  findings: ViewFinding[];
 } | null;
 
 export type ActiveTargetResult = {
@@ -355,6 +363,34 @@ export const listComponents = (input: SnapshotInput): FileListItem[] =>
  * shape, and the grouping would have to be guessed from name prefixes, which
  * breaks silently the first time a token is named unconventionally.
  */
+/**
+ * What a view lost on the way into the canvas. Answers the same names
+ * `scamp_get_view_props` takes, so an agent that just wrote a view can
+ * check it without first working out what Scamp calls the thing.
+ * see docs/notes/view-lint.md
+ */
+export const getViewCheck = (input: SnapshotInput, name: string): ViewCheckResult => {
+  const trees = input.trees ?? {};
+  const match =
+    trees[name] !== undefined
+      ? name
+      : Object.keys(trees).find(
+          (candidate) =>
+            trees[candidate]?.kind === 'view' && viewSlugFor(candidate) === name
+        );
+  const tree = match === undefined ? undefined : trees[match];
+  if (match === undefined || tree === undefined) return null;
+  return {
+    name: match,
+    kind: tree.kind,
+    findings: lintView({
+      elements: tree.elements,
+      rootId: tree.rootId,
+      themeTokens: input.themeTokens.map((token) => token.name),
+    }),
+  };
+};
+
 export const getThemeTokens = (input: SnapshotInput): ThemeTokensResult => ({
   tokens: input.themeTokens.map(({ name, value }) => ({ name, value })),
   themes: input.themes.map(({ id, label }) => ({ id, label })),
@@ -396,6 +432,8 @@ export const answerSnapshotTool = (
       return getThemeTokens(input);
     case 'scamp_get_view_props':
       return getViewProps(input, String(args['name'] ?? ''));
+    case 'scamp_check_view':
+      return getViewCheck(input, String(args['name'] ?? ''));
     case 'scamp_get_recent_edits':
       return getRecentEdits(input, Number(args['since'] ?? 0));
     default:

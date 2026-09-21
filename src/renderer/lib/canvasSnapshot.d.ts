@@ -2,6 +2,7 @@ import type { ProjectFormat, ThemeDef, ThemeToken } from '@shared/types';
 import { type ContextTarget } from './contextModel';
 import type { SampleValue, ScampElement } from './element';
 import type { PatchEntry } from './patchLog';
+import { type ViewFinding } from './viewLint';
 import { type ViewPropKind } from './viewProps';
 /**
  * The canvas, in the shapes the MCP tools return.
@@ -62,6 +63,12 @@ export type ViewPropsResult = {
     events: string[];
     /** The sample data the design renders with, per prop. */
     samples: Record<string, SampleValue>;
+} | null;
+export type ViewCheckResult = {
+    name: string;
+    kind: 'component' | 'view';
+    /** Findings in document order; empty when the view arrived intact. */
+    findings: ViewFinding[];
 } | null;
 export type ActiveTargetResult = {
     kind: 'page' | 'component' | 'view';
@@ -195,6 +202,13 @@ export declare const listComponents: (input: SnapshotInput) => FileListItem[];
  * shape, and the grouping would have to be guessed from name prefixes, which
  * breaks silently the first time a token is named unconventionally.
  */
+/**
+ * What a view lost on the way into the canvas. Answers the same names
+ * `scamp_get_view_props` takes, so an agent that just wrote a view can
+ * check it without first working out what Scamp calls the thing.
+ * see docs/notes/view-lint.md
+ */
+export declare const getViewCheck: (input: SnapshotInput, name: string) => ViewCheckResult;
 export declare const getThemeTokens: (input: SnapshotInput) => ThemeTokensResult;
 /**
  * Map an MCP tool name onto its snapshot function.

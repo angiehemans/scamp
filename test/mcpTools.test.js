@@ -19,6 +19,7 @@ describe('TOOL_DESCRIPTORS', () => {
             'scamp_list_components',
             'scamp_get_component_scaffold',
             'scamp_get_view_props',
+            'scamp_check_view',
             'scamp_list_routes',
             'scamp_get_recent_edits',
             'scamp_get_theme_tokens',
@@ -36,19 +37,24 @@ describe('TOOL_DESCRIPTORS', () => {
             expect(tool.description.length).toBeGreaterThan(40);
         }
     });
-    it('requires an id on get_element_by_id, a name on get_component_scaffold and get_view_props, and nothing else', () => {
+    it('requires an id on get_element_by_id, a name on the three name-taking tools, and nothing else', () => {
         const byId = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_element_by_id');
         expect(byId?.inputSchema['required']).toEqual(['id']);
         const scaffold = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_component_scaffold');
         expect(scaffold?.inputSchema['required']).toEqual(['name']);
         const viewProps = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_view_props');
         expect(viewProps?.inputSchema['required']).toEqual(['name']);
+        const check = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_check_view');
+        expect(check?.inputSchema['required']).toEqual(['name']);
+        const takesName = new Set([
+            'scamp_get_component_scaffold',
+            'scamp_get_view_props',
+            'scamp_check_view',
+        ]);
         for (const tool of TOOL_DESCRIPTORS) {
             if (tool.name === 'scamp_get_element_by_id')
                 continue;
-            if (tool.name === 'scamp_get_component_scaffold')
-                continue;
-            if (tool.name === 'scamp_get_view_props')
+            if (takesName.has(tool.name))
                 continue;
             expect(tool.inputSchema['required']).toBeUndefined();
         }

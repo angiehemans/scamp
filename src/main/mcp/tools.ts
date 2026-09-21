@@ -117,6 +117,22 @@ export const TOOL_DESCRIPTORS: ToolDescriptor[] = [
     },
   },
   {
+    name: 'scamp_check_view',
+    description:
+      'What a view or component LOST on the way into Scamp: bindings kept as opaque text, declarations that render but leave the panel controls blank, tokens theme.css does not declare, loose text that is not an editable element, sample rows that disagree. Call this after writing or editing a view — a file can parse perfectly and still arrive degraded, and scamp_get_element_tree reports structure, so it looks correct in every one of those cases. An empty `findings` list means the view arrived intact. Takes the same names as scamp_get_view_props.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The view or component name, e.g. "Lobby", or a view page\u2019s route slug, e.g. "lobby".',
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'scamp_list_routes',
     description:
       'Every file under routes/ in a Scamp-framework project: page routes with their URL pattern, render mode, and the view they render, and API routes (routes/api/**) with their URL. Call this before writing or editing a route, or to find which route renders a view; then read the file. Empty for a Next.js or legacy project.',
@@ -164,7 +180,7 @@ const format = (
   args: Record<string, unknown>
 ): ToolResult => {
   if (data === null || data === undefined) {
-    if (tool === 'scamp_get_view_props') {
+    if (tool === 'scamp_get_view_props' || tool === 'scamp_check_view') {
       return textResult(
         `No view or component named "${String(args['name'] ?? '')}" exists. Call scamp_list_pages (the \`view\` field) or scamp_list_components for the names.`
       );
@@ -238,11 +254,11 @@ export const createToolInvoker = (
       }
     }
 
-    if (name === 'scamp_get_view_props') {
+    if (name === 'scamp_get_view_props' || name === 'scamp_check_view') {
       const viewName = args['name'];
       if (typeof viewName !== 'string' || viewName.length === 0) {
         return errorResult(
-          'scamp_get_view_props requires a non-empty string "name" argument — a view or component name such as "Lobby".'
+          `${name} requires a non-empty string "name" argument — a view or component name such as "Lobby".`
         );
       }
     }

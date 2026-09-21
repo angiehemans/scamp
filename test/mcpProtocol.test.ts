@@ -76,7 +76,10 @@ describe('initialize', () => {
     expect(SERVER_INSTRUCTIONS).toContain('components/<Name>/<Name>.tsx');
     expect(SERVER_INSTRUCTIONS).toContain('scamp_get_component_scaffold');
     expect(SERVER_INSTRUCTIONS).toContain('agent.md');
-    expect(SERVER_INSTRUCTIONS).toMatch(/next build/);
+    // Verifying work means asking Scamp what it actually parsed, not
+    // running a build. see docs/notes/view-lint.md
+    expect(SERVER_INSTRUCTIONS).toMatch(/Do not run a build/);
+    expect(SERVER_INSTRUCTIONS).toContain('scamp_check_view');
   });
 
   it('identifies the server as scamp so a misdirected client can tell', async () => {

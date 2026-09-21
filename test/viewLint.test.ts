@@ -1,0 +1,315 @@
+import { describe, it, expect } from 'vitest';
+
+import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from '@lib/defaults';
+import { ROOT_ELEMENT_ID, type ScampElement } from '@lib/element';
+import { BIND_MARK } from '@lib/parseCode/bindings';
+import { lintView, type ViewFinding, type ViewFindingKind } from '@lib/viewLint';
+
+/**
+ * The degradations a view can arrive with that leave the element tree
+ * looking correct. Each rule gets a case that fires and a case that
+ * stays quiet, because a linter that cries wolf is worse than none.
+ * see docs/notes/view-lint.md
+ */
+
+const TOKENS = ['--color-ink', '--space-4', '--text-lg'];
+
+const rect = (id: string, extra: Partial<ScampElement> = {}): ScampElement => ({
+  ...DEFAULT_RECT_STYLES,
+  id,
+  type: 'rectangle',
+  parentId: ROOT_ELEMENT_ID,
+  childIds: [],
+  x: 0,
+  y: 0,
+  widthMode: 'auto',
+  heightMode: 'auto',
+  customProperties: {},
+  inlineFragments: [],
+  name: 'box',
+  ...extra,
+});
+
+/** A one-child view. The child is what each case is about. */
+const view = (child: ScampElement, rootExtra: Partial<ScampElement> = {}): Record<string, ScampElement> => ({
+  [ROOT_ELEMENT_ID]: {
+    ...DEFAULT_ROOT_STYLES,
+    id: ROOT_ELEMENT_ID,
+    type: 'rectangle',
+    parentId: null,
+    childIds: [child.id],
+    x: 0,
+    y: 0,
+    customProperties: {},
+    inlineFragments: [],
+    minHeight: undefined,
+    ...rootExtra,
+  },
+  [child.id]: child,
+});
+
+const lint = (elements: Record<string, ScampElement>): ViewFinding[] =>
+  lintView({ elements, rootId: ROOT_ELEMENT_ID, themeTokens: TOKENS });
+
+const kinds = (elements: Record<string, ScampElement>): ViewFindingKind[] =>
+  lint(elements).map((f) => f.kind);
+
+describe('lintView — a clean view', () => {
+  it('reports nothing for a view whose every value is typed and declared', () => {
+    const elements = view(
+      rect('a1b2', {
+        backgroundColor: 'var(--color-ink)',
+        customProperties: { 'text-transform': 'uppercase', 'object-fit': 'cover' },
+      })
+    );
+    expect(lint(elements)).toEqual([]);
+  });
+
+  it('stays quiet about properties Scamp has no control for at all', () => {
+    // `aspect-ratio` and `overflow` have no typed field, so landing in
+    // customProperties is correct rather than a degradation.
+    const elements = view(
+      rect('a1b2', { customProperties: { 'aspect-ratio': '4 / 5', overflow: 'hidden' } })
+    );
+    expect(lint(elements)).toEqual([]);
+  });
+});
+
+describe('lintView — marker-leaked', () => {
+  it('flags a typed field still holding the internal binding marker', () => {
+    const elements = view(
+      rect('a1b2', { type: 'image', src: `${BIND_MARK}product.image`, alt: `${BIND_MARK}product.name` })
+    );
+    const found = lint(elements);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.kind).toBe('marker-leaked');
+    expect(found[0]?.message).toContain('`src`, `alt`');
+    expect(found[0]?.className).toBe('box_a1b2');
+  });
+
+  it('ignores a src that merely resembles the marker text', () => {
+    const elements = view(rect('a1b2', { type: 'image', src: '/scamp_bind/hero.png', alt: '' }));
+    expect(kinds(elements)).toEqual([]);
+  });
+});
+
+describe('lintView — not-panel-editable', () => {
+  it('flags a value a typed control cannot read, naming the property', () => {
+    const elements = view(
+      rect('a1b2', { customProperties: { filter: 'grayscale(100%) contrast(1.1)' } })
+    );
+    const found = lint(elements);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.kind).toBe('not-panel-editable');
+    expect(found[0]?.message).toContain('`filter: grayscale(100%) contrast(1.1)`');
+  });
+
+  it('says nothing when the same property parsed into its typed field', () => {
+    const elements = view(rect('a1b2', { filters: [{ kind: 'grayscale', value: 100 }] }));
+    expect(kinds(elements)).toEqual([]);
+  });
+});
+
+describe('lintView — side-not-typed', () => {
+  it('names the shorthand Scamp types for each per-side longhand', () => {
+    const elements = view(
+      rect('a1b2', {
+        customProperties: {
+          'border-bottom': '1px solid var(--color-ink)',
+          'padding-bottom': 'var(--space-4)',
+        },
+      })
+    );
+    const found = lint(elements);
+    expect(found.map((f) => f.kind)).toEqual(['side-not-typed', 'side-not-typed']);
+    expect(found[0]?.message).toContain('Scamp types `border`');
+    expect(found[1]?.message).toContain('Scamp types `padding`');
+  });
+
+  it('prefers the side message over the generic one for a mapped longhand', () => {
+    // `border-width` IS mapped, but `border-top-width` is a side of it —
+    // the useful thing to say is which shorthand to write.
+    const elements = view(rect('a1b2', { customProperties: { 'border-top-width': '2px' } }));
+    expect(kinds(elements)).toEqual(['side-not-typed']);
+  });
+});
+
+describe('lintView — undeclared-token', () => {
+  it('flags a token theme.css does not declare, wherever it sits', () => {
+    const elements = view(
+      rect('a1b2', {
+        color: 'var(--color-ghost)',
+        // An unmapped property, so this case is only about the token.
+        customProperties: { outline: '1px solid var(--shadow-ring)' },
+      })
+    );
+    const found = lint(elements);
+    expect(found.map((f) => f.kind)).toEqual(['undeclared-token', 'undeclared-token']);
+    expect(found[0]?.message).toContain('var(--color-ghost)');
+    expect(found[1]?.message).toContain('var(--shadow-ring)');
+  });
+
+  it('accepts a declared token and reports each undeclared one once', () => {
+    const elements = view(
+      rect('a1b2', {
+        color: 'var(--color-ink)',
+        customProperties: { outline: 'var(--missing) solid var(--missing)' },
+      })
+    );
+    const found = lint(elements);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.kind).toBe('undeclared-token');
+  });
+
+  it('reads a token reference out of a spacing field', () => {
+    const elements = view(rect('a1b2', { gap: { kind: 'token', ref: 'var(--space-gone)' } as never }));
+    expect(kinds(elements)).toEqual(['undeclared-token']);
+  });
+});
+
+describe('lintView — binding-not-parsed', () => {
+  it('flags an attribute kept as a verbatim expression', () => {
+    const elements = view(rect('a1b2', { tag: 'a', attributes: { href: '{route(item)}' } }));
+    const found = lint(elements);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.kind).toBe('binding-not-parsed');
+    expect(found[0]?.message).toContain('href={route(item)}');
+  });
+
+  it('leaves a real binding and a plain literal alone', () => {
+    const elements = view(
+      rect('a1b2', { tag: 'a', attributes: { href: '/about', target: '_blank' }, bind: { href: 'url' } }),
+      { samples: { url: '/about' } }
+    );
+    expect(kinds(elements)).toEqual([]);
+  });
+});
+
+describe('lintView — missing-sample', () => {
+  it('flags a bound prop with neither a sample nor a literal', () => {
+    const elements = view(rect('a1b2', { type: 'image', src: '', bind: { src: 'photo' } }));
+    const found = lint(elements);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.kind).toBe('missing-sample');
+    expect(found[0]?.hint).toContain('`photo`');
+  });
+
+  it('accepts the sample in the typed field of an image', () => {
+    const elements = view(rect('a1b2', { type: 'image', src: '/sample.png', bind: { src: 'photo' } }));
+    expect(kinds(elements)).toEqual([]);
+  });
+
+  it('ignores a row path, whose sample is the rows on the root', () => {
+    const elements = view(
+      rect('a1b2', { type: 'image', bind: { src: 'shot.src' }, repeat: { over: 'shots', as: 'shot' } }),
+      { samples: { shots: [{ id: '1', src: '/a.png' }] } }
+    );
+    expect(kinds(elements)).toEqual([]);
+  });
+});
+
+describe('lintView — raw-text-fragment', () => {
+  it('flags loose words sitting directly in a container', () => {
+    const elements = view(
+      rect('a1b2', { inlineFragments: [{ kind: 'text', value: 'Sale ends Friday' }] as never })
+    );
+    const found = lint(elements);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.kind).toBe('raw-text-fragment');
+    expect(found[0]?.message).toContain('1 run of text');
+  });
+
+  it('ignores whitespace-only fragments and text elements', () => {
+    const whitespace = view(
+      rect('a1b2', { inlineFragments: [{ kind: 'text', value: '\n  ' }] as never })
+    );
+    expect(kinds(whitespace)).toEqual([]);
+
+    const textEl = view(
+      rect('a1b2', {
+        type: 'text',
+        text: 'Hello',
+        inlineFragments: [{ kind: 'text', value: 'Hello' }] as never,
+      })
+    );
+    expect(kinds(textEl)).toEqual([]);
+  });
+});
+
+describe('lintView — repeat-rows-differ', () => {
+  it('flags sample rows that disagree on their fields', () => {
+    const elements = view(
+      rect('a1b2', { repeat: { over: 'rows', as: 'row' } }),
+      { samples: { rows: [{ id: '1', label: 'A' }, { id: '2' }] } }
+    );
+    expect(kinds(elements)).toEqual(['repeat-rows-differ']);
+  });
+
+  it('accepts rows with matching fields, and a single row', () => {
+    const matching = view(
+      rect('a1b2', { repeat: { over: 'rows', as: 'row' } }),
+      { samples: { rows: [{ id: '1', label: 'A' }, { id: '2', label: 'B' }] } }
+    );
+    expect(kinds(matching)).toEqual([]);
+
+    const single = view(
+      rect('a1b2', { repeat: { over: 'rows', as: 'row' } }),
+      { samples: { rows: [{ id: '1', label: 'A' }] } }
+    );
+    expect(kinds(single)).toEqual([]);
+  });
+
+  it('says nothing when the repeat has no sample rows at all', () => {
+    const elements = view(rect('a1b2', { repeat: { over: 'rows', as: 'row' } }));
+    expect(kinds(elements)).toEqual([]);
+  });
+});
+
+describe('lintView — reporting', () => {
+  it('returns findings in document order, not element-map order', () => {
+    const first = rect('aaaa', { customProperties: { 'border-top': '1px solid red' } });
+    const second = rect('bbbb', { customProperties: { 'border-bottom': '1px solid red' } });
+    const elements: Record<string, ScampElement> = {
+      // Deliberately inserted child-last so map order differs from tree order.
+      [second.id]: second,
+      [first.id]: first,
+      [ROOT_ELEMENT_ID]: {
+        ...DEFAULT_ROOT_STYLES,
+        id: ROOT_ELEMENT_ID,
+        type: 'rectangle',
+        parentId: null,
+        childIds: ['aaaa', 'bbbb'],
+        x: 0,
+        y: 0,
+        customProperties: {},
+        inlineFragments: [],
+        minHeight: undefined,
+      },
+    };
+    expect(lint(elements).map((f) => f.elementId)).toEqual(['aaaa', 'bbbb']);
+  });
+
+  it('survives a childIds entry with no element behind it', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: {
+        ...DEFAULT_ROOT_STYLES,
+        id: ROOT_ELEMENT_ID,
+        type: 'rectangle',
+        parentId: null,
+        childIds: ['gone'],
+        x: 0,
+        y: 0,
+        customProperties: {},
+        inlineFragments: [],
+        minHeight: undefined,
+      },
+    };
+    expect(lint(elements)).toEqual([]);
+  });
+
+  it('reports an empty theme as every token being undeclared', () => {
+    const elements = view(rect('a1b2', { color: 'var(--color-ink)' }));
+    const found = lintView({ elements, rootId: ROOT_ELEMENT_ID, themeTokens: [] });
+    expect(found.map((f) => f.kind)).toEqual(['undeclared-token']);
+  });
+});
