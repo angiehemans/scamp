@@ -49,7 +49,7 @@ import { useSvgAssetReload } from './projectShell/useSvgAssetReload';
 import { useSnapshotAutoSave } from './projectShell/useSnapshotAutoSave';
 import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import { useRoutes } from './projectShell/useRoutes';
-import { RoutesSection } from './projectShell/RoutesSection';
+import { allUnroutedViews, RoutesSection } from './projectShell/RoutesSection';
 import { useAppLogStore } from '@store/appLogSlice';
 import { useHtmlExport } from './projectShell/useHtmlExport';
 import {
@@ -572,6 +572,26 @@ export const ProjectShell = ({
             config={projectConfig}
             onChange={handleProjectConfigChange}
             onBack={() => setShowProjectSettings(false)}
+            routes={
+              project.format === 'scamp'
+                ? {
+                    routes: routesApi.routes,
+                    unrouted: allUnroutedViews(
+                      routesApi.routes,
+                      project.components.filter((c) => componentKindOf(c) === 'view')
+                    ),
+                    busy: routesApi.busy,
+                    onOpen: (file) => {
+                      // The code panel lives in the editor, so leave
+                      // settings on the way there.
+                      setShowProjectSettings(false);
+                      void routesApi.openRoute(file);
+                    },
+                    onSetRender: (file, render) => void routesApi.setRender(file, render),
+                    onGenerate: (name) => void routesApi.generateRoute(name),
+                  }
+                : undefined
+            }
             environment={
               project.format === 'scamp'
                 ? {

@@ -37,6 +37,73 @@ const RENDER_HELP: Record<RouteRender, string> = {
  * belongs to a project view, not to this one.
  * see docs/notes/routes-in-the-app.md
  */
+type RouteListProps = {
+  /** Already scoped by the caller: the sidebar filters, settings does not. */
+  routes: ReadonlyArray<RouteFile>;
+  /** Views with no page route, offered a Generate action. */
+  unrouted: ReadonlyArray<ComponentFile>;
+  busy: boolean;
+  onOpen: (file: string) => void;
+  onSetRender: (file: string, render: RouteRender) => void;
+  onGenerate: (viewName: string) => void;
+};
+
+/**
+ * The rows: a route's path with its render mode under it, and a
+ * Generate action per view nothing renders. Shared by the sidebar
+ * section and the project settings page so the two can't drift.
+ */
+export const RouteList = ({
+  routes,
+  unrouted,
+  busy,
+  onOpen,
+  onSetRender,
+  onGenerate,
+}: RouteListProps): JSX.Element => (
+  <ul className={styles.list}>
+    {routes.map((route) => (
+      <li key={route.file} className={styles.routeRow} data-testid={`route-${route.file}`}>
+        <Tooltip label={`routes/${route.file} — open in the code panel`}>
+          <button type="button" className={styles.routeButton} onClick={() => onOpen(route.file)}>
+            {route.path}
+            <span className={styles.routeKind}>{route.kind === 'api' ? 'api' : (route.view ?? '')}</span>
+          </button>
+        </Tooltip>
+        {route.kind === 'page' && (
+          <div className={styles.render} role="group" aria-label={`Render mode for ${route.path}`}>
+            {RENDER_MODES.map((mode) => (
+              <Tooltip key={mode} label={RENDER_HELP[mode]}>
+                <button
+                  type="button"
+                  className={styles.renderOption}
+                  aria-pressed={route.render === mode}
+                  disabled={busy}
+                  onClick={() => {
+                    if (route.render !== mode) onSetRender(route.file, mode);
+                  }}
+                >
+                  {mode}
+                </button>
+              </Tooltip>
+            ))}
+          </div>
+        )}
+      </li>
+    ))}
+    {unrouted.map((view) => (
+      <li key={`gen:${view.name}`} className={styles.generate} data-testid={`generate-${view.name}`}>
+        <span>/{viewSlugFor(view.name) === 'home' ? '' : viewSlugFor(view.name)}</span>
+        <Tooltip label={`Write routes/${viewSlugFor(view.name) === 'home' ? 'index' : viewSlugFor(view.name)}.tsx with a load() that returns this view's sample data`}>
+          <button type="button" className={styles.generateButton} disabled={busy} onClick={() => onGenerate(view.name)}>
+            Generate route
+          </button>
+        </Tooltip>
+      </li>
+    ))}
+  </ul>
+);
+
 export const RoutesSection = ({
   routes,
   views,
@@ -63,48 +130,24 @@ export const RoutesSection = ({
         {activeViewName !== null && pageRoutes.length === 0 && unrouted.length === 0 && (
           <p className={styles.empty}>No route renders this page yet.</p>
         )}
-        <ul className={styles.list}>
-          {pageRoutes.map((route) => (
-            <li key={route.file} className={styles.routeRow} data-testid={`route-${route.file}`}>
-              <Tooltip label={`routes/${route.file} — open in the code panel`}>
-                <button type="button" className={styles.routeButton} onClick={() => onOpen(route.file)}>
-                  {route.path}
-                  <span className={styles.routeKind}>{route.kind === 'api' ? 'api' : (route.view ?? '')}</span>
-                </button>
-              </Tooltip>
-              {route.kind === 'page' && (
-                <div className={styles.render} role="group" aria-label={`Render mode for ${route.path}`}>
-                  {RENDER_MODES.map((mode) => (
-                    <Tooltip key={mode} label={RENDER_HELP[mode]}>
-                      <button
-                        type="button"
-                        className={styles.renderOption}
-                        aria-pressed={route.render === mode}
-                        disabled={busy}
-                        onClick={() => {
-                          if (route.render !== mode) onSetRender(route.file, mode);
-                        }}
-                      >
-                        {mode}
-                      </button>
-                    </Tooltip>
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
-          {unrouted.map((view) => (
-            <li key={`gen:${view.name}`} className={styles.generate} data-testid={`generate-${view.name}`}>
-              <span>/{viewSlugFor(view.name) === 'home' ? '' : viewSlugFor(view.name)}</span>
-              <Tooltip label={`Write routes/${viewSlugFor(view.name) === 'home' ? 'index' : viewSlugFor(view.name)}.tsx with a load() that returns this view's sample data`}>
-                <button type="button" className={styles.generateButton} disabled={busy} onClick={() => onGenerate(view.name)}>
-                  Generate route
-                </button>
-              </Tooltip>
-            </li>
-          ))}
-          </ul>
+        <RouteList
+          routes={pageRoutes}
+          unrouted={unrouted}
+          busy={busy}
+          onOpen={onOpen}
+          onSetRender={onSetRender}
+          onGenerate={onGenerate}
+        />
       </Section>
     </div>
   );
+};
+
+/** Every route in the project, for the settings page. */
+export const allUnroutedViews = (
+  routes: ReadonlyArray<RouteFile>,
+  views: ReadonlyArray<ComponentFile>
+): ComponentFile[] => {
+  const rendered = new Set(routes.filter((r) => r.kind === 'page').map((r) => r.view));
+  return views.filter((v) => !rendered.has(v.name));
 };

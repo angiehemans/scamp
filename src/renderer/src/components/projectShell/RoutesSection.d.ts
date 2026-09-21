@@ -22,5 +22,23 @@ type Props = {
  * belongs to a project view, not to this one.
  * see docs/notes/routes-in-the-app.md
  */
+type RouteListProps = {
+    /** Already scoped by the caller: the sidebar filters, settings does not. */
+    routes: ReadonlyArray<RouteFile>;
+    /** Views with no page route, offered a Generate action. */
+    unrouted: ReadonlyArray<ComponentFile>;
+    busy: boolean;
+    onOpen: (file: string) => void;
+    onSetRender: (file: string, render: RouteRender) => void;
+    onGenerate: (viewName: string) => void;
+};
+/**
+ * The rows: a route's path with its render mode under it, and a
+ * Generate action per view nothing renders. Shared by the sidebar
+ * section and the project settings page so the two can't drift.
+ */
+export declare const RouteList: ({ routes, unrouted, busy, onOpen, onSetRender, onGenerate, }: RouteListProps) => JSX.Element;
 export declare const RoutesSection: ({ routes, views, activeViewName, busy, onOpen, onSetRender, onGenerate, }: Props) => JSX.Element;
+/** Every route in the project, for the settings page. */
+export declare const allUnroutedViews: (routes: ReadonlyArray<RouteFile>, views: ReadonlyArray<ComponentFile>) => ComponentFile[];
 export {};

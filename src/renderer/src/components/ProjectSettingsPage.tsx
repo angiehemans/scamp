@@ -1,11 +1,18 @@
 import { useState } from 'react';
-import type { Breakpoint, ProjectConfig } from '@shared/types';
+import type {
+  Breakpoint,
+  ComponentFile,
+  ProjectConfig,
+  RouteFile,
+  RouteRender,
+} from '@shared/types';
 import { DESKTOP_BREAKPOINT_ID } from '@shared/types';
 import { Button } from './controls/Button';
 import { ColorInput } from './controls/ColorInput';
 import { NumberInput } from './controls/NumberInput';
 import { PrefixSuffixInput } from './controls/PrefixSuffixInput';
 import { FontsSection } from './sections/FontsSection';
+import { RouteList } from './projectShell/RoutesSection';
 import styles from './ProjectSettingsPage.module.css';
 
 /** Fallback shown in the card-color picker when the project has none set.
@@ -23,12 +30,27 @@ type Props = {
    * `load()` and API routes read through `env`. Values stay on disk.
    */
   environment?: { exists: boolean; keys: ReadonlyArray<string>; onOpen: () => void };
+  /**
+   * Scamp-framework projects: every route in the project, page and
+   * API. The sidebar's Routes section is scoped to the open page, so
+   * this is where the project as a whole is visible.
+   */
+  routes?: {
+    routes: ReadonlyArray<RouteFile>;
+    /** Views with no page route yet. */
+    unrouted: ReadonlyArray<ComponentFile>;
+    busy: boolean;
+    onOpen: (file: string) => void;
+    onSetRender: (file: string, render: RouteRender) => void;
+    onGenerate: (viewName: string) => void;
+  };
 };
 
 export const ProjectSettingsPage = ({
   projectName,
   projectPath,
   environment,
+  routes,
   config,
   onChange,
   onBack,
@@ -93,6 +115,31 @@ export const ProjectSettingsPage = ({
             </div>
           </div>
         </div>
+
+        {routes !== undefined && (
+          <div className={styles.section} data-testid="settings-routes">
+            <h2 className={styles.sectionTitle}>Routes</h2>
+            {routes.routes.length === 0 && routes.unrouted.length === 0 ? (
+              <p className={styles.hint}>
+                No routes yet. Add a page to get a view, then generate its route.
+              </p>
+            ) : (
+              <RouteList
+                routes={routes.routes}
+                unrouted={routes.unrouted}
+                busy={routes.busy}
+                onOpen={routes.onOpen}
+                onSetRender={routes.onSetRender}
+                onGenerate={routes.onGenerate}
+              />
+            )}
+            <p className={styles.hint}>
+              Every route in the project, page and API. Opening one shows it in
+              the code panel. The properties panel shows the open page's route
+              on its own.
+            </p>
+          </div>
+        )}
 
         {environment !== undefined && (
           <div className={styles.section} data-testid="settings-environment">

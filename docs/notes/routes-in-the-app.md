@@ -47,9 +47,14 @@ The list is scoped to the open page: the routes whose `view` is the
 view on the canvas, and Generate route for that view when nothing
 renders it yet. The panel it lives in is about the page in front of
 you, and three render-mode buttons per route made a project-wide list
-unreadable in a sidebar. **A consequence worth knowing:** API routes
-and other pages' routes are no longer listed anywhere in the app. An
-agent still gets all of them through `scamp_list_routes`.
+unreadable in a sidebar.
+
+The project's whole routing table — other pages' routes, and API
+routes, which belong to no page — is a section of Project Settings.
+Both render the same `RouteList`, so the row, the render control, and
+the Generate action can't drift between them; the only difference is
+what each passes in. Opening a route from settings closes settings on
+the way, since the code panel lives in the editor.
 
 Each route reads as its path with the render mode on the line beneath
 it — side by side, the three mode buttons pushed the path out of a

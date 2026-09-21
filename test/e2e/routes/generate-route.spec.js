@@ -1,7 +1,8 @@
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import { test, expect } from '../fixtures/app';
-import { pageRoot } from '../fixtures/selectors';
+import { openPagesSection } from '../fixtures/components';
+import { pageRoot, pageSidebarItem } from '../fixtures/selectors';
 /**
  * Phase 7's exit: a designer adds a page (a view), clicks Generate route,
  * and the route file appears with a load() that returns the view's
@@ -52,12 +53,6 @@ test.describe('routes in a Scamp-framework project', () => {
         const routes = window.getByTestId('routes-section');
         await fs.mkdir(path.join(project.dir, 'routes', 'api'), { recursive: true });
         await fs.writeFile(path.join(project.dir, 'routes', 'api', 'ping.ts'), "export const GET = () => new Response('pong');\n", 'utf-8');
-        // The watcher's turnaround, not the app's: chokidar's write-stability
-        // window, the IPC hop, and a re-list. Generous so a loaded parallel
-        // run doesn't read as a failure.
-        await expect(routes.getByTestId('route-api/ping.ts')).toContainText('/api/ping', {
-            timeout: WATCHER_TIMEOUT,
-        });
         // A view with a text prop, written the way the app writes one.
         const view = path.join(project.dir, 'views', 'Hello');
         await fs.mkdir(view, { recursive: true });
@@ -81,6 +76,11 @@ test.describe('routes in a Scamp-framework project', () => {
             'export const _scamp = { contract: 2, events: [] } as const;',
             '',
         ].join('\n'), 'utf-8');
+        // The section is about the open page, so Hello's route action shows
+        // once Hello is the page on the canvas — not while Home is.
+        await expect(routes.getByTestId('generate-Hello')).toHaveCount(0);
+        await openPagesSection(window);
+        await pageSidebarItem(window, 'hello').click({ timeout: WATCHER_TIMEOUT });
         await expect(routes.getByTestId('generate-Hello')).toBeVisible({ timeout: WATCHER_TIMEOUT });
         await routes.getByTestId('generate-Hello').getByRole('button', { name: 'Generate route' }).click();
         await expect(routes.getByTestId('route-hello.tsx')).toBeVisible({ timeout: 10_000 });
@@ -88,6 +88,8 @@ test.describe('routes in a Scamp-framework project', () => {
         expect(tsx).toContain('export async function load(_ctx: LoadContext) {');
         expect(tsx).toContain('    title: "Hi there",');
         expect(tsx).toContain('      title={data.title}');
+        // An API route belongs to no page, so it is not in this section.
+        await expect(routes.getByTestId('route-api/ping.ts')).toHaveCount(0);
     });
     test('the preview runs a generated route and its request lands in the app log', async ({ window, project, app }) => {
         await expect(pageRoot(window)).toBeVisible();

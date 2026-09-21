@@ -95,6 +95,11 @@ release time.
 
 **Changed**
 
+- **The Routes section shows the open page's route.** The properties
+  panel is about the page in front of you, so its route list is too,
+  with the render mode on the line under the path. Project Settings
+  has a **Routes** section with every route in the project, page and
+  API.
 - **Scamp writes only the lines a change touches.** A design change
   rewrites the CSS rules and the elements it affects instead of
   replacing both files. A file Scamp didn't write keeps its comments,
