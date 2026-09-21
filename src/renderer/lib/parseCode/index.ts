@@ -1,5 +1,5 @@
 // parseCode/index.ts — split out of parseCode.ts (4.4).
-import { hoistBindings, parsePropsDefaults } from './bindings';
+import { hoistBindingsWithMap, parsePropsDefaults } from './bindings';
 import type { SampleValue } from '../element';
 import {
   BOOLEAN_ATTRIBUTES,
@@ -10,6 +10,7 @@ import {
 } from '../viewProps';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID, type BreakpointOverride, type ElementStateName, type KeyframesBlock, type ScampElement, type StateOverride } from "../element";
 import { DEFAULT_RECT_STYLES } from '../defaults';
+import { composeMaps } from '../sourceMap';
 import { requireAt, requireGroup } from "../safeAccess";
 import { applyDeclarations, applyDeclarationsAsOverride, applyDeclarationsAsStateOverride, makeBaseline, makeRoot } from "./apply";
 import { parseCssDeclarations, type ParsedCss, type RawDeclaration } from "./css";
@@ -19,8 +20,10 @@ import {
   parseSlotNames,
   type ScampViewMeta,
   PROP_REF_TEXT_RE,
+  mapRange,
+  type SourceRange,
 } from "./tsx";
-import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
+import { hoistNamedSlotsWithMap, SLOT_MARKER_ATTR } from "./namedSlots";
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID, type Breakpoint } from "@shared/types";
 import { WRITTEN_CONTRACT } from "@shared/projectConfig";
 
@@ -35,6 +38,15 @@ import { WRITTEN_CONTRACT } from "@shared/projectConfig";
 export type ParsedTree = {
   elements: Record<string, ScampElement>;
   rootId: string;
+  /**
+   * Where each element sits in the TSX it was parsed from, by id, in
+   * the coordinates of the file as written. Absent for an element the
+   * parse could not place. Kept out of `ScampElement` on purpose: a
+   * range describes the file, not the design, and the round-trip
+   * invariant compares designs.
+   * see docs/plans/incremental-writes-plan.md, phase 5
+   */
+  ranges?: Record<string, SourceRange>;
   /**
    * True when the parser detected the legacy root-sizing three-tuple
    * (`width: Npx` + `min-height: Mpx` + `position: relative`) and
@@ -243,7 +255,12 @@ export const parseCode = (
   // A post-pass below lifts the marker into `slotName`.
   // Then the binding forms — `attr={expr}`, the repeat and show wrappers —
   // which the tokenizer can't read either. see docs/notes/view-bindings.md
-  const rawElements = parseTsxStructure(hoistBindings(hoistNamedSlots(tsx)));
+  const slots = hoistNamedSlotsWithMap(tsx);
+  const bound = hoistBindingsWithMap(slots.text);
+  const rawElements = parseTsxStructure(bound.text);
+  // Each pass moved the offsets the one before it reported, so the
+  // ranges come back through both. see docs/plans/incremental-writes-plan.md
+  const tsxMap = composeMaps(slots.map, bound.map);
   const parsedCss = parseCssDeclarations(css, breakpoints);
   // Rename resilience: if a TSX className has no matching CSS class (the
   // class was renamed on only one side), fall back to the CSS class sharing
@@ -606,8 +623,14 @@ export const parseCode = (
     if (root) elements[ROOT_ELEMENT_ID] = { ...root, contract: viewMeta.contract };
   }
 
+  const ranges: Record<string, SourceRange> = {};
+  for (const raw of rawElements) {
+    if (raw.range && elements[raw.id]) ranges[raw.id] = mapRange(tsxMap, raw.range);
+  }
+
   return {
     elements,
+    ranges,
     rootId: ROOT_ELEMENT_ID,
     customMediaBlocks: parsedCss.customMediaBlocks,
     keyframesBlocks: parsedCss.keyframesBlocks,

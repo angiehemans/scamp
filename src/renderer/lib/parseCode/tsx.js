@@ -1,5 +1,5 @@
 // parseCode/tsx.ts — split out of parseCode.ts (4.4).
-import { normalizeRootClassNamePassthrough } from "../classNamePassthrough";
+import { normalizeRootClassNamePassthroughWithMap } from "../classNamePassthrough";
 import { ROOT_ELEMENT_ID, } from "../element";
 import { requireAt } from "../safeAccess";
 import { Parser } from "htmlparser2";
@@ -251,12 +251,20 @@ const collectExistingIds = (tsx) => {
     }
     return ids;
 };
+/** A range in a rewritten text, as a range in what it was rewritten from. */
+export const mapRange = (map, range) => ({
+    start: map.toOriginalStart(range.start),
+    openEnd: map.toOriginalEnd(range.openEnd),
+    innerEnd: map.toOriginalEnd(range.innerEnd),
+    end: map.toOriginalEnd(range.end),
+});
 export const parseTsxStructure = (rawTsx) => {
     // A component root's className is a template literal joining its own
     // class with the forwarded `className` prop. The space inside it would
     // terminate the unquoted attribute value for the HTML parser below, so
     // collapse it back to the plain `className={styles.X}` form first.
-    const tsx = normalizeRootClassNamePassthrough(rawTsx);
+    const normalized = normalizeRootClassNamePassthroughWithMap(rawTsx);
+    const tsx = normalized.text;
     const elements = [];
     const stack = [];
     const byId = new Map();
@@ -290,6 +298,12 @@ export const parseTsxStructure = (rawTsx) => {
     // component-instance recognition path naturally skips for those.
     const componentImports = scanComponentImports(tsx);
     const frames = [];
+    /** The opening tag's bounds, filled in on close. */
+    const openRange = () => {
+        const start = parser.startIndex ?? 0;
+        const openEnd = (parser.endIndex ?? start) + 1;
+        return { start, openEnd, innerEnd: openEnd, end: openEnd };
+    };
     // Show / repeat pseudo-tags (from the bindings pre-pass) wrap the next
     // real element; they attach to it when it opens.
     const pendingWrappers = [];
@@ -434,6 +448,7 @@ export const parseTsxStructure = (rawTsx) => {
                     on: instanceBindings.on,
                     repeat: instanceBindings.repeatKey ? { over: '', as: '', key: instanceBindings.repeatKey } : null,
                     showIf: null,
+                    range: null,
                 };
                 attachWrappers(el);
                 if (el.repeat && el.repeat.over.length === 0)
@@ -443,6 +458,7 @@ export const parseTsxStructure = (rawTsx) => {
                     const parent = byId.get(parentId);
                     parent?.childIds.push(el.id);
                 }
+                el.range = openRange();
                 elements.push(el);
                 byId.set(el.id, el);
                 stack.push(el);
@@ -531,6 +547,7 @@ export const parseTsxStructure = (rawTsx) => {
                     ? { over: '', as: '', key: elementBindings.repeatKey }
                     : null,
                 showIf: null,
+                range: null,
             };
             attachWrappers(el);
             if (el.repeat && el.repeat.over.length === 0)
@@ -540,6 +557,7 @@ export const parseTsxStructure = (rawTsx) => {
                 const parent = byId.get(parentId);
                 parent?.childIds.push(el.id);
             }
+            el.range = openRange();
             elements.push(el);
             byId.set(el.id, el);
             stack.push(el);
@@ -632,6 +650,15 @@ export const parseTsxStructure = (rawTsx) => {
             // svg/select capture state if this is the element that opened
             // them.
             const top = stack.pop();
+            if (top?.range) {
+                // A self-closing tag closes at its own open tag, which reads
+                // as a close before `openEnd` — leave the range as it is.
+                const closeStart = parser.startIndex ?? 0;
+                if (closeStart >= top.range.openEnd) {
+                    top.range.innerEnd = closeStart;
+                    top.range.end = (parser.endIndex ?? closeStart) + 1;
+                }
+            }
             // Structural correction for ambiguous tags. Some HTML tags
             // (e.g. `<li>`, `<a>`, `<label>`) can semantically be either
             // a text node or a container. `inferElementType` defaults
@@ -680,5 +707,9 @@ export const parseTsxStructure = (rawTsx) => {
     });
     parser.write(tsx);
     parser.end();
+    for (const el of elements) {
+        if (el.range)
+            el.range = mapRange(normalized.map, el.range);
+    }
     return elements;
 };

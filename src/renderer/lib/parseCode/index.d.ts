@@ -1,6 +1,6 @@
 import { type KeyframesBlock, type ScampElement } from "../element";
 import { type RawDeclaration } from "./css";
-import { type ScampViewMeta } from "./tsx";
+import { type ScampViewMeta, type SourceRange } from "./tsx";
 import { type Breakpoint } from "@shared/types";
 /**
  * Pure function: real TSX + CSS module text → canvas state.
@@ -12,6 +12,15 @@ import { type Breakpoint } from "@shared/types";
 export type ParsedTree = {
     elements: Record<string, ScampElement>;
     rootId: string;
+    /**
+     * Where each element sits in the TSX it was parsed from, by id, in
+     * the coordinates of the file as written. Absent for an element the
+     * parse could not place. Kept out of `ScampElement` on purpose: a
+     * range describes the file, not the design, and the round-trip
+     * invariant compares designs.
+     * see docs/plans/incremental-writes-plan.md, phase 5
+     */
+    ranges?: Record<string, SourceRange>;
     /**
      * True when the parser detected the legacy root-sizing three-tuple
      * (`width: Npx` + `min-height: Mpx` + `position: relative`) and

@@ -1,5 +1,6 @@
 // parseCode/tsx.ts — split out of parseCode.ts (4.4).
-import { normalizeRootClassNamePassthrough } from "../classNamePassthrough";
+import { normalizeRootClassNamePassthroughWithMap } from "../classNamePassthrough";
+import { type SourceMap } from "../sourceMap";
 import {
   ROOT_ELEMENT_ID,
   type ElementType,
@@ -15,6 +16,23 @@ import {
   repeatFromAttribs,
   SHOW_TAG,
 } from './bindings';
+
+/**
+ * Where an element sits in the text it was parsed from. Offsets are
+ * into the file as written: `parseTsxStructure` maps them back through
+ * its own normalisation, and `parseCode` maps them back through the
+ * hoisting passes. see docs/plans/incremental-writes-plan.md, phase 5
+ */
+export type SourceRange = {
+  /** The `<` of the opening tag. */
+  start: number;
+  /** Just past the opening tag's `>`. */
+  openEnd: number;
+  /** The `<` of the closing tag, or `openEnd` when self-closing. */
+  innerEnd: number;
+  /** Just past the closing tag, or `openEnd` when self-closing. */
+  end: number;
+};
 
 export type RawElement = {
   id: string;
@@ -78,6 +96,8 @@ export type RawElement = {
   on: Record<string, string> | null;
   repeat: RepeatBinding | null;
   showIf: string | null;
+  /** Null when the parse could not place the element. */
+  range: SourceRange | null;
 };
 
 
@@ -361,12 +381,21 @@ const collectExistingIds = (tsx: string): Set<string> => {
   return ids;
 };
 
+/** A range in a rewritten text, as a range in what it was rewritten from. */
+export const mapRange = (map: SourceMap, range: SourceRange): SourceRange => ({
+  start: map.toOriginalStart(range.start),
+  openEnd: map.toOriginalEnd(range.openEnd),
+  innerEnd: map.toOriginalEnd(range.innerEnd),
+  end: map.toOriginalEnd(range.end),
+});
+
 export const parseTsxStructure = (rawTsx: string): RawElement[] => {
   // A component root's className is a template literal joining its own
   // class with the forwarded `className` prop. The space inside it would
   // terminate the unquoted attribute value for the HTML parser below, so
   // collapse it back to the plain `className={styles.X}` form first.
-  const tsx = normalizeRootClassNamePassthrough(rawTsx);
+  const normalized = normalizeRootClassNamePassthroughWithMap(rawTsx);
+  const tsx = normalized.text;
   const elements: RawElement[] = [];
   const stack: RawElement[] = [];
   const byId = new Map<string, RawElement>();
@@ -404,6 +433,13 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
   // pop the real stack or skip.
   type FrameKind = 'pushed' | 'skipped' | 'svg-inner' | 'option' | 'wrapper';
   const frames: FrameKind[] = [];
+
+  /** The opening tag's bounds, filled in on close. */
+  const openRange = (): SourceRange => {
+    const start = parser.startIndex ?? 0;
+    const openEnd = (parser.endIndex ?? start) + 1;
+    return { start, openEnd, innerEnd: openEnd, end: openEnd };
+  };
 
   // Show / repeat pseudo-tags (from the bindings pre-pass) wrap the next
   // real element; they attach to it when it opens.
@@ -569,6 +605,7 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
             on: instanceBindings.on,
             repeat: instanceBindings.repeatKey ? { over: '', as: '', key: instanceBindings.repeatKey } : null,
             showIf: null,
+            range: null,
           };
           attachWrappers(el);
           if (el.repeat && el.repeat.over.length === 0) el.repeat = null;
@@ -577,6 +614,7 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
             const parent = byId.get(parentId);
             parent?.childIds.push(el.id);
           }
+          el.range = openRange();
           elements.push(el);
           byId.set(el.id, el);
           stack.push(el);
@@ -675,6 +713,7 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
             ? { over: '', as: '', key: elementBindings.repeatKey }
             : null,
           showIf: null,
+          range: null,
         };
         attachWrappers(el);
         if (el.repeat && el.repeat.over.length === 0) el.repeat = null;
@@ -683,6 +722,7 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
           const parent = byId.get(parentId);
           parent?.childIds.push(el.id);
         }
+        el.range = openRange();
         elements.push(el);
         byId.set(el.id, el);
         stack.push(el);
@@ -767,6 +807,15 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
         // svg/select capture state if this is the element that opened
         // them.
         const top = stack.pop();
+        if (top?.range) {
+          // A self-closing tag closes at its own open tag, which reads
+          // as a close before `openEnd` — leave the range as it is.
+          const closeStart = parser.startIndex ?? 0;
+          if (closeStart >= top.range.openEnd) {
+            top.range.innerEnd = closeStart;
+            top.range.end = (parser.endIndex ?? closeStart) + 1;
+          }
+        }
         // Structural correction for ambiguous tags. Some HTML tags
         // (e.g. `<li>`, `<a>`, `<label>`) can semantically be either
         // a text node or a container. `inferElementType` defaults
@@ -819,6 +868,9 @@ export const parseTsxStructure = (rawTsx: string): RawElement[] => {
   );
   parser.write(tsx);
   parser.end();
+  for (const el of elements) {
+    if (el.range) el.range = mapRange(normalized.map, el.range);
+  }
   return elements;
 };
 

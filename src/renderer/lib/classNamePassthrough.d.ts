@@ -1,3 +1,4 @@
+import { type SourceMap } from './sourceMap';
 /**
  * A generated component forwards an optional `className` prop onto its root
  * element, so a page can size an instance without the component knowing
@@ -24,4 +25,8 @@ export declare const PASSTHROUGH_PROP = "className";
  * the HTML parse; files without the pattern (pages, and components written
  * before the passthrough existed) come through untouched.
  */
+export declare const normalizeRootClassNamePassthroughWithMap: (tsx: string) => {
+    text: string;
+    map: SourceMap;
+};
 export declare const normalizeRootClassNamePassthrough: (tsx: string) => string;

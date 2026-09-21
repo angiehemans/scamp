@@ -63,6 +63,14 @@ structural parse:
   indent, which the generator fixes. The structural parse attaches a
   pending wrapper to the next real element it opens.
 
+Both rewrites report where they moved things. Each pass returns its
+text plus a `SourceMap` (`lib/sourceMap.ts`), `parseCode` composes
+them, and the structural parse's per-element offsets come back out as
+positions in the file as written rather than in the rewritten text.
+That is what lets a save edit one element in place; without it every
+offset the tokenizer reports is meaningless outside the hoisted copy.
+see docs/plans/incremental-writes-plan.md, phase 5
+
 `parsePropsDefaults` reads the destructure brace-aware: strings,
 booleans, and arrays of flat rows. The post-pass in `index.ts` then
 writes each bound attribute's default back into the literal's place,

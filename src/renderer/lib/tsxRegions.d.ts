@@ -61,4 +61,5 @@ export declare const tsxRegionChanges: (base: string, next: string) => TextEdit[
  * edit changes one line of the component region, not the whole
  * function, because the region's replacement is itself diffed.
  */
+export declare const narrowEdit: (base: string, edit: TextEdit) => TextEdit[];
 export declare const tsxEdits: (base: string, next: string) => TextEdit[];

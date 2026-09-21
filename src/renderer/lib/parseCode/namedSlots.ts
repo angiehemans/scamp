@@ -9,6 +9,7 @@
 /** The attribute the hoist injects onto slot-content elements. Read back
  *  into `slotName` after the structural parse, then dropped from the bag. */
 import { findMatchingBrace, findOpeningTagClose } from '../jsxScan';
+import { applyRewrites, type SourceMap } from '../sourceMap';
 
 export const SLOT_MARKER_ATTR = 'data-scamp-slot';
 
@@ -113,7 +114,9 @@ const extractNamedSlotsFromTag = (
  * on the opening tag. String props (`label="x"`) and non-element braced
  * props (`className={styles.x}`) are left untouched.
  */
-export const hoistNamedSlots = (tsx: string): string => {
+export const hoistNamedSlotsWithMap = (
+  tsx: string
+): { text: string; map: SourceMap } => {
   const idRe = /data-scamp-instance-id\s*=\s*"/g;
   type TagEdit = { tagOpen: number; tagCloseGt: number; replacement: string };
   const edits: TagEdit[] = [];
@@ -133,11 +136,15 @@ export const hoistNamedSlots = (tsx: string): string => {
       : `${strippedOpen}${markedChildren}`;
     edits.push({ tagOpen, tagCloseGt, replacement });
   }
-  if (edits.length === 0) return tsx;
-  let result = tsx;
-  for (let e = edits.length - 1; e >= 0; e -= 1) {
-    const { tagOpen, tagCloseGt, replacement } = edits[e]!;
-    result = result.slice(0, tagOpen) + replacement + result.slice(tagCloseGt + 1);
-  }
-  return result;
+  return applyRewrites(
+    tsx,
+    edits.map(({ tagOpen, tagCloseGt, replacement }) => ({
+      start: tagOpen,
+      end: tagCloseGt + 1,
+      text: replacement,
+    }))
+  );
 };
+
+export const hoistNamedSlots = (tsx: string): string =>
+  hoistNamedSlotsWithMap(tsx).text;

@@ -1,3 +1,4 @@
+import { type SourceMap } from '../sourceMap';
 export declare const SLOT_MARKER_ATTR = "data-scamp-slot";
 /**
  * Rewrite every component-instance's named-slot props into
@@ -6,4 +7,8 @@ export declare const SLOT_MARKER_ATTR = "data-scamp-slot";
  * on the opening tag. String props (`label="x"`) and non-element braced
  * props (`className={styles.x}`) are left untouched.
  */
+export declare const hoistNamedSlotsWithMap: (tsx: string) => {
+    text: string;
+    map: SourceMap;
+};
 export declare const hoistNamedSlots: (tsx: string) => string;

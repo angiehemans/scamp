@@ -252,10 +252,51 @@ pins the merge itself.
 The CSS panel's `file:patch` is still its own path. Folding it in is
 worth doing once phase 5 gives the two the same anchors.
 
-**5. Ranges from the parser.** Carry source positions through the
-hoisting passes, record a range per element, and derive edits directly
-from the model diff instead of from generated text. Done when a
-hand-formatted file takes a surgical edit without a fallback.
+**5. Ranges from the parser.** *Landed.* The obstacle named above —
+that `parseCode` rewrites the source before it parses it, so every
+offset moves — is solved by making the rewrites say where things went.
+`lib/sourceMap.ts` is the primitive: a rewrite returns its text plus
+the regions it replaced, in both coordinate systems, and maps compose.
+All three passes now report one: the named-slot hoist, the binding
+hoist, and the component root's `className` normalisation. The
+structural parse records a range per element, and `parseCode` maps them
+back so `ParsedTree.ranges` addresses the file as written.
+
+Ranges are not on `ScampElement`. A range describes the file and the
+round-trip invariant compares designs, so they ride alongside.
+
+`lib/tsxElementEdits.ts` uses them. Both files are parsed against the
+same stylesheet, so any element that differs between them differs
+because of its TSX, and the edit goes to that element's opening tag or
+to the text between its tags. Everything outside the component is
+still region work — the props type and the imports are not elements —
+so this is phase 3's path with a finer middle. `tsxWrite` tries it
+first, verifies, and falls through to the regions and then to the
+generated file.
+
+Two rules make it behave:
+
+- **Formatting is not a change.** When every element matches, the
+  component is left alone however differently it is written. This is
+  what the phases before it could not do: opening a file Scamp had not
+  written used to reformat the whole component on the first save.
+- **Only a leaf's inside gets rewritten.** Replacing a container's
+  inner range would take its children's formatting with it, which is
+  the thing this exists to avoid.
+
+It gives up — returns null, and the region path takes over — on
+anything not element-shaped: an element added or removed, a reshaped
+tree, a change that reaches the destructure. The last of those is
+caught by verification rather than by inspection, and
+`test/tsxElementEdits.test.ts` pins that: marking a text as a prop
+produces an edit whose result does not read back as the save meant,
+so `tsxWrite` falls through.
+
+Done: `test/e2e/save/element-writes.spec.ts` renames one element of a
+hand-formatted page and the sibling keeps its line breaks to the byte.
+`test/parseRanges.test.ts` pins the ranges themselves, including
+through a braced attribute, a repeat wrapper, and a component root
+passthrough — the three rewrites that would otherwise drift them.
 
 **6. Expose the stream.** With edits as the unit, the same patches can
 feed a multiplayer session or be handed to an agent as a proposed

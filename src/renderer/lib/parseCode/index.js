@@ -1,13 +1,14 @@
 // parseCode/index.ts — split out of parseCode.ts (4.4).
-import { hoistBindings, parsePropsDefaults } from './bindings';
+import { hoistBindingsWithMap, parsePropsDefaults } from './bindings';
 import { BOOLEAN_ATTRIBUTES, bindPropName, enclosingRepeat, isInvertedBinding, isRowPath, } from '../viewProps';
 import { ELEMENT_STATES, ROOT_ELEMENT_ID } from "../element";
 import { DEFAULT_RECT_STYLES } from '../defaults';
+import { composeMaps } from '../sourceMap';
 import { requireAt, requireGroup } from "../safeAccess";
 import { applyDeclarations, applyDeclarationsAsOverride, applyDeclarationsAsStateOverride, makeBaseline, makeRoot } from "./apply";
 import { parseCssDeclarations } from "./css";
-import { parseTsxStructure, parseScampMeta, parseSlotNames, PROP_REF_TEXT_RE, } from "./tsx";
-import { hoistNamedSlots, SLOT_MARKER_ATTR } from "./namedSlots";
+import { parseTsxStructure, parseScampMeta, parseSlotNames, PROP_REF_TEXT_RE, mapRange, } from "./tsx";
+import { hoistNamedSlotsWithMap, SLOT_MARKER_ATTR } from "./namedSlots";
 import { DEFAULT_BREAKPOINTS, DESKTOP_BREAKPOINT_ID } from "@shared/types";
 import { WRITTEN_CONTRACT } from "@shared/projectConfig";
 /**
@@ -123,7 +124,12 @@ export const parseCode = (tsx, css, options) => {
     // A post-pass below lifts the marker into `slotName`.
     // Then the binding forms — `attr={expr}`, the repeat and show wrappers —
     // which the tokenizer can't read either. see docs/notes/view-bindings.md
-    const rawElements = parseTsxStructure(hoistBindings(hoistNamedSlots(tsx)));
+    const slots = hoistNamedSlotsWithMap(tsx);
+    const bound = hoistBindingsWithMap(slots.text);
+    const rawElements = parseTsxStructure(bound.text);
+    // Each pass moved the offsets the one before it reported, so the
+    // ranges come back through both. see docs/plans/incremental-writes-plan.md
+    const tsxMap = composeMaps(slots.map, bound.map);
     const parsedCss = parseCssDeclarations(css, breakpoints);
     // Rename resilience: if a TSX className has no matching CSS class (the
     // class was renamed on only one side), fall back to the CSS class sharing
@@ -481,8 +487,14 @@ export const parseCode = (tsx, css, options) => {
         if (root)
             elements[ROOT_ELEMENT_ID] = { ...root, contract: viewMeta.contract };
     }
+    const ranges = {};
+    for (const raw of rawElements) {
+        if (raw.range && elements[raw.id])
+            ranges[raw.id] = mapRange(tsxMap, raw.range);
+    }
     return {
         elements,
+        ranges,
         rootId: ROOT_ELEMENT_ID,
         customMediaBlocks: parsedCss.customMediaBlocks,
         keyframesBlocks: parsedCss.keyframesBlocks,

@@ -8,6 +8,7 @@
 // afterwards. It also reads the function-signature destructure, whose
 // defaults are the sample data.
 import { findMatchingBrace, findOpeningTagClose, splitTopLevel } from '../jsxScan';
+import { applyRewrites, composeMaps, type SourceMap } from '../sourceMap';
 import type { RepeatBinding, SampleRow, SampleValue } from '../element';
 
 /** Prefix on a quoted attribute value that was `{expr}` in the source. */
@@ -26,32 +27,39 @@ const SHOW_OPEN_RE = /^(\s*)\{(!?[A-Za-z_$][\w$]*)\s*&&\s*\($/;
  * indent, with the wrapped element indented one level deeper, so the
  * closer is the first `))}` / `)}` line back at the opener's indent.
  */
-const hoistWrappers = (tsx: string): string => {
+const hoistWrappers = (tsx: string): { text: string; map: SourceMap } => {
   const lines = tsx.split('\n');
   const open: Array<{ indent: string; closer: RegExp; tag: string }> = [];
+  const rewrites: Array<{ start: number; end: number; text: string }> = [];
+  let offset = 0;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] ?? '';
+    const lineStart = offset;
+    offset += line.length + 1;
+    const replace = (text: string): void => {
+      rewrites.push({ start: lineStart, end: lineStart + line.length, text });
+    };
     const top = open[open.length - 1];
     if (top && top.closer.test(line)) {
-      lines[i] = `${top.indent}</${top.tag}>`;
+      replace(`${top.indent}</${top.tag}>`);
       open.pop();
       continue;
     }
     const repeat = REPEAT_OPEN_RE.exec(line);
     if (repeat) {
       const [, indent = '', over = '', as = ''] = repeat;
-      lines[i] = `${indent}<${REPEAT_TAG} over="${over}" as="${as}">`;
+      replace(`${indent}<${REPEAT_TAG} over="${over}" as="${as}">`);
       open.push({ indent, closer: new RegExp(`^${indent}\\)\\)\\}\\s*$`), tag: REPEAT_TAG });
       continue;
     }
     const show = SHOW_OPEN_RE.exec(line);
     if (show) {
       const [, indent = '', flag = ''] = show;
-      lines[i] = `${indent}<${SHOW_TAG} if="${flag}">`;
+      replace(`${indent}<${SHOW_TAG} if="${flag}">`);
       open.push({ indent, closer: new RegExp(`^${indent}\\)\\}\\s*$`), tag: SHOW_TAG });
     }
   }
-  return lines.join('\n');
+  return applyRewrites(tsx, rewrites);
 };
 
 /**
@@ -60,7 +68,9 @@ const hoistWrappers = (tsx: string): string => {
  * values (`left={<…>}`), `className={styles.x}`, and anything holding a
  * brace or quote are left alone.
  */
-const hoistAttributeExpressions = (tsx: string): string => {
+const hoistAttributeExpressions = (
+  tsx: string
+): { text: string; map: SourceMap } => {
   const idRe = /data-scamp-(?:id|instance-id)\s*=\s*"/g;
   const edits: Array<{ start: number; end: number; text: string }> = [];
   for (let m = idRe.exec(tsx); m !== null; m = idRe.exec(tsx)) {
@@ -79,18 +89,26 @@ const hoistAttributeExpressions = (tsx: string): string => {
     });
     if (rewritten !== openTag) edits.push({ start: tagOpen, end: tagClose + 1, text: rewritten });
   }
-  if (edits.length === 0) return tsx;
-  let out = tsx;
-  for (let e = edits.length - 1; e >= 0; e -= 1) {
-    const { start, end, text } = edits[e]!;
-    out = out.slice(0, start) + text + out.slice(end);
-  }
-  return out;
+  return applyRewrites(tsx, edits);
 };
 
-/** Both rewrites; run after `hoistNamedSlots`. */
+/**
+ * Both rewrites, with the offsets to read the result's positions back
+ * as positions in the file as written. Run after `hoistNamedSlots`.
+ */
+export const hoistBindingsWithMap = (
+  tsx: string
+): { text: string; map: SourceMap } => {
+  const wrapped = hoistWrappers(tsx);
+  const attributed = hoistAttributeExpressions(wrapped.text);
+  return {
+    text: attributed.text,
+    map: composeMaps(wrapped.map, attributed.map),
+  };
+};
+
 export const hoistBindings = (tsx: string): string =>
-  hoistAttributeExpressions(hoistWrappers(tsx));
+  hoistBindingsWithMap(tsx).text;
 
 export type DecodedBinding =
   | { kind: 'bind'; expr: string }

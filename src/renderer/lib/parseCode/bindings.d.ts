@@ -1,9 +1,17 @@
+import { type SourceMap } from '../sourceMap';
 import type { RepeatBinding, SampleValue } from '../element';
 /** Prefix on a quoted attribute value that was `{expr}` in the source. */
 export declare const BIND_MARK = "__scamp_bind__:";
 export declare const REPEAT_TAG = "scamp-repeat";
 export declare const SHOW_TAG = "scamp-show";
-/** Both rewrites; run after `hoistNamedSlots`. */
+/**
+ * Both rewrites, with the offsets to read the result's positions back
+ * as positions in the file as written. Run after `hoistNamedSlots`.
+ */
+export declare const hoistBindingsWithMap: (tsx: string) => {
+    text: string;
+    map: SourceMap;
+};
 export declare const hoistBindings: (tsx: string) => string;
 export type DecodedBinding = {
     kind: 'bind';

@@ -179,13 +179,14 @@ export const tsxRegionChanges = (base: string, next: string): TextEdit[] => {
  * edit changes one line of the component region, not the whole
  * function, because the region's replacement is itself diffed.
  */
+export const narrowEdit = (base: string, edit: TextEdit): TextEdit[] => {
+  if (edit.start === edit.end || edit.replacement.length === 0) return [edit];
+  return diffText(base.slice(edit.start, edit.end), edit.replacement).map((hunk) => ({
+    start: edit.start + hunk.start,
+    end: edit.start + hunk.end,
+    replacement: hunk.replacement,
+  }));
+};
+
 export const tsxEdits = (base: string, next: string): TextEdit[] =>
-  tsxRegionChanges(base, next).flatMap((edit) => {
-    if (edit.start === edit.end || edit.replacement.length === 0) return [edit];
-    const inner = diffText(base.slice(edit.start, edit.end), edit.replacement);
-    return inner.map((hunk) => ({
-      start: edit.start + hunk.start,
-      end: edit.start + hunk.end,
-      replacement: hunk.replacement,
-    }));
-  });
+  tsxRegionChanges(base, next).flatMap((edit) => narrowEdit(base, edit));

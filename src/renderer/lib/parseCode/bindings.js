@@ -8,6 +8,7 @@
 // afterwards. It also reads the function-signature destructure, whose
 // defaults are the sample data.
 import { findMatchingBrace, findOpeningTagClose, splitTopLevel } from '../jsxScan';
+import { applyRewrites, composeMaps } from '../sourceMap';
 /** Prefix on a quoted attribute value that was `{expr}` in the source. */
 export const BIND_MARK = '__scamp_bind__:';
 export const REPEAT_TAG = 'scamp-repeat';
@@ -23,29 +24,36 @@ const SHOW_OPEN_RE = /^(\s*)\{(!?[A-Za-z_$][\w$]*)\s*&&\s*\($/;
 const hoistWrappers = (tsx) => {
     const lines = tsx.split('\n');
     const open = [];
+    const rewrites = [];
+    let offset = 0;
     for (let i = 0; i < lines.length; i += 1) {
         const line = lines[i] ?? '';
+        const lineStart = offset;
+        offset += line.length + 1;
+        const replace = (text) => {
+            rewrites.push({ start: lineStart, end: lineStart + line.length, text });
+        };
         const top = open[open.length - 1];
         if (top && top.closer.test(line)) {
-            lines[i] = `${top.indent}</${top.tag}>`;
+            replace(`${top.indent}</${top.tag}>`);
             open.pop();
             continue;
         }
         const repeat = REPEAT_OPEN_RE.exec(line);
         if (repeat) {
             const [, indent = '', over = '', as = ''] = repeat;
-            lines[i] = `${indent}<${REPEAT_TAG} over="${over}" as="${as}">`;
+            replace(`${indent}<${REPEAT_TAG} over="${over}" as="${as}">`);
             open.push({ indent, closer: new RegExp(`^${indent}\\)\\)\\}\\s*$`), tag: REPEAT_TAG });
             continue;
         }
         const show = SHOW_OPEN_RE.exec(line);
         if (show) {
             const [, indent = '', flag = ''] = show;
-            lines[i] = `${indent}<${SHOW_TAG} if="${flag}">`;
+            replace(`${indent}<${SHOW_TAG} if="${flag}">`);
             open.push({ indent, closer: new RegExp(`^${indent}\\)\\}\\s*$`), tag: SHOW_TAG });
         }
     }
-    return lines.join('\n');
+    return applyRewrites(tsx, rewrites);
 };
 /**
  * Quote braced attribute values on Scamp elements and instances so the
@@ -76,17 +84,21 @@ const hoistAttributeExpressions = (tsx) => {
         if (rewritten !== openTag)
             edits.push({ start: tagOpen, end: tagClose + 1, text: rewritten });
     }
-    if (edits.length === 0)
-        return tsx;
-    let out = tsx;
-    for (let e = edits.length - 1; e >= 0; e -= 1) {
-        const { start, end, text } = edits[e];
-        out = out.slice(0, start) + text + out.slice(end);
-    }
-    return out;
+    return applyRewrites(tsx, edits);
 };
-/** Both rewrites; run after `hoistNamedSlots`. */
-export const hoistBindings = (tsx) => hoistAttributeExpressions(hoistWrappers(tsx));
+/**
+ * Both rewrites, with the offsets to read the result's positions back
+ * as positions in the file as written. Run after `hoistNamedSlots`.
+ */
+export const hoistBindingsWithMap = (tsx) => {
+    const wrapped = hoistWrappers(tsx);
+    const attributed = hoistAttributeExpressions(wrapped.text);
+    return {
+        text: attributed.text,
+        map: composeMaps(wrapped.map, attributed.map),
+    };
+};
+export const hoistBindings = (tsx) => hoistBindingsWithMap(tsx).text;
 const PATH_RE = /^!?[A-Za-z_$][\w$]*(?:\.[\w$]+)*$/;
 const EVENT_IN_REPEAT_RE = /^\(\)\s*=>\s*([A-Za-z_$][\w$]*)\?\.\(([A-Za-z_$][\w$]*)\.([\w$]+)\)$/;
 const isEventAttr = (attr) => /^on[A-Z]/.test(attr);

@@ -1,3 +1,5 @@
+import { applyRewrites, type SourceMap } from './sourceMap';
+
 /**
  * A generated component forwards an optional `className` prop onto its root
  * element, so a page can size an instance without the component knowing
@@ -31,5 +33,20 @@ const PASSTHROUGH_RE =
  * the HTML parse; files without the pattern (pages, and components written
  * before the passthrough existed) come through untouched.
  */
+export const normalizeRootClassNamePassthroughWithMap = (
+  tsx: string
+): { text: string; map: SourceMap } => {
+  const rewrites: Array<{ start: number; end: number; text: string }> = [];
+  const re = new RegExp(PASSTHROUGH_RE.source, 'g');
+  for (let m = re.exec(tsx); m !== null; m = re.exec(tsx)) {
+    rewrites.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      text: `className={styles.${m[1] ?? ''}}`,
+    });
+  }
+  return applyRewrites(tsx, rewrites);
+};
+
 export const normalizeRootClassNamePassthrough = (tsx: string): string =>
-  tsx.replace(PASSTHROUGH_RE, 'className={styles.$1}');
+  normalizeRootClassNamePassthroughWithMap(tsx).text;

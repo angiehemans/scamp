@@ -131,13 +131,13 @@ export const tsxRegionChanges = (base, next) => {
  * edit changes one line of the component region, not the whole
  * function, because the region's replacement is itself diffed.
  */
-export const tsxEdits = (base, next) => tsxRegionChanges(base, next).flatMap((edit) => {
+export const narrowEdit = (base, edit) => {
     if (edit.start === edit.end || edit.replacement.length === 0)
         return [edit];
-    const inner = diffText(base.slice(edit.start, edit.end), edit.replacement);
-    return inner.map((hunk) => ({
+    return diffText(base.slice(edit.start, edit.end), edit.replacement).map((hunk) => ({
         start: edit.start + hunk.start,
         end: edit.start + hunk.end,
         replacement: hunk.replacement,
     }));
-});
+};
+export const tsxEdits = (base, next) => tsxRegionChanges(base, next).flatMap((edit) => narrowEdit(base, edit));

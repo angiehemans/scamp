@@ -1,4 +1,21 @@
+import { type SourceMap } from "../sourceMap";
 import { type ElementType, type RepeatBinding, type SelectOption } from "../element";
+/**
+ * Where an element sits in the text it was parsed from. Offsets are
+ * into the file as written: `parseTsxStructure` maps them back through
+ * its own normalisation, and `parseCode` maps them back through the
+ * hoisting passes. see docs/plans/incremental-writes-plan.md, phase 5
+ */
+export type SourceRange = {
+    /** The `<` of the opening tag. */
+    start: number;
+    /** Just past the opening tag's `>`. */
+    openEnd: number;
+    /** The `<` of the closing tag, or `openEnd` when self-closing. */
+    innerEnd: number;
+    /** Just past the closing tag, or `openEnd` when self-closing. */
+    end: number;
+};
 export type RawElement = {
     id: string;
     type: ElementType;
@@ -60,6 +77,8 @@ export type RawElement = {
     on: Record<string, string> | null;
     repeat: RepeatBinding | null;
     showIf: string | null;
+    /** Null when the parse could not place the element. */
+    range: SourceRange | null;
 };
 /**
  * Match a JSX-expression-only text body, ignoring surrounding
@@ -95,4 +114,6 @@ export type ScampViewMeta = {
  */
 export declare const parseScampMeta: (tsx: string) => ScampViewMeta | null;
 export declare const parsePropsDestructure: (tsx: string) => Map<string, string>;
+/** A range in a rewritten text, as a range in what it was rewritten from. */
+export declare const mapRange: (map: SourceMap, range: SourceRange) => SourceRange;
 export declare const parseTsxStructure: (rawTsx: string) => RawElement[];
