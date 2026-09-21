@@ -3,7 +3,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { SegmentedControl } from './controls/SegmentedControl';
 import { REQUEST_REMOVE_SLOT_EVENT, } from './ElementContextMenu';
-import { BindingSections } from './DataBindings';
+import { BindingSections, hasBindableData } from './DataBindings';
 import { collectViewProps, enclosingRepeat } from '@lib/viewProps';
 import styles from './DataPanel.module.css';
 import propStyles from './PropertiesPanel.module.css';
@@ -179,9 +179,10 @@ const DataRow = ({ row, otherPropNames, }) => {
                     }));
                 } }), isProp && (_jsxs("div", { className: styles.renameWrap, children: [_jsx("input", { ref: inputRef, className: styles.renameInput, type: "text", value: draftName, onChange: (e) => setDraftName(e.target.value), onBlur: commitRename, onKeyDown: handleKeyDown, spellCheck: false, "aria-label": "Prop name" }), validationError && (_jsx("div", { className: styles.renameError, children: validationError }))] }))] }));
 };
-const ComponentDataView = ({ bodyClassName = propStyles.uiPanelBody, } = {}) => {
+const ComponentDataView = ({ bodyClassName = propStyles.uiPanelBody, followSelection = false, } = {}) => {
     const elements = useCanvasStore((s) => s.elements);
     const rootElementId = useCanvasStore((s) => s.rootElementId);
+    const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
     const rows = useMemo(() => collectTextDescendants(elements, rootElementId), [elements, rootElementId]);
     // For each row's rename validator: every OTHER row's prop name.
     // Precomputing once means the rows don't each rebuild the same
@@ -190,13 +191,35 @@ const ComponentDataView = ({ bodyClassName = propStyles.uiPanelBody, } = {}) => 
     const slotRows = useMemo(() => collectSlotRows(elements, rootElementId), [elements, rootElementId]);
     const allSlotNames = useMemo(() => slotRows.map((r) => r.slot), [slotRows]);
     const hasBindings = useMemo(() => collectViewProps(elements, rootElementId).some((p) => p.kind !== 'text' && p.kind !== 'slot'), [elements, rootElementId]);
+    /**
+     * Selecting a text element and opening Data should put its
+     * prop/locked control in front of you, not a list of every text in
+     * the view to hunt through. The tab narrows to the selected element
+     * whenever that element has anything to show; `Show all` steps back
+     * out, and changing the selection re-narrows.
+     */
+    const [showAll, setShowAll] = useState(false);
+    useEffect(() => {
+        setShowAll(false);
+    }, [selectedId]);
+    const selected = selectedId === null ? undefined : elements[selectedId];
+    const canFocus = followSelection &&
+        selectedId !== null &&
+        selectedId !== rootElementId &&
+        selected !== undefined &&
+        (rows.some((r) => r.id === selectedId) ||
+            slotRows.some((r) => r.id === selectedId) ||
+            hasBindableData(selected));
+    const focusedId = canFocus && !showAll ? selectedId : null;
+    const visibleRows = focusedId === null ? rows : rows.filter((r) => r.id === focusedId);
+    const visibleSlotRows = focusedId === null ? slotRows : slotRows.filter((r) => r.id === focusedId);
     const hasAttributeCandidates = useMemo(() => Object.values(elements).some((el) => el.id !== rootElementId &&
         (el.type === 'component-instance' || Object.keys(el.attributes ?? {}).length > 0 ||
             ['a', 'button', 'input', 'textarea', 'select', 'form', 'dialog', 'video', 'iframe', 'label', 'time', 'blockquote'].includes(el.tag ?? ''))), [elements, rootElementId]);
     if (rows.length === 0 && slotRows.length === 0 && !hasBindings && !hasAttributeCandidates) {
         return (_jsx("div", { className: bodyClassName, children: _jsx("div", { className: styles.empty, children: "No props yet. Mark a text element as a prop, or right-click an element \u2192 \"Repeat this\u2026\" or \"Show only when\u2026\". A rectangle can also become a slot, so a page can nest content inside it." }) }));
     }
-    return (_jsxs("div", { className: bodyClassName, children: [rows.length > 0 && (_jsxs(_Fragment, { children: [_jsx("div", { className: styles.intro, children: "Mark a text element as a prop to let pages override its content per-instance. Locked text stays the same on every instance." }), _jsx("div", { className: styles.rows, children: rows.map((row) => (_jsx(DataRow, { row: row, otherPropNames: allPropNames.filter((n) => n !== row.prop) }, row.id))) })] })), slotRows.length > 0 && (_jsxs(_Fragment, { children: [_jsxs("div", { className: styles.intro, children: ["Slots let pages nest their own elements inside this component (React ", _jsx("code", { children: "children" }), "). Rename or remove them here."] }), _jsx("div", { className: styles.rows, children: slotRows.map((row) => (_jsx(SlotRow, { row: row, otherSlotNames: allSlotNames.filter((n) => n !== row.slot) }, row.id))) })] })), _jsx(BindingSections, {})] }));
+    return (_jsxs("div", { className: bodyClassName, children: [focusedId !== null && (_jsxs("div", { className: styles.filterBar, "data-testid": "data-filter-bar", children: [_jsx("span", { children: "Showing the selected element" }), _jsx("button", { type: "button", className: styles.filterReset, onClick: () => setShowAll(true), children: "Show all" })] })), visibleRows.length > 0 && (_jsxs(_Fragment, { children: [focusedId === null && (_jsx("div", { className: styles.intro, children: "Mark a text element as a prop to let pages override its content per-instance. Locked text stays the same on every instance." })), _jsx("div", { className: styles.rows, children: visibleRows.map((row) => (_jsx(DataRow, { row: row, otherPropNames: allPropNames.filter((n) => n !== row.prop) }, row.id))) })] })), visibleSlotRows.length > 0 && (_jsxs(_Fragment, { children: [focusedId === null && (_jsxs("div", { className: styles.intro, children: ["Slots let pages nest their own elements inside this component (React ", _jsx("code", { children: "children" }), "). Rename or remove them here."] })), _jsx("div", { className: styles.rows, children: visibleSlotRows.map((row) => (_jsx(SlotRow, { row: row, otherSlotNames: allSlotNames.filter((n) => n !== row.slot) }, row.id))) })] })), _jsx(BindingSections, { onlyElementId: focusedId })] }));
 };
 const collectPropDeclarations = (elements, rootId) => {
     const out = [];
@@ -309,7 +332,7 @@ const InstanceDataView = () => {
 };
 export const DataPanel = () => {
     const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
-    return isComponentEditing ? _jsx(ComponentDataView, {}) : _jsx(InstanceDataView, {});
+    return isComponentEditing ? (_jsx(ComponentDataView, { followSelection: true })) : (_jsx(InstanceDataView, {}));
 };
 /**
  * The open view's data as a section of the properties panel's empty

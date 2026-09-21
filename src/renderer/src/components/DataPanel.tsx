@@ -7,7 +7,7 @@ import {
   REQUEST_REMOVE_SLOT_EVENT,
   type RequestRemoveSlotEventDetail,
 } from './ElementContextMenu';
-import { BindingSections } from './DataBindings';
+import { BindingSections, hasBindableData } from './DataBindings';
 import { collectViewProps, enclosingRepeat } from '@lib/viewProps';
 import styles from './DataPanel.module.css';
 import propStyles from './PropertiesPanel.module.css';
@@ -298,13 +298,21 @@ type ViewBodyProps = {
    * scrolls as a whole, so it must not grab the height.
    */
   bodyClassName?: string;
+  /**
+   * Narrow to the selected element when it has data of its own. On in
+   * the Data tab, off in the sidebar section, which is page-level and
+   * shows regardless of what is selected.
+   */
+  followSelection?: boolean;
 };
 
 const ComponentDataView = ({
   bodyClassName = propStyles.uiPanelBody,
+  followSelection = false,
 }: ViewBodyProps = {}): JSX.Element => {
   const elements = useCanvasStore((s) => s.elements);
   const rootElementId = useCanvasStore((s) => s.rootElementId);
+  const selectedId = useCanvasStore((s) => s.selectedElementIds[0] ?? null);
 
   const rows = useMemo(
     () => collectTextDescendants(elements, rootElementId),
@@ -329,6 +337,31 @@ const ComponentDataView = ({
     () => collectViewProps(elements, rootElementId).some((p) => p.kind !== 'text' && p.kind !== 'slot'),
     [elements, rootElementId]
   );
+  /**
+   * Selecting a text element and opening Data should put its
+   * prop/locked control in front of you, not a list of every text in
+   * the view to hunt through. The tab narrows to the selected element
+   * whenever that element has anything to show; `Show all` steps back
+   * out, and changing the selection re-narrows.
+   */
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => {
+    setShowAll(false);
+  }, [selectedId]);
+  const selected = selectedId === null ? undefined : elements[selectedId];
+  const canFocus =
+    followSelection &&
+    selectedId !== null &&
+    selectedId !== rootElementId &&
+    selected !== undefined &&
+    (rows.some((r) => r.id === selectedId) ||
+      slotRows.some((r) => r.id === selectedId) ||
+      hasBindableData(selected));
+  const focusedId = canFocus && !showAll ? selectedId : null;
+  const visibleRows = focusedId === null ? rows : rows.filter((r) => r.id === focusedId);
+  const visibleSlotRows =
+    focusedId === null ? slotRows : slotRows.filter((r) => r.id === focusedId);
+
   const hasAttributeCandidates = useMemo(
     () =>
       Object.values(elements).some(
@@ -354,14 +387,24 @@ const ComponentDataView = ({
 
   return (
     <div className={bodyClassName}>
-      {rows.length > 0 && (
+      {focusedId !== null && (
+        <div className={styles.filterBar} data-testid="data-filter-bar">
+          <span>Showing the selected element</span>
+          <button type="button" className={styles.filterReset} onClick={() => setShowAll(true)}>
+            Show all
+          </button>
+        </div>
+      )}
+      {visibleRows.length > 0 && (
         <>
-          <div className={styles.intro}>
-            Mark a text element as a prop to let pages override its content
-            per-instance. Locked text stays the same on every instance.
-          </div>
+          {focusedId === null && (
+            <div className={styles.intro}>
+              Mark a text element as a prop to let pages override its content
+              per-instance. Locked text stays the same on every instance.
+            </div>
+          )}
           <div className={styles.rows}>
-            {rows.map((row) => (
+            {visibleRows.map((row) => (
               <DataRow
                 key={row.id}
                 row={row}
@@ -371,14 +414,16 @@ const ComponentDataView = ({
           </div>
         </>
       )}
-      {slotRows.length > 0 && (
+      {visibleSlotRows.length > 0 && (
         <>
-          <div className={styles.intro}>
-            Slots let pages nest their own elements inside this component
-            (React <code>children</code>). Rename or remove them here.
-          </div>
+          {focusedId === null && (
+            <div className={styles.intro}>
+              Slots let pages nest their own elements inside this component
+              (React <code>children</code>). Rename or remove them here.
+            </div>
+          )}
           <div className={styles.rows}>
-            {slotRows.map((row) => (
+            {visibleSlotRows.map((row) => (
               <SlotRow
                 key={row.id}
                 row={row}
@@ -388,7 +433,7 @@ const ComponentDataView = ({
           </div>
         </>
       )}
-      <BindingSections />
+      <BindingSections onlyElementId={focusedId} />
     </div>
   );
 };
@@ -604,7 +649,11 @@ const InstanceDataView = (): JSX.Element => {
 
 export const DataPanel = (): JSX.Element => {
   const isComponentEditing = useCanvasStore((s) => s.activeComponent !== null);
-  return isComponentEditing ? <ComponentDataView /> : <InstanceDataView />;
+  return isComponentEditing ? (
+    <ComponentDataView followSelection />
+  ) : (
+    <InstanceDataView />
+  );
 };
 
 /**

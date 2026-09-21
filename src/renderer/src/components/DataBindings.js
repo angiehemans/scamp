@@ -119,7 +119,16 @@ export const freePropName = (base, taken) => {
         n += 1;
     return `${base}${n}`;
 };
-export const BindingSections = () => {
+/**
+ * Does this element have anything the Data tab can say about it? Used
+ * to decide whether selecting it is worth narrowing the tab to — an
+ * element with nothing to bind would leave an empty panel.
+ */
+export const hasBindableData = (el) => attributeCandidates(el).length > 0 ||
+    eventCandidates(el).length > 0 ||
+    el.repeat !== undefined ||
+    el.showIf !== undefined;
+export const BindingSections = ({ onlyElementId = null, } = {}) => {
     const elements = useCanvasStore((s) => s.elements);
     const rootId = useCanvasStore((s) => s.rootElementId);
     const setAttributeBinding = useCanvasStore((s) => s.setAttributeBinding);
@@ -143,8 +152,8 @@ export const BindingSections = () => {
                 walk(childId);
         };
         walk(rootId);
-        return out;
-    }, [elements, rootId]);
+        return onlyElementId === null ? out : out.filter((el) => el.id === onlyElementId);
+    }, [elements, rootId, onlyElementId]);
     const samples = elements[rootId]?.samples ?? {};
     const attributeRows = ordered.flatMap((el) => attributeCandidates(el).map((attr) => ({ el, attr, expr: el.bind?.[attr] })));
     const eventRows = ordered.flatMap((el) => eventCandidates(el).map((event) => ({ el, event, handler: el.on?.[event] })));

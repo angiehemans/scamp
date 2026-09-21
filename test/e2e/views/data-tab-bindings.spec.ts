@@ -55,6 +55,11 @@ test.describe('Data tab bindings', () => {
     await window.keyboard.press('Escape');
     await dragInFrame(window, { x: 700, y: 700 }, { x: 700, y: 700 });
     await window.getByRole('radio', { name: 'Data' }).click();
+    // This test drives several elements' bindings from one visit, so it
+    // wants the whole view rather than the tab's default narrowing to
+    // the selection. see views/data-tab-selection.spec.ts
+    const showAll = window.getByRole('button', { name: 'Show all' });
+    if ((await showAll.count()) > 0) await showAll.click();
 
     // The repeat row: rename the list, add a field, fill the first row.
     const repeat = window.getByTestId(`repeat-${cardId}`);
