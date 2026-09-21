@@ -174,3 +174,32 @@ describe('tsxSurgicalEdits', () => {
     expect(out).toContain('      <h1\n        data-scamp-id="text_a1b1"');
   });
 });
+
+describe('a file that is not the file being written', () => {
+  /**
+   * The bug this pins: converting a page to a view replaces the page
+   * file with a one-line wrapper for the view. A save that then tried
+   * to patch the generated page into that wrapper kept the wrapper's
+   * component and appended the page's, producing a file with two
+   * default exports — and a migration that refused to run because the
+   * page it had just converted was still a page.
+   */
+  const WRAPPER = `import Home from '@/views/Home/Home';
+
+export default function HomePage() {
+  return <Home />;
+}
+`;
+
+  it('refuses to patch a page into a view wrapper', () => {
+    expect(tsxSurgicalEdits(side(WRAPPER), side(GENERATED('Hello')))).toBeNull();
+  });
+
+  it('refuses when the two files declare different components', () => {
+    const renamed = GENERATED('Hello').replace(
+      'export default function Home()',
+      'export default function Landing()'
+    );
+    expect(tsxSurgicalEdits(side(GENERATED('Hello')), side(renamed))).toBeNull();
+  });
+});

@@ -139,4 +139,33 @@ test.describe('migrate a Next.js project to the Scamp framework', () => {
     await expect(window.getByRole('button', { name: 'about', exact: true }).first()).toBeVisible();
     await expect(window.getByTestId('preview-button')).toBeEnabled();
   });
+
+  test('converts the open page when the canvas has unsaved changes', async ({
+    window,
+    project,
+  }) => {
+    // A save is still pending when the migration starts, so the page
+    // file is being written while the conversion replaces it with a
+    // wrapper. The migration refuses outright if the page survives.
+    await expect(pageRoot(window)).toBeVisible();
+
+    // Delete a seeded element: the canvas is dirty and nothing is
+    // selected, which is when the migration notice shows.
+    const row = window.locator('[data-testid="layers-row"]').filter({ hasText: 'Hero' }).first();
+    const anyRow = (await row.count()) > 0 ? row : window.locator('[data-testid="layers-row"]').nth(1);
+    await anyRow.locator('button').first().click();
+    await window.keyboard.press('Delete');
+
+    // No wait: the debounced write is still pending, which is the race.
+    const notice = window.getByTestId('scamp-migration-notice');
+    await notice.getByRole('button', { name: 'Migrate this project' }).click();
+    await window.getByRole('button', { name: 'Migrate', exact: true }).click();
+    await expect(notice).toBeHidden({ timeout: 30_000 });
+
+    const exists = (file: string): Promise<boolean> =>
+      fs.access(path.join(project.dir, file)).then(() => true, () => false);
+    expect(await exists('views/Home/Home.tsx')).toBe(true);
+    expect(await exists('routes/index.tsx')).toBe(true);
+    expect(await exists('app/page.tsx')).toBe(false);
+  });
 });

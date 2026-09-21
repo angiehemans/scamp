@@ -83,7 +83,14 @@ export const tsxSurgicalEdits = (base, next) => {
     if (elements === null)
         return null;
     const component = findTsxRegions(base.text).find((r) => r.kind === 'component');
-    if (component === undefined)
+    const nextComponent = findTsxRegions(next.text).find((r) => r.kind === 'component');
+    if (component === undefined || nextComponent === undefined)
+        return null;
+    // Not the same component: the region path emits a removal and an
+    // insertion rather than one replacement, and skipping "the component
+    // edit" would drop only half of that. Nothing here can patch one
+    // file into a different one.
+    if (component.key !== nextComponent.key)
         return null;
     if (elements.some((e) => e.start < component.start || e.end > component.end)) {
         return null;

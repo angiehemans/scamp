@@ -134,3 +134,16 @@ describe('tsxEdits', () => {
         expect(apply(once, next)).toBe(once);
     });
 });
+describe('the write path on a file that is not the same file', () => {
+    it('keeps exactly one default export', () => {
+        // A converted page holds the wrapper; the save still had the page.
+        const wrapper = `import Home from '@/views/Home/Home';
+
+export default function HomePage() {
+  return <Home />;
+}
+`;
+        const out = applyEdits(wrapper, tsxEdits(wrapper, GENERATED));
+        expect(out.match(/export default function/g) ?? []).toHaveLength(1);
+    });
+});

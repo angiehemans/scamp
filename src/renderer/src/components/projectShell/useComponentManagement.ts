@@ -566,9 +566,18 @@ export const useComponentManagement = ({
    * Convert every plain page to a view, in order, for the nextjs → scamp
    * migration; the main process then turns the wrappers into routes.
    * Threads the project through so each step sees the last one's result.
+   *
+   * The canvas moves off the open page first. Converting replaces that
+   * page's files with a one-line wrapper and deletes its stylesheet; a
+   * canvas still pointed at them reloads from the wrapper, comes back
+   * empty, and writes that empty canvas out as a page again — which
+   * left the migration refusing to run, because the page it had just
+   * converted was still a page. The single-page convert path always
+   * swapped the target, and never had the problem.
    */
   const convertAllPagesToViews = async (): Promise<ProjectData> => {
     armTargetSwapSuppression();
+    if (activePageName !== null) setActivePageName(null);
     let current = project;
     try {
       for (const page of project.pages) {

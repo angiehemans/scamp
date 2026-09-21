@@ -1,6 +1,6 @@
 import { parseCode } from '@lib/parseCode';
 import { applyEdits, type TextEdit } from '@lib/textEdits';
-import { tsxEdits } from '@lib/tsxRegions';
+import { findTsxRegions, tsxEdits } from '@lib/tsxRegions';
 import { tsxSurgicalEdits } from '@lib/tsxElementEdits';
 import type { Breakpoint } from '@shared/types';
 
@@ -77,9 +77,29 @@ const surgicalEdits = (
   );
 };
 
+/**
+ * Do the two files declare the same component? A missing one on either
+ * side counts as a mismatch: without it there is nothing to anchor a
+ * patch to.
+ */
+const sameComponent = (base: string, generated: string): boolean => {
+  const of = (text: string): string | null =>
+    findTsxRegions(text).find((r) => r.kind === 'component')?.key ?? null;
+  const baseKey = of(base);
+  return baseKey !== null && baseKey === of(generated);
+};
+
 export const tsxWriteFor = (input: TsxWriteInput): TsxWrite => {
   const { baseTsx, generatedTsx } = input;
   if (baseTsx === null) return { tsx: generatedTsx, patched: false };
+  // The file on disk has to be a version of the file we are writing. A
+  // converted page holds a one-line wrapper for a view, which is a
+  // different file with a different component in it, and patching one
+  // into the other appends rather than replaces. Write it whole.
+  // see docs/plans/incremental-writes-plan.md
+  if (!sameComponent(baseTsx, generatedTsx)) {
+    return { tsx: generatedTsx, patched: false };
+  }
   try {
     const surgical = surgicalEdits(baseTsx, input);
     if (surgical !== null) {
