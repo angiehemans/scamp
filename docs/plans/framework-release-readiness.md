@@ -16,7 +16,17 @@ there is no CI that would have noticed. The rest is small.
 
 ## 1. The scamp format has no end-to-end coverage as a whole
 
-**Status: run, triaged, all 24 failures fixed. CI gap remains.**
+**Status: green in all three formats. CI gap remains.**
+
+Final run, 2026-09-22, after the fixes below and the default flip:
+
+| Format | Result |
+|---|---|
+| scamp (the new default) | 488 passed, 1 skipped, 0 failed — 18.9m |
+| legacy | 488 passed, 1 skipped, 0 failed — 18.9m |
+| nextjs | 488 passed, 1 skipped, 0 failed — 18.8m |
+
+Unit suite alongside it: 3376 passed, 1 skipped, 234 files.
 
 `test/e2e/fixtures/project.ts` defaults a test project to `legacy`:
 
@@ -116,9 +126,9 @@ components, which legacy lacks" rather than "is about Next.js", and
 auditing them would move real coverage onto the format this release is
 about.
 
-Next.js was not re-run in full — a deliberate priority call. The specs
-this branch touches were run against it (54 passed), which covers the
-blast radius: this branch changed `escapeJsx`, which alters generated
+Next.js was re-run in full after all (the machine was free), and is
+green. Before that it had only the specs this branch touches (54
+passed), which covers the blast radius: this branch changed `escapeJsx`, which alters generated
 TSX for every format, and the fixture accessors, which every spec uses.
 That check immediately caught one: the Code panel labels a Next.js page
 `home.tsx` while its file is `app/page.tsx`, so a basename-derived
