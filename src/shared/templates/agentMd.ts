@@ -1332,7 +1332,16 @@ written on selection, the tools read the canvas at the moment you ask.
 - \`scamp_get_active_page\` — which page or component is open
 - \`scamp_list_pages\` / \`scamp_list_components\` — what else exists
 - \`scamp_get_view_props\` — a view's or component's exact props type and
-  sample data; call before writing the route or page that renders it
+  sample data; call before writing the route or page that renders it.
+  Check its \`warnings\`: a non-empty list means the view lost something
+  on the way in and the props may not be the whole story
+- \`scamp_check_view\` — what a view LOST on parse: bindings kept as
+  opaque text, declarations that render but leave the panel blank,
+  undeclared tokens. Call it after writing or editing a view; an empty
+  \`findings\` list means it arrived intact
+- \`scamp_get_conventions\` — these rules, scoped to this project's
+  format. No argument for the summary and the section list, then
+  \`section\` for the one you need
 - \`scamp_get_component_scaffold\` — the exact starter files for a new
   component; call it before creating one
 - \`scamp_get_recent_edits\` — what the user has changed since you last
