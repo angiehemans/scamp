@@ -32,14 +32,19 @@ export const useSnapshotsStore = create((set, get) => ({
     },
     previewSnapshot: async (projectPath, snapshot) => {
         const canvas = useCanvasStore.getState();
-        const page = canvas.activePage;
-        if (page === null)
+        // Whichever target is open. A framework project has no pages —
+        // every view opens as `activeComponent` — so reading only
+        // `activePage` made previewing a snapshot silently do nothing on
+        // every page of every scamp project. `ActiveComponent` carries the
+        // same two paths. see docs/plans/framework-release-readiness.md
+        const target = canvas.activePage ?? canvas.activeComponent;
+        if (target === null)
             return;
         const res = await window.scamp.readSnapshotPage({
             projectPath,
             snapshotId: snapshot.id,
-            tsxPath: page.tsxPath,
-            cssPath: page.cssPath,
+            tsxPath: target.tsxPath,
+            cssPath: target.cssPath,
         });
         if (res.tsx === null || res.css === null)
             return;

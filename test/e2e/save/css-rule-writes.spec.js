@@ -6,6 +6,13 @@ import { waitForSaved, readPageFiles } from '../fixtures/assertions';
  * Phase 2 of docs/plans/incremental-writes-plan.md: a design change
  * rewrites the rules it changed and leaves the rest of the stylesheet
  * alone, including a file Scamp did not write.
+ *
+ * The seeded CSS deliberately carries no `min-height: 100vh` on `.root`:
+ * that is a page convention, and a view's root baseline drops the
+ * full-height floor (see docs/notes/component-min-height-floor.md), so
+ * a save normalises it away under `SCAMP_E2E_FORMAT=scamp`. Testing the
+ * floor is not what this spec is about — the other untouched rules
+ * prove the point.
  */
 const HAND_WRITTEN_CSS = `/* Written by hand. This comment must survive. */
 :root {
@@ -14,7 +21,6 @@ const HAND_WRITTEN_CSS = `/* Written by hand. This comment must survive. */
 
 .root {
     width: 100%;
-    min-height: 100vh;
     position: relative;
 }
 

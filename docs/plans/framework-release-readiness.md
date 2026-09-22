@@ -40,9 +40,9 @@ minutes. All 24 are now fixed. They fell into three groups:
 
 | Cause | Tests |
 |---|---|
-| Harness: specs hardcoding the legacy flat layout | 16 |
+| Harness: specs assuming the legacy page layout | 12 |
 | A tool list this branch had grown without updating the e2e spec | 1 |
-| **Real product bugs in the framework format** | 7 |
+| **Real product bugs in the framework format** | 11 |
 
 **The harness group** was one mistake repeated: specs wrote
 `path.join(project.dir, 'home.module.css')` instead of asking the
@@ -73,6 +73,31 @@ Replace-image bug in item 6.** Code that reads `activePage` or
    and it was handed `project.pages`. Views now go in as pages, named
    by slug so the output filenames and internal hrefs still line up,
    with non-view components passed separately. (2 tests)
+4. **Previewing a snapshot silently did nothing.** `previewSnapshot`
+   opened with `if (activePage === null) return`, so clicking any entry
+   in the History panel was inert on every page of every framework
+   project — a safety net that looked present and wasn't.
+   `ActiveComponent` carries the same `tsxPath` / `cssPath`, so the fix
+   is to take whichever target is open. (4 tests)
+
+That is **five** instances of one mistake, counting the Replace-image
+guard, and a sixth already fixed before this branch (`CssPanel`'s
+`editTargetRef`). Reading `activePage` or `project.pages` is the
+defining hazard of this format change: both are empty in every
+framework project, and every one of these failed *silently* — an inert
+button, a dead label, an empty export, a list with nothing in it. None
+raised an error, which is why none had been noticed.
+
+That sweep has been done for the renderer (2026-09-22) and came back
+clean: `CssPanel` routes through whichever target is active,
+`storeSubscription` compares both via `toEditTarget(activePage,
+activeComponent)`, `loadComponent` sets the history page id from
+`component.tsxPath`, and `ProjectShell`'s `previewTarget` already
+derives everything from views. The remaining `activePageName` reads are
+sidebar selection state, which is a different thing.
+
+Worth repeating the grep after any feature that touches the open
+target, since every instance so far has been silent rather than loud.
 
 None of these would have been caught by the unit suite, and none was
 visible from reading the code without running it. That is the argument
@@ -146,7 +171,7 @@ was written, not less. `<`, `>` and `"` still have to be escaped.
 
 ## 4. Two recorded flakes
 
-**Status: recorded, with a better lead than "flaky".**
+**Status: one fixed, the rest recorded with better leads than "flaky".**
 
 `docs/todos.md` #2 has `canvas/draw-into-flex.spec.ts` failing once
 under parallel load. The auth loopback specs joined it during this

@@ -7,7 +7,16 @@ import { waitForSaved, readPageFiles } from '../fixtures/assertions';
  * Phase 2 of docs/plans/incremental-writes-plan.md: a design change
  * rewrites the rules it changed and leaves the rest of the stylesheet
  * alone, including a file Scamp did not write.
+ *
+ * The root rule's full-height floor is seeded per format. A PAGE root
+ * has `min-height: 100vh` and Scamp writes it back if it is missing; a
+ * VIEW root drops the floor (docs/notes/component-min-height-floor.md)
+ * and a save normalises it away. Either way the save is a no-op only if
+ * the seed matches the target's baseline — so the seed has to ask.
  */
+
+const ROOT_FLOOR =
+  process.env['SCAMP_E2E_FORMAT'] === 'scamp' ? '' : '\n    min-height: 100vh;';
 
 const HAND_WRITTEN_CSS = `/* Written by hand. This comment must survive. */
 :root {
@@ -15,8 +24,7 @@ const HAND_WRITTEN_CSS = `/* Written by hand. This comment must survive. */
 }
 
 .root {
-    width: 100%;
-    min-height: 100vh;
+    width: 100%;${ROOT_FLOOR}
     position: relative;
 }
 

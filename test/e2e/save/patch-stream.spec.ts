@@ -53,7 +53,12 @@ test('a canvas edit becomes a patch with the file, the line, and the text', asyn
 
   const latest = entries[entries.length - 1];
   expect(latest?.target.length).toBeGreaterThan(0);
-  expect(latest?.kind).toBe('page');
+  // A view records as `component`: PatchEntry's kind is 'page' |
+  // 'component', and a view is a component-shaped file. In a scamp
+  // project every page is a view, so that is the expected kind there.
+  expect(latest?.kind).toBe(
+    process.env['SCAMP_E2E_FORMAT'] === 'scamp' ? 'component' : 'page'
+  );
   // Revisions are monotonic.
   expect(entries.map((e) => e.revision)).toEqual(
     [...entries.map((e) => e.revision)].sort((a, b) => a - b)

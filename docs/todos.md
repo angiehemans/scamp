@@ -49,6 +49,22 @@ right edge is not collapsed to 20px" failed once when run in a batch
 alongside `parity.spec.ts` (which launches its own chromium), and passed
 three times in isolation immediately after.
 
+`test/e2e/clipboard/copy-paste.spec.ts` → "the clipboard survives a page
+switch" joined it (2026-09-22): in a full legacy run the pasted rect
+never appeared (`toHaveCount(1)` saw 0 for the full 10s), and the file
+passes in isolation. Not seen under `SCAMP_E2E_FORMAT=scamp` in the same
+sitting. A paste that lands before the incoming page has finished
+loading would look exactly like this, which is worth checking before
+assuming it is only slowness.
+
+A third in the same sitting was NOT a flake and is fixed:
+`components/canvas-sizing.spec.ts` double-clicked an unscoped
+`[aria-label="Resize canvas (bottom-right)"]`, which is a strict-mode
+violation whenever a second handle is mounted outside the canvas frame.
+It passed in isolation and failed in both formats' full runs. Scoping
+the locator to `getByTestId('canvas-frame')` made it deterministic —
+worth checking for that shape before filing a timing flake.
+
 Not a port collision — Playwright runs `workers: 1` here. Most likely a
 timing assumption that does not hold when the machine is loaded. Left
 recorded rather than chased, since the evidence is a single occurrence.
