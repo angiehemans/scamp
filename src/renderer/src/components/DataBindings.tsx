@@ -4,7 +4,7 @@ import type { KeyboardEvent } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import type { SampleRow, ScampElement } from '@lib/element';
 import { classNameFor } from '@lib/generateCode/internal';
-import { TAG_ATTRIBUTES } from '@lib/elementTags';
+import { BINDABLE_TYPED_ATTRIBUTES, TAG_ATTRIBUTES } from '@lib/elementTags';
 import { tagFor } from '@lib/generateCode/internal';
 import {
   BOOLEAN_ATTRIBUTES,
@@ -44,10 +44,15 @@ const attributeCandidates = (el: ScampElement): string[] => {
   }
   const tag = tagFor(el);
   const typed = (TAG_ATTRIBUTES[tag] ?? []).map((spec) => spec.name);
+  // Typed fields whose editing UI lives in another section, so they
+  // aren't in TAG_ATTRIBUTES but must still be bindable.
+  const ownedElsewhere = BINDABLE_TYPED_ATTRIBUTES[tag] ?? [];
   const link = tag === 'a' ? ['href', 'target'] : [];
   const present = Object.keys(el.attributes ?? {});
   const bound = Object.keys(el.bind ?? {});
-  return [...new Set([...typed, ...link, ...present, ...bound])].filter((n) => n !== 'key');
+  return [...new Set([...typed, ...ownedElsewhere, ...link, ...present, ...bound])].filter(
+    (n) => n !== 'key'
+  );
 };
 
 const isBooleanAttribute = (el: ScampElement, attr: string): boolean => {

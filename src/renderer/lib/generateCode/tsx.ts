@@ -11,7 +11,7 @@ import {
   type ViewProp,
 } from "../viewProps";
 import { sizeDeclarationLines } from "./declarations";
-import { classNameFor, escapeHtml, tagFor } from "./internal";
+import { classNameFor, escapeJsx, tagFor } from "./internal";
 
 const componentNameFromPage = (pageName: string): string => {
   const parts = pageName.split(/[-_]/).filter((part) => part.length > 0);
@@ -58,7 +58,7 @@ const formatAttribute = (name: string, value: string): string => {
   // A value the parser kept as a verbatim JSX expression (`{expr}`) goes
   // back out unquoted, as it was written.
   if (value.startsWith('{') && value.endsWith('}')) return `${name}=${value}`;
-  return `${name}="${escapeHtml(value)}"`;
+  return `${name}="${escapeJsx(value)}"`;
 };
 
 /**
@@ -71,7 +71,7 @@ const formatAttribute = (name: string, value: string): string => {
 const formatTypedValue = (name: string, value: string): string =>
   value.startsWith('{') && value.endsWith('}')
     ? `${name}=${value}`
-    : `${name}="${escapeHtml(value)}"`;
+    : `${name}="${escapeJsx(value)}"`;
 
 /**
  * The bound and event attributes of an element, in binding order:
@@ -113,9 +113,9 @@ const renderSelectOptions = (
 ): string =>
   options
     .map((opt) => {
-      const attrs: string[] = [`value="${escapeHtml(opt.value)}"`];
+      const attrs: string[] = [`value="${escapeJsx(opt.value)}"`];
       if (opt.selected) attrs.push('selected');
-      return `${indent(level)}<option ${attrs.join(' ')}>${escapeHtml(opt.label)}</option>`;
+      return `${indent(level)}<option ${attrs.join(' ')}>${escapeJsx(opt.label)}</option>`;
     })
     .join('\n');
 
@@ -169,7 +169,7 @@ const renderElement = (
   if (el.type === 'component-instance') {
     const tagName = el.componentName ?? 'Unknown';
     const attrs: string[] = [
-      `data-scamp-instance-id="${escapeHtml(el.instanceId ?? '')}"`,
+      `data-scamp-instance-id="${escapeJsx(el.instanceId ?? '')}"`,
     ];
     // The page's size class, forwarded to the component's root via its
     // `className` prop. Only emitted when the instance actually has a
@@ -187,7 +187,7 @@ const renderElement = (
     const overrides = el.propOverrides ?? {};
     for (const [propName, value] of Object.entries(overrides)) {
       if (propName in bound) continue;
-      attrs.push(`${propName}="${escapeHtml(value)}"`);
+      attrs.push(`${propName}="${escapeJsx(value)}"`);
     }
     attrs.push(...bindingAttributes(el, repeatRow));
     // Group slot content: the default (`children`) slot emits as JSX
@@ -334,7 +334,7 @@ const renderElement = (
   }
 
   if (hasText && !hasChildren && !hasFragments) {
-    const body = propRef !== null ? `{${propRef}}` : escapeHtml(el.text ?? '');
+    const body = propRef !== null ? `{${propRef}}` : escapeJsx(el.text ?? '');
     return `${indent(level)}${open}>${body}</${tag}>`;
   }
 
@@ -346,14 +346,14 @@ const renderElement = (
     fragments
       .filter((f) => f.afterChildIndex === idx)
       .map((f) => {
-        const text = f.kind === 'text' ? escapeHtml(f.value) : f.source;
+        const text = f.kind === 'text' ? escapeJsx(f.value) : f.source;
         return `${indent(level + 1)}${text}`;
       })
       .join('\n');
 
   const segments: string[] = [];
   if (hasText) {
-    const body = propRef !== null ? `{${propRef}}` : escapeHtml(el.text ?? '');
+    const body = propRef !== null ? `{${propRef}}` : escapeJsx(el.text ?? '');
     segments.push(`${indent(level + 1)}${body}`);
   }
   const before = fragmentsAt(-1);

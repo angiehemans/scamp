@@ -47,6 +47,16 @@ export declare const DEFAULT_TAG: Record<ElementType, string>;
  * `<select>` (option list) and `<svg>` (raw source) aren't in this map
  * because they have dedicated editors rendered separately.
  */
+/**
+ * Attributes a tag can BIND that are deliberately absent from
+ * `TAG_ATTRIBUTES`, because another section already owns their editing
+ * UI. `ElementSection` renders one input per `TAG_ATTRIBUTES` entry, so
+ * listing `<img>`'s `src` and `alt` there would put a second Src and
+ * Alt field beside the ones the Image section owns — but they bind like
+ * any other attribute, and the Data tab has to offer them.
+ * see docs/notes/view-bindings.md
+ */
+export declare const BINDABLE_TYPED_ATTRIBUTES: Record<string, ReadonlyArray<string>>;
 export declare const TAG_ATTRIBUTES: Record<string, ReadonlyArray<AttributeSpec>>;
 /** True when the tag has a dedicated non-dropdown editor (select, svg). */
 export declare const hasSpecialEditor: (tag: string) => boolean;

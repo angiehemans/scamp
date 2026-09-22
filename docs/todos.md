@@ -53,6 +53,25 @@ Not a port collision — Playwright runs `workers: 1` here. Most likely a
 timing assumption that does not hold when the machine is loaded. Left
 recorded rather than chased, since the evidence is a single occurrence.
 
+The auth loopback specs behave the same way (2026-09-22), and here the
+evidence is better. Two files bind loopback ports —
+`authService.test.ts` from 18990, `authLoopbackAndExchange.test.ts`
+from 45300 — and each already carries a comment describing a previous
+fix for this exact flake. Different victims on different runs:
+"releases the port so a second attempt can run" failed twice inside a
+full `npm run test`; later "reports the port being unavailable"
+reproduced **3 times out of 3** running just those two files together,
+then stopped reproducing and has passed every run since, including
+against the pre-change tree.
+
+The ranges don't overlap, so it isn't a direct collision. What the
+3/3 window suggests is OS socket state left by the preceding full-suite
+run — sockets not yet released making a `listen` behave differently for
+a period — rather than a timing assumption inside either file. Whoever
+picks this up should try to re-open that window (run the full suite,
+then immediately loop the two auth files) rather than looping them from
+cold, which is what has made it look unreproducible.
+
 ---
 
 ## 3. Diagnostics left in place

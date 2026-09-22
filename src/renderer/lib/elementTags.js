@@ -118,6 +118,18 @@ const INPUT_TYPE_OPTIONS = [
  * `<select>` (option list) and `<svg>` (raw source) aren't in this map
  * because they have dedicated editors rendered separately.
  */
+/**
+ * Attributes a tag can BIND that are deliberately absent from
+ * `TAG_ATTRIBUTES`, because another section already owns their editing
+ * UI. `ElementSection` renders one input per `TAG_ATTRIBUTES` entry, so
+ * listing `<img>`'s `src` and `alt` there would put a second Src and
+ * Alt field beside the ones the Image section owns — but they bind like
+ * any other attribute, and the Data tab has to offer them.
+ * see docs/notes/view-bindings.md
+ */
+export const BINDABLE_TYPED_ATTRIBUTES = {
+    img: ['src', 'alt'],
+};
 export const TAG_ATTRIBUTES = {
     // `<a>` href/target/rel are managed by the LinkField in the Element
     // section — that flow handles internal page references, external URL

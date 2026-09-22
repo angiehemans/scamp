@@ -112,7 +112,7 @@ describe('generateCode — TSX', () => {
     expect(tsx).toContain('className={styles.rect_a1b2} />');
   });
 
-  it('emits text elements as <p> tags with HTML-escaped content', () => {
+  it('emits text elements as <p> tags, escaping the markup characters', () => {
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: makeRoot(['t001']),
       t001: makeRect({
@@ -124,7 +124,10 @@ describe('generateCode — TSX', () => {
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
     expect(tsx).toContain('<p data-scamp-id="text_t001"');
     expect(tsx).toContain('className={styles.text_t001}');
-    expect(tsx).toContain('Hello &amp; &lt;world&gt;');
+    // `&` stays raw: JSX decodes entities on the way back in, so
+    // escaping it only churns files agents wrote.
+    // see docs/plans/framework-release-readiness.md
+    expect(tsx).toContain('Hello & &lt;world&gt;');
     expect(tsx).not.toContain('<world>');
   });
 
@@ -628,7 +631,7 @@ describe('generateCode — attribute bag', () => {
     expect(tsx).not.toContain('controls=""');
   });
 
-  it('HTML-escapes attribute values', () => {
+  it('escapes the markup characters in attribute values, but not &', () => {
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
       a1b2: makeRect({
@@ -637,7 +640,21 @@ describe('generateCode — attribute bag', () => {
       }),
     };
     const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
-    expect(tsx).toContain('data-x="a &quot;quoted&quot; &amp; &lt;risky&gt; value"');
+    expect(tsx).toContain('data-x="a &quot;quoted&quot; & &lt;risky&gt; value"');
+  });
+
+  it('leaves a query-string URL byte-identical across a save', () => {
+    // The churn this guards: an agent writes `&q=80`, the next canvas
+    // save rewrote it to `&amp;q=80`. Harmless once JSX decodes it, and
+    // a dirtied line in a file nobody touched.
+    const url = 'https://images.unsplash.com/photo-1441986300917?w=2000&q=80&fit=crop';
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2', type: 'image', src: url, alt: '' }),
+    };
+    const { tsx } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    expect(tsx).toContain(`src="${url}"`);
+    expect(tsx).not.toContain('&amp;');
   });
 
   it('preserves attribute name case (React-style htmlFor)', () => {

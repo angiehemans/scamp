@@ -4,7 +4,7 @@ import { PASSTHROUGH_PROP, rootClassNameAttribute } from "../classNamePassthroug
 import { ROOT_ELEMENT_ID } from "../element";
 import { collectViewProps, isRowPath, propsTypeSource, viewEventNames, } from "../viewProps";
 import { sizeDeclarationLines } from "./declarations";
-import { classNameFor, escapeHtml, tagFor } from "./internal";
+import { classNameFor, escapeJsx, tagFor } from "./internal";
 const componentNameFromPage = (pageName) => {
     const parts = pageName.split(/[-_]/).filter((part) => part.length > 0);
     if (parts.length === 0)
@@ -47,7 +47,7 @@ const formatAttribute = (name, value) => {
     // back out unquoted, as it was written.
     if (value.startsWith('{') && value.endsWith('}'))
         return `${name}=${value}`;
-    return `${name}="${escapeHtml(value)}"`;
+    return `${name}="${escapeJsx(value)}"`;
 };
 /**
  * A typed `src` / `alt` value. Unlike a bag entry, `""` is a real empty
@@ -58,7 +58,7 @@ const formatAttribute = (name, value) => {
  */
 const formatTypedValue = (name, value) => value.startsWith('{') && value.endsWith('}')
     ? `${name}=${value}`
-    : `${name}="${escapeHtml(value)}"`;
+    : `${name}="${escapeJsx(value)}"`;
 /**
  * The bound and event attributes of an element, in binding order:
  * `attr={prop}`, `attr={!prop}`, `attr={row.field}`, `onX={handler}`, and
@@ -87,10 +87,10 @@ const repeatKeyFor = (el) => el.repeat?.key ?? 'id';
  */
 const renderSelectOptions = (options, level) => options
     .map((opt) => {
-    const attrs = [`value="${escapeHtml(opt.value)}"`];
+    const attrs = [`value="${escapeJsx(opt.value)}"`];
     if (opt.selected)
         attrs.push('selected');
-    return `${indent(level)}<option ${attrs.join(' ')}>${escapeHtml(opt.label)}</option>`;
+    return `${indent(level)}<option ${attrs.join(' ')}>${escapeJsx(opt.label)}</option>`;
 })
     .join('\n');
 /**
@@ -128,7 +128,7 @@ const renderElement = (el, elements, level, isComponent, repeatRow) => {
     if (el.type === 'component-instance') {
         const tagName = el.componentName ?? 'Unknown';
         const attrs = [
-            `data-scamp-instance-id="${escapeHtml(el.instanceId ?? '')}"`,
+            `data-scamp-instance-id="${escapeJsx(el.instanceId ?? '')}"`,
         ];
         // The page's size class, forwarded to the component's root via its
         // `className` prop. Only emitted when the instance actually has a
@@ -147,7 +147,7 @@ const renderElement = (el, elements, level, isComponent, repeatRow) => {
         for (const [propName, value] of Object.entries(overrides)) {
             if (propName in bound)
                 continue;
-            attrs.push(`${propName}="${escapeHtml(value)}"`);
+            attrs.push(`${propName}="${escapeJsx(value)}"`);
         }
         attrs.push(...bindingAttributes(el, repeatRow));
         // Group slot content: the default (`children`) slot emits as JSX
@@ -283,7 +283,7 @@ const renderElement = (el, elements, level, isComponent, repeatRow) => {
         return `${indent(level)}${open} />`;
     }
     if (hasText && !hasChildren && !hasFragments) {
-        const body = propRef !== null ? `{${propRef}}` : escapeHtml(el.text ?? '');
+        const body = propRef !== null ? `{${propRef}}` : escapeJsx(el.text ?? '');
         return `${indent(level)}${open}>${body}</${tag}>`;
     }
     // Emit fragments before any element child, interleaved between
@@ -293,13 +293,13 @@ const renderElement = (el, elements, level, isComponent, repeatRow) => {
     const fragmentsAt = (idx) => fragments
         .filter((f) => f.afterChildIndex === idx)
         .map((f) => {
-        const text = f.kind === 'text' ? escapeHtml(f.value) : f.source;
+        const text = f.kind === 'text' ? escapeJsx(f.value) : f.source;
         return `${indent(level + 1)}${text}`;
     })
         .join('\n');
     const segments = [];
     if (hasText) {
-        const body = propRef !== null ? `{${propRef}}` : escapeHtml(el.text ?? '');
+        const body = propRef !== null ? `{${propRef}}` : escapeJsx(el.text ?? '');
         segments.push(`${indent(level + 1)}${body}`);
     }
     const before = fragmentsAt(-1);

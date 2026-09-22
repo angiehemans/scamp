@@ -4,7 +4,28 @@ import { type ScampElement } from "../element";
  * Shared by the TSX generator and the HTML exporter so the two can't
  * drift on an escaping rule.
  */
+/**
+ * Escape a value for an HTML document — the export path, whose output is
+ * a final artifact served to a browser. `&` must be escaped there: a
+ * bare one is invalid, and `&foo;` can be misread as an entity.
+ */
 export declare const escapeHtml: (raw: string) => string;
+/**
+ * Escape a value for JSX — an attribute value or a text body in a file
+ * Scamp both writes and re-parses.
+ *
+ * Unlike the HTML export, `&` is deliberately left alone. The parser
+ * decodes entities on the way in, so a literal `&amp;` in a source file
+ * already arrives as `&`, and re-escaping on the way out can only move
+ * away from what was written. It used to, and the cost was real: an
+ * agent writing `src="…?w=2000&q=80"` had the next canvas save rewrite
+ * it to `&amp;q=80` — identical once JSX decodes it, stable across
+ * repeated saves, and a line dirtied in a file nobody touched. In a tool
+ * whose premise is a human and an agent editing the same files, that is
+ * worse than cosmetic.
+ * see docs/plans/framework-release-readiness.md
+ */
+export declare const escapeJsx: (raw: string) => string;
 /**
  * The CSS class name for an element. When the element has a custom name,
  * the slugified name replaces the type prefix:

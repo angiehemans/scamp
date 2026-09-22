@@ -2,7 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useMemo, useState } from 'react';
 import { useCanvasStore } from '@store/canvasSlice';
 import { classNameFor } from '@lib/generateCode/internal';
-import { TAG_ATTRIBUTES } from '@lib/elementTags';
+import { BINDABLE_TYPED_ATTRIBUTES, TAG_ATTRIBUTES } from '@lib/elementTags';
 import { tagFor } from '@lib/generateCode/internal';
 import { BOOLEAN_ATTRIBUTES, bindPropName, collectViewProps, enclosingRepeat, isInvertedBinding, isRowPath, } from '@lib/viewProps';
 import { SegmentedControl } from './controls/SegmentedControl';
@@ -30,10 +30,13 @@ const attributeCandidates = (el) => {
     }
     const tag = tagFor(el);
     const typed = (TAG_ATTRIBUTES[tag] ?? []).map((spec) => spec.name);
+    // Typed fields whose editing UI lives in another section, so they
+    // aren't in TAG_ATTRIBUTES but must still be bindable.
+    const ownedElsewhere = BINDABLE_TYPED_ATTRIBUTES[tag] ?? [];
     const link = tag === 'a' ? ['href', 'target'] : [];
     const present = Object.keys(el.attributes ?? {});
     const bound = Object.keys(el.bind ?? {});
-    return [...new Set([...typed, ...link, ...present, ...bound])].filter((n) => n !== 'key');
+    return [...new Set([...typed, ...ownedElsewhere, ...link, ...present, ...bound])].filter((n) => n !== 'key');
 };
 const isBooleanAttribute = (el, attr) => {
     if (el.type === 'component-instance')
