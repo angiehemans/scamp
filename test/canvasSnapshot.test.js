@@ -466,6 +466,9 @@ describe('getViewProps', () => {
                 waiting: true,
                 canStart: true,
             },
+            // The fixture is clean; a non-empty list here means the view lost
+            // something on parse. see docs/notes/view-lint.md
+            warnings: [],
         });
     });
     it('resolves a view by its route slug, as scamp_list_pages reports it', () => {
@@ -481,6 +484,7 @@ describe('getViewProps', () => {
             props: [],
             events: [],
             samples: {},
+            warnings: [],
         });
     });
     it('returns null for an unknown name, an empty name, or when no trees were supplied', () => {

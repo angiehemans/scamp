@@ -33,7 +33,6 @@ export const BackgroundSection = ({ elementId }) => {
     const patchElement = useCanvasStore((s) => s.patchElement);
     const patchCustomProperties = useCanvasStore((s) => s.patchCustomProperties);
     const { presetColors, themeTokens, onOpenTheme } = useColorPickerContext();
-    const activePage = useCanvasStore((s) => s.activePage);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
     const projectPath = useCanvasStore((s) => s.projectPath);
     const isImage = element?.type === 'image';
@@ -51,7 +50,10 @@ export const BackgroundSection = ({ elementId }) => {
     const bgPosition = element.customProperties['background-position'] ?? 'center';
     const bgRepeat = element.customProperties['background-repeat'] ?? 'no-repeat';
     const handleSetBackgroundImage = async () => {
-        if (!activePage || !projectPath)
+        // Not gated on the active page: a view or component sets
+        // `activeComponent` instead and leaves it null, and nothing
+        // below reads it.
+        if (!projectPath)
             return;
         const chosen = await window.scamp.chooseImage({
             defaultPath: `${projectPath}/${assetsDirSegment(projectFormat)}`,

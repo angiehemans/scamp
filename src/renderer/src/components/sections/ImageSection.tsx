@@ -28,16 +28,27 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
   const element = useCanvasStore((s) => s.elements[elementId]);
   const patchElement = useCanvasStore((s) => s.patchElement);
   const patchCustomProperties = useCanvasStore((s) => s.patchCustomProperties);
-  const activePage = useCanvasStore((s) => s.activePage);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
   const projectPath = useCanvasStore((s) => s.projectPath);
   if (!element || element.type !== 'image') return null;
+
+  // A bound src/alt has no literal to edit: the value comes from a prop
+  // or, inside a repeat, from the row. Show the expression so the field
+  // explains itself rather than reading as empty.
+  // see docs/notes/view-bindings.md
+  const srcBinding = element.bind?.['src'];
+  const altBinding = element.bind?.['alt'];
 
   const objFit = element.customProperties['object-fit'] ?? 'cover';
   const objPosition = element.customProperties['object-position'] ?? 'center';
 
   const handleReplace = async (): Promise<void> => {
-    if (!activePage || !projectPath) return;
+    // Deliberately NOT gated on `activePage`: a view is a component
+    // with a page-sized canvas, so it sets `activeComponent` and leaves
+    // `activePage` null. Guarding on it disabled Replace on every view
+    // in a scamp project — which is every page — and in the component
+    // editor everywhere. Nothing below reads it.
+    if (!projectPath) return;
     const chosen = await window.scamp.chooseImage({
       defaultPath: `${projectPath}/${assetsDirSegment(projectFormat)}`,
     });
@@ -59,15 +70,21 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
       <Row label="Source">
         <div className={styles.sourceRow}>
           <PrefixSuffixInput
-            value={element.src ?? ''}
+            value={srcBinding ?? element.src ?? ''}
             onCommit={(next) => patchElement(elementId, { src: next })}
             placeholder="Path or URL"
-            title="Source — a project path (/assets/photo.png) or an absolute URL. Use Replace to import a file instead."
+            disabled={srcBinding !== undefined}
+            title={
+              srcBinding === undefined
+                ? 'Source — a project path (/assets/photo.png) or an absolute URL. Use Replace to import a file instead.'
+                : `Source comes from data: ${srcBinding}. Change the binding in the Data tab.`
+            }
             stopKeyPropagation
           />
           <Button
             variant="secondary"
             size="sm"
+            disabled={srcBinding !== undefined}
             onClick={() => void handleReplace()}
           >
             Replace
@@ -78,9 +95,15 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
         <input
           className={styles.altInput}
           type="text"
-          value={element.alt ?? ''}
+          value={altBinding ?? element.alt ?? ''}
           onChange={(e) => patchElement(elementId, { alt: e.target.value })}
           placeholder="Image description"
+          disabled={altBinding !== undefined}
+          title={
+            altBinding === undefined
+              ? undefined
+              : `Alt text comes from data: ${altBinding}. Change the binding in the Data tab.`
+          }
         />
       </Row>
       <Row label="Fit">
