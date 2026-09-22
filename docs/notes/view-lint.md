@@ -62,6 +62,21 @@ correct as `cssPropertyMap` grows. `TYPED_SHORTHAND_FOR` is checked
 first, because `border-top-width` is both a side AND mapped, and "write
 `border-width`" is more use than "this value didn't parse".
 
+A boolean attribute never produces `missing-sample`. Its sample IS its
+presence, and the bag stores present as `''` — so both present and
+absent are complete samples, and an emptiness check reads the wrong
+thing. `disabled={!canStart}` on the contract fixture was the false
+positive that made the point; the rule skips `BOOLEAN_ATTRIBUTES`.
+
+## Two ways in
+
+`scamp_check_view` is the whole report. `scamp_get_view_props` also
+carries a `warnings` field holding the same findings, because that is
+the call an agent makes before writing a route — and the props type can
+read as complete and correct while a binding behind it is already gone,
+which is precisely what the `<img>` src bug did. Both run the same
+`lintView`, so they can't disagree.
+
 ## Shape and ordering
 
 Findings carry the element id AND the class name: the id is how the

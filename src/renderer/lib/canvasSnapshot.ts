@@ -9,6 +9,13 @@ import {
 import type { SampleValue, ScampElement } from './element';
 import type { PatchEntry } from './patchLog';
 import { lintView, type ViewFinding } from './viewLint';
+import {
+  findGuidanceSection,
+  guidanceFor,
+  guidanceSectionTitles,
+  guidanceSummary,
+  type GuidanceSection,
+} from '@shared/templates';
 import { classNameFor, tagFor } from './generateCode';
 import {
   collectViewProps,
@@ -79,7 +86,25 @@ export type ViewPropsResult = {
   events: string[];
   /** The sample data the design renders with, per prop. */
   samples: Record<string, SampleValue>;
+  /**
+   * What this view lost on the way in, if anything. Present because the
+   * props type can read as complete and correct while a binding behind
+   * it is already gone — which is exactly what happened when an
+   * `<img>`'s bound src was dropped on parse. Empty when the view
+   * arrived intact. see docs/notes/view-lint.md
+   */
+  warnings: ViewFinding[];
 } | null;
+
+export type ConventionsResult = {
+  format: ProjectFormat;
+  /** Every `##` section, so the agent can name one. */
+  sections: string[];
+  /** The TL;DR, always — this is the "short version by default". */
+  summary: string;
+  /** The section asked for; absent when none was, null when unknown. */
+  section?: GuidanceSection | null;
+};
 
 export type ViewCheckResult = {
   name: string;
@@ -337,6 +362,11 @@ export const getViewProps = (
       ...(p.defaultValue !== undefined ? { default: p.defaultValue } : {}),
     })),
     events: viewEventNames(props),
+    warnings: lintView({
+      elements: tree.elements,
+      rootId: tree.rootId,
+      themeTokens: input.themeTokens.map((token) => token.name),
+    }),
     samples,
   };
 };
@@ -391,6 +421,24 @@ export const getViewCheck = (input: SnapshotInput, name: string): ViewCheckResul
   };
 };
 
+/**
+ * The project's own guidance, sliced. Answers from the same templates
+ * that write `agent.md`, so an agent that asks and one that reads the
+ * file get the same rules. see docs/notes/agent-md-layouts.md
+ */
+export const getConventions = (
+  input: SnapshotInput,
+  section: string
+): ConventionsResult => {
+  const md = guidanceFor(input.projectFormat);
+  return {
+    format: input.projectFormat,
+    sections: guidanceSectionTitles(md),
+    summary: guidanceSummary(md),
+    ...(section.length > 0 ? { section: findGuidanceSection(md, section) } : {}),
+  };
+};
+
 export const getThemeTokens = (input: SnapshotInput): ThemeTokensResult => ({
   tokens: input.themeTokens.map(({ name, value }) => ({ name, value })),
   themes: input.themes.map(({ id, label }) => ({ id, label })),
@@ -434,6 +482,8 @@ export const answerSnapshotTool = (
       return getViewProps(input, String(args['name'] ?? ''));
     case 'scamp_check_view':
       return getViewCheck(input, String(args['name'] ?? ''));
+    case 'scamp_get_conventions':
+      return getConventions(input, String(args['section'] ?? ''));
     case 'scamp_get_recent_edits':
       return getRecentEdits(input, Number(args['since'] ?? 0));
     default:

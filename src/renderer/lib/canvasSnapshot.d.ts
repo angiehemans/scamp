@@ -3,6 +3,7 @@ import { type ContextTarget } from './contextModel';
 import type { SampleValue, ScampElement } from './element';
 import type { PatchEntry } from './patchLog';
 import { type ViewFinding } from './viewLint';
+import { type GuidanceSection } from '@shared/templates';
 import { type ViewPropKind } from './viewProps';
 /**
  * The canvas, in the shapes the MCP tools return.
@@ -63,7 +64,24 @@ export type ViewPropsResult = {
     events: string[];
     /** The sample data the design renders with, per prop. */
     samples: Record<string, SampleValue>;
+    /**
+     * What this view lost on the way in, if anything. Present because the
+     * props type can read as complete and correct while a binding behind
+     * it is already gone — which is exactly what happened when an
+     * `<img>`'s bound src was dropped on parse. Empty when the view
+     * arrived intact. see docs/notes/view-lint.md
+     */
+    warnings: ViewFinding[];
 } | null;
+export type ConventionsResult = {
+    format: ProjectFormat;
+    /** Every `##` section, so the agent can name one. */
+    sections: string[];
+    /** The TL;DR, always — this is the "short version by default". */
+    summary: string;
+    /** The section asked for; absent when none was, null when unknown. */
+    section?: GuidanceSection | null;
+};
 export type ViewCheckResult = {
     name: string;
     kind: 'component' | 'view';
@@ -209,6 +227,12 @@ export declare const listComponents: (input: SnapshotInput) => FileListItem[];
  * see docs/notes/view-lint.md
  */
 export declare const getViewCheck: (input: SnapshotInput, name: string) => ViewCheckResult;
+/**
+ * The project's own guidance, sliced. Answers from the same templates
+ * that write `agent.md`, so an agent that asks and one that reads the
+ * file get the same rules. see docs/notes/agent-md-layouts.md
+ */
+export declare const getConventions: (input: SnapshotInput, section: string) => ConventionsResult;
 export declare const getThemeTokens: (input: SnapshotInput) => ThemeTokensResult;
 /**
  * Map an MCP tool name onto its snapshot function.

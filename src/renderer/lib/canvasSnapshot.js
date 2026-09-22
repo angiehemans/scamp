@@ -1,6 +1,7 @@
 import { viewSlugFor } from '@shared/templates';
 import { buildContextModel, } from './contextModel';
 import { lintView } from './viewLint';
+import { findGuidanceSection, guidanceFor, guidanceSectionTitles, guidanceSummary, } from '@shared/templates';
 import { classNameFor, tagFor } from './generateCode';
 import { collectViewProps, propsTypeSource, viewEventNames, } from './viewProps';
 /**
@@ -166,6 +167,11 @@ export const getViewProps = (input, name) => {
             ...(p.defaultValue !== undefined ? { default: p.defaultValue } : {}),
         })),
         events: viewEventNames(props),
+        warnings: lintView({
+            elements: tree.elements,
+            rootId: tree.rootId,
+            themeTokens: input.themeTokens.map((token) => token.name),
+        }),
         samples,
     };
 };
@@ -213,6 +219,20 @@ export const getViewCheck = (input, name) => {
         }),
     };
 };
+/**
+ * The project's own guidance, sliced. Answers from the same templates
+ * that write `agent.md`, so an agent that asks and one that reads the
+ * file get the same rules. see docs/notes/agent-md-layouts.md
+ */
+export const getConventions = (input, section) => {
+    const md = guidanceFor(input.projectFormat);
+    return {
+        format: input.projectFormat,
+        sections: guidanceSectionTitles(md),
+        summary: guidanceSummary(md),
+        ...(section.length > 0 ? { section: findGuidanceSection(md, section) } : {}),
+    };
+};
 export const getThemeTokens = (input) => ({
     tokens: input.themeTokens.map(({ name, value }) => ({ name, value })),
     themes: input.themes.map(({ id, label }) => ({ id, label })),
@@ -251,6 +271,8 @@ export const answerSnapshotTool = (tool, args, input) => {
             return getViewProps(input, String(args['name'] ?? ''));
         case 'scamp_check_view':
             return getViewCheck(input, String(args['name'] ?? ''));
+        case 'scamp_get_conventions':
+            return getConventions(input, String(args['section'] ?? ''));
         case 'scamp_get_recent_edits':
             return getRecentEdits(input, Number(args['since'] ?? 0));
         default:

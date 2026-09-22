@@ -194,6 +194,20 @@ describe('lintView — missing-sample', () => {
     expect(found[0]?.hint).toContain('`photo`');
   });
 
+  it('never fires for a boolean attribute, whose sample is its presence', () => {
+    // `disabled={!canStart}` with the attribute absent means the flag
+    // defaults true — a complete sample, not a missing one.
+    const absent = view(
+      rect('a1b2', { tag: 'button', attributes: { type: 'button' }, bind: { disabled: '!canStart' } })
+    );
+    expect(kinds(absent)).toEqual([]);
+
+    const present = view(
+      rect('a1b2', { tag: 'button', attributes: { disabled: '' }, bind: { disabled: 'isBusy' } })
+    );
+    expect(kinds(present)).toEqual([]);
+  });
+
   it('accepts the sample in the typed field of an image', () => {
     const elements = view(rect('a1b2', { type: 'image', src: '/sample.png', bind: { src: 'photo' } }));
     expect(kinds(elements)).toEqual([]);

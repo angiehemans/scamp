@@ -80,7 +80,7 @@ export const TOOL_DESCRIPTORS = [
     },
     {
         name: 'scamp_get_view_props',
-        description: 'The props a view or component accepts: the exact `<Name>Props` type as its file declares it, each prop’s kind (text, attribute, boolean, repeat, show, event, slot), the event names `_scamp.events` lists, and the sample data the design renders with. Call this before writing the route or page that renders a view so the object you pass matches exactly — the sample rows show the shape of a repeat’s list. Takes the PascalCase name from scamp_list_pages (`view`) or scamp_list_components; a page’s route slug also works.',
+        description: 'The props a view or component accepts: the exact `<Name>Props` type as its file declares it, each prop’s kind (text, attribute, boolean, repeat, show, event, slot), the event names `_scamp.events` lists, and the sample data the design renders with. Call this before writing the route or page that renders a view so the object you pass matches exactly — the sample rows show the shape of a repeat’s list. Check `warnings`: a non-empty list means the view lost something on the way in and the props may not be the whole story — scamp_check_view explains each one. Takes the PascalCase name from scamp_list_pages (`view`) or scamp_list_components; a page’s route slug also works.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -122,6 +122,20 @@ export const TOOL_DESCRIPTORS = [
                 since: {
                     type: 'number',
                     description: 'A `revision` from an earlier call. Only later saves are returned.',
+                },
+            },
+            additionalProperties: false,
+        },
+    },
+    {
+        name: 'scamp_get_conventions',
+        description: "This project's own rules for writing its files, from the same source that writes agent.md — the layout, the class-name and id contract, the binding grammar, the CSS conventions, what Scamp regenerates. Call it with no arguments for the summary plus the list of section names, then again with `section` for the one you need. Prefer this over reading agent.md: it is scoped to the project's actual format, so it never describes a layout this project doesn't use.",
+        inputSchema: {
+            type: 'object',
+            properties: {
+                section: {
+                    type: 'string',
+                    description: 'A section name from a previous call, e.g. "Route files", "HTML tags", "CSS properties". Matching ignores case and punctuation. Omit for the summary.',
                 },
             },
             additionalProperties: false,

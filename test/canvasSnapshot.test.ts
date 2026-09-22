@@ -546,6 +546,9 @@ describe('getViewProps', () => {
         waiting: true,
         canStart: true,
       },
+      // The fixture is clean; a non-empty list here means the view lost
+      // something on parse. see docs/notes/view-lint.md
+      warnings: [],
     });
   });
 
@@ -563,6 +566,7 @@ describe('getViewProps', () => {
       props: [],
       events: [],
       samples: {},
+      warnings: [],
     });
   });
 

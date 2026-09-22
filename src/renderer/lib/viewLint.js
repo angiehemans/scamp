@@ -2,7 +2,7 @@ import { isMappedProperty } from './cssPropertyMap';
 import { BIND_MARK } from './parseCode/bindings';
 import { ROOT_ELEMENT_ID } from './element';
 import { classNameFor } from './generateCode/internal';
-import { isRowPath } from './viewProps';
+import { BOOLEAN_ATTRIBUTES, isRowPath } from './viewProps';
 /**
  * Longhands whose shorthand Scamp types. Writing the side renders
  * correctly and drops out of the panel, which reads as Scamp losing the
@@ -156,6 +156,11 @@ export const lintView = (input) => {
         // A bound prop with no sample renders empty on the canvas.
         for (const [attr, expr] of Object.entries(el.bind ?? {})) {
             if (isRowPath(expr))
+                continue;
+            // A boolean attribute's sample is its PRESENCE, and the bag
+            // stores present as `''`. Both present and absent are real
+            // samples, so there is no such thing as a missing one.
+            if (BOOLEAN_ATTRIBUTES.has(attr))
                 continue;
             const name = expr.startsWith('!') ? expr.slice(1) : expr;
             if (name in samples)

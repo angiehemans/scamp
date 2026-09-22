@@ -27,6 +27,7 @@ describe('TOOL_DESCRIPTORS', () => {
       'scamp_check_view',
       'scamp_list_routes',
       'scamp_get_recent_edits',
+      'scamp_get_conventions',
       'scamp_get_theme_tokens',
     ]);
   });

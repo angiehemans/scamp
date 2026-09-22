@@ -72,6 +72,25 @@ say confirm your work with `scamp_get_element_tree`, which reports
 structure only — a view that lost a binding still looks correct in it.
 It now points at `scamp_check_view`. See `view-lint.md`.
 
+## Served through MCP too
+
+`templates/guidance.ts` slices the same document: `guidanceFor(format)`
+picks the variant, `guidanceSections` splits on `##` (tracking fenced
+blocks, since the guidance is full of CSS whose comments would
+otherwise read as headings), and `findGuidanceSection` matches
+forgivingly — exact, then normalised, then prefix, then substring, then
+separators squashed so `tldr` still reaches `TL;DR`.
+
+`scamp_get_conventions` answers from it: no argument gives the TL;DR
+plus the 25 section names, and `section` gives one section. That is
+~2k characters instead of ~55k, scoped to the project's actual format.
+An agent that asks and one that reads the file get the same rules,
+because there is one source.
+
+`###` headings stay inside their parent on purpose: they are
+subsections of one topic, and an agent asking about "HTML tags" wants
+the tag-specific attributes with it.
+
 ## Keeping it honest
 
 `test/agentMdLayouts.test.ts` asserts the scamp variant against a list
