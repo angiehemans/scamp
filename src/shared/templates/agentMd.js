@@ -1163,7 +1163,14 @@ legacy \`app/<slug>/page.tsx\` page keeps working until it is converted.`;
 const SCAMP_WRAPPER_NOTE = `There are no wrapper pages: a page is its view, and the route file
 under \`routes/\` that renders it is yours — Scamp never reads, lists,
 or regenerates anything there.`;
-export const AGENT_MD_CONTENT = `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
+/**
+ * The guidance, built for one project layout. Everything a layout
+ * changes comes in through the vocabulary: forking the template by
+ * string-replacing two paragraphs is what left 34 Next.js references
+ * in a Scamp-framework project's agent.md.
+ * see docs/notes/agent-md-layouts.md
+ */
+const buildAgentMd = (v) => `<!-- This file is managed by Scamp and refreshed on every project open. Edits made by hand will be overwritten. -->
 
 # Scamp Project — Agent Instructions
 
@@ -1171,7 +1178,7 @@ You are editing files in a Scamp project. Scamp is a local design tool
 that bidirectionally syncs canvas state with real \`.tsx\` + CSS module
 files. Anything you write here is parsed and re-rendered on the canvas.
 
-${NEXT_LAYOUT_PARAGRAPH}
+${v.layoutParagraph}
 
 ## TL;DR
 
@@ -1205,9 +1212,10 @@ ${NEXT_LAYOUT_PARAGRAPH}
   the user asks for components, a kit, or a library, create component
   folders — see "Scamp components". A page of examples is not a
   component library.
-- Don't run \`next build\`, \`next dev\`, or install packages to verify
-  your work. Scamp renders files as you save them; use
-  \`scamp_get_element_tree\` to confirm they parsed.
+- Don't run a build or install packages to verify your work. Scamp
+  renders files as you save them; call \`scamp_check_view\` to see what
+  it actually parsed. \`scamp_get_element_tree\` reports structure only,
+  so a view that arrived degraded still looks correct in it.
 
 ## What Scamp does and doesn't touch
 
@@ -1375,8 +1383,8 @@ module. If you write the TSX first, the auto-scaffold will land
 
 **Always write or edit the CSS module file before the TSX file.**
 
-1. Add / update styles in \`app/[page]/page.module.css\`.
-2. Then add / update markup in \`app/[page]/page.tsx\`.
+1. Add / update styles in \`${v.pageCssPath}\`.
+2. Then add / update markup in \`${v.pageTsxPath}\`.
 
 When the TSX lands, every class is already present in the CSS so
 the scaffolder is a no-op and your styles are untouched.
@@ -1390,7 +1398,7 @@ element whose class wasn't in the CSS yet.
 You want a navbar fixed to the top of the page with a token-driven
 padding and a circular brand badge.
 
-Step 1: write the CSS (\`app/page.module.css\`):
+Step 1: write the CSS (\`${v.exampleCssPath}\`):
 
 \`\`\`css
 .root {
@@ -1419,10 +1427,10 @@ Step 1: write the CSS (\`app/page.module.css\`):
 }
 \`\`\`
 
-Step 2: write the TSX (\`app/page.tsx\`):
+Step 2: write the TSX (\`${v.exampleTsxPath}\`):
 
 \`\`\`tsx
-import styles from './page.module.css';
+import styles from '${v.exampleCssImport}';
 
 export default function Home() {
   return (
@@ -1447,35 +1455,9 @@ If you later change the brand background colour from the canvas
 panel, Scamp surgically rewrites just the \`background\` line inside
 \`.brand_b001\`. Everything else in the file stays put.
 
-## Project structure
+${v.structureSection}
 
-This is a Next.js App Router project:
-
-- **Root / Home page**: \`app/page.tsx\` and \`app/page.module.css\`.
-- **Additional pages**: \`app/[page-name]/page.tsx\` and
-  \`app/[page-name]/page.module.css\` (one folder per page).
-- **Components**: \`components/[Name]/[Name].tsx\` and
-  \`components/[Name]/[Name].module.css\` (one folder per reusable
-  component — see "Scamp components").
-- **Shared root layout**: \`app/layout.tsx\` — do not modify. The
-  auto-generated layout sets \`<body style={{ margin: 0, minHeight:
-  '100vh' }}>\` so the design isn't pushed off-axis by the browser's
-  default body margin and the body fills the viewport in any browser.
-- **Design tokens**: \`app/theme.css\` — imported from \`app/layout.tsx\`,
-  defines the project's CSS custom properties.
-- **Next.js config**: \`next.config.ts\` — do not modify.
-- **Package manifest**: \`package.json\` — do not modify (Scamp pins
-  the Next.js / React versions it expects).
-- **Per-project Scamp settings**: \`scamp.config.json\` — do not modify.
-- **Static assets**: \`public/assets/\`. Next.js serves the \`public/\`
-  directory at the URL root, so \`public/assets/hero.png\` is
-  accessible at \`/assets/hero.png\`.
-
-Do not move, rename, or restructure these files.
-Each page exports a single default React component.
-All styles live in the co-located CSS Modules file.
-
-## Page conventions
+${v.routesSection}## Page conventions
 - Each page exports a single default React component.
 - The root element uses \`styles.root\` and \`data-scamp-id="root"\`.
 - Every other element needs both:
@@ -1579,7 +1561,7 @@ A page's design can live as a view: \`views/<Name>/<Name>.tsx\` +
 \`<Name>.module.css\`, in exactly the component file shape above (props
 type, \`className\` passthrough, \`_scamp\` export). \`scamp_list_pages\`
 reports such a page with \`kind: "view"\` and the view name; edit the
-view. ${NEXT_WRAPPER_NOTE}
+view. ${v.wrapperNote}
 Never give a view root \`min-height: 100vh\`; the page shell owns full
 height.
 
@@ -1727,7 +1709,7 @@ sorted alphabetically) and place a self-closing tag carrying
 overrides are plain JSX attributes:
 
 \`\`\`tsx
-import styles from './page.module.css';
+import styles from '${v.exampleCssImport}';
 import Card from '@/components/Card/Card';
 
 …
@@ -1877,53 +1859,9 @@ round-trips, so feel free to add the attributes a real HTML tag needs:
   source through the Element section in the properties panel, or in
   the TSX file directly — either way round-trips cleanly.
 
-### Linking between pages
+${v.linkingSection}
 
-Use absolute paths matching the page slug for internal links — Next.js
-App Router routes are absolute, not relative:
-
-- Home page → \`href="/"\`
-- A page at \`app/about/page.tsx\` → \`href="/about"\`
-- A page at \`app/checkout-flow/page.tsx\` → \`href="/checkout-flow"\`
-
-Plain \`<a href="/<slug>">\` triggers a normal browser navigation. Both
-in \`next dev\` and a production build, this works without any
-special component (no \`next/link\` import required). Subpaths,
-fragments, and query strings (\`/about/team#contact\`,
-\`/about?tab=members\`) round-trip cleanly.
-
-For external links use a full URL (\`href="https://example.com"\`) and
-add \`target="_blank"\` plus \`rel="noopener noreferrer"\` when the
-link should open in a new tab. Inside Scamp's preview window,
-external links are routed to the user's system browser
-automatically — the preview is scoped to the project.
-
-When a user renames a page, Scamp rewrites every matching
-\`href="/<old-slug>"\` (including subpath / query / fragment forms)
-across every page in the project. So the canonical href shape is
-the load-bearing convention here — keep it consistent.
-
-## Images and static assets
-
-Static assets (images, SVGs, fonts) live in \`public/assets/\`. Next.js
-serves the \`public/\` directory at the URL root, so a file at
-\`public/assets/hero.png\` is accessible at \`/assets/hero.png\`.
-
-CSS background image references use the absolute root path:
-
-\`\`\`css
-background-image: url('/assets/hero.png');
-\`\`\`
-
-TSX \`<img>\` elements reference the same path:
-
-\`\`\`tsx
-<img src="/assets/hero.png" alt="" />
-\`\`\`
-
-Always place new images in \`public/assets/\` and reference them with
-the leading-slash form. Do not delete files from \`public/assets/\`
-unless the user asks.
+${v.assetsSection}
 
 ## CSS conventions
 
@@ -2207,7 +2145,7 @@ browser-default bullets. The reset block zeros their margin but not
 
 \`var(--token)\` works anywhere a CSS value works, including inside
 shorthand declarations like \`padding: var(--space-3) var(--space-5)\`.
-Scamp resolves the variable at render time through \`app/theme.css\`.
+Scamp resolves the variable at render time through \`${v.themeCss}\`.
 
 \`:hover\`, \`:focus\`, and \`:active\` on an element's OWN class
 (\`.card_a1b2:hover { … }\`) are parsed into editable per-state overrides —
@@ -2374,7 +2312,7 @@ round-trips verbatim but isn't editable from the panel.
 
 ## CSS Variables and Tokens
 
-The project includes an \`app/theme.css\` file with two sections:
+The project includes an \`${v.themeCss}\` file with two sections:
 
 1. **Font imports** — optional \`@import url(...)\` lines at the top
    referencing Google Fonts (\`fonts.googleapis.com\`) or Adobe Fonts
@@ -2392,8 +2330,7 @@ The project includes an \`app/theme.css\` file with two sections:
 }
 \`\`\`
 
-\`app/theme.css\` is imported from \`app/layout.tsx\` so the tokens
-apply to every page when running \`next dev\`. Reference tokens in
+${v.themeImportNote} Reference tokens in
 module CSS files using \`var()\` — anywhere a CSS value goes,
 including inside shorthands:
 
@@ -2406,20 +2343,20 @@ including inside shorthands:
 }
 \`\`\`
 
-**Reference only tokens that already exist in \`app/theme.css\`.** A
+**Reference only tokens that already exist in \`${v.themeCss}\`.** A
 \`var(--…)\` reference to an undeclared token resolves to the
 property's *initial* value — e.g. \`padding: var(--space-md)\`
 becomes \`0\`, \`background: var(--color-card-bg)\` becomes transparent,
 \`max-width: var(--max-width)\` becomes \`none\`. The layout collapses
 and the page looks broken on the canvas.
 
-**Before writing any module CSS, read \`app/theme.css\` and note what
+**Before writing any module CSS, read \`${v.themeCss}\` and note what
 tokens exist.** A fresh project only ships \`--color-primary\`,
 \`--color-text\`, and \`--font-sans\` — most real layouts need more
 (spacing scale, surface / border / accent colors, max-width, etc.).
 
 **When you need a token that doesn't exist yet, add it to
-\`app/theme.css\` first, then reference it.** Adding tokens is fine
+\`${v.themeCss}\` first, then reference it.** Adding tokens is fine
 and expected. What's NOT OK:
 
 - Referencing a token that isn't declared anywhere.
@@ -2430,7 +2367,7 @@ and expected. What's NOT OK:
   a comment when you do.
 
 Example: a layout needs accent shadows. Add
-\`--shadow-card: 0 16px 40px rgba(0, 0, 0, 0.08);\` to \`app/theme.css\`,
+\`--shadow-card: 0 16px 40px rgba(0, 0, 0, 0.08);\` to \`${v.themeCss}\`,
 then write \`box-shadow: var(--shadow-card);\` in the module file.
 
 Do NOT change or remove existing token values without the user
@@ -2452,7 +2389,103 @@ sections round-trip and are yours to write.
 like the artboard background colour and breakpoint table. Scamp
 reads and writes this file; don't modify it unless the user asks.
 
-## Preview mode
+${v.previewSection}
+
+## Snapshot history
+
+Scamp saves snapshots of the project in a \`.scamp/\` folder.
+Do not modify or delete anything inside \`.scamp/\`.
+Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
+
+${v.doNotChangeSection}
+`;
+/** The Next.js App Router layout. Frozen — see docs/notes/nextjs-sunset.md. */
+const NEXT_LAYOUT = {
+    layoutParagraph: NEXT_LAYOUT_PARAGRAPH,
+    wrapperNote: NEXT_WRAPPER_NOTE,
+    pageCssPath: 'app/[page]/page.module.css',
+    pageTsxPath: 'app/[page]/page.tsx',
+    exampleCssPath: 'app/page.module.css',
+    exampleTsxPath: 'app/page.tsx',
+    exampleCssImport: './page.module.css',
+    themeCss: 'app/theme.css',
+    themeImportNote: `\`app/theme.css\` is imported from \`app/layout.tsx\` so the tokens
+apply to every page when running \`next dev\`.`,
+    routesSection: '',
+    structureSection: `## Project structure
+
+This is a Next.js App Router project:
+
+- **Root / Home page**: \`app/page.tsx\` and \`app/page.module.css\`.
+- **Additional pages**: \`app/[page-name]/page.tsx\` and
+  \`app/[page-name]/page.module.css\` (one folder per page).
+- **Components**: \`components/[Name]/[Name].tsx\` and
+  \`components/[Name]/[Name].module.css\` (one folder per reusable
+  component — see "Scamp components").
+- **Shared root layout**: \`app/layout.tsx\` — do not modify. The
+  auto-generated layout sets \`<body style={{ margin: 0, minHeight:
+  '100vh' }}>\` so the design isn't pushed off-axis by the browser's
+  default body margin and the body fills the viewport in any browser.
+- **Design tokens**: \`app/theme.css\` — imported from \`app/layout.tsx\`,
+  defines the project's CSS custom properties.
+- **Next.js config**: \`next.config.ts\` — do not modify.
+- **Package manifest**: \`package.json\` — do not modify (Scamp pins
+  the Next.js / React versions it expects).
+- **Per-project Scamp settings**: \`scamp.config.json\` — do not modify.
+- **Static assets**: \`public/assets/\`. Next.js serves the \`public/\`
+  directory at the URL root, so \`public/assets/hero.png\` is
+  accessible at \`/assets/hero.png\`.
+
+Do not move, rename, or restructure these files.
+Each page exports a single default React component.
+All styles live in the co-located CSS Modules file.`,
+    linkingSection: `### Linking between pages
+
+Use absolute paths matching the page slug for internal links — Next.js
+App Router routes are absolute, not relative:
+
+- Home page → \`href="/"\`
+- A page at \`app/about/page.tsx\` → \`href="/about"\`
+- A page at \`app/checkout-flow/page.tsx\` → \`href="/checkout-flow"\`
+
+Plain \`<a href="/<slug>">\` triggers a normal browser navigation. Both
+in \`next dev\` and a production build, this works without any
+special component (no \`next/link\` import required). Subpaths,
+fragments, and query strings (\`/about/team#contact\`,
+\`/about?tab=members\`) round-trip cleanly.
+
+For external links use a full URL (\`href="https://example.com"\`) and
+add \`target="_blank"\` plus \`rel="noopener noreferrer"\` when the
+link should open in a new tab. Inside Scamp's preview window,
+external links are routed to the user's system browser
+automatically — the preview is scoped to the project.
+
+When a user renames a page, Scamp rewrites every matching
+\`href="/<old-slug>"\` (including subpath / query / fragment forms)
+across every page in the project. So the canonical href shape is
+the load-bearing convention here — keep it consistent.`,
+    assetsSection: `## Images and static assets
+
+Static assets (images, SVGs, fonts) live in \`public/assets/\`. Next.js
+serves the \`public/\` directory at the URL root, so a file at
+\`public/assets/hero.png\` is accessible at \`/assets/hero.png\`.
+
+CSS background image references use the absolute root path:
+
+\`\`\`css
+background-image: url('/assets/hero.png');
+\`\`\`
+
+TSX \`<img>\` elements reference the same path:
+
+\`\`\`tsx
+<img src="/assets/hero.png" alt="" />
+\`\`\`
+
+Always place new images in \`public/assets/\` and reference them with
+the leading-slash form. Do not delete files from \`public/assets/\`
+unless the user asks.`,
+    previewSection: `## Preview mode
 
 The user can press ⌘P (or click "Preview" in the toolbar) to open
 the project in a real Next.js dev server in a separate window.
@@ -2471,15 +2504,8 @@ Implications for agents:
 - The reserved filename \`[page-name].data.json\` (e.g.
   \`page.data.json\` next to \`app/about/page.tsx\`) is set aside
   for a future feature that injects mock data as page props during
-  preview. Don't repurpose this name for unrelated files.
-
-## Snapshot history
-
-Scamp saves snapshots of the project in a \`.scamp/\` folder.
-Do not modify or delete anything inside \`.scamp/\`.
-Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
-
-## What NOT to change
+  preview. Don't repurpose this name for unrelated files.`,
+    doNotChangeSection: `## What NOT to change
 - Do not alter the import line at the top of any \`page.tsx\` file.
 - Do not rename the default export function in any \`page.tsx\`.
 - Do not modify \`app/layout.tsx\` — the root layout is part of the
@@ -2494,13 +2520,198 @@ Do not add \`.scamp/\` to version control — it is already in \`.gitignore\`.
   tokens and font imports and is imported from the root layout.
 - Do not delete \`scamp.config.json\` — it holds per-project settings.
 - Do not combine multiple selectors into one rule block.
-- Do not nest \`@media\` inside a class rule.
-`;
-/**
- * The scamp-format variant: same conventions, framework layout. The
- * views paragraph's Next-only wrapper-page note is replaced too.
- */
-export const AGENT_MD_CONTENT_SCAMP = AGENT_MD_CONTENT.replace(NEXT_LAYOUT_PARAGRAPH, SCAMP_LAYOUT_PARAGRAPH).replace(NEXT_WRAPPER_NOTE, SCAMP_WRAPPER_NOTE);
+- Do not nest \`@media\` inside a class rule.`,
+};
+/** The Scamp framework (`scampjs`) layout. */
+const SCAMP_LAYOUT = {
+    layoutParagraph: SCAMP_LAYOUT_PARAGRAPH,
+    wrapperNote: SCAMP_WRAPPER_NOTE,
+    pageCssPath: 'views/<Name>/<Name>.module.css',
+    pageTsxPath: 'views/<Name>/<Name>.tsx',
+    exampleCssPath: 'views/Home/Home.module.css',
+    exampleTsxPath: 'views/Home/Home.tsx',
+    exampleCssImport: './Home.module.css',
+    themeCss: 'design/theme.css',
+    themeImportNote: `\`design/theme.css\` is injected into every page's document shell by
+the framework, so the tokens apply everywhere.`,
+    structureSection: `## Project structure
+
+This is a Scamp framework project (\`scampjs\`):
+
+- **A page's design**: \`views/<Name>/<Name>.tsx\` and
+  \`views/<Name>/<Name>.module.css\` (one folder per page). Scamp owns
+  and regenerates these — a page IS its view.
+- **Components**: \`components/<Name>/<Name>.tsx\` and
+  \`components/<Name>/<Name>.module.css\` (one folder per reusable
+  component — see "Scamp components").
+- **Routing and data**: \`routes/\` — YOURS. A route file loads data and
+  renders a view; \`routes/api/\` holds API handlers. Scamp lists these
+  and writes only a \`render\` export or a generated route; it never
+  regenerates anything there. See "Route files".
+- **Design tokens**: \`design/theme.css\` — the framework injects it into
+  every page's document shell.
+- **Design system**: \`design/DESIGN.md\` — the token values plus the
+  prose explaining them. See "Design system".
+- **Local env values**: \`.dev.vars\` — \`KEY=value\` per line, read as
+  \`env\` in \`load()\` and API handlers. Gitignored; never commit it.
+- **Env types**: \`scamp-env.d.ts\` — yours; augments \`Env\`.
+- **Package manifest**: \`package.json\` — do not modify (Scamp pins the
+  \`scampjs\` version it expects).
+- **Per-project Scamp settings**: \`scamp.config.json\` — do not modify.
+- **Static assets**: \`public/\`, served at the URL root — see "Images
+  and static assets".
+
+There is no \`app/\` folder, no \`layout.tsx\`, and no wrapper pages: the
+framework owns the document shell. Do not move, rename, or restructure
+these files. Each view exports a single default React component, and
+all of its styles live in the co-located CSS Module.`,
+    routesSection: `## Route files
+
+A route file is yours — Scamp never regenerates one. It lives anywhere
+under \`routes/\`, and its path is the URL: \`routes/index.tsx\` is \`/\`,
+\`routes/about.tsx\` is \`/about\`, \`routes/products/[slug].tsx\` is
+\`/products/<slug>\`. \`[...rest]\` catches the remainder, and a
+\`(group)\` folder adds no segment. \`scamp_list_routes\` prints the whole
+table — call it rather than guessing a URL.
+
+A route imports its view, loads the data, and passes it in:
+
+\`\`\`tsx
+import type { LoadContext, RouteProps } from 'scampjs/runtime';
+import Product from '@/views/Product/Product';
+import { findProduct, formatPrice } from '@/lib/products';
+
+export const render = 'static';
+
+export function params() {
+  return [{ slug: 'essential-tee' }];
+}
+
+export async function load({ params }: LoadContext<{ slug: string }>) {
+  const product = findProduct(params.slug);
+  return { name: product.name, price: formatPrice(product.price) };
+}
+
+export default function ProductRoute({ data }: RouteProps<typeof load>) {
+  return <Product {...data} />;
+}
+\`\`\`
+
+| Export | Required | What it does |
+|---|---|---|
+| \`default\` | yes | Renders the view. Receives \`{ params, data }\`. |
+| \`load\` | no | Runs on the server or at build time; what it returns is \`data\`. |
+| \`render\` | no | \`'static'\` (the default), \`'server'\`, or \`'client'\`. |
+| \`params\` | no | A static route with \`load()\` prerenders one page per entry. |
+
+\`load()\` receives \`{ params, request, env }\` and nothing else — never a
+Hono context, and a route file imports nothing from Hono.
+
+**Compute in logic, bind in the view.** Formatting, arithmetic, and
+mapping a record onto a view's props all happen here: a view is
+presentational and renders its sample data by default. Call
+\`scamp_get_view_props\` for the exact shape a view expects before
+writing the object you pass it.
+
+**Generate route** in Scamp writes \`routes/<slug>.tsx\` for a view that
+nothing renders yet, with \`load()\` returning the view's sample data.
+Replace the samples with real data and keep the shape.
+
+`,
+    linkingSection: `### Linking between pages
+
+Internal links are absolute paths. The URL is whatever route renders
+the view — \`routes/index.tsx\` is \`/\`, \`routes/about.tsx\` is \`/about\`,
+\`routes/products/[slug].tsx\` is \`/products/<slug>\`. \`scamp_list_routes\`
+prints every route with its URL.
+
+Plain \`<a href="/about">\` triggers a normal browser navigation and
+needs no special component or import. Subpaths, fragments, and query
+strings (\`/about/team#contact\`, \`/about?tab=members\`) round-trip
+cleanly.
+
+For external links use a full URL (\`href="https://example.com"\`) and
+add \`target="_blank"\` plus \`rel="noopener noreferrer"\` when the
+link should open in a new tab. Inside Scamp's preview window,
+external links are routed to the user's system browser
+automatically — the preview is scoped to the project.
+
+When a user renames a page, Scamp rewrites every matching
+\`href="/<old-slug>"\` (including subpath / query / fragment forms)
+across every page in the project, and moves the route that renders it.
+So the canonical href shape is the load-bearing convention here —
+keep it consistent.`,
+    assetsSection: `## Images and static assets
+
+Static files (images, SVGs, fonts) live in \`public/\`. It is served at
+the URL root by both \`scamp dev\` and a build, so a file at
+\`public/assets/hero.png\` is reachable at \`/assets/hero.png\`.
+
+CSS background image references use the absolute root path:
+
+\`\`\`css
+background-image: url('/assets/hero.png');
+\`\`\`
+
+TSX \`<img>\` elements reference the same path:
+
+\`\`\`tsx
+<img src="/assets/hero.png" alt="" />
+\`\`\`
+
+Always place new images in \`public/\` and reference them with the
+leading-slash form. Do not delete files from \`public/\` unless the
+user asks.
+
+**An image whose source is data binds like any other attribute.**
+\`src={photo}\` from a prop, or \`src={product.image}\` inside a repeat —
+and the default in the destructure is the sample the canvas draws. See
+"Data bindings"; \`alt\` binds the same way. A remote URL works, but it
+only renders on the canvas while the machine is online, so prefer a
+file in \`public/\` for anything the design depends on.`,
+    previewSection: `## Preview mode
+
+The user can press ⌘P (or click "Preview" in the toolbar) to open the
+project in the framework's dev server in a separate window. Scamp runs
+\`npm install\` automatically on first open, then spawns \`scamp dev\`
+and renders the live URL inside an embedded webview.
+
+Implications for agents:
+
+- \`package.json\` is essential for preview to work. Don't delete it;
+  don't change the \`scripts.dev\` entry that Scamp invokes.
+- Preview runs the real routes, so it shows the data \`load()\` returns.
+  The canvas shows the view's sample data instead. A view that looks
+  empty on the canvas but full in preview needs better defaults in its
+  destructure — not a fix to the route.
+- Animations, transitions, and \`:hover\` / \`:active\` / \`:focus\`
+  states only run in preview (the static canvas doesn't fire hover
+  events). When you're testing motion or interactivity, the user is
+  most likely viewing it in preview.`,
+    doNotChangeSection: `## What NOT to change
+- Do not change a view's file shape: the props type above the
+  component, the \`className\` passthrough on the root, and the
+  \`_scamp\` export at the bottom are contract, not style.
+- Do not modify \`package.json\` — Scamp pins the \`scampjs\` version it
+  expects.
+- Do not add view folders by hand unless the user asks for a new page
+  (Scamp creates the folder, and the route that renders it, for you).
+- Do not strip \`position: relative\` from \`.root\` — absolute-
+  positioned children rely on it to anchor to the view root.
+- Do not give a view root \`min-height: 100vh\` — the page shell owns
+  full height.
+- Do not delete \`design/theme.css\` — it holds the project's design
+  tokens and font imports, and the framework injects it into every
+  page.
+- Do not delete \`scamp.config.json\` — it holds per-project settings.
+- Do not commit \`.dev.vars\` — it holds local values for \`env\`.
+- Do not combine multiple selectors into one rule block.
+- Do not nest \`@media\` inside a class rule.`,
+};
+/** The Next.js App Router variant. Frozen — see docs/notes/nextjs-sunset.md. */
+export const AGENT_MD_CONTENT = buildAgentMd(NEXT_LAYOUT);
+/** The Scamp-framework variant: same conventions, its own layout. */
+export const AGENT_MD_CONTENT_SCAMP = buildAgentMd(SCAMP_LAYOUT);
 /**
  * Sections a recipe appended to the project's agent.md, under
  * `<!-- scamp:recipe:<name> -->` markers (scampjs CONTRACT.md section
