@@ -61,6 +61,8 @@ export const BackgroundSection = ({ elementId }) => {
         if (chosen.canceled || !chosen.path)
             return;
         const copied = await importImage(chosen.path, projectPath);
+        if (copied === null)
+            return;
         patchCustomProperties(elementId, {
             'background-image': `url("${copied.relativePath}")`,
             'background-size': 'cover',

@@ -54,6 +54,7 @@ export const ImageSection = ({ elementId }: Props): JSX.Element | null => {
     });
     if (chosen.canceled || !chosen.path) return;
     const copied = await importImage(chosen.path, projectPath);
+    if (copied === null) return;
     patchElement(elementId, { src: copied.relativePath, alt: copied.fileName });
   };
 

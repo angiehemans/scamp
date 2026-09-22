@@ -96,6 +96,10 @@ export const useDrawInteraction = (geometry: CanvasGeometry): DrawInteraction =>
       // reload; rasters are referenced by `<img src>`.
       const copied = await importImage(chosen.path, projectPath);
       if (cancelled) return;
+      if (copied === null) {
+        setTool('select');
+        return;
+      }
 
       // New images/SVGs land inside the currently-selected container (or
       // its nearest container ancestor); with nothing selected they fall

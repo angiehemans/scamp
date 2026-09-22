@@ -49,6 +49,8 @@ export const ImageSection = ({ elementId }) => {
         if (chosen.canceled || !chosen.path)
             return;
         const copied = await importImage(chosen.path, projectPath);
+        if (copied === null)
+            return;
         patchElement(elementId, { src: copied.relativePath, alt: copied.fileName });
     };
     const updateCustomProp = (prop, value) => {

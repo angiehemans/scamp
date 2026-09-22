@@ -51,6 +51,8 @@ export const useDropInsert = (geometry) => {
             if (!filePath || !projectPath)
                 return;
             const copied = await importImage(filePath, projectPath);
+            if (copied === null)
+                return;
             const pos = placement(DEFAULT_IMAGE_SIZE, DEFAULT_IMAGE_SIZE);
             createImage({
                 parentId: hitId,
