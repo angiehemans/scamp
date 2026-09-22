@@ -15,8 +15,8 @@ test.describe('code output: live preview', () => {
         // The panel's two panes are labelled with the page's own filenames,
         // which differ by format: `home.tsx` in a legacy project, `Home.tsx`
         // for a scamp view.
-        await expect(window.getByText(project.tsxName, { exact: true })).toBeVisible();
-        await expect(window.getByText(project.cssName, { exact: true })).toBeVisible();
+        await expect(window.getByText(project.pageLabelTsx, { exact: true })).toBeVisible();
+        await expect(window.getByText(project.pageLabelCss, { exact: true })).toBeVisible();
     });
     test('drawing a rect updates the preview with the new class', async ({ window, }) => {
         await expect(pageRoot(window)).toBeVisible();

@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/app';
+import { defaultTestFormat } from '../fixtures/project';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
 import { pageRoot } from '../fixtures/selectors';
 import { waitForSaved, readPageFiles } from '../fixtures/assertions';
@@ -7,20 +8,20 @@ import { waitForSaved, readPageFiles } from '../fixtures/assertions';
  * rewrites the rules it changed and leaves the rest of the stylesheet
  * alone, including a file Scamp did not write.
  *
- * The seeded CSS deliberately carries no `min-height: 100vh` on `.root`:
- * that is a page convention, and a view's root baseline drops the
- * full-height floor (see docs/notes/component-min-height-floor.md), so
- * a save normalises it away under `SCAMP_E2E_FORMAT=scamp`. Testing the
- * floor is not what this spec is about — the other untouched rules
- * prove the point.
+ * The root rule's full-height floor is seeded per format. A PAGE root
+ * has `min-height: 100vh` and Scamp writes it back if it is missing; a
+ * VIEW root drops the floor (docs/notes/component-min-height-floor.md)
+ * and a save normalises it away. Either way the save is a no-op only if
+ * the seed matches the target's baseline — so the seed has to ask.
  */
+const ROOT_FLOOR = defaultTestFormat() === 'scamp' ? '' : '\n    min-height: 100vh;';
 const HAND_WRITTEN_CSS = `/* Written by hand. This comment must survive. */
 :root {
     --card-gap: 12px;
 }
 
 .root {
-    width: 100%;
+    width: 100%;${ROOT_FLOOR}
     position: relative;
 }
 

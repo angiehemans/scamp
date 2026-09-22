@@ -43,7 +43,7 @@ test.describe('breakpoints: CSS output', () => {
         // observable signal that the external write has been parsed before
         // we kick off another canvas edit.
         await codeToggle(window).click();
-        await expect(window.getByText(project.cssName, { exact: true })).toBeVisible();
+        await expect(window.getByText(project.pageLabelCss, { exact: true })).toBeVisible();
         // Append a min-width media block externally — Scamp should preserve
         // it through subsequent saves without trying to interpret it.
         const cssPath = project.cssPath;

@@ -13,6 +13,17 @@ const writePage = async (dir, name) => {
     await fs.writeFile(path.join(dir, `${name}.tsx`), defaultPageTsx(componentNameFromPage(name), name), 'utf-8');
     await fs.writeFile(path.join(dir, `${name}.module.css`), DEFAULT_PAGE_CSS, 'utf-8');
 };
+/**
+ * The format a project gets when a spec doesn't pin one. Exported so a
+ * spec that must branch at MODULE scope (a seeded file's content, say)
+ * reads the same answer the fixture will use, rather than re-deriving
+ * it from the env var and getting it wrong the moment the default
+ * changes. Inside a test, prefer `project.format`.
+ */
+export const defaultTestFormat = () => {
+    const env = process.env['SCAMP_E2E_FORMAT'];
+    return env === 'legacy' || env === 'nextjs' ? env : 'scamp';
+};
 const defaultComponentTsx = (componentName) => `import styles from './${componentName}.module.css';
 
 export default function ${componentName}() {
@@ -47,8 +58,14 @@ export const createTestProject = async (options = {}) => {
     const opts = typeof options === 'string' ? { name: options } : options;
     const name = opts.name ?? 'scamp-e2e';
     const envFormat = process.env['SCAMP_E2E_FORMAT'];
+    // Defaults to `scamp`: the framework layout is the one a release has
+    // to protect, and a default of `legacy` meant a plain
+    // `npx playwright test` exercised the format that matters least —
+    // which is how 24 scamp failures sat undiscovered until someone
+    // remembered the env var. A spec that pins `opts.format` still wins.
+    // see docs/plans/framework-release-readiness.md
     const format = opts.format ??
-        (envFormat === 'nextjs' || envFormat === 'scamp' ? envFormat : 'legacy');
+        (envFormat === 'legacy' || envFormat === 'nextjs' ? envFormat : defaultTestFormat());
     const extraPages = opts.extraPages ?? [];
     const components = opts.components ?? [];
     const pageContent = opts.pageContent ?? {};
@@ -256,8 +273,8 @@ export const createTestProject = async (options = {}) => {
         cssPath: path.join(dir, homeCssPath),
         themeCssPath: path.join(dir, themePath),
         assetsDirPath: path.join(dir, ...(format === 'legacy' ? ['assets'] : ['public', 'assets'])),
-        tsxName: path.basename(homeTsxPath),
-        cssName: path.basename(homeCssPath),
+        pageLabelTsx: `${format === 'scamp' ? viewNameForPage(pageName) : pageName}.tsx`,
+        pageLabelCss: `${format === 'scamp' ? viewNameForPage(pageName) : pageName}.module.css`,
         readPage,
         readComponent,
         componentExists,

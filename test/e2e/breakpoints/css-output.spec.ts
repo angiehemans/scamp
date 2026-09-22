@@ -74,7 +74,7 @@ test.describe('breakpoints: CSS output', () => {
     // we kick off another canvas edit.
     await codeToggle(window).click();
     await expect(
-      window.getByText(project.cssName, { exact: true })
+      window.getByText(project.pageLabelCss, { exact: true })
     ).toBeVisible();
 
     // Append a min-width media block externally — Scamp should preserve

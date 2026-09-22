@@ -98,8 +98,12 @@ test.describe('components: canvas sizing', () => {
             }
             return { right, bottom };
         });
+        // Scoped to the canvas frame: a second handle exists outside it, and
+        // an unscoped locator is a strict-mode violation the moment both are
+        // mounted — which under full-suite load, they are.
         await window
-            .locator('[aria-label="Resize canvas (bottom-right)"]')
+            .getByTestId('canvas-frame')
+            .getByLabel('Resize canvas (bottom-right)')
             .dblclick();
         // The stored canvas shrinks below the 480×320 default toward the content.
         await expect
@@ -207,8 +211,10 @@ export default function Header() {
         // Open the seeded component in the editor.
         await openComponentsSection(window);
         await componentSidebarItem(window, 'Header').dblclick();
-        const handle = window.locator('[aria-label="Resize canvas (bottom-right)"]');
-        await handle.first().waitFor();
+        const handle = window
+            .getByTestId('canvas-frame')
+            .getByLabel('Resize canvas (bottom-right)');
+        await handle.waitFor();
         await handle.dblclick();
         // The fixed 60px root height is respected exactly — text line-height that
         // overflows the 20px-padded content box must NOT push the canvas past the

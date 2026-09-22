@@ -56,13 +56,14 @@ export type TestProject = {
   /** Absolute path to the project's assets folder, which moved to `public/` outside legacy. */
   assetsDirPath: string;
   /**
-   * Basenames of the home page's files, as the Code panel and the
-   * layers breadcrumb label them. A view is `Home.tsx`, a legacy page
-   * `home.tsx` — so a spec asserting on the visible filename has to ask
-   * rather than hardcode.
+   * What the Code panel DISPLAYS above each pane. Derived from the open
+   * target's name, not from the file on disk — a Next.js page is named
+   * `home` and labelled `home.tsx` while its file is `app/page.tsx`, so
+   * a basename would be wrong there. A scamp view is `Home.tsx` both
+   * ways.
    */
-  tsxName: string;
-  cssName: string;
+  pageLabelTsx: string;
+  pageLabelCss: string;
   /** Read an arbitrary page's TSX/CSS by name. */
   readPage: (pageName: string) => Promise<{ tsx: string; css: string }>;
   /** Read a component's TSX/CSS by PascalCase name. Throws if missing. */
@@ -107,6 +108,18 @@ const writePage = async (dir: string, name: string): Promise<void> => {
   );
 };
 
+/**
+ * The format a project gets when a spec doesn't pin one. Exported so a
+ * spec that must branch at MODULE scope (a seeded file's content, say)
+ * reads the same answer the fixture will use, rather than re-deriving
+ * it from the env var and getting it wrong the moment the default
+ * changes. Inside a test, prefer `project.format`.
+ */
+export const defaultTestFormat = (): 'legacy' | 'nextjs' | 'scamp' => {
+  const env = process.env['SCAMP_E2E_FORMAT'];
+  return env === 'legacy' || env === 'nextjs' ? env : 'scamp';
+};
+
 export type SeedComponent = {
   name: string;
   /** Optional TSX content; defaults to a blank scaffold. */
@@ -126,8 +139,9 @@ export type CreateTestProjectOptions = {
   name?: string;
   /**
    * Project format. Defaults to `SCAMP_E2E_FORMAT` when set, else
-   * `'legacy'` for back-compat. Set the variable to run a spec folder
-   * against another format: `SCAMP_E2E_FORMAT=scamp npx playwright test test/e2e/canvas`.
+   * `'scamp'` — the framework layout. Set the variable to run a spec
+   * folder against another:
+   * `SCAMP_E2E_FORMAT=nextjs npx playwright test test/e2e/canvas`.
    */
   format?: 'legacy' | 'nextjs' | 'scamp';
   /**
@@ -227,9 +241,15 @@ export const createTestProject = async (
     typeof options === 'string' ? { name: options } : options;
   const name = opts.name ?? 'scamp-e2e';
   const envFormat = process.env['SCAMP_E2E_FORMAT'];
+  // Defaults to `scamp`: the framework layout is the one a release has
+  // to protect, and a default of `legacy` meant a plain
+  // `npx playwright test` exercised the format that matters least —
+  // which is how 24 scamp failures sat undiscovered until someone
+  // remembered the env var. A spec that pins `opts.format` still wins.
+  // see docs/plans/framework-release-readiness.md
   const format: 'legacy' | 'nextjs' | 'scamp' =
     opts.format ??
-    (envFormat === 'nextjs' || envFormat === 'scamp' ? envFormat : 'legacy');
+    (envFormat === 'legacy' || envFormat === 'nextjs' ? envFormat : defaultTestFormat());
   const extraPages = opts.extraPages ?? [];
   const components = opts.components ?? [];
   const pageContent = opts.pageContent ?? {};
@@ -509,8 +529,8 @@ export const createTestProject = async (
     cssPath: path.join(dir, homeCssPath),
     themeCssPath: path.join(dir, themePath),
     assetsDirPath: path.join(dir, ...(format === 'legacy' ? ['assets'] : ['public', 'assets'])),
-    tsxName: path.basename(homeTsxPath),
-    cssName: path.basename(homeCssPath),
+    pageLabelTsx: `${format === 'scamp' ? viewNameForPage(pageName) : pageName}.tsx`,
+    pageLabelCss: `${format === 'scamp' ? viewNameForPage(pageName) : pageName}.module.css`,
     readPage,
     readComponent,
     componentExists,

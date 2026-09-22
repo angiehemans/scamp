@@ -36,6 +36,7 @@ const patches = (
 
 test('a canvas edit becomes a patch with the file, the line, and the text', async ({
   window,
+  project,
 }) => {
   await expect(pageRoot(window)).toBeVisible();
 
@@ -56,9 +57,7 @@ test('a canvas edit becomes a patch with the file, the line, and the text', asyn
   // A view records as `component`: PatchEntry's kind is 'page' |
   // 'component', and a view is a component-shaped file. In a scamp
   // project every page is a view, so that is the expected kind there.
-  expect(latest?.kind).toBe(
-    process.env['SCAMP_E2E_FORMAT'] === 'scamp' ? 'component' : 'page'
-  );
+  expect(latest?.kind).toBe(project.format === 'scamp' ? 'component' : 'page');
   // Revisions are monotonic.
   expect(entries.map((e) => e.revision)).toEqual(
     [...entries.map((e) => e.revision)].sort((a, b) => a - b)

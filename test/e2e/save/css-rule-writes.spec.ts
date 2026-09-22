@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/app';
+import { defaultTestFormat } from '../fixtures/project';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
 import { pageRoot } from '../fixtures/selectors';
 import { waitForSaved, readPageFiles } from '../fixtures/assertions';
@@ -15,8 +16,7 @@ import { waitForSaved, readPageFiles } from '../fixtures/assertions';
  * the seed matches the target's baseline — so the seed has to ask.
  */
 
-const ROOT_FLOOR =
-  process.env['SCAMP_E2E_FORMAT'] === 'scamp' ? '' : '\n    min-height: 100vh;';
+const ROOT_FLOOR = defaultTestFormat() === 'scamp' ? '' : '\n    min-height: 100vh;';
 
 const HAND_WRITTEN_CSS = `/* Written by hand. This comment must survive. */
 :root {

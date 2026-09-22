@@ -103,6 +103,28 @@ None of these would have been caught by the unit suite, and none was
 visible from reading the code without running it. That is the argument
 for the CI gap below.
 
+**The e2e default is now `scamp`** (`fixtures/project.ts`). It was
+`legacy`, so a plain `npx playwright test` — what a person or a CI job
+runs — exercised the format that matters least, which is how those 24
+failures sat undiscovered. A spec that pins `opts.format` still wins,
+and `SCAMP_E2E_FORMAT=legacy|nextjs` still selects the others.
+
+Worth a follow-up: **49 specs pin `format: 'nextjs'`** against 5 for
+scamp and 1 for legacy, so the framework layout is still the least
+covered even after the flip. Most of those pins are probably "needs
+components, which legacy lacks" rather than "is about Next.js", and
+auditing them would move real coverage onto the format this release is
+about.
+
+Next.js was not re-run in full — a deliberate priority call. The specs
+this branch touches were run against it (54 passed), which covers the
+blast radius: this branch changed `escapeJsx`, which alters generated
+TSX for every format, and the fixture accessors, which every spec uses.
+That check immediately caught one: the Code panel labels a Next.js page
+`home.tsx` while its file is `app/page.tsx`, so a basename-derived
+expectation was wrong there. The fixture now derives the label from the
+target's name rather than from disk.
+
 **Still open: there is no CI running any of this.** A release workflow
 that builds and publishes without running the suite means the next
 regression of this kind lands in a tag. Adding a workflow is outside

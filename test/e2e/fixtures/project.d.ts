@@ -36,13 +36,14 @@ export type TestProject = {
     /** Absolute path to the project's assets folder, which moved to `public/` outside legacy. */
     assetsDirPath: string;
     /**
-     * Basenames of the home page's files, as the Code panel and the
-     * layers breadcrumb label them. A view is `Home.tsx`, a legacy page
-     * `home.tsx` — so a spec asserting on the visible filename has to ask
-     * rather than hardcode.
+     * What the Code panel DISPLAYS above each pane. Derived from the open
+     * target's name, not from the file on disk — a Next.js page is named
+     * `home` and labelled `home.tsx` while its file is `app/page.tsx`, so
+     * a basename would be wrong there. A scamp view is `Home.tsx` both
+     * ways.
      */
-    tsxName: string;
-    cssName: string;
+    pageLabelTsx: string;
+    pageLabelCss: string;
     /** Read an arbitrary page's TSX/CSS by name. */
     readPage: (pageName: string) => Promise<{
         tsx: string;
@@ -73,6 +74,14 @@ export type TestProject = {
     /** Recursively delete the project's temp dir. */
     cleanup: () => Promise<void>;
 };
+/**
+ * The format a project gets when a spec doesn't pin one. Exported so a
+ * spec that must branch at MODULE scope (a seeded file's content, say)
+ * reads the same answer the fixture will use, rather than re-deriving
+ * it from the env var and getting it wrong the moment the default
+ * changes. Inside a test, prefer `project.format`.
+ */
+export declare const defaultTestFormat: () => "legacy" | "nextjs" | "scamp";
 export type SeedComponent = {
     name: string;
     /** Optional TSX content; defaults to a blank scaffold. */
@@ -91,8 +100,9 @@ export type CreateTestProjectOptions = {
     name?: string;
     /**
      * Project format. Defaults to `SCAMP_E2E_FORMAT` when set, else
-     * `'legacy'` for back-compat. Set the variable to run a spec folder
-     * against another format: `SCAMP_E2E_FORMAT=scamp npx playwright test test/e2e/canvas`.
+     * `'scamp'` — the framework layout. Set the variable to run a spec
+     * folder against another:
+     * `SCAMP_E2E_FORMAT=nextjs npx playwright test test/e2e/canvas`.
      */
     format?: 'legacy' | 'nextjs' | 'scamp';
     /**
