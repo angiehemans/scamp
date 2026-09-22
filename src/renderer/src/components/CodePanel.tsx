@@ -35,6 +35,14 @@ type Props = {
  */
 export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
   const activePage = useCanvasStore((s) => s.activePage);
+  const activeComponent = useCanvasStore((s) => s.activeComponent);
+  // The open target's file basename, without its extension. A framework
+  // project has no pages at all — every view opens as `activeComponent`
+  // and leaves `activePage` null — so reading only `activePage` labelled
+  // both panes "— no page —" on every page of every scamp project.
+  // Same root cause as the Replace-image guard; see
+  // docs/plans/framework-release-readiness.md.
+  const sourceName = activePage?.name ?? activeComponent?.name ?? null;
   const pageSource = useCanvasStore((s) => s.pageSource);
   const themeCssRaw = useCanvasStore((s) => s.themeCssRaw);
   const projectFormat = useCanvasStore((s) => s.projectFormat);
@@ -160,7 +168,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
       <div className={styles.split}>
         <div className={styles.pane} data-pane="tsx">
           <div className={styles.paneHeader}>
-            <code>{activePage ? `${activePage.name}.tsx` : '— no page —'}</code>
+            <code>{sourceName ? `${sourceName}.tsx` : '— no page —'}</code>
           </div>
           <div className={styles.editorWrap}>
             <HighlightedCode
@@ -173,7 +181,7 @@ export const CodePanel = ({ showTheme = false }: Props): JSX.Element => {
         </div>
         <div className={styles.pane} data-pane="css">
           <div className={styles.paneHeader}>
-            <code>{activePage ? `${activePage.name}.module.css` : '— no page —'}</code>
+            <code>{sourceName ? `${sourceName}.module.css` : '— no page —'}</code>
           </div>
           <div className={styles.editorWrap}>
             <HighlightedCode

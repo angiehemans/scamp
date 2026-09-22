@@ -17,7 +17,7 @@ test.describe('properties panel: shadow preset', () => {
     window,
     project,
   }) => {
-    await fs.writeFile(path.join(project.dir, 'theme.css'), THEME, 'utf-8');
+    await fs.writeFile(project.themeCssPath, THEME, 'utf-8');
 
     await expect(pageRoot(window)).toBeVisible();
     const className = await drawAndSelectRect(

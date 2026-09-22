@@ -10,6 +10,8 @@ export type PageFiles = {
  * same way under `SCAMP_E2E_FORMAT`.
  */
 export declare const readPageFiles: (projectDir: string, pageName: string) => Promise<PageFiles>;
+/** Does this absolute path exist? For paths the fixture already resolved. */
+export declare const fileExists: (absolute: string) => Promise<boolean>;
 export declare const projectFileExists: (projectDir: string, name: string) => Promise<boolean>;
 /**
  * Wait until the save-status indicator lands on `saved`. The sync

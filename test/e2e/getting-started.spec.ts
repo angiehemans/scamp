@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/app';
 import { pageRoot } from './fixtures/selectors';
-import { projectFileExists, readPageFiles } from './fixtures/assertions';
+import { fileExists, projectFileExists, readPageFiles } from './fixtures/assertions';
 
 /**
  * Phase-1 smoke spec. Proves the harness can:
@@ -19,9 +19,14 @@ test.describe('harness smoke', () => {
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
-    expect(await projectFileExists(project.dir, 'home.tsx')).toBe(true);
-    expect(await projectFileExists(project.dir, 'home.module.css')).toBe(true);
-    expect(await projectFileExists(project.dir, 'theme.css')).toBe(true);
+    // Paths differ by format: a scamp page is a view under `views/`,
+    // and the theme moved to `design/`. Ask the fixture.
+    // Paths differ by format: a scamp page is a view under `views/`,
+    // and the theme moved to `design/`. Ask the fixture rather than
+    // hardcoding the legacy flat layout.
+    for (const absolute of [project.tsxPath, project.cssPath, project.themeCssPath]) {
+      expect(await fileExists(absolute)).toBe(true);
+    }
     expect(await projectFileExists(project.dir, 'agent.md')).toBe(true);
   });
 

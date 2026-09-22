@@ -18,10 +18,9 @@ import { waitForSaved } from '../fixtures/assertions';
  */
 
 /** Default test projects are `legacy` format: assets at <project>/assets. */
-const assetsDir = (projectDir: string): string => path.join(projectDir, 'assets');
 
-const assetNames = async (projectDir: string): Promise<string[]> =>
-  (await fs.readdir(assetsDir(projectDir)).catch(() => [] as string[])).sort();
+const assetNames = async (assetsDir: string): Promise<string[]> =>
+  (await fs.readdir(assetsDir).catch(() => [] as string[])).sort();
 
 test.describe('images: choosing one already in the project', () => {
   test('references the existing asset instead of duplicating it', async ({
@@ -35,9 +34,9 @@ test.describe('images: choosing one already in the project', () => {
 
     // Seed an image that's already in the project, exactly as a previous
     // import would have left it — this is what the picker opens onto.
-    await fs.mkdir(assetsDir(project.dir), { recursive: true });
-    const existing = await writeFixtureImage(assetsDir(project.dir), 'hero.png');
-    expect(await assetNames(project.dir)).toEqual(['hero.png']);
+    await fs.mkdir(project.assetsDirPath, { recursive: true });
+    const existing = await writeFixtureImage(project.assetsDirPath, 'hero.png');
+    expect(await assetNames(project.assetsDirPath)).toEqual(['hero.png']);
 
     await stubOpenDialog(app, existing);
     const background = panelSection(window, 'Background');
@@ -51,7 +50,7 @@ test.describe('images: choosing one already in the project', () => {
 
     // No hero-1.png: the folder is untouched and the CSS points at the
     // file that was already there.
-    expect(await assetNames(project.dir)).toEqual(['hero.png']);
+    expect(await assetNames(project.assetsDirPath)).toEqual(['hero.png']);
   });
 
   test('stays at one file across repeated imports of the same asset', async ({
@@ -63,8 +62,8 @@ test.describe('images: choosing one already in the project', () => {
     await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
     await waitForSaved(window);
 
-    await fs.mkdir(assetsDir(project.dir), { recursive: true });
-    const existing = await writeFixtureImage(assetsDir(project.dir), 'hero.png');
+    await fs.mkdir(project.assetsDirPath, { recursive: true });
+    const existing = await writeFixtureImage(project.assetsDirPath, 'hero.png');
     await stubOpenDialog(app, existing);
 
     // The button relabels to "Replace image" once one is set, so the
@@ -79,7 +78,7 @@ test.describe('images: choosing one already in the project', () => {
 
     // The reported symptom was hero-1.png, then hero-2.png, and on.
     await expect
-      .poll(() => assetNames(project.dir))
+      .poll(() => assetNames(project.assetsDirPath))
       .toEqual(['hero.png']);
   });
 
@@ -108,6 +107,6 @@ test.describe('images: choosing one already in the project', () => {
     ).toBeVisible();
     await waitForSaved(window);
 
-    expect(await assetNames(project.dir)).toEqual(['outside.webp']);
+    expect(await assetNames(project.assetsDirPath)).toEqual(['outside.webp']);
   });
 });

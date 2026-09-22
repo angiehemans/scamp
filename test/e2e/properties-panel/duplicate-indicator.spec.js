@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { commitInput, drawAndSelectRect, panelInputByPrefix, panelSection, } from '../fixtures/panel';
 import { pageRoot } from '../fixtures/selectors';
@@ -26,7 +25,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
         // never appears. That is a real gap (a duplicate that changes nothing
         // is exactly the dead weight worth flagging) and it is NOT covered
         // here.
-        const cssPath = path.join(project.dir, 'home.module.css');
+        const cssPath = project.cssPath;
         const original = await fs.readFile(cssPath, 'utf-8');
         const withDuplicate = original.replace(new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`), `$1  height: 100%;\n  height: 100vh;\n}`);
         expect(withDuplicate).not.toBe(original);
@@ -50,7 +49,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const cssPath = path.join(project.dir, 'home.module.css');
+        const cssPath = project.cssPath;
         const original = await fs.readFile(cssPath, 'utf-8');
         const block = original.match(new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`, 's'));
         if (!block)
@@ -71,7 +70,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const cssPath = path.join(project.dir, 'home.module.css');
+        const cssPath = project.cssPath;
         const original = await fs.readFile(cssPath, 'utf-8');
         const existingHeight = original
             .match(new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`, 's'))?.[1]
@@ -93,7 +92,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);
-        const cssPath = path.join(project.dir, 'home.module.css');
+        const cssPath = project.cssPath;
         const original = await fs.readFile(cssPath, 'utf-8');
         await fs.writeFile(cssPath, original.replace(new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`), `$1  height: 100%;\n  height: 100vh;\n}`), 'utf-8');
         const sizeSection = panelSection(window, 'Size');

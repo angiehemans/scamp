@@ -28,6 +28,14 @@ const CSS_LANG = cssLang();
  */
 export const CodePanel = ({ showTheme = false }) => {
     const activePage = useCanvasStore((s) => s.activePage);
+    const activeComponent = useCanvasStore((s) => s.activeComponent);
+    // The open target's file basename, without its extension. A framework
+    // project has no pages at all — every view opens as `activeComponent`
+    // and leaves `activePage` null — so reading only `activePage` labelled
+    // both panes "— no page —" on every page of every scamp project.
+    // Same root cause as the Replace-image guard; see
+    // docs/plans/framework-release-readiness.md.
+    const sourceName = activePage?.name ?? activeComponent?.name ?? null;
     const pageSource = useCanvasStore((s) => s.pageSource);
     const themeCssRaw = useCanvasStore((s) => s.themeCssRaw);
     const projectFormat = useCanvasStore((s) => s.projectFormat);
@@ -63,5 +71,5 @@ export const CodePanel = ({ showTheme = false }) => {
     if (routeSource !== null) {
         return (_jsxs("div", { className: styles.panel, "data-testid": "code-panel-route", children: [_jsxs("div", { className: styles.header, children: [_jsxs("span", { className: styles.title, children: ["routes/", routeSource.file] }), _jsx("span", { className: styles.spacer }), _jsx(Tooltip, { label: "Back to the open view's code", children: _jsx("button", { className: styles.closeButton, onClick: () => setRouteSource(null), type: "button", children: "\u2190" }) }), _jsx(Tooltip, { label: "Hide code panel", children: _jsx("button", { className: styles.closeButton, onClick: () => setBottomPanel('none'), type: "button", children: "\u00D7" }) })] }), _jsx("div", { className: styles.body, children: _jsx("div", { className: styles.pane, children: _jsx(CodeMirror, { value: routeSource.content, extensions: [JS_LANG, READ_ONLY], theme: editorTheme, basicSetup: { lineNumbers: true, foldGutter: false } }) }) })] }));
     }
-    return (_jsxs("div", { className: styles.panel, children: [_jsxs("div", { className: styles.header, children: [_jsx("span", { className: styles.title, children: "Code" }), _jsx("span", { className: styles.spacer }), _jsx(Tooltip, { label: "Hide code panel", children: _jsx("button", { className: styles.closeButton, onClick: () => setBottomPanel('none'), type: "button", children: "\u00D7" }) })] }), _jsxs("div", { className: styles.split, children: [_jsxs("div", { className: styles.pane, "data-pane": "tsx", children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: activePage ? `${activePage.name}.tsx` : '— no page —' }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(HighlightedCode, { value: tsx, language: JS_LANG, ranges: tsxRanges, theme: editorTheme }) })] }), _jsxs("div", { className: styles.pane, "data-pane": "css", children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: activePage ? `${activePage.name}.module.css` : '— no page —' }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(HighlightedCode, { value: css, language: CSS_LANG, ranges: cssRanges, theme: editorTheme }) })] })] })] }));
+    return (_jsxs("div", { className: styles.panel, children: [_jsxs("div", { className: styles.header, children: [_jsx("span", { className: styles.title, children: "Code" }), _jsx("span", { className: styles.spacer }), _jsx(Tooltip, { label: "Hide code panel", children: _jsx("button", { className: styles.closeButton, onClick: () => setBottomPanel('none'), type: "button", children: "\u00D7" }) })] }), _jsxs("div", { className: styles.split, children: [_jsxs("div", { className: styles.pane, "data-pane": "tsx", children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: sourceName ? `${sourceName}.tsx` : '— no page —' }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(HighlightedCode, { value: tsx, language: JS_LANG, ranges: tsxRanges, theme: editorTheme }) })] }), _jsxs("div", { className: styles.pane, "data-pane": "css", children: [_jsx("div", { className: styles.paneHeader, children: _jsx("code", { children: sourceName ? `${sourceName}.module.css` : '— no page —' }) }), _jsx("div", { className: styles.editorWrap, children: _jsx(HighlightedCode, { value: css, language: CSS_LANG, ranges: cssRanges, theme: editorTheme }) })] })] })] }));
 };

@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect, panelSection } from '../fixtures/panel';
 import { pageRoot } from '../fixtures/selectors';
@@ -11,7 +10,7 @@ const THEME = `:root {
 `;
 test.describe('properties panel: shadow preset', () => {
     test('picking a shadow preset replaces the shadow rows with the token value', async ({ window, project, }) => {
-        await fs.writeFile(path.join(project.dir, 'theme.css'), THEME, 'utf-8');
+        await fs.writeFile(project.themeCssPath, THEME, 'utf-8');
         await expect(pageRoot(window)).toBeVisible();
         const className = await drawAndSelectRect(window, { x: 100, y: 100 }, { x: 260, y: 200 });
         await waitForSaved(window);

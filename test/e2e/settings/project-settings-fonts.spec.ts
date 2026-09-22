@@ -28,13 +28,13 @@ test.describe('settings: project fonts', () => {
     // import lands.
     await expect
       .poll(
-        async () => fs.readFile(path.join(project.dir, 'theme.css'), 'utf-8'),
+        async () => fs.readFile(project.themeCssPath, 'utf-8'),
         { timeout: 5_000 }
       )
       .toContain('@import');
 
     const themeText = await fs.readFile(
-      path.join(project.dir, 'theme.css'),
+      project.themeCssPath,
       'utf-8'
     );
     expect(themeText).toContain('fonts.googleapis.com');

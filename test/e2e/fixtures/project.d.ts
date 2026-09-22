@@ -23,6 +23,26 @@ export type TestProject = {
     readTsx: () => Promise<string>;
     /** Read the home page's CSS module from disk. */
     readCss: () => Promise<string>;
+    /**
+     * Absolute paths to the home page's files and the theme, for specs
+     * that WRITE to them to simulate an external edit. Format-aware:
+     * hardcoding `<dir>/home.module.css` only works in a legacy project,
+     * and silently ENOENTs under `SCAMP_E2E_FORMAT=scamp`, where a page
+     * is a view at `views/Home/Home.module.css`.
+     */
+    tsxPath: string;
+    cssPath: string;
+    themeCssPath: string;
+    /** Absolute path to the project's assets folder, which moved to `public/` outside legacy. */
+    assetsDirPath: string;
+    /**
+     * Basenames of the home page's files, as the Code panel and the
+     * layers breadcrumb label them. A view is `Home.tsx`, a legacy page
+     * `home.tsx` — so a spec asserting on the visible filename has to ask
+     * rather than hardcode.
+     */
+    tsxName: string;
+    cssName: string;
     /** Read an arbitrary page's TSX/CSS by name. */
     readPage: (pageName: string) => Promise<{
         tsx: string;

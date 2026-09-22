@@ -31,7 +31,7 @@ test.describe('bidirectional sync: external CSS edit', () => {
     await waitForSaved(window);
 
     // Rewrite just the rect's class block to widen it to 480 px.
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     const widened = original.replace(
       /width:\s*140px/,

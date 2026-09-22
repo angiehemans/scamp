@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { buildHtmlExport } from '@lib/htmlExport';
 import { exportSummary, resetDelayFor, } from '@lib/htmlExportStatus';
 import { useAppLogStore } from '@store/appLogSlice';
+import { componentKindOf } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 export const useHtmlExport = (projectPath, projectName) => {
     const [status, setStatus] = useState('idle');
     const [message, setMessage] = useState(null);
@@ -45,10 +47,20 @@ export const useHtmlExport = (projectPath, projectName) => {
                 window.scamp.readProject({ folderPath: projectPath }),
                 window.scamp.readTheme({ projectPath }),
             ]);
+            // A framework project has no pages: its pages are the views, and
+            // the slug is what internal hrefs and the output filenames use.
+            // Reading `project.pages` there exported nothing at all.
+            // see docs/plans/framework-release-readiness.md
+            const isView = (c) => componentKindOf(c) === 'view';
+            const scamp = project.format === 'scamp';
             const { files, skipped } = buildHtmlExport({
                 projectName,
-                pages: project.pages,
-                components: project.components,
+                pages: scamp
+                    ? project.components
+                        .filter(isView)
+                        .map((c) => ({ ...c, name: viewSlugFor(c.name) }))
+                    : project.pages,
+                components: scamp ? project.components.filter((c) => !isView(c)) : project.components,
                 themeCss,
             });
             const result = await window.scamp.exportHtml({

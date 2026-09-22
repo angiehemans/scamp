@@ -35,7 +35,7 @@ test.describe('history: external edits become entries, not wipes', () => {
     await codeToggle(window).click();
 
     // Capture the original width emitted by Scamp.
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     const widthMatch = original.match(
       new RegExp(`\\.${className}\\s*\\{[^}]*width:\\s*(\\d+)px`, 's')

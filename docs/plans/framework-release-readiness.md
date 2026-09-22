@@ -16,7 +16,7 @@ there is no CI that would have noticed. The rest is small.
 
 ## 1. The scamp format has no end-to-end coverage as a whole
 
-**Status: fixing.**
+**Status: run, triaged, all 24 failures fixed. CI gap remains.**
 
 `test/e2e/fixtures/project.ts` defaults a test project to `legacy`:
 
@@ -35,8 +35,53 @@ running just the **canvas** specs under `SCAMP_E2E_FORMAT=scamp` found
 four failures, all with one cause: a view kept the component artboard
 instead of the page canvas. That was one folder out of thirty.
 
-**The fix:** run the suite under the flag, triage what falls out, and
-record the result here. Anything found gets fixed or written down.
+**Result (2026-09-22):** 489 tests, **464 passed, 24 failed**, 20.9
+minutes. All 24 are now fixed. They fell into three groups:
+
+| Cause | Tests |
+|---|---|
+| Harness: specs hardcoding the legacy flat layout | 16 |
+| A tool list this branch had grown without updating the e2e spec | 1 |
+| **Real product bugs in the framework format** | 7 |
+
+**The harness group** was one mistake repeated: specs wrote
+`path.join(project.dir, 'home.module.css')` instead of asking the
+fixture, which has been format-aware all along. That only resolves in a
+legacy project; under scamp a page is a view at
+`views/Home/Home.module.css`, so the spec ENOENTed before testing
+anything. Same for the assets folder (`public/assets/` outside legacy)
+and for the filenames the Code panel displays (`Home.tsx`, not
+`home.tsx`). The fixture now exposes `tsxPath`, `cssPath`,
+`themeCssPath`, `assetsDirPath`, `tsxName` and `cssName`, and the
+specs use them.
+
+**The three product bugs share one root cause — the same one behind the
+Replace-image bug in item 6.** Code that reads `activePage` or
+`project.pages`, both of which are empty in every framework project:
+
+1. **The Code panel labelled both panes "— no page —"** on every page
+   of every framework project. `CodePanel` built its labels from
+   `activePage?.name`. The content was right; only the labels were
+   dead. (2 tests)
+2. **The Link section offered "No pages in this project"**, so you
+   could not link between pages at all, and `classifyHref` marked every
+   internal href as broken. The store's `pageNames` came from
+   `project.pages`. `previewTarget` in `ProjectShell` already derived
+   the list correctly from views — the store sync just never did.
+   (3 tests)
+3. **HTML export produced nothing.** `buildHtmlExport` takes `pages`,
+   and it was handed `project.pages`. Views now go in as pages, named
+   by slug so the output filenames and internal hrefs still line up,
+   with non-view components passed separately. (2 tests)
+
+None of these would have been caught by the unit suite, and none was
+visible from reading the code without running it. That is the argument
+for the CI gap below.
+
+**Still open: there is no CI running any of this.** A release workflow
+that builds and publishes without running the suite means the next
+regression of this kind lands in a tag. Adding a workflow is outside
+this branch, but it is the thing most likely to let this happen again.
 
 **Note on method:** an e2e run measures `out/`, built by
 `electron-vite build`, which resolves `.js` shims over `.ts` exactly as
@@ -49,7 +94,7 @@ the build is the tell: unchanged hash means unchanged code.
 
 ## 2. An image can't be bound to data from the UI
 
-**Status: fixing.**
+**Status: fixed.**
 
 `TAG_ATTRIBUTES` in `lib/elementTags.ts` has entries for `video`,
 `iframe`, `input`, `button`, `form`, `label`, `blockquote`, `time`,
@@ -77,7 +122,7 @@ for this tag, so they need different lists.
 
 ## 3. Regenerating a file rewrites `&` as `&amp;`
 
-**Status: fixing.**
+**Status: fixed.**
 
 `escapeHtml` escapes `&` in every attribute value and text body. An
 agent writes:
@@ -114,6 +159,43 @@ flake, so a third speculative fix without a live repro would be
 guesswork. `docs/todos.md` #2 now records how to re-open the window —
 run the full suite, then immediately loop the two auth files — which is
 the part that was missing.
+
+---
+
+## 6. Correction: the Replace-image bug was far wider than described
+
+`cfbcc1b` says Replace image was dead "in the component editor". That
+understates it, and the commit message is wrong about the blast radius.
+
+`src/main/ipc/project.ts:80` — **a scamp-format project has no pages at
+all**:
+
+```ts
+const pages = format === 'scamp' ? [] : …
+```
+
+Every view lives in `project.components` with `kind: 'view'` and opens
+through `openComponent` → `loadComponent`, which sets `activeComponent`
+and clears `activePage` (`useActiveTarget.ts:83`: "A framework project
+has no pages: its first view opens instead"). A view is only a *page*
+in a Next.js or legacy project.
+
+So `if (!activePage) return` in `handleReplace` meant **Replace image
+did nothing on every page of every framework project**, not just in the
+component editor — which is exactly what was reported, and what I
+initially told Angie was probably unrelated. The same held for
+BackgroundSection's "Set background image".
+
+Two things follow:
+
+- The fix matters more than its commit says. The e2e spec exercises it
+  through a component, which is the same `activeComponent` code path,
+  so the coverage is right even though its name reads narrower.
+- **The Data tab is reachable for views**, because `isComponentEditing`
+  is `activeComponent !== null` and that is true for every view. Item 2
+  above is therefore reachable in a framework project, which was worth
+  confirming before fixing it — a bindable `<img>` in a panel nobody
+  could open would have been pointless.
 
 ---
 

@@ -41,7 +41,7 @@ test.describe('linking: canvas chain icon', () => {
         // exist in the project.
         const fs = await import('fs/promises');
         const path = await import('path');
-        const tsxPath = path.join(project.dir, 'home.tsx');
+        const tsxPath = project.tsxPath;
         const tsx = await fs.readFile(tsxPath, 'utf-8');
         const patched = tsx.replace(new RegExp(`(<div data-scamp-id="${className}"[^>]*)/>`), '<a data-scamp-id="' +
             className +

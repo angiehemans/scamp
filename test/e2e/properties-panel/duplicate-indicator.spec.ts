@@ -41,7 +41,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     // never appears. That is a real gap (a duplicate that changes nothing
     // is exactly the dead weight worth flagging) and it is NOT covered
     // here.
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     const withDuplicate = original.replace(
       new RegExp(`(\\.${className}\\s*\\{[^}]*)\\}`),
@@ -78,7 +78,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     );
     await waitForSaved(window);
 
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     const block = original.match(
       new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`, 's')
@@ -115,7 +115,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     );
     await waitForSaved(window);
 
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     const existingHeight = original
       .match(new RegExp(`\\.${className}\\s*\\{([^}]*)\\}`, 's'))?.[1]
@@ -155,7 +155,7 @@ test.describe('properties panel: duplicate CSS indicator', () => {
     );
     await waitForSaved(window);
 
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     await fs.writeFile(
       cssPath,

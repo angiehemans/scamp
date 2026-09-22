@@ -42,6 +42,16 @@ export const readPageFiles = async (
   return { tsx, css };
 };
 
+/** Does this absolute path exist? For paths the fixture already resolved. */
+export const fileExists = async (absolute: string): Promise<boolean> => {
+  try {
+    await fs.access(absolute);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const projectFileExists = async (
   projectDir: string,
   name: string

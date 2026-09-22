@@ -7,6 +7,8 @@ import {
   type HtmlExportStatus,
 } from '@lib/htmlExportStatus';
 import { useAppLogStore } from '@store/appLogSlice';
+import { componentKindOf, type ProjectData } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 
 /**
  * Exports the whole project as a folder of static HTML + CSS.
@@ -84,10 +86,21 @@ export const useHtmlExport = (
         window.scamp.readTheme({ projectPath }),
       ]);
 
+      // A framework project has no pages: its pages are the views, and
+      // the slug is what internal hrefs and the output filenames use.
+      // Reading `project.pages` there exported nothing at all.
+      // see docs/plans/framework-release-readiness.md
+      const isView = (c: ProjectData['components'][number]): boolean =>
+        componentKindOf(c) === 'view';
+      const scamp = project.format === 'scamp';
       const { files, skipped } = buildHtmlExport({
         projectName,
-        pages: project.pages,
-        components: project.components,
+        pages: scamp
+          ? project.components
+              .filter(isView)
+              .map((c) => ({ ...c, name: viewSlugFor(c.name) }))
+          : project.pages,
+        components: scamp ? project.components.filter((c) => !isView(c)) : project.components,
         themeCss,
       });
 

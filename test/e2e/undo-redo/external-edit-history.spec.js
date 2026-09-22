@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { drawAndSelectRect } from '../fixtures/panel';
 import { pageRoot, codeToggle } from '../fixtures/selectors';
@@ -24,7 +23,7 @@ test.describe('history: external edits become entries, not wipes', () => {
         // the sync bridge finishes reparsing the external edit.
         await codeToggle(window).click();
         // Capture the original width emitted by Scamp.
-        const cssPath = path.join(project.dir, 'home.module.css');
+        const cssPath = project.cssPath;
         const original = await fs.readFile(cssPath, 'utf-8');
         const widthMatch = original.match(new RegExp(`\\.${className}\\s*\\{[^}]*width:\\s*(\\d+)px`, 's'));
         expect(widthMatch).not.toBeNull();

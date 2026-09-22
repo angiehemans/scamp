@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { dragInFrame, selectTool } from '../fixtures/canvas';
 import { canvasElement, canvasElementsByPrefix, pageRoot, } from '../fixtures/selectors';
@@ -21,7 +20,7 @@ test.describe('bidirectional sync: external CSS edit', () => {
             throw new Error('no rect created');
         await waitForSaved(window);
         // Rewrite just the rect's class block to widen it to 480 px.
-        const cssPath = path.join(project.dir, 'home.module.css');
+        const cssPath = project.cssPath;
         const original = await fs.readFile(cssPath, 'utf-8');
         const widened = original.replace(/width:\s*140px/, 'width: 480px');
         expect(widened).not.toBe(original);

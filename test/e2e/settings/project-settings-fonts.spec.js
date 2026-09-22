@@ -1,5 +1,4 @@
 import { promises as fs } from 'fs';
-import * as path from 'path';
 import { test, expect } from '../fixtures/app';
 import { closeProjectSettings, openProjectSettings, } from '../fixtures/breakpoints';
 import { pageRoot } from '../fixtures/selectors';
@@ -14,9 +13,9 @@ test.describe('settings: project fonts', () => {
         // Theme panel writes via the theme:write IPC. Poll disk until the
         // import lands.
         await expect
-            .poll(async () => fs.readFile(path.join(project.dir, 'theme.css'), 'utf-8'), { timeout: 5_000 })
+            .poll(async () => fs.readFile(project.themeCssPath, 'utf-8'), { timeout: 5_000 })
             .toContain('@import');
-        const themeText = await fs.readFile(path.join(project.dir, 'theme.css'), 'utf-8');
+        const themeText = await fs.readFile(project.themeCssPath, 'utf-8');
         expect(themeText).toContain('fonts.googleapis.com');
         expect(themeText).toContain('Inter');
         await closeProjectSettings(window);

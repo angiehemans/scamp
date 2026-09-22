@@ -74,12 +74,12 @@ test.describe('breakpoints: CSS output', () => {
     // we kick off another canvas edit.
     await codeToggle(window).click();
     await expect(
-      window.getByText('home.module.css', { exact: true })
+      window.getByText(project.cssName, { exact: true })
     ).toBeVisible();
 
     // Append a min-width media block externally — Scamp should preserve
     // it through subsequent saves without trying to interpret it.
-    const cssPath = path.join(project.dir, 'home.module.css');
+    const cssPath = project.cssPath;
     const original = await fs.readFile(cssPath, 'utf-8');
     const customMedia = `\n@media (min-width: 1600px) {\n  .${className} {\n    padding: 48px 48px 48px 48px;\n  }\n}\n`;
     await fs.writeFile(cssPath, original + customMedia, 'utf-8');

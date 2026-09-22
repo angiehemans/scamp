@@ -12,15 +12,17 @@ import { waitForSaved } from '../fixtures/assertions';
 test.describe('code output: live preview', () => {
   test('toggling the Code panel shows the active page source', async ({
     window,
+    project,
   }) => {
     await expect(pageRoot(window)).toBeVisible();
 
     await codeToggle(window).click();
 
-    // The panel's left pane is labelled `home.tsx` and contains the
-    // default page skeleton.
-    await expect(window.getByText('home.tsx', { exact: true })).toBeVisible();
-    await expect(window.getByText('home.module.css', { exact: true })).toBeVisible();
+    // The panel's two panes are labelled with the page's own filenames,
+    // which differ by format: `home.tsx` in a legacy project, `Home.tsx`
+    // for a scamp view.
+    await expect(window.getByText(project.tsxName, { exact: true })).toBeVisible();
+    await expect(window.getByText(project.cssName, { exact: true })).toBeVisible();
   });
 
   test('drawing a rect updates the preview with the new class', async ({

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import type { ProjectConfig, ProjectData } from '@shared/types';
 import { componentKindOf } from '@shared/types';
+import { viewSlugFor } from '@shared/templates';
 import { componentCanvasSizeFor } from '@shared/types';
 import { useCanvasStore, type ComponentTree } from '@store/canvasSlice';
 import { parseCode } from '@lib/parseCode';
@@ -45,8 +46,20 @@ export const useProjectStoreSync = ({
   // dropdown and the canvas link indicator's broken-link check have
   // a fast lookup without prop drilling.
   useEffect(() => {
-    useCanvasStore.getState().setPageNames(project.pages.map((p) => p.name));
-  }, [project.pages]);
+    // A framework project has no pages at all: every page is a view, and
+    // its slug is what an internal href points at. Reading only
+    // `project.pages` left this empty there, so the Link section said
+    // "No pages in this project" and every internal href classified as
+    // broken. `previewTarget` in ProjectShell already derives the list
+    // this way. see docs/plans/framework-release-readiness.md
+    const names =
+      project.format === 'scamp'
+        ? project.components
+            .filter((c) => componentKindOf(c) === 'view')
+            .map((c) => viewSlugFor(c.name))
+        : project.pages.map((p) => p.name);
+    useCanvasStore.getState().setPageNames(names);
+  }, [project.format, project.pages, project.components]);
 
   // Parse every component's TSX/CSS into an element tree and push
   // the result into the canvas store's componentTrees cache. The
