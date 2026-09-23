@@ -587,6 +587,34 @@ export type FilePatchResult = {
   writeId: string;
 };
 
+/** Opening the import window. One per project, like the preview. */
+export type ImportOpenArgs = {
+  projectPath: string;
+  /** Where to start. Omitted for a blank URL bar. */
+  url?: string;
+};
+
+/** The import window handing a captured page to the app window. */
+export type ImportCapturedArgs = {
+  projectPath: string;
+  /** A `CapturePayload`; typed as unknown here so `shared/types` stays
+   *  free of the capture contract, which the app window owns. */
+  payload: unknown;
+};
+
+/** What became of an import, sent back so the import window can say so. */
+export type ImportResultPayload = {
+  projectPath: string;
+  ok: boolean;
+  /** The created view's name, when it worked. */
+  viewName?: string;
+  /** How many elements the page reduced to. */
+  elementCount?: number;
+  /** One line per thing that didn't come across. */
+  findings?: string[];
+  error?: string;
+};
+
 export type PageCreateArgs = {
   projectPath: string;
   pageName: string;

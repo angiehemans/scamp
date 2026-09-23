@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import type { TitleBarColors } from '@shared/titleBarColors';
 import type {
+  ImportCapturedArgs,
+  ImportOpenArgs,
+  ImportResultPayload,
   ChooseFolderResult,
   ChooseImageArgs,
   ChooseImageResult,
@@ -145,6 +148,21 @@ const api = {
    * Returns the window id so callers can correlate; main spawns the
    * dev server in parallel as the window opens.
    */
+  // Website import. see docs/plans/website-import-plan.md
+  openImport: (args: ImportOpenArgs): Promise<{ id: number }> =>
+    ipcRenderer.invoke(IPC.ImportOpen, args),
+  /** A captured page arriving from the import window. */
+  onImportDeliver: (
+    listener: (args: ImportCapturedArgs) => void
+  ): (() => void) => {
+    const handler = (_e: IpcRendererEvent, args: ImportCapturedArgs): void => listener(args);
+    ipcRenderer.on(IPC.ImportDeliver, handler);
+    return () => ipcRenderer.removeListener(IPC.ImportDeliver, handler);
+  },
+  /** Tell the import window how it went. */
+  reportImportResult: (payload: ImportResultPayload): Promise<void> =>
+    ipcRenderer.invoke(IPC.ImportResultReport, payload),
+
   openPreview: (args: PreviewOpenArgs): Promise<{ windowId: number }> =>
     ipcRenderer.invoke(IPC.PreviewOpen, args),
 

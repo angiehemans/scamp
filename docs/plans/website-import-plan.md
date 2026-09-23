@@ -180,13 +180,52 @@ window in hand than guessed now:
   one, so children of the root land as absolutely positioned. The
   window's capture should probably give the root a flex column.
 
-### Phase 2 — The window and the round trip.
+### Phase 2 — The window and the round trip. **(landed)**
 
 A second window kind alongside the preview: URL bar, back/forward, an
 **Import** button. The capture script. Payload → reducer → `createPage`
 → the view opens on the canvas.
 
 Deliverable: paste a URL, navigate, click Import, get an editable view.
+
+**What it is.** A third `BrowserWindow` beside the app and the preview
+(`main/importWindow.ts`, `preload/import.ts`,
+`renderer/import/ImportApp.tsx`), reached from **↧ Import a page…**
+under the Pages sidebar. The capture runs in the import window's
+renderer, because `executeJavaScript` on the `<webview>` tag is what
+reaches the live document; the payload goes through main to the app
+window, which owns the project, the reducer and the generator. The
+import window never sees a file — it hosts a third-party page, so it
+has the smallest preload in the app.
+
+An import creates a **view**, through `createComponent({ kind: 'view' })`
+— one call that writes the files and the route together, so there is no
+window in which a half-made view exists on disk. The name comes from
+the page title and is deduped, so a second import of the same page
+lands beside the first rather than on top of it.
+
+**Two things went wrong, and both were the same shape as bugs this
+month's release fixed:**
+
+- `createPage` is the *legacy* path. In a framework project it answers
+  "A Scamp-format project has no pages; add a view instead." Written
+  from the mental model of pages rather than views — the same mistake
+  that made Replace image dead on every framework page.
+- The `<webview>` tag's methods, `executeJavaScript` among them, only
+  exist once it has emitted `dom-ready`. Before that the element is in
+  the DOM and the call is not, which presents as a button that does
+  nothing at all. Import is now gated on `dom-ready`, and the guard
+  reports rather than returning silently.
+
+Neither was findable by reading. Both took an e2e test that drives the
+real windows.
+
+**Verified** by `test/e2e/import/import-window.spec.ts` against all
+three project formats: the button opens the browser, the browser reads
+the local fixture page, a view appears on disk with the page's semantic
+tags and its three images, the styles are in the module rather than
+inline, and the report names the decorative `::before` it could not
+bring across. A second import of the same page creates `…2`.
 
 ### Phase 3 — Assets and tokens.
 

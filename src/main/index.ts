@@ -34,6 +34,7 @@ import { registerHtmlExportIpc } from './ipc/htmlExport';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
 import { registerPreviewIpc } from './ipc/preview';
+import { registerImportIpc } from './importWindow';
 import { registerRoutesIpc } from './ipc/routes';
 import {
   closeAllPreviewWindows,
@@ -330,6 +331,7 @@ app.whenReady().then(() => {
   registerExportIpc();
   registerAuthIpc();
   registerHtmlExportIpc();
+  registerImportIpc();
   registerUpdaterIpc();
   registerPreviewIpc({
     open: openPreviewWindow,

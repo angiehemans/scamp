@@ -51,6 +51,7 @@ import { useProjectStoreSync } from './projectShell/useProjectStoreSync';
 import { useRoutes } from './projectShell/useRoutes';
 import { allUnroutedViews, RoutesSection } from './projectShell/RoutesSection';
 import { useAppLogStore } from '@store/appLogSlice';
+import { useWebsiteImport } from './projectShell/useWebsiteImport';
 import { useHtmlExport } from './projectShell/useHtmlExport';
 import {
   useFontLinkReconciler,
@@ -123,6 +124,14 @@ export const ProjectShell = ({
   // deeply-nested readers (format, root path, page list, component-tree
   // cache, active-target canvas min-height).
   useProjectStoreSync({ project, projectConfig, activeComponent });
+  // A captured page arriving from the import window lands here: this is
+  // where the project, the reducer and the generator all are.
+  // see docs/plans/website-import-plan.md
+  useWebsiteImport({
+    project,
+    onProjectChange,
+    openView: (name) => openComponent(name, null, 'view'),
+  });
 
   // Routes in a Scamp-framework project, and the dev server's request
   // log in the app log. see docs/notes/routes-in-the-app.md
@@ -479,6 +488,9 @@ export const ProjectShell = ({
             persistActiveSource={persistActiveSource}
             setActiveComponentState={setActiveComponentState}
             setActivePageName={setActivePageName}
+            onImportWebsite={() => {
+              void window.scamp.openImport({ projectPath: project.path });
+            }}
           />
               <div
                 className={`${styles.sidebarSection} ${styles.sidebarLayers}`}

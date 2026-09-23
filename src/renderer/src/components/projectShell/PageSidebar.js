@@ -17,7 +17,7 @@ const rowsFor = (pages, views) => {
         return a.slug.localeCompare(b.slug);
     });
 };
-export const PageSidebar = ({ pages, views, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, openView, openViewMenu, handleRenameView, persistActiveSource, setActiveComponentState, setActivePageName, }) => {
+export const PageSidebar = ({ pages, views, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, openView, openViewMenu, handleRenameView, persistActiveSource, onImportWebsite, setActiveComponentState, setActivePageName, }) => {
     return (_jsxs("div", { className: styles.sidebarSection, children: [_jsx("h2", { className: styles.sidebarTitle, children: "Pages" }), _jsxs("ul", { className: styles.pageList, children: [rowsFor(pages, views).map((row) => {
                         if (row.kind === 'view') {
                             const view = row.view;
@@ -92,5 +92,5 @@ export const PageSidebar = ({ pages, views, existingPageNames, pageEdit, pageEdi
                         return;
                     setPageEditError(null);
                     setPageEdit('new');
-                }, type: "button", children: "+ Add Page" }))] }));
+                }, type: "button", children: "+ Add Page" })), pageEdit !== 'new' && onImportWebsite && (_jsx("button", { className: styles.addPageButton, onClick: onImportWebsite, type: "button", title: "Open a browser, navigate to a page, and import it as a view", children: "\u21A7 Import a page\u2026" }))] }));
 };

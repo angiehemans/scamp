@@ -65,6 +65,16 @@ export declare const IPC: {
     readonly DevServerLog: "preview:devLog";
     /** main → renderer: a file under routes/ was added, changed, or removed. */
     readonly RoutesChanged: "routes:changed";
+    readonly ImportOpen: "import:open";
+    readonly ImportClose: "import:close";
+    /** Import window → main: a captured page. */
+    readonly ImportCaptured: "import:captured";
+    /** Main → app window: reduce this and make a view of it. */
+    readonly ImportDeliver: "import:deliver";
+    /** App window → main: how the import went, for the import window's UI. */
+    readonly ImportResultReport: "import:result";
+    /** Main → import window: the app window's verdict. */
+    readonly ImportResultChanged: "import:resultChanged";
     readonly PreviewOpen: "preview:open";
     readonly PreviewStop: "preview:stop";
     readonly PreviewClose: "preview:close";
