@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Northwind — Ship faster</title>
+<style>
+  /* A partial reset, as most real pages have. Deliberately NOT a full
+     one: `ul` keeps its UA padding, so the capture has to carry it. */
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; color: #1a1d24; }
+  h1, h2, h3, p { margin: 0; }
+
+  .page { display: flex; flex-direction: column; }
+
+  /* Three wrappers that contribute nothing — the collapse pass should
+     take these out. */
+  .nav-outer { }
+  .nav-mid { }
+  .nav { display: flex; align-items: center; justify-content: space-between;
+         padding: 16px 32px; border-bottom: 1px solid #e4e6eb; }
+  .brand { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+  .nav-links { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; }
+  .nav-links a { color: #4a5059; text-decoration: none; font-size: 14px; }
+
+  .hero { display: flex; flex-direction: column; align-items: center;
+          gap: 20px; padding: 96px 32px;
+          background-image: linear-gradient(#fbfbfd, #f2f4f8); }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.12em;
+             text-transform: uppercase; color: #2d4a7c; }
+  .hero h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.03em;
+             max-width: 16ch; text-align: center; }
+  .hero p { font-size: 18px; line-height: 1.6; color: #4a5059;
+            max-width: 52ch; text-align: center; }
+  .cta { display: flex; gap: 12px; }
+  .btn { padding: 12px 22px; border-radius: 8px; border: 1px solid #2d4a7c;
+         background: #2d4a7c; color: #fff; font-size: 15px; font-weight: 600; }
+  .btn-ghost { background: transparent; color: #2d4a7c; }
+
+  /* A decorative icon with no element behind it — must be reported. */
+  .badge::before { content: "★"; margin-right: 6px; color: #d9b36a; }
+  .badge { display: inline-flex; align-items: center; font-size: 13px;
+           color: #767d88; }
+
+  .features { display: flex; gap: 24px; padding: 64px 32px; }
+  .card { flex: 1 1 0; display: flex; flex-direction: column; gap: 10px;
+          padding: 24px; border: 1px solid #e4e6eb; border-radius: 12px;
+          background: #ffffff; }
+  .card h3 { font-size: 17px; font-weight: 600; }
+  .card p { font-size: 14px; line-height: 1.55; color: #4a5059; }
+  .shot { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; }
+
+  .footer { padding: 32px; border-top: 1px solid #e4e6eb;
+            color: #767d88; font-size: 13px; }
+
+  /* Present but hidden — the walk should prune it and its subtree. */
+  .mobile-menu { display: none; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="nav-outer"><div class="nav-mid">
+      <nav class="nav">
+        <span class="brand">Northwind</span>
+        <ul class="nav-links">
+          <li><a href="/product">Product</a></li>
+          <li><a href="/pricing">Pricing</a></li>
+          <li><a href="/docs">Docs</a></li>
+        </ul>
+      </nav>
+    </div></div>
+
+    <div class="mobile-menu">
+      <a href="/product">Product</a>
+      <a href="/pricing">Pricing</a>
+    </div>
+
+    <header class="hero">
+      <p class="eyebrow">Now in public beta</p>
+      <h1>Ship the thing you actually designed</h1>
+      <p>Northwind keeps your design and your code the same artifact, so the
+         handoff you keep rewriting stops existing.</p>
+      <div class="cta">
+        <button class="btn">Start building</button>
+        <button class="btn btn-ghost">Read the docs</button>
+      </div>
+      <span class="badge">No credit card required</span>
+    </header>
+
+    <section class="features">
+      <article class="card">
+        <img class="shot" src="shot-sync.png" alt="Two files staying in step">
+        <h3>Two-way sync</h3>
+        <p>Edit the canvas or edit the file. Both land in the same place, and
+           neither one wins by clobbering the other.</p>
+      </article>
+      <article class="card">
+        <img class="shot" src="shot-tokens.png" alt="A palette of design tokens">
+        <h3>Real tokens</h3>
+        <p>Colours and spacing live in one stylesheet. Change the token and
+           every screen follows.</p>
+      </article>
+      <article class="card">
+        <img class="shot" src="shot-agents.png" alt="An agent editing a file">
+        <h3>Agents welcome</h3>
+        <p>An agent writes the same files you do, and the canvas picks the
+           change up as it saves.</p>
+      </article>
+    </section>
+
+    <footer class="footer">© 2026 Northwind. Built in the open.</footer>
+  </div>
+</body>
+</html>

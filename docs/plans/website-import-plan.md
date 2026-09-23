@@ -122,7 +122,7 @@ doesn't will think Scamp is broken.
 
 Each is independently shippable and independently useful.
 
-### Phase 1 — The reducer, against fixtures. No UI.
+### Phase 1 — The reducer, against fixtures. No UI. **(landed)**
 
 Save three real pages' `CapturePayload` as fixtures (a marketing page,
 a docs page, an app shell). Build `importReduce.ts` and its test suite.
@@ -134,6 +134,51 @@ delta, the collapse pass, tag classification, text wrapping, and each
 
 Why first: it is the only part that can fail in a way that kills the
 feature, and it is the only part testable without a browser.
+
+**What it cost to be wrong, and how often.** Every correction below
+came from running the thing against a real browser's output; none of
+them was visible from reasoning about it.
+
+- The plan said to diff each element against a bare probe of the same
+  tag in the source document. That answers the wrong question. The one
+  that matters is "what must a Scamp module declare to reproduce this",
+  and a page with no reset gets the UA's `<p>` margin for free — diff
+  it away and the import loses its paragraph spacing, because Scamp's
+  own reset zeroes it. Capture now never consults the source baseline.
+- A `flex: 1 1 0` card computes `width: 442.656px`. Declaring it
+  freezes the card. Roughly a third of captured properties turned out
+  to be layout *results* rather than decisions — `border-*-color` on
+  every element with no border, `transform-origin` derived from every
+  box, `box-sizing` from the page's reset. Filtering them took the
+  payload from 18 properties per node to 10.5.
+- Dropping a computed size is not the same as deleting the
+  declaration: the model's baseline then supplies a hardcoded 100px
+  box. The size mode has to be set to `auto` explicitly.
+- `collapse` ate the view's own root, because a root with one child
+  and no styling looks exactly like a redundant wrapper.
+
+The reducer reuses `makeBaseline` + `applyDeclarations` rather than
+reimplementing the declaration → typed-field mapping, so an imported
+element and a hand-written one cannot disagree about what
+`padding: 16px` means.
+
+**Still open at the end of phase 1**, and better decided with the
+window in hand than guessed now:
+
+- **Authored vs. computed sizes.** The conservative rule is "a node
+  with children is sized by its content". The precise answer needs the
+  authored rules, readable through `document.styleSheets` for
+  same-origin stylesheets and blocked for cross-origin ones. Worth
+  doing in phase 2 with the heuristic as the fallback.
+- **Internal links** still carry the source page's absolute URL.
+  They should become project-relative when the target is also
+  imported.
+- **Colour format.** Captured colours are `rgb(…)`; the panel and
+  theme tokens are hex. Converting belongs with phase 3's token
+  extraction.
+- **The root's own layout.** The captured `<body>` rarely declares
+  one, so children of the root land as absolutely positioned. The
+  window's capture should probably give the root a flex column.
 
 ### Phase 2 — The window and the round trip.
 
@@ -189,15 +234,16 @@ Stated so the feature is judged against the right bar:
 1. **Is a view the right destination**, or should an import land
    somewhere staged — a scratch view the user promotes — so a bad
    import doesn't clutter Pages?
+   no just create a view, users can always delete it if they dont like it.
 2. **How aggressive should the collapse pass be?** Conservative leaves
    wrapper noise; aggressive risks breaking layouts. I lean
-   conservative and would rather tune it against fixtures than guess.
+   conservative and would rather tune it against fixtures than guess. - conservative
 3. **Is partial import worth it in v1** — the user picks an element in
    the window and imports only that subtree? It is a much better fit
    for "I want this hero section" and avoids the whole-page depth
-   problem, but it needs element-picking UI in the window.
+   problem, but it needs element-picking UI in the window. this can be a feature for later
 4. **Should phase 1 ship behind a flag** so real payloads can be
-   gathered from real use before the UI is finalised?
+   gathered from real use before the UI is finalised? no
 
 ## Done when
 

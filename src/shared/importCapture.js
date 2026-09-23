@@ -1,0 +1,191 @@
+/**
+ * The contract between the capture script and the reducer.
+ *
+ * Capture runs inside the page (it needs a live DOM and
+ * `getComputedStyle`); the reducer is pure and runs in the renderer.
+ * This module is the seam: a serializable payload, plus the policy that
+ * decides which properties are worth carrying across it.
+ *
+ * The split matters because of size. A computed style holds 340+
+ * properties per element; carrying all of them for a 2000-node page
+ * would be tens of megabytes over IPC and would bury every element in
+ * junk. Capture therefore filters, and the payload holds only what an
+ * author plausibly set.
+ *
+ * ## What capture does NOT do, and why
+ *
+ * The plan said to diff each element against a bare probe of the same
+ * tag rendered in the source document. That is wrong, and writing it
+ * showed why: it answers "what did this page's author set beyond their
+ * own reset", when the question is **"what must a Scamp module declare
+ * to make this element look like it does here"**. A page with no reset
+ * gets the UA's `<p>` margin for free; diff it away against a probe and
+ * the import loses its paragraph spacing, because Scamp's own reset
+ * zeroes it.
+ *
+ * So the source document's baseline is never consulted. Capture drops
+ * only values that are universally "nothing set" (`INITIAL_VALUES`) and
+ * inherited values matching the parent — inheritance behaves the same
+ * in both documents, so that one IS safe. The real diff, against
+ * Scamp's own baseline, happens in the reducer where `makeBaseline`
+ * already knows the answer and a test can check it.
+ * see docs/plans/website-import-plan.md
+ */
+/** Bumped when the payload shape changes, so a stale fixture fails loudly. */
+export const CAPTURE_VERSION = 1;
+/**
+ * Properties the capture keeps when they differ from the baseline.
+ *
+ * Deliberately an allowlist, and deliberately NOT the same rule
+ * `parseCode` uses. A hand-written file contains only what its author
+ * meant, so keeping everything unknown is right there. A computed style
+ * contains everything the UA resolved, so keeping everything unknown
+ * would put 300 declarations on every element.
+ *
+ * The list is "what a designer would recognise as a decision". Growing
+ * it is cheap; every addition should be a property someone would look
+ * for in the panel and be annoyed not to find.
+ */
+export const CAPTURED_PROPERTIES = [
+    // Box
+    'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index',
+    'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+    'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+    'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+    'box-sizing', 'overflow-x', 'overflow-y', 'aspect-ratio',
+    // Flex + grid
+    'flex-direction', 'flex-wrap', 'justify-content', 'align-items',
+    'align-content', 'align-self', 'flex-grow', 'flex-shrink', 'flex-basis',
+    'order', 'gap', 'row-gap', 'column-gap',
+    'grid-template-columns', 'grid-template-rows', 'grid-column', 'grid-row',
+    'justify-items', 'justify-self',
+    // Paint
+    'background-color', 'background-image', 'background-size',
+    'background-position', 'background-repeat', 'opacity', 'box-shadow',
+    'mix-blend-mode', 'filter', 'backdrop-filter',
+    // Border
+    'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+    'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+    'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+    'border-top-left-radius', 'border-top-right-radius',
+    'border-bottom-right-radius', 'border-bottom-left-radius',
+    // Type
+    'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+    'line-height', 'letter-spacing', 'text-align', 'text-transform',
+    'text-decoration-line', 'white-space', 'list-style-type',
+    // Motion — round-trips verbatim, and losing it loses the design's feel
+    'transform', 'transform-origin', 'transition',
+];
+/**
+ * Values that mean "nothing is set here", by property.
+ *
+ * Dropping these is what keeps a payload small — a plain `<div>` emits
+ * a handful of properties instead of ninety. Safe because each is the
+ * CSS initial value AND what Scamp's own baseline assumes, so a
+ * dropped one and an absent one mean the same thing downstream.
+ *
+ * `display` is deliberately absent: its initial value is `inline` but
+ * it computes to `block` on a div, and both are real information.
+ */
+export const INITIAL_VALUES = {
+    position: 'static',
+    top: 'auto', right: 'auto', bottom: 'auto', left: 'auto',
+    'z-index': 'auto',
+    'min-width': 'auto', 'min-height': 'auto',
+    'max-width': 'none', 'max-height': 'none',
+    'margin-top': '0px', 'margin-right': '0px',
+    'margin-bottom': '0px', 'margin-left': '0px',
+    'padding-top': '0px', 'padding-right': '0px',
+    'padding-bottom': '0px', 'padding-left': '0px',
+    'overflow-x': 'visible', 'overflow-y': 'visible',
+    'aspect-ratio': 'auto',
+    'flex-grow': '0', 'flex-shrink': '1', 'flex-basis': 'auto',
+    order: '0',
+    gap: 'normal', 'row-gap': 'normal', 'column-gap': 'normal',
+    'grid-template-columns': 'none', 'grid-template-rows': 'none',
+    'grid-column': 'auto', 'grid-row': 'auto',
+    'align-self': 'auto', 'justify-self': 'auto',
+    'justify-items': 'normal', 'align-items': 'normal',
+    'align-content': 'normal', 'justify-content': 'normal',
+    'flex-direction': 'row', 'flex-wrap': 'nowrap',
+    'background-color': 'rgba(0, 0, 0, 0)',
+    'background-image': 'none',
+    'background-size': 'auto', 'background-position': '0% 0%',
+    'background-repeat': 'repeat',
+    opacity: '1',
+    'box-shadow': 'none',
+    'mix-blend-mode': 'normal',
+    filter: 'none', 'backdrop-filter': 'none',
+    'border-top-width': '0px', 'border-right-width': '0px',
+    'border-bottom-width': '0px', 'border-left-width': '0px',
+    'border-top-style': 'none', 'border-right-style': 'none',
+    'border-bottom-style': 'none', 'border-left-style': 'none',
+    'border-top-left-radius': '0px', 'border-top-right-radius': '0px',
+    'border-bottom-right-radius': '0px', 'border-bottom-left-radius': '0px',
+    'font-style': 'normal',
+    'text-transform': 'none',
+    'text-decoration-line': 'none',
+    'white-space': 'normal',
+    transform: 'none',
+    // Chromium normalizes an unset transition to the bare keyword.
+    transition: 'all',
+};
+/**
+ * Inherited properties. A value matching the parent's computed value is
+ * inheritance doing its job, not a declaration, and re-emitting it on
+ * every descendant is how an import ends up with `font-family` on 400
+ * elements.
+ */
+export const INHERITED_PROPERTIES = new Set([
+    'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+    'line-height', 'letter-spacing', 'text-align', 'text-transform',
+    'white-space', 'list-style-type',
+]);
+/**
+ * Properties whose computed value is a RESULT rather than a decision,
+ * and what has to be true for them to carry information.
+ *
+ * Reading real captures is what produced this list, and none of it was
+ * guessable: a `flex: 1 1 0` card computes `width: 442.656px`, which is
+ * the layout's answer, not the author's question — declare it and the
+ * card stops flexing. `border-*-color` computes to the text colour on
+ * every element that has no border. `transform-origin` is derived from
+ * the box on every element in the document. `box-sizing: border-box`
+ * comes from the page's reset, and Scamp's own reset sets it globally
+ * anyway.
+ *
+ * Each entry names the property that has to be present and non-initial
+ * for the value to mean anything; `null` means "always a result".
+ */
+export const CONDITIONAL_PROPERTIES = {
+    'border-top-color': 'border-top-width',
+    'border-right-color': 'border-right-width',
+    'border-bottom-color': 'border-bottom-width',
+    'border-left-color': 'border-left-width',
+    'transform-origin': 'transform',
+    'background-size': 'background-image',
+    'background-position': 'background-image',
+    'background-repeat': 'background-image',
+    'box-sizing': null,
+};
+/** Attributes carried across. Everything else is page plumbing. */
+export const KEPT_ATTRIBUTES = new Set([
+    'src', 'alt', 'href', 'target', 'rel', 'type', 'placeholder',
+    'title', 'datetime', 'cite', 'value', 'rows', 'for',
+]);
+/**
+ * Tags never worth walking into: they carry no design, or their content
+ * is not markup at all.
+ */
+export const SKIPPED_TAGS = new Set([
+    'script', 'style', 'link', 'meta', 'noscript', 'template', 'head', 'title',
+]);
+/** Caps. A payload past these is reported rather than silently truncated. */
+export const CAPTURE_LIMITS = {
+    /** Depth past which a subtree is cut. Real designs are nowhere near this. */
+    maxDepth: 32,
+    /** Nodes past which the walk stops. A 5000-node page is not importable anyway. */
+    maxNodes: 4000,
+    /** A single text run longer than this is truncated — almost always minified junk. */
+    maxTextLength: 5000,
+};

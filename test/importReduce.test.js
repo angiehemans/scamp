@@ -1,0 +1,265 @@
+import { readFileSync } from 'fs';
+import { describe, it, expect } from 'vitest';
+import { CAPTURE_VERSION } from '@shared/importCapture';
+import { generateCode } from '@lib/generateCode';
+import { parseCode } from '@lib/parseCode';
+import { reduceCapture, viewNameFromTitle } from '@lib/importReduce';
+/**
+ * The reducer: a captured page in, an element tree out.
+ *
+ * Two kinds of case here. Synthetic payloads pin one rule each, and the
+ * real fixture — captured from a real browser by
+ * `scripts/capture-import-fixtures.mjs` — proves the rules hold against
+ * a layout engine's actual output, which is where every wrong
+ * assumption has shown up so far.
+ * see docs/plans/website-import-plan.md
+ */
+const node = (over = {}) => ({
+    id: 0,
+    tag: 'div',
+    styles: {},
+    text: null,
+    attrs: {},
+    children: [],
+    notes: [],
+    ...over,
+});
+const payloadOf = (root, over = {}) => ({
+    version: CAPTURE_VERSION,
+    url: 'fixture:test',
+    title: 'Test Page',
+    viewport: { width: 1440, height: 900 },
+    root,
+    assets: [],
+    notes: [],
+    ...over,
+});
+/** Deterministic ids, as `element/tree.ts` does for its own tests. */
+const seqIds = () => {
+    let n = 0;
+    return () => {
+        n += 1;
+        return n.toString(16).padStart(4, '0');
+    };
+};
+const reduce = (root, over = {}) => reduceCapture(payloadOf(root, over), { randomId: seqIds() });
+const kinds = (root) => reduce(root).findings.map((f) => f.kind);
+describe('reduceCapture — the shape it produces', () => {
+    it('makes the captured root a div, whatever the page called it', () => {
+        // The capture's root is `document.body`; a Scamp root is a div.
+        const result = reduce(node({ tag: 'body' }));
+        expect(result.elements['root']?.tag).toBeUndefined();
+        expect(result.rootId).toBe('root');
+    });
+    it('classifies a tag into the model\'s four element types', () => {
+        const result = reduce(node({
+            children: [
+                node({ tag: 'h1', text: 'Title' }),
+                node({ tag: 'img', attrs: { src: 'https://x/a.png', alt: 'A' } }),
+                node({ tag: 'input', attrs: { type: 'text' } }),
+                node({ tag: 'section' }),
+            ],
+        }));
+        const types = Object.values(result.elements)
+            .filter((e) => e.id !== 'root')
+            .map((e) => e.type);
+        expect(types).toEqual(['text', 'image', 'input', 'rectangle']);
+    });
+    it('carries an image\'s src and alt into the typed fields', () => {
+        const result = reduce(node({ children: [node({ tag: 'img', attrs: { src: 'https://x/a.png', alt: 'A cat' } })] }));
+        const img = Object.values(result.elements).find((e) => e.type === 'image');
+        expect(img?.src).toBe('https://x/a.png');
+        expect(img?.alt).toBe('A cat');
+        // …and not also in the attribute bag, which would emit them twice.
+        expect(img?.attributes?.['src']).toBeUndefined();
+    });
+    it('names classes for what the element is, not what the DOM called it', () => {
+        const result = reduce(node({ children: [node({ tag: 'nav' }), node({ tag: 'h1', text: 'x' })] }));
+        const names = Object.values(result.elements)
+            .filter((e) => e.id !== 'root')
+            .map((e) => e.name);
+        expect(names).toEqual(['nav', 'title']);
+    });
+});
+describe('reduceCapture — a computed value is not a decision', () => {
+    it('drops a measured width and height from a node with children', () => {
+        const result = reduce(node({ styles: { width: '442.656px', height: '256px' }, children: [node({ tag: 'p', text: 'x' })] }));
+        expect(result.elements['root']?.widthMode).toBe('auto');
+        expect(result.elements['root']?.heightMode).toBe('auto');
+    });
+    it('reports each size it dropped, so the report can explain the layout', () => {
+        const found = reduce(node({ styles: { width: '442.656px' }, children: [node({ tag: 'p', text: 'x' })] })).findings.filter((f) => f.kind === 'dropped-computed-size');
+        expect(found).toHaveLength(1);
+        expect(found[0]?.detail).toContain('442.656px');
+    });
+    it('keeps a size on a leaf, where an explicit box is usually the point', () => {
+        const result = reduce(node({ children: [node({ tag: 'img', styles: { width: '120px', height: '120px' } })] }));
+        const img = Object.values(result.elements).find((e) => e.type === 'image');
+        expect(img?.widthMode).not.toBe('auto');
+        expect(kinds(node({ children: [node({ tag: 'img', styles: { width: '120px' } })] })))
+            .not.toContain('dropped-computed-size');
+    });
+});
+describe('reduceCapture — collapsing wrappers', () => {
+    it('removes a div that holds one child and decides nothing', () => {
+        const result = reduce(node({ children: [node({ tag: 'div', children: [node({ tag: 'nav', styles: { display: 'flex' } })] })] }));
+        const tags = Object.values(result.elements).map((e) => e.tag);
+        expect(tags).toContain('nav');
+        expect(tags.filter((t) => t === 'div')).toHaveLength(0);
+    });
+    it('collapses a run of nested wrappers down to the thing inside', () => {
+        const deep = node({
+            children: [
+                node({ children: [node({ children: [node({ tag: 'nav', styles: { display: 'flex' } })] })] }),
+            ],
+        });
+        expect(reduce(deep).findings.filter((f) => f.kind === 'collapsed-wrapper')).toHaveLength(2);
+    });
+    it('keeps a wrapper that centres its child, which is real work', () => {
+        const result = reduce(node({ children: [node({ styles: { display: 'flex' }, children: [node({ tag: 'p', text: 'x' })] })] }));
+        expect(kinds(node({ children: [node({ styles: { display: 'flex' }, children: [node({ tag: 'p', text: 'x' })] })] })))
+            .not.toContain('collapsed-wrapper');
+        expect(Object.keys(result.elements)).toHaveLength(3);
+    });
+    it.each([
+        ['a background', { 'background-color': 'rgb(1, 2, 3)' }],
+        ['padding', { 'padding-top': '16px' }],
+        ['a border', { 'border-top-width': '1px' }],
+        ['a radius', { 'border-top-left-radius': '8px' }],
+        ['a position', { position: 'sticky' }],
+        ['a max-width', { 'max-width': '1200px' }],
+    ])('keeps a wrapper that has %s', (_label, styles) => {
+        const tree = node({ children: [node({ styles, children: [node({ tag: 'p', text: 'x' })] })] });
+        expect(kinds(tree)).not.toContain('collapsed-wrapper');
+    });
+    it('never collapses a wrapper with two children, however plain', () => {
+        const tree = node({
+            children: [node({ children: [node({ tag: 'p', text: 'a' }), node({ tag: 'p', text: 'b' })] })],
+        });
+        expect(kinds(tree)).not.toContain('collapsed-wrapper');
+    });
+    it('keeps a non-div wrapper, because its tag is meaning', () => {
+        const tree = node({ children: [node({ tag: 'main', children: [node({ tag: 'p', text: 'x' })] })] });
+        expect(kinds(tree)).not.toContain('collapsed-wrapper');
+    });
+});
+describe('reduceCapture — text', () => {
+    it('keeps text on a text element that has no element children', () => {
+        const result = reduce(node({ children: [node({ tag: 'p', text: 'Hello' })] }));
+        const text = Object.values(result.elements).find((e) => e.type === 'text');
+        expect(text?.text).toBe('Hello');
+    });
+    it('lifts text out of a container that also has element children', () => {
+        // Scamp's rule: words live in a text element, never loose in a box.
+        const result = reduce(node({ children: [node({ tag: 'div', text: 'Loose words', children: [node({ tag: 'p', text: 'Child' })] })] }));
+        const texts = Object.values(result.elements).filter((e) => e.type === 'text');
+        expect(texts.map((t) => t.text).sort()).toEqual(['Child', 'Loose words']);
+        expect(kinds(node({ children: [node({ tag: 'div', text: 'Loose', children: [node({ tag: 'p', text: 'c' })] })] })))
+            .toContain('wrapped-bare-text');
+    });
+});
+describe('reduceCapture — reporting', () => {
+    it('carries every capture note through as a finding', () => {
+        const tree = node({
+            notes: [{ kind: 'pseudo-element', at: 'div::before', detail: '"★"' }],
+            children: [node({ tag: 'canvas', notes: [{ kind: 'canvas', at: 'canvas' }] })],
+        });
+        expect(kinds(tree)).toEqual(expect.arrayContaining(['pseudo-element', 'canvas']));
+    });
+    it('reports a display the model has no equivalent for', () => {
+        expect(kinds(node({ styles: { display: 'table' } }))).toContain('unsupported-display');
+    });
+    it('includes whole-page notes, like a cap being hit', () => {
+        const result = reduceCapture(payloadOf(node({}), { notes: [{ kind: 'node-capped', detail: '4000' }] }), { randomId: seqIds() });
+        expect(result.findings.map((f) => f.kind)).toContain('node-capped');
+    });
+});
+describe('reduceCapture — unhappy paths', () => {
+    it('refuses a payload from a different contract version', () => {
+        const stale = { ...payloadOf(node({})), version: 99 };
+        expect(() => reduceCapture(stale)).toThrow(/version 99/);
+    });
+    it('reduces an empty page to a lone root', () => {
+        const result = reduce(node({}));
+        expect(Object.keys(result.elements)).toEqual(['root']);
+    });
+    it('survives a page that is one unsupported element', () => {
+        const result = reduce(node({ children: [node({ tag: 'canvas', notes: [{ kind: 'canvas' }] })] }));
+        expect(Object.keys(result.elements)).toHaveLength(2);
+    });
+    it('handles a deeply nested chain without losing the leaf', () => {
+        let tree = node({ tag: 'p', text: 'bottom' });
+        for (let i = 0; i < 40; i += 1)
+            tree = node({ styles: { display: 'flex' }, children: [tree] });
+        const result = reduce(node({ children: [tree] }));
+        const texts = Object.values(result.elements).filter((e) => e.type === 'text');
+        expect(texts[0]?.text).toBe('bottom');
+    });
+    it('gives every element a unique id', () => {
+        const result = reduce(node({ children: Array.from({ length: 50 }, () => node({ tag: 'p', text: 'x' })) }));
+        const ids = Object.values(result.elements).map((e) => e.id);
+        expect(new Set(ids).size).toBe(ids.length);
+    });
+});
+describe('viewNameFromTitle', () => {
+    it.each([
+        ['Northwind — Ship faster', 'NorthwindShipFaster'],
+        ['about us', 'AboutUs'],
+        ['A Very Long Page Title That Goes On', 'AVeryLong'],
+        ['', 'Imported'],
+        ['   ', 'Imported'],
+        ['!!!', 'Imported'],
+        ['404', 'Imported404'],
+    ])('turns %j into %j', (title, expected) => {
+        expect(viewNameFromTitle(title)).toBe(expected);
+    });
+});
+describe('against a page captured from a real browser', () => {
+    const payload = JSON.parse(readFileSync('test/fixtures/import/payloads/marketing.json', 'utf-8'));
+    it('is the contract version this build reads', () => {
+        // A stale fixture should fail here, loudly, not somewhere subtle.
+        expect(payload.version).toBe(CAPTURE_VERSION);
+    });
+    it('never carries a size the layout produced into a container', () => {
+        const result = reduceCapture(payload, { randomId: seqIds() });
+        for (const el of Object.values(result.elements)) {
+            if (el.childIds.length === 0)
+                continue;
+            expect(el.widthMode, `${el.name ?? el.id} pinned its measured width`).not.toBe('fixed');
+        }
+    });
+    it('produces a tree that generates and re-parses', () => {
+        // The real contract: whatever comes out has to survive the pipeline
+        // every other part of Scamp puts an element tree through.
+        const result = reduceCapture(payload, { randomId: seqIds() });
+        const { tsx, css } = generateCode({
+            elements: result.elements,
+            rootId: result.rootId,
+            pageName: result.suggestedName,
+            cssModuleImportName: result.suggestedName,
+            isComponent: true,
+        });
+        const back = parseCode(tsx, css, { isComponent: true });
+        expect(Object.keys(back.elements)).toHaveLength(Object.keys(result.elements).length);
+        expect(tsx).not.toContain('<body');
+        expect(tsx).toContain('data-scamp-id="root"');
+    });
+    it('finds the decorative pseudo-element the page relies on', () => {
+        const result = reduceCapture(payload, { randomId: seqIds() });
+        const pseudo = result.findings.filter((f) => f.kind === 'pseudo-element');
+        expect(pseudo).toHaveLength(1);
+        expect(pseudo[0]?.detail).toContain('★');
+    });
+    it('collapses the page\'s empty wrappers and keeps its real ones', () => {
+        const result = reduceCapture(payload, { randomId: seqIds() });
+        // `.nav-outer` / `.nav-mid` contribute nothing; `.nav` and `.hero` do.
+        expect(result.findings.filter((f) => f.kind === 'collapsed-wrapper').length).toBeGreaterThan(0);
+        const names = Object.values(result.elements).map((e) => e.name);
+        expect(names).toContain('nav');
+        expect(names).toContain('header');
+        expect(names).toContain('card');
+    });
+    it('names the view after the page', () => {
+        expect(reduceCapture(payload, { randomId: seqIds() }).suggestedName).toBe('NorthwindShipFaster');
+    });
+});
