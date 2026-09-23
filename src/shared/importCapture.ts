@@ -44,7 +44,8 @@ export type CaptureNoteKind =
   | 'svg'
   | 'background-image'
   | 'depth-capped'
-  | 'node-capped';
+  | 'node-capped'
+  | 'revealed-on-scroll';
 
 export type CaptureNote = {
   kind: CaptureNoteKind;
@@ -90,6 +91,12 @@ export type CapturedNode = {
    * unknown attributes cannot come along for the ride.
    */
   inline?: Array<{ kind: 'text'; value: string } | { kind: 'markup'; source: string }>;
+  /**
+   * An inline `<svg>`'s inner markup, verbatim. Scamp keeps this on the
+   * element and re-emits it byte-for-byte, so an icon survives the
+   * import whole instead of arriving as an empty box.
+   */
+  svgSource?: string;
 };
 
 /**

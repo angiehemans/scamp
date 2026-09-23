@@ -36,7 +36,7 @@ const bundled = await build({
   write: false,
 });
 const source = bundled.outputFiles[0].text;
-const { captureFn, capturePolicy } = await import(
+const { captureFn, capturePolicy, prepareFn } = await import(
   `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
 );
 
@@ -54,6 +54,7 @@ for (const file of pages) {
   // Fonts and images affect computed values; settle before measuring.
   await page.waitForLoadState('networkidle');
 
+  await page.evaluate((src) => new Function(`return (${src})`)()(), prepareFn.toString());
   const payload = await page.evaluate(
     ([fnSource, policy]) => {
       // eslint-disable-next-line no-new-func

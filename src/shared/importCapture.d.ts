@@ -34,7 +34,7 @@
 /** Bumped when the payload shape changes, so a stale fixture fails loudly. */
 export declare const CAPTURE_VERSION = 1;
 /** Something the page does that Scamp's model has no room for. */
-export type CaptureNoteKind = 'pseudo-element' | 'shadow-root' | 'canvas' | 'iframe' | 'svg' | 'background-image' | 'depth-capped' | 'node-capped';
+export type CaptureNoteKind = 'pseudo-element' | 'shadow-root' | 'canvas' | 'iframe' | 'svg' | 'background-image' | 'depth-capped' | 'node-capped' | 'revealed-on-scroll';
 export type CaptureNote = {
     kind: CaptureNoteKind;
     /** The node it happened on, as a CSS-ish path. Absent for whole-page notes. */
@@ -89,6 +89,12 @@ export type CapturedNode = {
         kind: 'markup';
         source: string;
     }>;
+    /**
+     * An inline `<svg>`'s inner markup, verbatim. Scamp keeps this on the
+     * element and re-emits it byte-for-byte, so an icon survives the
+     * import whole instead of arriving as an empty box.
+     */
+    svgSource?: string;
 };
 /**
  * Tags that are part of a line rather than a box. Their children stay

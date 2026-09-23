@@ -306,6 +306,58 @@ describe('reduceCapture — inline content stays inline', () => {
   });
 });
 
+describe('reduceCapture — inline SVG', () => {
+  const withSvg = (svgSource: string) =>
+    node({
+      children: [
+        node({
+          tag: 'svg',
+          attrs: { viewBox: '0 0 24 24' },
+          svgSource,
+          rect: { x: 0, y: 0, w: 24, h: 24 },
+        }),
+      ],
+    });
+
+  it('carries the icon\'s markup instead of an empty box', () => {
+    const result = reduce(withSvg('<path d="M1 2L3 4"/>'));
+    const svg = Object.values(result.elements).find((e) => e.tag === 'svg');
+    expect(svg?.svgSource).toBe('<path d="M1 2L3 4"/>');
+    expect(svg?.name).toBe('icon');
+  });
+
+  it('emits it verbatim, and it parses back', () => {
+    const inner = '<path d="M1 2L3 4" stroke="currentColor"/><circle cx="5" cy="5" r="2"/>';
+    const { elements } = reduce(withSvg(inner));
+    const out = generateCode({
+      elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'S',
+      cssModuleImportName: 'S',
+      isComponent: true,
+    });
+    expect(out.tsx).toContain(inner);
+    expect(out.tsx).toContain('viewBox="0 0 24 24"');
+    const back = parseCode(out.tsx, out.css, { isComponent: true });
+    const svg = Object.values(back.elements).find((e) => e.tag === 'svg');
+    expect(svg?.svgSource).toContain('circle');
+  });
+
+  it('still reports it, because an icon is not editable as elements', () => {
+    const tree = node({
+      children: [
+        node({
+          tag: 'svg',
+          svgSource: '<path/>',
+          notes: [{ kind: 'svg', at: 'svg' }],
+          rect: { x: 0, y: 0, w: 24, h: 24 },
+        }),
+      ],
+    });
+    expect(kinds(tree)).toContain('svg');
+  });
+});
+
 describe('reduceCapture — reporting', () => {
   it('carries every capture note through as a finding', () => {
     const tree = node({

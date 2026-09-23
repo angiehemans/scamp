@@ -345,6 +345,7 @@ const NAME_FOR_TAG: Readonly<Record<string, string>> = {
   nav: 'nav', header: 'header', footer: 'footer', main: 'main',
   section: 'section', article: 'card', aside: 'aside', figure: 'figure',
   ul: 'list', ol: 'list', li: 'item', img: 'image', button: 'button',
+  svg: 'icon', video: 'video', iframe: 'embed',
   a: 'link', h1: 'title', h2: 'heading', h3: 'subheading',
   p: 'text', span: 'label', form: 'form', input: 'field',
 };
@@ -487,7 +488,7 @@ export const reduceCapture = (
           ([k]) => !(type === 'image' && node.tag === 'img' && (k === 'src' || k === 'alt'))
         )
       ),
-      svgSource: null,
+      svgSource: node.svgSource ?? null,
       selectOptions: null,
       componentName: null,
       instanceId: null,

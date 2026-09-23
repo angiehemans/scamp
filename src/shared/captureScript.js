@@ -23,6 +23,31 @@ export const capturePolicy = () => ({
     includeRects: true,
 });
 /**
+ * Settle the page before reading it.
+ *
+ * Modern pages reveal content on scroll: an `IntersectionObserver`
+ * flips a class and CSS transitions the element in from `opacity: 0`.
+ * Capture the page as loaded and everything below the fold is recorded
+ * invisible — which looks, in the imported view, exactly like elements
+ * missing. Measured on one site: 21 elements at zero opacity on load,
+ * 12 after scrolling through, so 9 were waiting to be seen.
+ *
+ * Scrolling the whole page and returning to the top triggers those
+ * observers, and is what a person would have done before deciding they
+ * wanted this page.
+ * see docs/plans/website-import-plan.md
+ */
+export const prepareFn = async () => {
+    const step = Math.max(200, window.innerHeight * 0.8);
+    const height = document.body.scrollHeight;
+    for (let y = 0; y < height; y += step) {
+        window.scrollTo(0, y);
+        await new Promise((r) => setTimeout(r, 120));
+    }
+    window.scrollTo(0, 0);
+    await new Promise((r) => setTimeout(r, 400));
+};
+/**
  * Walk the rendered document into a `CapturePayload`.
  *
  * Runs in the page. Reads nothing but the DOM and its computed styles,
@@ -148,6 +173,15 @@ export const captureFn = (policy) => {
         // present and hidden.
         if (computed.display === 'none' || computed.visibility === 'hidden')
             return null;
+        // Zero opacity means two different things. An element with a
+        // transition or animation on opacity is part-way through being
+        // revealed and belongs in the design at full strength; one without
+        // is deliberately invisible and is left alone.
+        let revealed = false;
+        if (parseFloat(computed.opacity) === 0) {
+            const motion = `${computed.transition} ${computed.animationName}`;
+            revealed = motion.indexOf('opacity') >= 0 || computed.animationName !== 'none';
+        }
         if (nodeBudget <= 0)
             return null;
         nodeBudget -= 1;
@@ -168,6 +202,10 @@ export const captureFn = (policy) => {
                 continue;
             }
             styles[prop] = value;
+        }
+        if (revealed) {
+            delete styles['opacity'];
+            notes.push({ kind: 'revealed-on-scroll', at: pathOf(el) });
         }
         // Drop values that are a layout result rather than a decision: a
         // border colour with no border, an origin with no transform.
@@ -220,8 +258,20 @@ export const captureFn = (policy) => {
             notes.push({ kind: 'canvas', at: pathOf(el) });
         if (tag === 'iframe')
             notes.push({ kind: 'iframe', at: pathOf(el) });
-        if (tag === 'svg')
+        // An inline SVG is almost always an icon, and Scamp keeps svg inner
+        // markup verbatim (`svgSource`), so it can come across whole rather
+        // than as an empty box. Only the note changes meaning: the shape is
+        // preserved, it just isn't editable as elements.
+        let svgSource = null;
+        if (tag === 'svg') {
+            svgSource = el.innerHTML;
+            for (const name of ['viewBox', 'fill', 'stroke', 'stroke-width', 'xmlns']) {
+                const value = el.getAttribute(name);
+                if (value !== null)
+                    attrs[name] = value;
+            }
             notes.push({ kind: 'svg', at: pathOf(el) });
+        }
         // Direct text, kept separate from element children so the reducer
         // can apply Scamp's rule that text lives in a text element.
         let text = null;
@@ -255,6 +305,8 @@ export const captureFn = (policy) => {
             }
         }
         const built = { id, tag, styles, text, attrs, children, notes };
+        if (svgSource !== null)
+            built['svgSource'] = svgSource;
         if (inline !== null)
             built['inline'] = inline;
         if (policy.includeRects) {

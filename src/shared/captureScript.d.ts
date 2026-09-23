@@ -46,6 +46,22 @@ export type CapturePolicy = {
 /** The policy as the page receives it: plain arrays, JSON-safe. */
 export declare const capturePolicy: () => CapturePolicy;
 /**
+ * Settle the page before reading it.
+ *
+ * Modern pages reveal content on scroll: an `IntersectionObserver`
+ * flips a class and CSS transitions the element in from `opacity: 0`.
+ * Capture the page as loaded and everything below the fold is recorded
+ * invisible — which looks, in the imported view, exactly like elements
+ * missing. Measured on one site: 21 elements at zero opacity on load,
+ * 12 after scrolling through, so 9 were waiting to be seen.
+ *
+ * Scrolling the whole page and returning to the top triggers those
+ * observers, and is what a person would have done before deciding they
+ * wanted this page.
+ * see docs/plans/website-import-plan.md
+ */
+export declare const prepareFn: () => Promise<void>;
+/**
  * Walk the rendered document into a `CapturePayload`.
  *
  * Runs in the page. Reads nothing but the DOM and its computed styles,

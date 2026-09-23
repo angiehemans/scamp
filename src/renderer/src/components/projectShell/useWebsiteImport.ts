@@ -40,7 +40,9 @@ const summarize = (findings: ReadonlyArray<ImportFinding>): string[] => {
     'shadow-root': (n) => `${n} shadow ${n === 1 ? 'root' : 'roots'}`,
     canvas: (n) => `${n} <canvas>`,
     iframe: (n) => `${n} <iframe>`,
-    svg: (n) => `${n} inline SVG`,
+    svg: (n) => `${n} inline ${n === 1 ? 'icon' : 'icons'} kept as markup, not editable as shapes`,
+    'revealed-on-scroll': (n) =>
+      `${n} ${n === 1 ? 'element' : 'elements'} that fade in on scroll, captured visible`,
     'background-image': (n) => `${n} background ${n === 1 ? 'image' : 'images'} still remote`,
     'unsupported-display': (n) => `${n} table or list-item layout`,
     // Not a loss, but the biggest single thing an import changes about

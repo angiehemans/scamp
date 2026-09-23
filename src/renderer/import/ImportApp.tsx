@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { captureFn, capturePolicy } from '@shared/captureScript';
+import { captureFn, capturePolicy, prepareFn } from '@shared/captureScript';
 import type { ImportResultPayload } from '@shared/types';
 
 import styles from './ImportApp.module.css';
@@ -125,6 +125,9 @@ export const ImportApp = (): JSX.Element => {
       // The capture function is serialized and evaluated in the page,
       // with the policy passed in as data — it cannot import anything
       // once it is over there.
+      // Scroll the page through first: content that reveals on scroll is
+      // recorded invisible otherwise, which reads as missing.
+      await node.executeJavaScript(`(${prepareFn.toString()})()`);
       const source = `(${captureFn.toString()})(${JSON.stringify(capturePolicy())})`;
       const payload = await node.executeJavaScript(source);
       const sent = await window.scampImport.deliver(projectPath, payload);

@@ -251,6 +251,7 @@ const NAME_FOR_TAG = {
     nav: 'nav', header: 'header', footer: 'footer', main: 'main',
     section: 'section', article: 'card', aside: 'aside', figure: 'figure',
     ul: 'list', ol: 'list', li: 'item', img: 'image', button: 'button',
+    svg: 'icon', video: 'video', iframe: 'embed',
     a: 'link', h1: 'title', h2: 'heading', h3: 'subheading',
     p: 'text', span: 'label', form: 'form', input: 'field',
 };
@@ -362,7 +363,7 @@ export const reduceCapture = (payload, options = {}) => {
             src: type === 'image' && node.tag === 'img' ? (node.attrs['src'] ?? null) : null,
             alt: type === 'image' && node.tag === 'img' ? (node.attrs['alt'] ?? '') : null,
             attributes: Object.fromEntries(Object.entries(node.attrs).filter(([k]) => !(type === 'image' && node.tag === 'img' && (k === 'src' || k === 'alt')))),
-            svgSource: null,
+            svgSource: node.svgSource ?? null,
             selectOptions: null,
             componentName: null,
             instanceId: null,

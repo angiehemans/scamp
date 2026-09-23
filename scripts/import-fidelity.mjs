@@ -52,7 +52,7 @@ const bundleOf = async (entry) => {
   return import(pathToFileURL(file).href);
 };
 
-const { captureFn, capturePolicy } = await bundleOf('src/shared/captureScript.ts');
+const { captureFn, capturePolicy, prepareFn } = await bundleOf('src/shared/captureScript.ts');
 const { reduceCapture } = await bundleOf('src/renderer/lib/importReduce.ts');
 const { generateCode } = await bundleOf('src/renderer/lib/generateCode.ts');
 const { buildHtmlExport } = await bundleOf('src/renderer/lib/htmlExport.ts');
@@ -87,6 +87,9 @@ for (const url of urls) {
     // Web fonts change every text measurement; wait for them.
     await page.evaluate(() => document.fonts?.ready);
 
+    // The same settle the app does, or the harness measures a page the
+    // app never sees.
+    await page.evaluate((src) => new Function(`return (${src})`)()(), prepareFn.toString());
     const payload = await page.evaluate(
       ([src, policy]) => new Function(`return (${src})`)()(policy),
       [captureFn.toString(), { ...capturePolicy(), includeRects: true }]
