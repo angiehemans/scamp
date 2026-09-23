@@ -519,6 +519,32 @@ Two things this required:
 A width that fails to capture costs one breakpoint's overrides, not the
 import. The base capture never depends on the narrow ones.
 
+**What the first real test of it found.** Three bugs, and the worst was
+silent in the most literal way — switching the canvas to tablet or
+mobile showed a blank page.
+
+The narrow capture was being diffed against the base's styles AFTER
+this module had translated them. Base read `display: flex` (put there
+by the block-flow translation), the narrow capture read `display:
+block`, and Scamp's "not a layout container" sentinel is the string
+`none` — so every block container on the page acquired `display: none`
+at tablet and mobile. The diff was measuring its own work. Both sides
+now go through one `normalizedStyles`, which is a correctness
+requirement rather than a tidy-up.
+
+Ten "image could not be fetched" errors for things that were never
+images: the `url()` regex stopped at the first quote or paren, and an
+inline SVG data URI contains both. `url("data:image/svg+xml;utf8,<svg
+xmlns='…'>")` captured a fragment that then resolved into a perfectly
+fetchable 404. Quoted forms are matched to their own closing quote now,
+and fragments, `data:` and `blob:` are never treated as files.
+
+And every `<li>` on the page was reported as an unsupported table
+layout — `list-item` was in the unsupported set. It is an ordinary
+block that also draws a marker, the flow translation handles it, and
+Scamp models `list-style` directly. Nineteen false alarms on one page,
+which is how a report stops being read.
+
 ## What this will not do
 
 Stated so the feature is judged against the right bar:

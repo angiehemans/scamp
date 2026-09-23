@@ -16,7 +16,7 @@ const DESCRIPTIONS = {
         lost: true,
     },
     'unsupported-display': {
-        label: (n) => `${n} ${n === 1 ? 'element uses' : 'elements use'} table layout, which has no equivalent`,
+        label: (n) => `${n} ${n === 1 ? 'element uses' : 'elements use'} a table or display:contents layout, which has no equivalent`,
         lost: true,
     },
     'depth-capped': {

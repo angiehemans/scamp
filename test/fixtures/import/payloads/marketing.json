@@ -930,22 +930,6 @@
       "h": 1061.36
     }
   },
-  "assets": [
-    {
-      "url": "file:///home/angie-hemans/Documents/github/scamp/test/fixtures/import/pages/shot-sync.png",
-      "kind": "image",
-      "fromNodeId": 20
-    },
-    {
-      "url": "file:///home/angie-hemans/Documents/github/scamp/test/fixtures/import/pages/shot-tokens.png",
-      "kind": "image",
-      "fromNodeId": 24
-    },
-    {
-      "url": "file:///home/angie-hemans/Documents/github/scamp/test/fixtures/import/pages/shot-agents.png",
-      "kind": "image",
-      "fromNodeId": 28
-    }
-  ],
+  "assets": [],
   "notes": []
 }

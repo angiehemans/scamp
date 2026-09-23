@@ -140,12 +140,32 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     return parts.join(' > ');
   };
 
-  /** The first `url(...)` in a background-image, resolved absolute. */
+  /**
+   * The first `url(...)` in a background-image, resolved absolute.
+   *
+   * A bare fragment — `url(#gradient)` — points at an SVG definition in
+   * the same document, not a file. Resolving it against the base gives
+   * a page URL that fetches as a 404, which is how one site produced
+   * ten "image could not be fetched" errors for images that were never
+   * images. Data URIs are likewise already the bytes.
+   */
   const urlIn = (value: string): string | null => {
-    const m = value.match(/url\(["']?([^"')]+)["']?\)/);
-    if (!m || m[1] === undefined) return null;
+    // Quoted forms are matched to their own closing quote, not to the
+    // first one anywhere. An inline SVG data URI contains both quotes
+    // and parens — `url("data:image/svg+xml;utf8,<svg xmlns='…'>")` —
+    // and a regex that stops at the first of either captures a
+    // fragment, which then resolves into a perfectly fetchable 404.
+    const m =
+      value.match(/url\(\s*"([^"]*)"\s*\)/) ??
+      value.match(/url\(\s*'([^']*)'\s*\)/) ??
+      value.match(/url\(\s*([^)\s]*)\s*\)/);
+    const raw = m?.[1]?.trim();
+    if (raw === undefined || raw.length === 0) return null;
+    // A fragment points into this document; a data or blob URI already
+    // holds the bytes. Neither is a file to download.
+    if (raw.startsWith('#') || raw.startsWith('data:') || raw.startsWith('blob:')) return null;
     try {
-      return new URL(m[1], document.baseURI).href;
+      return new URL(raw, document.baseURI).href;
     } catch {
       return null;
     }
@@ -280,18 +300,28 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       const name = attr.name.toLowerCase();
       if (!keptAttrs.has(name)) continue;
       if (name === 'src' || name === 'href') {
+        // A fragment, data URI or scheme-only value is not a location to
+        // resolve. Resolving `#n` against the base turns it into a page
+        // URL that looks perfectly fetchable and 404s — ten of those
+        // were reported as failed images on one site.
+        const value = attr.value.trim();
+        if (value.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(value)) {
+          attrs[name] = value;
+          continue;
+        }
         try {
-          attrs[name] = new URL(attr.value, document.baseURI).href;
+          attrs[name] = new URL(value, document.baseURI).href;
         } catch {
-          attrs[name] = attr.value;
+          attrs[name] = value;
         }
         continue;
       }
       attrs[name] = attr.value;
     }
 
-    if (tag === 'img' && attrs['src']) {
-      assets.push({ url: attrs['src'], kind: 'image', fromNodeId: id });
+    const imgSrc = attrs['src'];
+    if (tag === 'img' && imgSrc && /^https?:/.test(imgSrc)) {
+      assets.push({ url: imgSrc, kind: 'image', fromNodeId: id });
     }
     const bg = styles['background-image'];
     if (bg) {

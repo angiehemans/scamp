@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { CAPTURE_VERSION, type CapturePayload, type CapturedNode } from '@shared/importCapture';
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
-import { reduceCapture, viewNameFromTitle } from '@lib/importReduce';
+import { applyBreakpointCaptures, reduceCapture, viewNameFromTitle } from '@lib/importReduce';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 
 /**
@@ -355,6 +355,93 @@ describe('reduceCapture — inline SVG', () => {
       ],
     });
     expect(kinds(tree)).toContain('svg');
+  });
+});
+
+describe('applyBreakpointCaptures', () => {
+  const at = (w: number, styles: Record<string, string>, children: CapturedNode[] = []) =>
+    node({
+      tag: 'section',
+      path: 'body>section:0',
+      rect: { x: 0, y: 0, w, h: 100 },
+      styles,
+      children,
+    });
+
+  const payloadFor = (child: CapturedNode) =>
+    payloadOf(node({ path: 'body', children: [child] }));
+
+  it('never turns a translated block container back into display:none', () => {
+    // The base capture's `display: block` becomes flex here; the narrow
+    // capture says `block` too. Diffing the raw narrow value against the
+    // translated base reported a difference, and Scamp's "not a layout
+    // container" sentinel IS the string `none` — so every block
+    // container on the page vanished at tablet. A blank canvas, from a
+    // diff measuring its own work.
+    const base = reduceCapture(
+      payloadFor(at(1200, { display: 'block' }, [node({ tag: 'p', text: 'x' })])),
+      { randomId: seqIds() }
+    );
+    const narrow = payloadFor(at(700, { display: 'block' }, [node({ tag: 'p', text: 'x' })]));
+    const merged = applyBreakpointCaptures(base, [{ breakpointId: 'tablet', payload: narrow }]);
+    for (const el of Object.values(merged.elements)) {
+      expect(el.breakpointOverrides?.['tablet']?.display).toBeUndefined();
+    }
+  });
+
+  it('reads a real difference as an override', () => {
+    const base = reduceCapture(
+      payloadFor(at(1200, { display: 'flex', 'font-size': '56px' })),
+      { randomId: seqIds() }
+    );
+    const narrow = payloadFor(at(700, { display: 'flex', 'font-size': '32px' }));
+    const merged = applyBreakpointCaptures(base, [{ breakpointId: 'tablet', payload: narrow }]);
+    const section = Object.values(merged.elements).find((e) => e.tag === 'section');
+    expect(section?.breakpointOverrides?.['tablet']?.fontSize).toBe('32px');
+  });
+
+  it('writes nothing when the width changed nothing', () => {
+    const styles = { display: 'flex', 'font-size': '18px' };
+    const base = reduceCapture(payloadFor(at(1200, styles)), { randomId: seqIds() });
+    const merged = applyBreakpointCaptures(base, [
+      { breakpointId: 'tablet', payload: payloadFor(at(700, styles)) },
+    ]);
+    expect(
+      Object.values(merged.elements).some((e) => e.breakpointOverrides !== undefined)
+    ).toBe(false);
+  });
+
+  it('reports an element that is absent at the narrower width', () => {
+    // A path that does not match means the element is not there, which
+    // is an absence rather than an override — and Scamp has no way to
+    // say "hidden below 768px".
+    const base = reduceCapture(payloadFor(at(1200, { display: 'flex' })), {
+      randomId: seqIds(),
+    });
+    const merged = applyBreakpointCaptures(base, [
+      { breakpointId: 'tablet', payload: payloadOf(node({ path: 'body', children: [] })) },
+    ]);
+    expect(merged.findings.map((f) => f.kind)).toContain('breakpoint-absent');
+  });
+
+  it('leaves the base alone when there are no narrower captures', () => {
+    const base = reduceCapture(payloadFor(at(1200, { display: 'flex' })), {
+      randomId: seqIds(),
+    });
+    expect(applyBreakpointCaptures(base, []).elements).toEqual(base.elements);
+  });
+
+  it('ignores measured width and height, which every width re-measures', () => {
+    const base = reduceCapture(
+      payloadFor(at(1200, { display: 'flex', width: '1200px' })),
+      { randomId: seqIds() }
+    );
+    const merged = applyBreakpointCaptures(base, [
+      { breakpointId: 'tablet', payload: payloadFor(at(700, { display: 'flex', width: '700px' })) },
+    ]);
+    expect(
+      Object.values(merged.elements).some((e) => e.breakpointOverrides !== undefined)
+    ).toBe(false);
   });
 });
 

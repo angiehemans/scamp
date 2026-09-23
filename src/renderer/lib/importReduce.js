@@ -31,10 +31,19 @@ const VISUAL_PROPERTIES = [
 const LAYOUT_DISPLAYS = new Set([
     'flex', 'inline-flex', 'grid', 'inline-grid',
 ]);
-/** Displays with no equivalent in the model, kept verbatim but reported. */
+/**
+ * Displays with no equivalent in the model, kept verbatim but reported.
+ *
+ * `list-item` is deliberately NOT here. It is an ordinary block that
+ * also draws a marker, the flow translation handles it like any other
+ * block, and Scamp models `list-style` directly — reporting every `<li>`
+ * on a page as an unsupported layout was 19 false alarms on one site
+ * and buried the real ones.
+ */
 const UNSUPPORTED_DISPLAYS = new Set([
     'table', 'table-row', 'table-cell', 'table-header-group',
-    'table-row-group', 'table-footer-group', 'list-item', 'contents',
+    'table-row-group', 'table-footer-group', 'table-column',
+    'inline-table', 'contents',
 ]);
 const elementTypeFor = (tag) => {
     if (IMAGE_TAGS.has(tag))
@@ -241,6 +250,37 @@ const inlineToFragments = (inline) => {
         : ({ kind: 'jsx', source: item.source, afterChildIndex: -1 }));
     return { text, fragments };
 };
+/**
+ * The styles an element is built from, after every translation this
+ * module makes: block flow becomes flex, centring becomes auto margins,
+ * and the root sheds the viewport it was measured in.
+ *
+ * Shared with the breakpoint diff on purpose, and it is not an
+ * optimisation. A narrow capture compared against UNnormalised base
+ * styles reports every translation as a difference — most damagingly
+ * `display`, where the base reads `flex` (this module put it there) and
+ * the narrow capture reads `block`. Scamp models only flex and grid, so
+ * `block` lands on its "not a layout container" sentinel, which is the
+ * string `none` — and an override of `display: none` is emitted
+ * verbatim. The result was every block container on the page
+ * disappearing at tablet and mobile: a blank canvas, from a diff that
+ * was measuring its own work.
+ */
+const normalizedStyles = (node, isRoot, findings, at) => {
+    const flow = flowLayoutFor(node);
+    if (flow !== null) {
+        findings.push({ kind: 'block-to-flex', at, detail: flow['flex-direction'] });
+    }
+    let styles = flow === null ? node.styles : { ...node.styles, ...flow };
+    styles = restoreAutoMargins(styles, findings, at);
+    if (isRoot) {
+        const rootStyles = { ...styles };
+        for (const prop of VIEWPORT_DERIVED)
+            delete rootStyles[prop];
+        styles = rootStyles;
+    }
+    return styles;
+};
 /** `styles` as the declaration list `applyDeclarations` expects. */
 const toDeclarations = (styles) => Object.entries(styles).map(([prop, value]) => ({ prop, value }));
 /**
@@ -307,11 +347,14 @@ export const applyBreakpointCaptures = (base, narrower) => {
                 absent += 1;
                 continue;
             }
+            // Normalised the same way the base was, or the diff measures this
+            // module's own translations rather than the page's media queries.
+            const narrowStyles = normalizedStyles(narrow, id === ROOT_ELEMENT_ID, [], '');
             // Only the declarations that actually differ at this width. A
             // width that merely re-measured is not an override — the same
             // "computed value is not a decision" rule as the base capture.
             const declarations = [];
-            for (const [prop, value] of Object.entries(narrow.styles)) {
+            for (const [prop, value] of Object.entries(narrowStyles)) {
                 if (prop === 'width' || prop === 'height')
                     continue;
                 if (baseStyleOf(base, id, prop) === value)
@@ -413,23 +456,7 @@ export const reduceCapture = (payload, options = {}) => {
         const hasElementChildren = node.children.length > 0;
         const needsTextChild = inlineRun === null && node.text !== null && hasElementChildren;
         const sized = dropComputedSizes(node, parentRect, findings, at);
-        // Block flow becomes the flex equivalent BEFORE the declarations are
-        // applied, so the model sees a layout container and leaves the
-        // children in flow. see `flowLayoutFor`.
-        const flow = flowLayoutFor(node);
-        if (flow !== null) {
-            findings.push({ kind: 'block-to-flex', at, detail: flow['flex-direction'] });
-        }
-        let styles = flow === null ? sized.styles : { ...sized.styles, ...flow };
-        styles = restoreAutoMargins(styles, findings, at);
-        if (isRoot) {
-            // The root's size is the artboard's, not the window the capture
-            // happened to be taken in.
-            const rootStyles = { ...styles };
-            for (const prop of VIEWPORT_DERIVED)
-                delete rootStyles[prop];
-            styles = rootStyles;
-        }
+        const styles = normalizedStyles({ ...node, styles: sized.styles }, isRoot, findings, at);
         const display = styles['display'];
         if (display !== undefined && UNSUPPORTED_DISPLAYS.has(display)) {
             findings.push({ kind: 'unsupported-display', at, detail: display });
