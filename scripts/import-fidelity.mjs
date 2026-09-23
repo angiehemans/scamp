@@ -63,6 +63,14 @@ const { buildHtmlExport } = await bundleOf('src/renderer/lib/htmlExport.ts');
 // artefacts looked exactly like importer bugs.
 // see docs/notes/parity-harness.md
 const { DEFAULT_THEME_CSS } = await bundleOf('src/shared/templates/themeCss.ts');
+// The import embeds the page's typefaces; the oracle has to render with
+// them too. Without this it measures text in a fallback face, whose
+// metrics differ — which reads as the importer getting heights wrong
+// when it is the harness that is not set up like the real thing. Third
+// time this exact mistake has cost a wrong conclusion.
+const { fontsNeededBy, googleFontsUrlFor, needsResolving } = await bundleOf(
+  'src/renderer/lib/importFonts.ts'
+);
 
 const VIEWPORT = { width: 1440, height: 900 };
 const urls = process.argv.slice(2);
@@ -123,8 +131,17 @@ for (const url of urls) {
     const shot = await browser.newPage({ viewport: VIEWPORT });
     const themeSheet =
       exported.files.find((f) => f.path === 'theme.css')?.contents ?? '';
+    const fontUrl = googleFontsUrlFor(
+      fontsNeededBy(reduced.elements)
+        .map((n) => n.family)
+        .filter(needsResolving)
+    );
+    const fontLink = fontUrl === null ? '' : `<link rel="stylesheet" href="${fontUrl}">`;
     await shot.setContent(
-      html.replace('</head>', `<style>${themeSheet}</style><style>${sheet}</style></head>`),
+      html.replace(
+        '</head>',
+        `${fontLink}<style>${themeSheet}</style><style>${sheet}</style></head>`
+      ),
       {
         waitUntil: 'networkidle',
       }
@@ -143,6 +160,20 @@ for (const url of urls) {
           y: Math.round((b.top - base.top) * 100) / 100,
           w: Math.round(b.width * 100) / 100,
           h: Math.round(b.height * 100) / 100,
+          // Content taller than the box it was given. Comparing boxes
+          // alone cannot see this: a pinned height measures exactly
+          // right while its text pours out over whatever is below.
+          //
+          // The threshold is a line, not a pixel. Big type with a tight
+          // `line-height` always reports a few pixels of scrollHeight
+          // over clientHeight — the glyphs' descenders sit outside the
+          // line box — and the source page reports the same, so
+          // anything under a line of its own text is the page's own
+          // typesetting rather than something the import broke.
+          // see docs/notes/import-inherited-typography.md
+          spills:
+            el.scrollHeight - el.clientHeight >
+            Math.max(8, parseFloat(getComputedStyle(el).lineHeight) || 0),
         };
       }
       return out;
@@ -201,6 +232,11 @@ for (const url of urls) {
     console.log(`\n${url}`);
     console.log(`  ${compared} elements compared · ${pct}% within 2px of the source`);
     console.log(`  ${offenders.length} off · ${withMargins} of them have vertical margins`);
+    const spilling = Object.entries(importedRects).filter(([, r]) => r.spills);
+    console.log(
+      `  ${spilling.length} overflowing their box` +
+        (spilling.length === 0 ? '' : ` · ${spilling.slice(0, 6).map(([c]) => c).join(', ')}`)
+    );
     // Is the offender inline content sitting inside a text element?
     const parentOf = new Map();
     const mark = (n) => n.children.forEach((c) => { parentOf.set(c.id, n); mark(c); });

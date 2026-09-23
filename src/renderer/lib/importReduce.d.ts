@@ -1,4 +1,4 @@
-import { type CaptureNote, type CapturePayload } from '@shared/importCapture';
+import { type CaptureNote, type CapturePayload, type CapturedNode } from '@shared/importCapture';
 import { type ScampElement } from './element';
 /**
  * Reduce a captured page to a Scamp element tree.
@@ -27,7 +27,7 @@ import { type ScampElement } from './element';
  * uses, so an imported element and a hand-written one can't disagree.
  * see docs/plans/website-import-plan.md
  */
-export type ImportFindingKind = CaptureNote['kind'] | 'collapsed-wrapper' | 'dropped-computed-size' | 'wrapped-bare-text' | 'inline-kept' | 'block-to-flex' | 'breakpoint-captured' | 'breakpoint-absent' | 'restored-auto-margin' | 'unsupported-display';
+export type ImportFindingKind = CaptureNote['kind'] | 'collapsed-wrapper' | 'dropped-computed-size' | 'wrapped-bare-text' | 'inline-kept' | 'block-to-flex' | 'breakpoint-captured' | 'breakpoint-absent' | 'restored-auto-margin' | 'grid-tracks-to-fr' | 'unsupported-display';
 export type ImportFinding = {
     kind: ImportFindingKind;
     /** Where in the source page, as the capture described it. */
@@ -81,6 +81,14 @@ export type ReduceOptions = {
  * guessed at.
  * see docs/plans/website-import-plan.md
  */
+/**
+ * Push inherited typography down onto the elements that render words.
+ *
+ * The capture drops a property inheritance already supplies; Scamp
+ * emits typography only on text elements. Together those lose the font
+ * entirely. see docs/notes/import-inherited-typography.md
+ */
+export declare const resolveInheritance: (root: CapturedNode) => CapturedNode;
 export declare const applyBreakpointCaptures: (base: ImportResult, narrower: ReadonlyArray<{
     breakpointId: string;
     payload: CapturePayload;

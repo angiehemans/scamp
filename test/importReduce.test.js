@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { CAPTURE_VERSION } from '@shared/importCapture';
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
-import { applyBreakpointCaptures, reduceCapture, viewNameFromTitle } from '@lib/importReduce';
+import { applyBreakpointCaptures, reduceCapture, resolveInheritance, viewNameFromTitle, } from '@lib/importReduce';
 import { ROOT_ELEMENT_ID } from '@lib/element';
 /**
  * The reducer: a captured page in, an element tree out.
@@ -46,6 +46,234 @@ const seqIds = () => {
 };
 const reduce = (root, over = {}) => reduceCapture(payloadOf(root, over), { randomId: seqIds() });
 const kinds = (root) => reduce(root).findings.map((f) => f.kind);
+describe('grid templates — used values are not decisions', () => {
+    // `getComputedStyle` reads a grid template back as the track sizes it
+    // used, never as what was written. `1fr 1fr` comes out
+    // `548.094px 495.891px`, and `auto` rows come out as whatever height
+    // the content took, which then stops the content from growing.
+    const gridStyles = (over, w = 1100) => ({
+        display: 'grid',
+        width: `${w}px`,
+        ...over,
+    });
+    const cssOf = (root) => {
+        const { elements, rootId } = reduce(root);
+        return generateCode(elements, rootId, 'page').css;
+    };
+    it('drops a row template that is only measurements', () => {
+        const css = cssOf(node({
+            styles: gridStyles({ 'grid-template-rows': '739.797px' }),
+            children: [node({ id: 1, rect: { x: 0, y: 0, w: 1100, h: 739.797 } })],
+        }));
+        expect(css).not.toContain('grid-template-rows');
+    });
+    it('keeps a row template the page actually wrote', () => {
+        const css = cssOf(node({
+            styles: gridStyles({ 'grid-template-rows': 'repeat(2, minmax(0, 1fr))' }),
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-rows: repeat(2, minmax(0, 1fr))');
+    });
+    it('turns filling pixel columns back into fractions', () => {
+        // 548.094 + 56 + 495.891 = 1099.985, which is the content box: these
+        // tracks were `fr` before the browser measured them.
+        const css = cssOf(node({
+            rect: { x: 0, y: 0, w: 1100, h: 740 },
+            styles: gridStyles({
+                'grid-template-columns': '548.094px 495.891px',
+                'column-gap': '56px',
+            }),
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-columns: 1.105fr 1fr');
+    });
+    it('reads an even grid as plain fractions', () => {
+        const css = cssOf(node({
+            rect: { x: 0, y: 0, w: 1100, h: 400 },
+            styles: gridStyles({
+                'grid-template-columns': '356px 356px 356px',
+                'column-gap': '16px',
+            }),
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-columns: 1fr 1fr 1fr');
+    });
+    it('leaves pixel columns that do not fill the box alone', () => {
+        // 200 + 200 leaves 700px of the container unused, so the author
+        // really did write pixels and the grid is not flexible.
+        const css = cssOf(node({
+            rect: { x: 0, y: 0, w: 1100, h: 400 },
+            styles: gridStyles({ 'grid-template-columns': '200px 200px' }),
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-columns: 200px 200px');
+    });
+    it('measures the content box, not the border box', () => {
+        // Padding and border come off the width before the tracks are
+        // compared, or a padded grid never looks like it fills.
+        const css = cssOf(node({
+            rect: { x: 0, y: 0, w: 1100, h: 400 },
+            styles: gridStyles({
+                'grid-template-columns': '500px 500px',
+                'padding-left': '50px',
+                'padding-right': '50px',
+            }),
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-columns: 1fr 1fr');
+    });
+    it('leaves a template that already says what it means', () => {
+        const css = cssOf(node({
+            rect: { x: 0, y: 0, w: 1100, h: 400 },
+            styles: gridStyles({ 'grid-template-columns': 'repeat(auto-fit, minmax(240px, 1fr))' }),
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))');
+    });
+    it('leaves a flex container\'s tracks alone, whatever it reports', () => {
+        const css = cssOf(node({
+            rect: { x: 0, y: 0, w: 1100, h: 400 },
+            styles: { display: 'flex', width: '1100px', 'grid-template-rows': '400px' },
+            children: [node({ id: 1 })],
+        }));
+        expect(css).toContain('grid-template-rows: 400px');
+    });
+    it('reports the fraction it restored, so the change is not silent', () => {
+        const { findings } = reduce(node({
+            rect: { x: 0, y: 0, w: 1100, h: 400 },
+            styles: gridStyles({ 'grid-template-columns': '550px 550px' }),
+            children: [node({ id: 1 })],
+        }));
+        expect(findings.map((f) => f.kind)).toContain('grid-tracks-to-fr');
+    });
+});
+describe('resolveInheritance — typography reaching the words', () => {
+    // Scamp emits typography only on text elements, so a font left on a
+    // container by CSS inheritance reaches nothing at all. Every case
+    // here is about that gap; the symptom it produced was headings a line
+    // taller than they were captured, overlapping what sat below them.
+    const styleOf = (root, path) => {
+        let at = resolveInheritance(root);
+        for (const i of path)
+            at = at.children[i];
+        return at.styles;
+    };
+    it('puts an ancestor font onto the text element that renders it', () => {
+        const root = node({
+            styles: { 'font-family': 'Fraunces, serif' },
+            children: [node({ id: 1, tag: 'p', text: 'hello' })],
+        });
+        expect(styleOf(root, [0])['font-family']).toBe('Fraunces, serif');
+    });
+    it('carries it down through containers that only pass it along', () => {
+        const root = node({
+            styles: { 'font-family': 'Inter' },
+            children: [
+                node({
+                    id: 1,
+                    children: [node({ id: 2, children: [node({ id: 3, tag: 'h1', text: 'deep' })] })],
+                }),
+            ],
+        });
+        expect(styleOf(root, [0, 0, 0])['font-family']).toBe('Inter');
+    });
+    it('lets the nearest ancestor win, the way the cascade did', () => {
+        const root = node({
+            styles: { color: 'rgb(0, 0, 0)' },
+            children: [
+                node({
+                    id: 1,
+                    styles: { color: 'rgb(85, 85, 85)' },
+                    children: [node({ id: 2, tag: 'p', text: 'grey' })],
+                }),
+            ],
+        });
+        expect(styleOf(root, [0, 0])['color']).toBe('rgb(85, 85, 85)');
+    });
+    it('never overwrites a value the element declared for itself', () => {
+        const root = node({
+            styles: { 'font-size': '16px' },
+            children: [node({ id: 1, tag: 'h1', styles: { 'font-size': '60px' }, text: 'big' })],
+        });
+        expect(styleOf(root, [0])['font-size']).toBe('60px');
+    });
+    it('leaves containers alone, so the generated CSS stays clean', () => {
+        // A container could not emit the font anyway, and writing it there
+        // would only add a line no one reads.
+        const root = node({
+            styles: { 'font-family': 'Inter' },
+            children: [node({ id: 1, children: [node({ id: 2, tag: 'p', text: 'x' })] })],
+        });
+        expect(styleOf(root, [0])['font-family']).toBeUndefined();
+    });
+    it('carries every inherited property, not only the font', () => {
+        const root = node({
+            styles: {
+                'font-family': 'Inter',
+                color: 'rgb(85, 85, 85)',
+                'line-height': '25.6px',
+                'letter-spacing': '1.44px',
+                'text-align': 'center',
+                'text-transform': 'uppercase',
+            },
+            children: [node({ id: 1, tag: 'p', text: 'x' })],
+        });
+        expect(styleOf(root, [0])).toEqual({
+            'font-family': 'Inter',
+            color: 'rgb(85, 85, 85)',
+            'line-height': '25.6px',
+            'letter-spacing': '1.44px',
+            'text-align': 'center',
+            'text-transform': 'uppercase',
+        });
+    });
+    it('does not invent values nobody set', () => {
+        const root = node({ children: [node({ id: 1, tag: 'p', text: 'x' })] });
+        expect(styleOf(root, [0])).toEqual({});
+    });
+    it('leaves the tree otherwise untouched', () => {
+        const root = node({
+            styles: { 'font-family': 'Inter' },
+            children: [node({ id: 1, tag: 'p', text: 'hello', attrs: { id: 'a' } })],
+        });
+        const out = resolveInheritance(root);
+        expect(out.children).toHaveLength(1);
+        expect(out.children[0]?.id).toBe(1);
+        expect(out.children[0]?.text).toBe('hello');
+        expect(out.children[0]?.attrs).toEqual({ id: 'a' });
+    });
+    it('does not mutate the captured tree it was given', () => {
+        // The narrower breakpoint captures are reduced against the same
+        // payloads, so a mutating pass would cross-contaminate them.
+        const root = node({
+            styles: { 'font-family': 'Inter' },
+            children: [node({ id: 1, tag: 'p', text: 'x' })],
+        });
+        resolveInheritance(root);
+        expect(root.children[0]?.styles).toEqual({});
+    });
+    it('survives a page with no elements under the root', () => {
+        expect(resolveInheritance(node({ styles: { 'font-family': 'Inter' } })).children).toEqual([]);
+    });
+    it('reaches the words through a wrapper that later gets collapsed', () => {
+        // Inheritance is resolved before the collapse pass for exactly this
+        // reason: a wrapper that carries the font and nothing else is
+        // removed, and would take the font with it.
+        const root = node({
+            styles: {},
+            children: [
+                node({
+                    id: 1,
+                    styles: { 'font-family': 'Fraunces, serif' },
+                    children: [node({ id: 2, tag: 'h1', text: 'headline' })],
+                }),
+            ],
+        });
+        const { elements } = reduce(root);
+        const heading = Object.values(elements).find((e) => e.type === 'text');
+        expect(heading?.fontFamily).toBe('Fraunces, serif');
+    });
+});
 describe('reduceCapture — the shape it produces', () => {
     it('makes the captured root a div, whatever the page called it', () => {
         // The capture's root is `document.body`; a Scamp root is a div.

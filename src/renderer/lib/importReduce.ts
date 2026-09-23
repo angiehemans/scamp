@@ -1,5 +1,6 @@
 import {
   CAPTURE_VERSION,
+  INHERITED_PROPERTIES,
   type CaptureNote,
   type CapturePayload,
   type CapturedNode,
@@ -48,6 +49,7 @@ export type ImportFindingKind =
   | 'breakpoint-captured'
   | 'breakpoint-absent'
   | 'restored-auto-margin'
+  | 'grid-tracks-to-fr'
   | 'unsupported-display';
 
 export type ImportFinding = {
@@ -265,11 +267,57 @@ const dropComputedSizes = (
 ): { styles: Record<string, string>; dropped: Array<'width' | 'height'> } => {
   const styles = node.styles;
   const rect = node.rect;
-  if (node.children.length === 0 || !rect || !parentRect) {
-    return { styles, dropped: [] };
-  }
   const next = { ...styles };
   const dropped: Array<'width' | 'height'> = [];
+
+  // A text element's height is NEVER a decision. It is
+  // f(width, font, content), and of those three only two survive an
+  // import — the typeface may load late, may be substituted, or may
+  // simply render with different metrics here. Pin the measured height
+  // and the moment the text needs one more line it spills out of its
+  // box and over whatever is below it, which is what "the titles
+  // overlay the text" turned out to be: 100 of 101 text elements on one
+  // page carried a fixed height, one of them the model's 100px default
+  // rather than any measurement at all.
+  //
+  // It also hid itself from the fidelity harness, which compares boxes:
+  // a pinned box measures exactly right while its content pours out of
+  // it. Overflow is checked separately now.
+  if (elementTypeFor(node.tag) === 'text') {
+    // Round a text box's width UP, never down. Scamp's model is whole
+    // pixels (`parseSizeValue` rounds), so a measured `129.484px` would
+    // land at `129px` — a fraction narrower than the words it was
+    // measured around. Rounding up costs at most a pixel of width;
+    // rounding down risks a whole extra line of height.
+    const measured = next['width'];
+    if (typeof measured === 'string' && measured.endsWith('px')) {
+      const value = Number.parseFloat(measured);
+      if (Number.isFinite(value) && !Number.isInteger(value)) {
+        next['width'] = `${Math.ceil(value)}px`;
+      }
+    }
+
+    // Height only. Width is a CONSTRAINT — it decides where the words
+    // wrap, and changing it changes the layout materially: dropping it
+    // too measured 100% of elements within 2px down to 66%. Height is
+    // the CONSEQUENCE of that width, and the one that cannot survive a
+    // font substitution.
+    if ('height' in next) {
+      findings.push({ kind: 'dropped-computed-size', at, detail: `height: ${next['height']}` });
+      delete next['height'];
+    }
+    // Pushed whether or not there was a value to delete, so the mode is
+    // set explicitly rather than falling back to the model's 100px —
+    // which is where one element's nonsense 100px-tall heading came
+    // from.
+    dropped.push('height');
+  }
+
+  // Everything else keeps a size it chose. A leaf with an explicit box —
+  // an image, a spacer — is usually the point of that element.
+  if (node.children.length === 0 || !rect || !parentRect) {
+    return { styles: next, dropped };
+  }
   // Within a pixel of the parent's content box: this element was
   // filling, not sizing itself.
   const fills = Math.abs(rect.w - parentRect.w) <= 1;
@@ -368,6 +416,75 @@ const inlineToFragments = (
  * disappearing at tablet and mobile: a blank canvas, from a diff that
  * was measuring its own work.
  */
+/** A track list that is nothing but pixel lengths, as numbers. */
+const pxTracks = (value: string): number[] | null => {
+  const parts = value.trim().split(/\s+/);
+  const out: number[] = [];
+  for (const part of parts) {
+    if (!/^-?\d+(?:\.\d+)?px$/.test(part)) return null;
+    out.push(Number.parseFloat(part));
+  }
+  return out.length > 0 ? out : null;
+};
+
+const edgeTotal = (styles: Record<string, string>, props: ReadonlyArray<string>): number =>
+  props.reduce((sum, prop) => sum + (Number.parseFloat(styles[prop] ?? '0') || 0), 0);
+
+/**
+ * Grid templates are read back as used values, never as what was
+ * written: `1fr 1fr` computes to `548.094px 495.891px` and `auto` rows
+ * compute to the height the content happened to take. Declaring either
+ * pins the grid to the window the capture ran in — the same "a
+ * computed value is not a decision" rule the module applies to `width`
+ * and `height`, one level down.
+ *
+ * Rows go, always: a row track list of bare pixels is a measurement.
+ * Columns only go when they FILL the content box, which is what tells
+ * a `1fr 1fr` that got measured apart from a `280px 1fr` sidebar the
+ * author really did write in pixels. When they fill, the proportions
+ * are the decision, so they come back as `fr`.
+ */
+const normalizeGridTracks = (
+  node: CapturedNode,
+  styles: Record<string, string>,
+  findings: ImportFinding[],
+  at: string
+): Record<string, string> => {
+  const display = styles['display'];
+  if (display !== 'grid' && display !== 'inline-grid') return styles;
+  const next = { ...styles };
+
+  const rows = next['grid-template-rows'];
+  if (rows !== undefined && pxTracks(rows) !== null) {
+    findings.push({ kind: 'dropped-computed-size', at, detail: `grid-template-rows: ${rows}` });
+    delete next['grid-template-rows'];
+  }
+
+  const columns = next['grid-template-columns'];
+  const tracks = columns === undefined ? null : pxTracks(columns);
+  if (columns === undefined || tracks === null || !node.rect) return next;
+
+  const gap = Number.parseFloat(next['column-gap'] ?? next['gap'] ?? '0') || 0;
+  const content =
+    node.rect.w -
+    edgeTotal(next, [
+      'padding-left', 'padding-right', 'border-left-width', 'border-right-width',
+    ]);
+  const total = tracks.reduce((a, b) => a + b, 0);
+  const used = total + gap * (tracks.length - 1);
+  if (Math.abs(used - content) > 1) return next;
+
+  // Relative to the narrowest track, so an even grid reads `1fr 1fr`
+  // rather than a pair of decimals nobody can check by eye.
+  const min = Math.min(...tracks);
+  if (min <= 0) return next;
+  next['grid-template-columns'] = tracks
+    .map((track) => `${Math.round((track / min) * 1000) / 1000}fr`)
+    .join(' ');
+  findings.push({ kind: 'grid-tracks-to-fr', at, detail: columns });
+  return next;
+};
+
 const normalizedStyles = (
   node: CapturedNode,
   isRoot: boolean,
@@ -380,6 +497,7 @@ const normalizedStyles = (
   }
   let styles = flow === null ? node.styles : { ...node.styles, ...flow };
   styles = restoreAutoMargins(styles, findings, at);
+  styles = normalizeGridTracks(node, styles, findings, at);
   if (isRoot) {
     const rootStyles = { ...styles };
     for (const prop of VIEWPORT_DERIVED) delete rootStyles[prop];
@@ -442,6 +560,37 @@ export type ReduceOptions = {
  * guessed at.
  * see docs/plans/website-import-plan.md
  */
+/**
+ * Push inherited typography down onto the elements that render words.
+ *
+ * The capture drops a property inheritance already supplies; Scamp
+ * emits typography only on text elements. Together those lose the font
+ * entirely. see docs/notes/import-inherited-typography.md
+ */
+export const resolveInheritance = (root: CapturedNode): CapturedNode => {
+  const walk = (node: CapturedNode, from: Record<string, string>): CapturedNode => {
+    const styles = { ...node.styles };
+    // Anything that renders words needs them, including a container
+    // whose bare text gets lifted into a text child further down.
+    if (elementTypeFor(node.tag) === 'text' || node.text !== null) {
+      for (const [prop, value] of Object.entries(from)) {
+        if (!(prop in styles)) styles[prop] = value;
+      }
+    }
+    const down = { ...from };
+    for (const prop of INHERITED_PROPERTIES) {
+      const own = node.styles[prop];
+      if (own !== undefined) down[prop] = own;
+    }
+    return {
+      ...node,
+      styles,
+      children: node.children.map((child) => walk(child, down)),
+    };
+  };
+  return walk(root, {});
+};
+
 export const applyBreakpointCaptures = (
   base: ImportResult,
   narrower: ReadonlyArray<{ breakpointId: string; payload: CapturePayload }>
@@ -455,7 +604,7 @@ export const applyBreakpointCaptures = (
       if (node.path !== undefined) byPath.set(node.path, node);
       node.children.forEach(index);
     };
-    index(payload.root);
+    index(resolveInheritance(payload.root));
 
     let changed = 0;
     let absent = 0;
@@ -539,7 +688,7 @@ export const reduceCapture = (
   collectNotes(payload.root);
   for (const note of payload.notes) findings.push({ ...note });
 
-  const pruned = collapse(payload.root, findings, [], true);
+  const pruned = collapse(resolveInheritance(payload.root), findings, [], true);
 
   let counter = 0;
   const fallbackId = (): string => {
@@ -692,7 +841,20 @@ export const reduceCapture = (
         alt: null,
         attributes: {},
       };
-      elements[textId] = applyDeclarations(makeBaseline(textRaw, true), [], selfIsLayoutForText);
+      // It renders its parent's words, so it needs the type they were
+      // set in — and a box that fits them. With neither, it landed on
+      // the model's 100x100 default: a blank square shoving the real
+      // content aside, in the browser's default face.
+      const lifted: RawDeclaration[] = [{ prop: 'width', value: 'auto' }, { prop: 'height', value: 'auto' }];
+      for (const prop of INHERITED_PROPERTIES) {
+        const value = styles[prop];
+        if (value !== undefined) lifted.push({ prop, value });
+      }
+      elements[textId] = applyDeclarations(
+        makeBaseline(textRaw, true),
+        lifted,
+        selfIsLayoutForText
+      );
       childIds.push(textId);
     }
     const selfIsLayout = LAYOUT_DISPLAYS.has(display ?? '');

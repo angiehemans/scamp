@@ -43,6 +43,10 @@ const DESCRIPTIONS = {
         label: (n) => `${n} ${n === 1 ? 'run' : 'runs'} of inline markup kept as text — links and bold inside a sentence are part of it now`,
         lost: false,
     },
+    'grid-tracks-to-fr': {
+        label: (n) => `${n} grid ${n === 1 ? 'track list' : 'track lists'} turned back into fractions — the page's own columns were measured in pixels`,
+        lost: false,
+    },
     'block-to-flex': {
         label: (n) => `${n} block ${n === 1 ? 'container' : 'containers'} became flex columns`,
         lost: false,
