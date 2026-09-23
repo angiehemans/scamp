@@ -127,7 +127,8 @@ export const buildReport = (
   const byKind = new Map<string, { count: number; examples: string[] }>();
   for (const finding of findings) {
     const entry = byKind.get(finding.kind) ?? { count: 0, examples: [] };
-    entry.count += 1;
+    // A finding may stand for more than one element; see `ImportFinding`.
+    entry.count += finding.count ?? 1;
     const where = finding.at ?? finding.detail;
     if (where !== undefined && entry.examples.length < MAX_EXAMPLES && !entry.examples.includes(where)) {
       entry.examples.push(where);

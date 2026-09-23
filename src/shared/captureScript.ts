@@ -340,7 +340,17 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
         notes.push({ kind: 'pseudo-element', at: `${pathOf(el)}${pseudo}`, detail: content });
       }
     }
-    if (el.shadowRoot) notes.push({ kind: 'shadow-root', at: pathOf(el) });
+    // A shadow host that paints nothing lost nothing. Next.js puts a
+    // 0x0 `<next-route-announcer>` on every page it renders, and
+    // reporting it as an unreadable web component put a false loss at
+    // the top of every import report — which is how a report stops
+    // being read.
+    if (el.shadowRoot) {
+      const hostBox = el.getBoundingClientRect();
+      if (hostBox.width > 0 && hostBox.height > 0) {
+        notes.push({ kind: 'shadow-root', at: pathOf(el) });
+      }
+    }
     if (tag === 'canvas') notes.push({ kind: 'canvas', at: pathOf(el) });
     if (tag === 'iframe') notes.push({ kind: 'iframe', at: pathOf(el) });
     // An inline SVG is almost always an icon, and Scamp keeps svg inner

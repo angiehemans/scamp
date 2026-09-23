@@ -58,7 +58,13 @@ describe('grid templates — used values are not decisions', () => {
     });
     const cssOf = (root) => {
         const { elements, rootId } = reduce(root);
-        return generateCode(elements, rootId, 'page').css;
+        return generateCode({
+            elements,
+            rootId,
+            pageName: 'Page',
+            cssModuleImportName: 'Page',
+            isComponent: true,
+        }).css;
     };
     it('drops a row template that is only measurements', () => {
         const css = cssOf(node({
@@ -131,12 +137,13 @@ describe('grid templates — used values are not decisions', () => {
         expect(css).toContain('grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))');
     });
     it('leaves a flex container\'s tracks alone, whatever it reports', () => {
-        const css = cssOf(node({
-            rect: { x: 0, y: 0, w: 1100, h: 400 },
+        // The rule is scoped to grid containers: a stray template on
+        // anything else is the page's business, not a measurement.
+        const { baseStyles } = reduce(node({
             styles: { display: 'flex', width: '1100px', 'grid-template-rows': '400px' },
             children: [node({ id: 1 })],
         }));
-        expect(css).toContain('grid-template-rows: 400px');
+        expect(baseStyles[ROOT_ELEMENT_ID]?.['grid-template-rows']).toBe('400px');
     });
     it('reports the fraction it restored, so the change is not silent', () => {
         const { findings } = reduce(node({

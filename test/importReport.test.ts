@@ -103,6 +103,29 @@ describe('buildReport', () => {
     expect(report[0]?.lost).toBe(true);
   });
 
+  it('counts a finding that stands for more than one element', () => {
+    // The breakpoint passes raise one finding per breakpoint, not per
+    // element. Counting findings said "1 element is missing at a
+    // narrower width" whether it was one element or forty.
+    const report = buildReport([
+      { kind: 'breakpoint-absent', at: 'tablet', count: 12 },
+      { kind: 'breakpoint-absent', at: 'mobile', count: 28 },
+    ] as ImportFinding[]);
+    expect(report[0]?.count).toBe(40);
+    expect(report[0]?.label).toContain('40 elements are');
+  });
+
+  it('still names the breakpoints rather than the elements', () => {
+    const report = buildReport([
+      { kind: 'breakpoint-captured', at: 'tablet', count: 9 },
+    ] as ImportFinding[]);
+    expect(report[0]?.examples).toEqual(['tablet']);
+  });
+
+  it('treats a finding with no count as standing for one thing', () => {
+    expect(buildReport([finding('pseudo-element', 'a::before')])[0]?.count).toBe(1);
+  });
+
   it('returns nothing for a clean import', () => {
     expect(buildReport([])).toEqual([]);
   });

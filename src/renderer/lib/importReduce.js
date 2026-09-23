@@ -517,6 +517,7 @@ export const applyBreakpointCaptures = (base, narrower) => {
                 kind: 'breakpoint-captured',
                 at: breakpointId,
                 detail: `${changed} elements`,
+                count: changed,
             });
         }
         if (absent > 0) {
@@ -524,6 +525,7 @@ export const applyBreakpointCaptures = (base, narrower) => {
                 kind: 'breakpoint-absent',
                 at: breakpointId,
                 detail: `${absent} elements`,
+                count: absent,
             });
         }
     }

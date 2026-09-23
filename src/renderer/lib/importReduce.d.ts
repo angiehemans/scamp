@@ -33,6 +33,14 @@ export type ImportFinding = {
     /** Where in the source page, as the capture described it. */
     at?: string;
     detail?: string;
+    /**
+     * How many things this finding stands for, when it is not one.
+     * Most findings are raised per element and leave this alone. The
+     * breakpoint passes raise one per breakpoint covering everything
+     * that changed at that width, and without this the report said
+     * "1 element is missing at a narrower width" for any number of them.
+     */
+    count?: number;
 };
 export type ImportResult = {
     elements: Record<string, ScampElement>;
