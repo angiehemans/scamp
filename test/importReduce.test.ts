@@ -20,6 +20,7 @@ import { reduceCapture, viewNameFromTitle } from '@lib/importReduce';
 const node = (over: Partial<CapturedNode> = {}): CapturedNode => ({
   id: 0,
   tag: 'div',
+  rect: { x: 0, y: 0, w: 1200, h: 400 },
   styles: {},
   text: null,
   attrs: {},
@@ -100,20 +101,55 @@ describe('reduceCapture — the shape it produces', () => {
 });
 
 describe('reduceCapture — a computed value is not a decision', () => {
-  it('drops a measured width and height from a node with children', () => {
-    const result = reduce(
-      node({ styles: { width: '442.656px', height: '256px' }, children: [node({ tag: 'p', text: 'x' })] })
-    );
-    expect(result.elements['root']?.widthMode).toBe('auto');
-    expect(result.elements['root']?.heightMode).toBe('auto');
+  it('drops a width the element got for free, and stretches instead', () => {
+    // Same width as its parent: it was filling, and `stretch` reproduces
+    // that at any width.
+    const child = node({
+      tag: 'section',
+      rect: { x: 0, y: 0, w: 1200, h: 100 },
+      styles: { width: '1200px' },
+      children: [node({ tag: 'p', text: 'x', rect: { x: 0, y: 0, w: 1200, h: 100 } })],
+    });
+    const result = reduce(node({ children: [child] }));
+    const el = Object.values(result.elements).find((e) => e.tag === 'section');
+    expect(el?.widthMode).toBe('stretch');
+  });
+
+  it('keeps a width the element chose, because that one is a decision', () => {
+    // Narrower than the space it was given: not filling.
+    const child = node({
+      tag: 'section',
+      rect: { x: 0, y: 0, w: 442, h: 100 },
+      styles: { width: '442px' },
+      children: [node({ tag: 'p', text: 'x', rect: { x: 0, y: 0, w: 442, h: 100 } })],
+    });
+    const result = reduce(node({ children: [child] }));
+    const el = Object.values(result.elements).find((e) => e.tag === 'section');
+    expect(el?.widthMode).toBe('fixed');
+  });
+
+  it('keeps every size when the capture carries no geometry', () => {
+    // An older payload, or one captured without rects: guessing is worse
+    // than being faithful, so nothing is dropped.
+    const bare: CapturedNode = { ...node({ styles: { width: '442px' } }), rect: undefined };
+    const result = reduceCapture(payloadOf({ ...bare, children: [node({ tag: 'p', text: 'x' })] }), {
+      randomId: seqIds(),
+    });
+    expect(result.findings.some((f) => f.kind === 'dropped-computed-size')).toBe(false);
   });
 
   it('reports each size it dropped, so the report can explain the layout', () => {
-    const found = reduce(
-      node({ styles: { width: '442.656px' }, children: [node({ tag: 'p', text: 'x' })] })
-    ).findings.filter((f) => f.kind === 'dropped-computed-size');
+    const child = node({
+      tag: 'section',
+      rect: { x: 0, y: 0, w: 1200, h: 100 },
+      styles: { width: '1200px' },
+      children: [node({ tag: 'p', text: 'x', rect: { x: 0, y: 0, w: 1200, h: 100 } })],
+    });
+    const found = reduce(node({ children: [child] })).findings.filter(
+      (f) => f.kind === 'dropped-computed-size'
+    );
     expect(found).toHaveLength(1);
-    expect(found[0]?.detail).toContain('442.656px');
+    expect(found[0]?.detail).toContain('1200px');
   });
 
   it('keeps a size on a leaf, where an explicit box is usually the point', () => {
@@ -276,12 +312,15 @@ describe('against a page captured from a real browser', () => {
     expect(payload.version).toBe(CAPTURE_VERSION);
   });
 
-  it('never carries a size the layout produced into a container', () => {
+  it('lets a container that was filling keep filling', () => {
+    // Not "never pins a width" — a width the page chose is a decision,
+    // and dropping those measured 20 points worse. What must hold is
+    // that the ones which were merely filling come back as stretch.
     const result = reduceCapture(payload, { randomId: seqIds() });
-    for (const el of Object.values(result.elements)) {
-      if (el.childIds.length === 0) continue;
-      expect(el.widthMode, `${el.name ?? el.id} pinned its measured width`).not.toBe('fixed');
-    }
+    const stretched = Object.values(result.elements).filter(
+      (el) => el.childIds.length > 0 && el.widthMode === 'stretch'
+    );
+    expect(stretched.length).toBeGreaterThan(0);
   });
 
   it('produces a tree that generates and re-parses', () => {

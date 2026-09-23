@@ -28,6 +28,16 @@ export type CapturePolicy = {
         maxTextLength: number;
     };
     version: number;
+    /**
+     * Record each node's box, relative to the page root.
+     *
+     * On by default. It began as harness-only weight, then turned out to
+     * be the only way to tell a width the author chose from a width the
+     * element got for free — which is the difference between an import
+     * that reflows and a pixel snapshot. Four numbers a node.
+     * see docs/plans/website-import-plan.md
+     */
+    includeRects?: boolean;
 };
 /** The policy as the page receives it: plain arrays, JSON-safe. */
 export declare const capturePolicy: () => CapturePolicy;

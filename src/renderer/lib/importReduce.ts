@@ -61,6 +61,13 @@ export type ImportResult = {
   findings: ImportFinding[];
   /** A PascalCase view name derived from the page title. */
   suggestedName: string;
+  /**
+   * Element id → the captured node it came from. Recorded rather than
+   * inferred: the fidelity harness compares each imported element
+   * against its own source box, and matching them by position in the
+   * tree guesses wrong the moment anything is collapsed.
+   */
+  sourceNodes: Record<string, number>;
 };
 
 /**
@@ -103,6 +110,12 @@ const UNSUPPORTED_DISPLAYS: ReadonlySet<string> = new Set([
   'table-row-group', 'table-footer-group', 'list-item', 'contents',
 ]);
 
+const elementTypeFor = (tag: string): ElementType => {
+  if (IMAGE_TAGS.has(tag)) return 'image';
+  if (INPUT_TAGS.has(tag)) return 'input';
+  return TEXT_TAGS.has(tag) ? 'text' : 'rectangle';
+};
+
 /** Displays whose children flow inline rather than stacking. */
 const INLINE_DISPLAYS: ReadonlySet<string> = new Set([
   'inline', 'inline-block', 'inline-flex', 'inline-grid', 'inline-table',
@@ -132,6 +145,11 @@ const flowLayoutFor = (node: CapturedNode): Record<string, string> | null => {
   const display = node.styles['display'] ?? 'block';
   if (LAYOUT_DISPLAYS.has(display)) return null;
   if (node.children.length === 0) return null;
+  // A text element holds inline content — words that wrap and sit on a
+  // baseline. Making it a flex container turns each word-run into a
+  // flex item, which loses the wrapping and the line box: a 81x43
+  // paragraph came back 304x100.
+  if (elementTypeFor(node.tag) === 'text') return null;
   // `inline` on the parent means it is part of a line, not building one.
   if (display === 'inline') return null;
   const childDisplays = node.children.map((c) => c.styles['display'] ?? 'block');
@@ -141,11 +159,6 @@ const flowLayoutFor = (node: CapturedNode): Record<string, string> | null => {
     : { display: 'flex', 'flex-direction': 'column' };
 };
 
-const elementTypeFor = (tag: string): ElementType => {
-  if (IMAGE_TAGS.has(tag)) return 'image';
-  if (INPUT_TAGS.has(tag)) return 'input';
-  return TEXT_TAGS.has(tag) ? 'text' : 'rectangle';
-};
 
 /** Does this node make a visible difference beyond holding its children? */
 const isVisuallyMeaningful = (node: CapturedNode): boolean => {
@@ -207,20 +220,54 @@ const collapse = (
  * authored rules rather than the computed ones, which is a phase-2
  * question — see the plan's note on `document.styleSheets`.
  */
+/**
+ * Drop a size only when the layout would produce it anyway.
+ *
+ * The first version of this dropped width and height from every element
+ * with children, on the principle that a computed value is not a
+ * decision. Measured, that cost 20 points of fidelity — 92% of elements
+ * within 2px of the source became 72% — because plenty of those widths
+ * WERE decisions, and a dropped one becomes a guess.
+ *
+ * The measured box tells the two apart. An element whose width matches
+ * the space its parent gave it was filling, and `stretch` reproduces
+ * that at any width; one that is narrower chose to be, and the number
+ * has to be kept. Same for height against its content.
+ *
+ * So the rule is not "prefer flexible" or "prefer faithful" — it is
+ * "declare what the page decided, and let flow do the rest".
+ */
 const dropComputedSizes = (
-  styles: Record<string, string>,
-  hasChildren: boolean,
+  node: CapturedNode,
+  parentRect: { w: number; h: number } | null,
   findings: ImportFinding[],
   at: string
 ): { styles: Record<string, string>; dropped: Array<'width' | 'height'> } => {
-  if (!hasChildren) return { styles, dropped: [] };
+  const styles = node.styles;
+  const rect = node.rect;
+  if (node.children.length === 0 || !rect || !parentRect) {
+    return { styles, dropped: [] };
+  }
   const next = { ...styles };
   const dropped: Array<'width' | 'height'> = [];
-  for (const prop of ['width', 'height'] as const) {
-    if (!(prop in next)) continue;
-    findings.push({ kind: 'dropped-computed-size', at, detail: `${prop}: ${next[prop]}` });
-    delete next[prop];
-    dropped.push(prop);
+  // Within a pixel of the parent's content box: this element was
+  // filling, not sizing itself.
+  const fills = Math.abs(rect.w - parentRect.w) <= 1;
+  if (fills && 'width' in next) {
+    findings.push({ kind: 'dropped-computed-size', at, detail: `width: ${next['width']}` });
+    delete next['width'];
+    dropped.push('width');
+  }
+  // A height equal to the children's extent is the content's, not a
+  // decision; anything else (a min-height, a fixed hero) is kept.
+  const childExtent = node.children.reduce(
+    (max, c) => (c.rect ? Math.max(max, c.rect.y + c.rect.h - rect.y) : max),
+    0
+  );
+  if (childExtent > 0 && Math.abs(rect.h - childExtent) <= 1 && 'height' in next) {
+    findings.push({ kind: 'dropped-computed-size', at, detail: `height: ${next['height']}` });
+    delete next['height'];
+    dropped.push('height');
   }
   return { styles: next, dropped };
 };
@@ -329,13 +376,18 @@ export const reduceCapture = (
   const nextId = options.randomId ?? fallbackId;
 
   const elements: Record<string, ScampElement> = {};
+  const sourceNodes: Record<string, number> = {};
   const used = new Set<string>([ROOT_ELEMENT_ID]);
 
   const build = (
     node: CapturedNode,
     parentId: string | null,
     path: string[],
-    parentIsLayout: boolean
+    parentIsLayout: boolean,
+    /** How the parent arranges this child: down the page, or across it. */
+    parentFlow: 'row' | 'column',
+    /** The parent's measured box, for telling "filling" from "sized". */
+    parentRect: { w: number; h: number } | null
   ): string => {
     const isRoot = parentId === null;
     const type = elementTypeFor(node.tag);
@@ -358,7 +410,7 @@ export const reduceCapture = (
     const hasElementChildren = node.children.length > 0;
     const needsTextChild = node.text !== null && hasElementChildren;
 
-    const sized = dropComputedSizes(node.styles, hasElementChildren, findings, at);
+    const sized = dropComputedSizes(node, parentRect, findings, at);
     // Block flow becomes the flex equivalent BEFORE the declarations are
     // applied, so the model sees a layout container and leaves the
     // children in flow. see `flowLayoutFor`.
@@ -413,14 +465,35 @@ export const reduceCapture = (
 
     const baseline = makeBaseline(raw, true);
     const element = applyDeclarations(baseline, toDeclarations(styles), parentIsLayout);
-    // A size that was a layout result becomes "auto", not the model's
-    // 100px placeholder — deleting the declaration alone would emit a
-    // hardcoded box no one asked for.
+    // A size that was a layout result needs the mode that reproduces how
+    // the element got that size, not merely the absence of a number.
+    //
+    // Width and height are not symmetrical in flow. A block-level
+    // element FILLS its container's width and takes its height from its
+    // content — so a dropped width becomes `stretch` and a dropped
+    // height becomes `auto`. Setting both to `auto` makes every
+    // container hug its contents, which measured as a 1200px row
+    // arriving 510px wide.
     const autoSized: Partial<ScampElement> = {};
-    if (sized.dropped.includes('width')) autoSized.widthMode = 'auto';
+    if (sized.dropped.includes('width')) {
+      // Down a column, a child fills the cross axis — that is what
+      // `align-items: stretch` does, and what block flow does. Across a
+      // row, its width is its content's. Keying this off the element's
+      // own display instead measured worse than not doing it at all.
+      const display = node.styles['display'] ?? 'block';
+      autoSized.widthMode =
+        parentFlow === 'row' || INLINE_DISPLAYS.has(display) ? 'auto' : 'stretch';
+    }
     if (sized.dropped.includes('height')) autoSized.heightMode = 'auto';
 
     const selfIsLayoutForText = LAYOUT_DISPLAYS.has(display ?? '');
+    // What this element does to ITS children, after the flow rewrite.
+    const ownFlow: 'row' | 'column' =
+      (styles['flex-direction'] ?? 'row').startsWith('column') ||
+      display === 'grid' ||
+      display === 'inline-grid'
+        ? 'column'
+        : 'row';
     const childIds: string[] = [];
     if (needsTextChild) {
       const textId = (() => {
@@ -448,19 +521,23 @@ export const reduceCapture = (
     }
     const selfIsLayout = LAYOUT_DISPLAYS.has(display ?? '');
     for (const child of node.children) {
-      childIds.push(build(child, id, [...path, node.tag], selfIsLayout));
+      childIds.push(
+        build(child, id, [...path, node.tag], selfIsLayout, ownFlow, node.rect ?? null)
+      );
     }
 
     elements[id] = { ...element, ...autoSized, childIds };
+    sourceNodes[id] = node.id;
     return id;
   };
 
-  build(pruned, null, [], false);
+  build(pruned, null, [], false, 'column', null);
 
   return {
     elements,
     rootId: ROOT_ELEMENT_ID,
     findings,
     suggestedName: viewNameFromTitle(payload.title),
+    sourceNodes,
   };
 };

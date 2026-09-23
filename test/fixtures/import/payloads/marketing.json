@@ -91,7 +91,13 @@
                         "text": "Northwind",
                         "attrs": {},
                         "children": [],
-                        "notes": []
+                        "notes": [],
+                        "rect": {
+                          "x": 32,
+                          "y": 16,
+                          "w": 96.09,
+                          "h": 24
+                        }
                       },
                       {
                         "id": 6,
@@ -134,10 +140,22 @@
                                   "href": "file:///product"
                                 },
                                 "children": [],
-                                "notes": []
+                                "notes": [],
+                                "rect": {
+                                  "x": 1230.92,
+                                  "y": 19,
+                                  "w": 51.48,
+                                  "h": 19
+                                }
                               }
                             ],
-                            "notes": []
+                            "notes": [],
+                            "rect": {
+                              "x": 1230.92,
+                              "y": 17,
+                              "w": 51.48,
+                              "h": 22
+                            }
                           },
                           {
                             "id": 9,
@@ -165,10 +183,22 @@
                                   "href": "file:///pricing"
                                 },
                                 "children": [],
-                                "notes": []
+                                "notes": [],
+                                "rect": {
+                                  "x": 1306.41,
+                                  "y": 19,
+                                  "w": 45.47,
+                                  "h": 19
+                                }
                               }
                             ],
-                            "notes": []
+                            "notes": [],
+                            "rect": {
+                              "x": 1306.41,
+                              "y": 17,
+                              "w": 45.47,
+                              "h": 22
+                            }
                           },
                           {
                             "id": 11,
@@ -196,22 +226,58 @@
                                   "href": "file:///docs"
                                 },
                                 "children": [],
-                                "notes": []
+                                "notes": [],
+                                "rect": {
+                                  "x": 1375.88,
+                                  "y": 19,
+                                  "w": 32.13,
+                                  "h": 19
+                                }
                               }
                             ],
-                            "notes": []
+                            "notes": [],
+                            "rect": {
+                              "x": 1375.88,
+                              "y": 17,
+                              "w": 32.13,
+                              "h": 22
+                            }
                           }
                         ],
-                        "notes": []
+                        "notes": [],
+                        "rect": {
+                          "x": 1230.92,
+                          "y": 17,
+                          "w": 177.08,
+                          "h": 22
+                        }
                       }
                     ],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 0,
+                      "y": 0,
+                      "w": 1440,
+                      "h": 57
+                    }
                   }
                 ],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 1440,
+                  "h": 57
+                }
               }
             ],
-            "notes": []
+            "notes": [],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 1440,
+              "h": 57
+            }
           },
           {
             "id": 13,
@@ -253,7 +319,13 @@
                 "text": "Now in public beta",
                 "attrs": {},
                 "children": [],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 604.92,
+                  "y": 153,
+                  "w": 230.16,
+                  "h": 28.8
+                }
               },
               {
                 "id": 15,
@@ -272,7 +344,13 @@
                 "text": "Ship the thing you actually designed",
                 "attrs": {},
                 "children": [],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 463.75,
+                  "y": 201.8,
+                  "w": 512.5,
+                  "h": 117.59
+                }
               },
               {
                 "id": 16,
@@ -290,7 +368,13 @@
                 "text": "Northwind keeps your design and your code the same artifact, so the handoff you keep rewriting stops existing.",
                 "attrs": {},
                 "children": [],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 452.31,
+                  "y": 339.39,
+                  "w": 535.38,
+                  "h": 57.59
+                }
               },
               {
                 "id": 17,
@@ -343,7 +427,13 @@
                     "text": "Start building",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 568.39,
+                      "y": 416.98,
+                      "w": 142.67,
+                      "h": 43
+                    }
                   },
                   {
                     "id": 19,
@@ -381,10 +471,22 @@
                     "text": "Read the docs",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 723.06,
+                      "y": 416.98,
+                      "w": 148.53,
+                      "h": 43
+                    }
                   }
                 ],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 568.39,
+                  "y": 416.98,
+                  "w": 303.2,
+                  "h": 43
+                }
               },
               {
                 "id": 20,
@@ -406,10 +508,22 @@
                     "at": "body > div.page > header.hero > span.badge::before",
                     "detail": "\"★\""
                   }
-                ]
+                ],
+                "rect": {
+                  "x": 640.23,
+                  "y": 479.98,
+                  "w": 159.52,
+                  "h": 18
+                }
               }
             ],
-            "notes": []
+            "notes": [],
+            "rect": {
+              "x": 0,
+              "y": 57,
+              "w": 1440,
+              "h": 536.98
+            }
           },
           {
             "id": 21,
@@ -487,7 +601,13 @@
                       "alt": "Two files staying in step"
                     },
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 57,
+                      "y": 682.98,
+                      "w": 392.66,
+                      "h": 120
+                    }
                   },
                   {
                     "id": 24,
@@ -502,7 +622,13 @@
                     "text": "Two-way sync",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 57,
+                      "y": 812.98,
+                      "w": 392.66,
+                      "h": 23
+                    }
                   },
                   {
                     "id": 25,
@@ -518,10 +644,22 @@
                     "text": "Edit the canvas or edit the file. Both land in the same place, and neither one wins by clobbering the other.",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 57,
+                      "y": 845.98,
+                      "w": 392.66,
+                      "h": 43.38
+                    }
                   }
                 ],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 32,
+                  "y": 657.98,
+                  "w": 442.66,
+                  "h": 256.38
+                }
               },
               {
                 "id": 26,
@@ -581,7 +719,13 @@
                       "alt": "A palette of design tokens"
                     },
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 523.66,
+                      "y": 682.98,
+                      "w": 392.67,
+                      "h": 120
+                    }
                   },
                   {
                     "id": 28,
@@ -596,7 +740,13 @@
                     "text": "Real tokens",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 523.66,
+                      "y": 812.98,
+                      "w": 392.67,
+                      "h": 23
+                    }
                   },
                   {
                     "id": 29,
@@ -612,10 +762,22 @@
                     "text": "Colours and spacing live in one stylesheet. Change the token and every screen follows.",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 523.66,
+                      "y": 845.98,
+                      "w": 392.67,
+                      "h": 43.38
+                    }
                   }
                 ],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 498.66,
+                  "y": 657.98,
+                  "w": 442.67,
+                  "h": 256.38
+                }
               },
               {
                 "id": 30,
@@ -675,7 +837,13 @@
                       "alt": "An agent editing a file"
                     },
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 990.33,
+                      "y": 682.98,
+                      "w": 392.67,
+                      "h": 120
+                    }
                   },
                   {
                     "id": 32,
@@ -690,7 +858,13 @@
                     "text": "Agents welcome",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 990.33,
+                      "y": 812.98,
+                      "w": 392.67,
+                      "h": 23
+                    }
                   },
                   {
                     "id": 33,
@@ -706,13 +880,31 @@
                     "text": "An agent writes the same files you do, and the canvas picks the change up as it saves.",
                     "attrs": {},
                     "children": [],
-                    "notes": []
+                    "notes": [],
+                    "rect": {
+                      "x": 990.33,
+                      "y": 845.98,
+                      "w": 392.67,
+                      "h": 43.38
+                    }
                   }
                 ],
-                "notes": []
+                "notes": [],
+                "rect": {
+                  "x": 965.33,
+                  "y": 657.98,
+                  "w": 442.67,
+                  "h": 256.38
+                }
               }
             ],
-            "notes": []
+            "notes": [],
+            "rect": {
+              "x": 0,
+              "y": 593.98,
+              "w": 1440,
+              "h": 384.38
+            }
           },
           {
             "id": 34,
@@ -734,13 +926,31 @@
             "text": "© 2026 Northwind. Built in the open.",
             "attrs": {},
             "children": [],
-            "notes": []
+            "notes": [],
+            "rect": {
+              "x": 0,
+              "y": 978.36,
+              "w": 1440,
+              "h": 83
+            }
           }
         ],
-        "notes": []
+        "notes": [],
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 1440,
+          "h": 1061.36
+        }
       }
     ],
-    "notes": []
+    "notes": [],
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1061.36
+    }
   },
   "assets": [
     {

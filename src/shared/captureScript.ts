@@ -41,6 +41,16 @@ export type CapturePolicy = {
   skippedTags: ReadonlyArray<string>;
   limits: { maxDepth: number; maxNodes: number; maxTextLength: number };
   version: number;
+  /**
+   * Record each node's box, relative to the page root.
+   *
+   * On by default. It began as harness-only weight, then turned out to
+   * be the only way to tell a width the author chose from a width the
+   * element got for free — which is the difference between an import
+   * that reflows and a pixel snapshot. Four numbers a node.
+   * see docs/plans/website-import-plan.md
+   */
+  includeRects?: boolean;
 };
 
 /** The policy as the page receives it: plain arrays, JSON-safe. */
@@ -53,6 +63,7 @@ export const capturePolicy = (): CapturePolicy => ({
   skippedTags: [...SKIPPED_TAGS],
   limits: { ...CAPTURE_LIMITS },
   version: CAPTURE_VERSION,
+  includeRects: true,
 });
 
 /**
@@ -202,7 +213,17 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       }
     }
 
-    return { id, tag, styles, text, attrs, children, notes };
+    const built: Record<string, unknown> = { id, tag, styles, text, attrs, children, notes };
+    if (policy.includeRects) {
+      const box = el.getBoundingClientRect();
+      built['rect'] = {
+        x: Math.round((box.left + window.scrollX) * 100) / 100,
+        y: Math.round((box.top + window.scrollY) * 100) / 100,
+        w: Math.round(box.width * 100) / 100,
+        h: Math.round(box.height * 100) / 100,
+      };
+    }
+    return built;
   };
 
   const rootEl = document.body;

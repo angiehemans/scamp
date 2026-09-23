@@ -60,6 +60,13 @@ export type CapturedNode = {
     children: CapturedNode[];
     /** What this node does that Scamp can't model. */
     notes: CaptureNote[];
+    /** Page-relative box. Only present when the capture asked for it. */
+    rect?: {
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+    };
 };
 export type CapturedAsset = {
     /** Absolute URL, resolved against the page. */

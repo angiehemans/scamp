@@ -41,6 +41,13 @@ export type ImportResult = {
     findings: ImportFinding[];
     /** A PascalCase view name derived from the page title. */
     suggestedName: string;
+    /**
+     * Element id → the captured node it came from. Recorded rather than
+     * inferred: the fidelity harness compares each imported element
+     * against its own source box, and matching them by position in the
+     * tree guesses wrong the moment anything is collapsed.
+     */
+    sourceNodes: Record<string, number>;
 };
 /** PascalCase view name from a page title, falling back to `Imported`. */
 export declare const viewNameFromTitle: (title: string) => string;

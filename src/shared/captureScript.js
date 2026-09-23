@@ -13,6 +13,7 @@ export const capturePolicy = () => ({
     skippedTags: [...SKIPPED_TAGS],
     limits: { ...CAPTURE_LIMITS },
     version: CAPTURE_VERSION,
+    includeRects: true,
 });
 /**
  * Walk the rendered document into a `CapturePayload`.
@@ -166,7 +167,17 @@ export const captureFn = (policy) => {
                     children.push(built);
             }
         }
-        return { id, tag, styles, text, attrs, children, notes };
+        const built = { id, tag, styles, text, attrs, children, notes };
+        if (policy.includeRects) {
+            const box = el.getBoundingClientRect();
+            built['rect'] = {
+                x: Math.round((box.left + window.scrollX) * 100) / 100,
+                y: Math.round((box.top + window.scrollY) * 100) / 100,
+                w: Math.round(box.width * 100) / 100,
+                h: Math.round(box.height * 100) / 100,
+            };
+        }
+        return built;
     };
     const rootEl = document.body;
     const root = visit(rootEl, null, 0);

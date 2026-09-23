@@ -160,6 +160,69 @@ block element and `auto` on a flex item, and only `auto` was treated as
 And `text-align: start` and `list-style-type: disc` are initial values
 that were being carried onto every root.
 
+## Measuring fidelity, and what it costs
+
+"Not quite a 1:1 copy" is not something you can fix. A ranked list of
+which elements are off and by how much is, so
+`scripts/import-fidelity.mjs` loads a page, captures it with every
+element's box, reduces it the way the app does, renders the result back
+through the HTML exporter, and compares the two geometries element by
+element.
+
+Two things had to be true before its numbers meant anything:
+
+**The reducer records which captured node each element came from.**
+Pairing them by position in the tree guessed wrong the moment anything
+was collapsed, and an image was being compared against some unrelated
+div.
+
+**The oracle renders with the project's `theme.css`.** Without it, every
+padded box measured exactly `2 x padding` too large — `box-sizing:
+border-box` lives in that reset. The artefacts looked exactly like
+importer bugs, and three "fixes" were made against them before the
+pattern (a constant +66 on both dimensions) gave it away. This is the
+mistake `docs/notes/parity-harness.md` explicitly warns about, in a
+document that was read before the harness was written.
+
+### What the numbers said
+
+Measured on `scamp.club` (242 elements) and `resovaiq.com` (521):
+
+| Rule for a container's measured width and height | scamp.club | resovaiq.com |
+|---|---|---|
+| Drop them all — "a computed value is not a decision" | 72% | 77% |
+| Keep them all — a pixel snapshot | 92% | 93% |
+| **Drop only what the layout reproduces** | **88%** | **91%** |
+
+Phase 1's principle — drop every measured size, because a `flex: 1 1 0`
+card's 442.656px width is the layout's answer and not the author's —
+turned out to cost 20 points of fidelity. It is right about SOME of
+those widths and wrong about the rest, and it had no way to tell them
+apart.
+
+The measured box tells them apart. An element whose width matches the
+space its parent gave it was filling, and `stretch` reproduces that at
+any width; one that is narrower chose to be, and the number is a
+decision that has to be kept. That is why the capture now carries
+rects: four numbers a node, and they are the difference between an
+import that reflows and one that is frozen at 1440px.
+
+### The remaining gap
+
+At 88-91%, most of what is left is `<a>` elements a few pixels off in
+both dimensions. Scamp's own reset sets `all: unset; display: block` on
+anchors, which changes their metrics against the source page's inline
+ones. That is Scamp being Scamp, not the importer being wrong, and
+closing it would mean changing the reset for every project.
+
+**1:1 is not reachable while Scamp has no model for block flow.** The
+importer maps block containers onto flex columns, which is close but
+not identical — most visibly, block flow collapses adjacent vertical
+margins and flex does not, so a stack of margined siblings drifts taller
+with every sibling. Fixing that needs either margin-to-gap rewriting in
+the importer (changes semantics) or block flow in the canvas (changes
+Scamp). Worth deciding deliberately rather than tuning toward.
+
 ## Phases
 
 Each is independently shippable and independently useful.
