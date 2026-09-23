@@ -77,7 +77,10 @@ export const captureFn = (policy) => {
             const value = computed.getPropertyValue(prop);
             if (!value)
                 continue;
-            if (initial[prop] === value)
+            const blank = initial[prop];
+            if (blank === value)
+                continue;
+            if (Array.isArray(blank) && blank.indexOf(value) >= 0)
                 continue;
             if (inherited.has(prop) && parentStyle && parentStyle.getPropertyValue(prop) === value) {
                 continue;

@@ -17,7 +17,7 @@ import { type CapturePayload } from './importCapture';
  */
 export type CapturePolicy = {
     properties: ReadonlyArray<string>;
-    initial: Readonly<Record<string, string>>;
+    initial: Readonly<Record<string, string | ReadonlyArray<string>>>;
     inherited: ReadonlyArray<string>;
     conditional: Readonly<Record<string, string | null>>;
     keptAttrs: ReadonlyArray<string>;

@@ -13,16 +13,12 @@
       "display": "block",
       "width": "1440px",
       "height": "1061.36px",
-      "min-width": "0px",
-      "min-height": "0px",
       "color": "rgb(26, 29, 36)",
       "font-family": "Inter, system-ui, sans-serif",
       "font-size": "16px",
       "font-weight": "400",
       "line-height": "normal",
-      "letter-spacing": "normal",
-      "text-align": "start",
-      "list-style-type": "disc"
+      "letter-spacing": "normal"
     },
     "text": null,
     "attrs": {},
@@ -34,8 +30,6 @@
           "display": "flex",
           "width": "1440px",
           "height": "1061.36px",
-          "min-width": "0px",
-          "min-height": "0px",
           "flex-direction": "column"
         },
         "text": null,
@@ -58,9 +52,7 @@
                 "styles": {
                   "display": "block",
                   "width": "1440px",
-                  "height": "57px",
-                  "min-width": "0px",
-                  "min-height": "0px"
+                  "height": "57px"
                 },
                 "text": null,
                 "attrs": {},
@@ -72,8 +64,6 @@
                       "display": "flex",
                       "width": "1440px",
                       "height": "57px",
-                      "min-width": "0px",
-                      "min-height": "0px",
                       "padding-top": "16px",
                       "padding-right": "32px",
                       "padding-bottom": "16px",
@@ -136,8 +126,6 @@
                                   "display": "inline",
                                   "width": "auto",
                                   "height": "auto",
-                                  "min-width": "0px",
-                                  "min-height": "0px",
                                   "color": "rgb(74, 80, 89)",
                                   "font-size": "14px"
                                 },
@@ -169,8 +157,6 @@
                                   "display": "inline",
                                   "width": "auto",
                                   "height": "auto",
-                                  "min-width": "0px",
-                                  "min-height": "0px",
                                   "color": "rgb(74, 80, 89)",
                                   "font-size": "14px"
                                 },
@@ -202,8 +188,6 @@
                                   "display": "inline",
                                   "width": "auto",
                                   "height": "auto",
-                                  "min-width": "0px",
-                                  "min-height": "0px",
                                   "color": "rgb(74, 80, 89)",
                                   "font-size": "14px"
                                 },

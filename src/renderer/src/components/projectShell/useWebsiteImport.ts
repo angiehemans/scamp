@@ -43,6 +43,10 @@ const summarize = (findings: ReadonlyArray<ImportFinding>): string[] => {
     svg: (n) => `${n} inline SVG`,
     'background-image': (n) => `${n} background ${n === 1 ? 'image' : 'images'} still remote`,
     'unsupported-display': (n) => `${n} table or list-item layout`,
+    // Not a loss, but the biggest single thing an import changes about
+    // a page, and worth saying out loud.
+    'block-to-flex': (n) => `${n} block ${n === 1 ? 'container' : 'containers'} became flex`,
+    'restored-auto-margin': (n) => `${n} centred ${n === 1 ? 'container' : 'containers'} re-centred`,
     'depth-capped': (n) => `${n} ${n === 1 ? 'subtree' : 'subtrees'} too deep to read`,
     'node-capped': () => 'the page was larger than one import',
   };

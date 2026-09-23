@@ -118,6 +118,48 @@ doesn't will think Scamp is broken.
 | Tokens | Phase 3, not phase 1 | Extracting repeated colours and spacing into `theme.css` is what makes an import *editable* rather than a dead snapshot — but it is a separate problem from getting the tree right. |
 | Breakpoints | Phase 4: re-capture at each project breakpoint width, diff, emit `@media` overrides | The model already supports it; doing it in v1 triples capture complexity before the basics are proven. |
 
+## What real pages broke, and the fix
+
+Phase 2 shipped working against one hand-written fixture page and fell
+apart on the first two real sites (`scamp.club`, `resovaiq.com`): the
+layout was, in Angie's words, "really bad on both". Three causes, in
+order of how much damage they did.
+
+**1. Scamp has no model for block flow, and the web's default IS block
+flow.** Scamp emits `position: absolute; left: 0; top: 0` for a child
+of a parent that is not a flex or grid container — in flex, a child is
+in flow; outside one, it is pinned. Real pages are mostly plain block
+containers, so importing them as-is pinned everything at the origin:
+**303 of 541 rules** on one site, 72 of 257 on the other.
+
+The fixture never showed it because I wrote the fixture, and I wrote it
+flex-first the way I would build a page today. It had three block
+containers with children. That is the fixture trap one level up: real
+captures beat imagined ones, and *my* page is still an imagined one.
+
+The fix is to translate rather than transcribe. A block container
+stacking its children down the page IS `flex-direction: column` with
+the default `align-items: stretch`; one whose children are all inline
+is the row case. Absolute positioning fell to **4% on both sites**, and
+what remains is genuinely sticky or absolute.
+
+**2. `margin: 0 auto` computes to pixels.** The centring idiom — the
+most common layout idiom on the web — arrives as `margin: 0px 120px`,
+which pins the element to the width the capture happened at. Equal
+non-zero side margins on an element that also caps its width is that
+idiom with near-certainty, and is restored to `auto`.
+
+**3. The root carried the viewport.** `document.body` reports the
+window it was measured in, so every import arrived with `max-width:
+1440px; min-height: 900px` on its root. The root's size is the
+artboard's.
+
+Two smaller ones: `min-width` / `min-height` compute to `0px` on a
+block element and `auto` on a flex item, and only `auto` was treated as
+"nothing set" — which put `min-height: 0px` on **296 of 541** rules.
+And `text-align: start` and `list-style-type: disc` are initial values
+that were being carried onto every root.
+
 ## Phases
 
 Each is independently shippable and independently useful.

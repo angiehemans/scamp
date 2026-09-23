@@ -107,7 +107,7 @@ export declare const CAPTURED_PROPERTIES: ReadonlyArray<string>;
  * `display` is deliberately absent: its initial value is `inline` but
  * it computes to `block` on a div, and both are real information.
  */
-export declare const INITIAL_VALUES: Readonly<Record<string, string>>;
+export declare const INITIAL_VALUES: Readonly<Record<string, string | ReadonlyArray<string>>>;
 /**
  * Inherited properties. A value matching the parent's computed value is
  * inheritance doing its job, not a declaration, and re-emitting it on

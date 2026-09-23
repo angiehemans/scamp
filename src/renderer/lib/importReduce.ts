@@ -43,6 +43,8 @@ export type ImportFindingKind =
   | 'collapsed-wrapper'
   | 'dropped-computed-size'
   | 'wrapped-bare-text'
+  | 'block-to-flex'
+  | 'restored-auto-margin'
   | 'unsupported-display';
 
 export type ImportFinding = {
@@ -100,6 +102,44 @@ const UNSUPPORTED_DISPLAYS: ReadonlySet<string> = new Set([
   'table', 'table-row', 'table-cell', 'table-header-group',
   'table-row-group', 'table-footer-group', 'list-item', 'contents',
 ]);
+
+/** Displays whose children flow inline rather than stacking. */
+const INLINE_DISPLAYS: ReadonlySet<string> = new Set([
+  'inline', 'inline-block', 'inline-flex', 'inline-grid', 'inline-table',
+]);
+
+/**
+ * Give a block container the flex layout that matches how it already
+ * behaves, because Scamp has no model for block flow.
+ *
+ * This is the difference between an import that looks like the page and
+ * one that looks like every element piled at the origin. Scamp emits
+ * `position: absolute; left: 0; top: 0` for a child of a parent that
+ * isn't a layout container — inside a flex or grid parent the child is
+ * in flow, and outside one it is pinned. The web's default is block
+ * flow, so on a real page MOST containers are neither flex nor grid,
+ * and importing them as-is pins nearly everything. Measured on two real
+ * sites: 56% and 28% of rules absolutely positioned before this, 4% and
+ * 4% after — the rest being genuinely absolute or sticky.
+ *
+ * Block flow stacking children down the page IS `flex-direction:
+ * column` with the default `align-items: stretch`. A container whose
+ * children are all inline is the row case. Neither is a perfect
+ * translation — floats and inline text wrapping have no equivalent —
+ * but both are enormously closer than absolute.
+ */
+const flowLayoutFor = (node: CapturedNode): Record<string, string> | null => {
+  const display = node.styles['display'] ?? 'block';
+  if (LAYOUT_DISPLAYS.has(display)) return null;
+  if (node.children.length === 0) return null;
+  // `inline` on the parent means it is part of a line, not building one.
+  if (display === 'inline') return null;
+  const childDisplays = node.children.map((c) => c.styles['display'] ?? 'block');
+  const allInline = childDisplays.every((d) => INLINE_DISPLAYS.has(d));
+  return allInline
+    ? { display: 'flex', 'flex-direction': 'row', 'flex-wrap': 'wrap', 'align-items': 'center' }
+    : { display: 'flex', 'flex-direction': 'column' };
+};
 
 const elementTypeFor = (tag: string): ElementType => {
   if (IMAGE_TAGS.has(tag)) return 'image';
@@ -183,6 +223,41 @@ const dropComputedSizes = (
     dropped.push(prop);
   }
   return { styles: next, dropped };
+};
+
+/**
+ * Properties measured off `document.body` that describe the VIEWPORT
+ * rather than the design: the capture was taken at 1440x900, so body
+ * reports exactly that. Carrying them onto the view's root pins it to
+ * the window the import happened in.
+ */
+const VIEWPORT_DERIVED: ReadonlyArray<string> = [
+  'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+  'overflow-x', 'overflow-y',
+];
+
+/**
+ * `margin: 0 auto` — the centring idiom — computes to equal pixel
+ * margins at the captured width. Importing those pins the element to
+ * one viewport size, and it is the single most common layout idiom on
+ * the web, so getting it wrong is visible on nearly every page.
+ *
+ * Equal non-zero left and right margins on an element that also has a
+ * `max-width` is that idiom with near-certainty: a designer setting
+ * literal matching side margins would have no reason to cap the width
+ * too.
+ */
+const restoreAutoMargins = (
+  styles: Record<string, string>,
+  findings: ImportFinding[],
+  at: string
+): Record<string, string> => {
+  const left = styles['margin-left'];
+  const right = styles['margin-right'];
+  if (left === undefined || left !== right) return styles;
+  if (left === '0px' || !('max-width' in styles)) return styles;
+  findings.push({ kind: 'restored-auto-margin', at, detail: left });
+  return { ...styles, 'margin-left': 'auto', 'margin-right': 'auto' };
 };
 
 /** `styles` as the declaration list `applyDeclarations` expects. */
@@ -284,7 +359,22 @@ export const reduceCapture = (
     const needsTextChild = node.text !== null && hasElementChildren;
 
     const sized = dropComputedSizes(node.styles, hasElementChildren, findings, at);
-    const styles = sized.styles;
+    // Block flow becomes the flex equivalent BEFORE the declarations are
+    // applied, so the model sees a layout container and leaves the
+    // children in flow. see `flowLayoutFor`.
+    const flow = flowLayoutFor(node);
+    if (flow !== null) {
+      findings.push({ kind: 'block-to-flex', at, detail: flow['flex-direction'] });
+    }
+    let styles = flow === null ? sized.styles : { ...sized.styles, ...flow };
+    styles = restoreAutoMargins(styles, findings, at);
+    if (isRoot) {
+      // The root's size is the artboard's, not the window the capture
+      // happened to be taken in.
+      const rootStyles = { ...styles };
+      for (const prop of VIEWPORT_DERIVED) delete rootStyles[prop];
+      styles = rootStyles;
+    }
     const display = styles['display'];
     if (display !== undefined && UNSUPPORTED_DISPLAYS.has(display)) {
       findings.push({ kind: 'unsupported-display', at, detail: display });

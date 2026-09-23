@@ -149,11 +149,14 @@ export const CAPTURED_PROPERTIES: ReadonlyArray<string> = [
  * `display` is deliberately absent: its initial value is `inline` but
  * it computes to `block` on a div, and both are real information.
  */
-export const INITIAL_VALUES: Readonly<Record<string, string>> = {
+export const INITIAL_VALUES: Readonly<Record<string, string | ReadonlyArray<string>>> = {
   position: 'static',
   top: 'auto', right: 'auto', bottom: 'auto', left: 'auto',
   'z-index': 'auto',
-  'min-width': 'auto', 'min-height': 'auto',
+  // Chromium says `auto` for a flex item and `0px` everywhere else.
+  'min-width': ['auto', '0px'], 'min-height': ['auto', '0px'],
+  'text-align': ['start', 'left'],
+  'list-style-type': 'disc',
   'max-width': 'none', 'max-height': 'none',
   'margin-top': '0px', 'margin-right': '0px',
   'margin-bottom': '0px', 'margin-left': '0px',
