@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "url": "fixture:marketing.html",
   "title": "Northwind — Ship faster",
   "viewport": {
@@ -462,14 +462,18 @@
                 "text": "No credit card required",
                 "attrs": {},
                 "children": [],
-                "notes": [
-                  {
-                    "kind": "pseudo-element",
-                    "at": "body > div.page > header.hero > span.badge::before",
-                    "detail": "\"★\""
-                  }
-                ],
+                "notes": [],
                 "path": "body>div:0>header:2>span:4",
+                "pseudo": {
+                  "before": {
+                    "text": "★",
+                    "styles": {
+                      "display": "block",
+                      "margin-right": "6px",
+                      "color": "rgb(217, 179, 106)"
+                    }
+                  }
+                },
                 "rect": {
                   "x": 640.23,
                   "y": 479.98,

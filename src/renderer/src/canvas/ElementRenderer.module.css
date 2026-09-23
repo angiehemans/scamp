@@ -26,6 +26,15 @@
   display: block;
 }
 
+/* The browser puts `padding-inline-start: 40px` on a list. The canvas
+ * does not, and neither does the properties panel, so a `ul`-tagged
+ * element measured 40px narrower than everything claimed it was.
+ * `:where` for the same specificity reason as the rule above.
+ * see docs/notes/import-inherited-typography.md */
+.element:where(ul, ol, menu) {
+  padding: 0;
+}
+
 /* Re-expose the selectable/caret behaviours that `all: unset` strips.
  * `:where` for the same reason as above — a page that sets its own
  * `cursor` on an input should win. */

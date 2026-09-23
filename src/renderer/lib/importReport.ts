@@ -78,6 +78,11 @@ const DESCRIPTIONS: Readonly<Record<string, Describe>> = {
       `${n} ${n === 1 ? 'run' : 'runs'} of inline markup kept as text — links and bold inside a sentence are part of it now`,
     lost: false,
   },
+  'pseudo-materialized': {
+    label: (n) =>
+      `${n} decorative ${n === 1 ? 'glyph' : 'glyphs'} recovered as text — a ::before or ::after is a real element here, and editable`,
+    lost: false,
+  },
   'grid-tracks-to-fr': {
     label: (n) =>
       `${n} grid ${n === 1 ? 'track list' : 'track lists'} turned back into fractions — the page's own columns were measured in pixels`,

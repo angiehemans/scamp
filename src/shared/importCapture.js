@@ -32,7 +32,7 @@
  * see docs/plans/website-import-plan.md
  */
 /** Bumped when the payload shape changes, so a stale fixture fails loudly. */
-export const CAPTURE_VERSION = 1;
+export const CAPTURE_VERSION = 2;
 /**
  * Tags that are part of a line rather than a box. Their children stay
  * inline content; they never become elements of their own inside text.

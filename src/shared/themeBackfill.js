@@ -1,11 +1,11 @@
 import postcss from 'postcss';
-import { BROWSER_RESET_BLOCK, BROWSER_RESET_SENTINEL, DEFAULT_BODY_FONT_FAMILY, } from './agentMd';
+import { BROWSER_RESET_BLOCK, BROWSER_RESET_SENTINEL, DEFAULT_BODY_FONT_FAMILY, LIST_PADDING_BLOCK, LIST_PADDING_SENTINEL, } from './agentMd';
 /**
  * Additively backfill Scamp's project defaults into a `theme.css`
  * string. Pure: takes the raw CSS, returns the (possibly-updated) CSS
  * plus a `changed` flag.
  *
- * Four independent additive checks:
+ * Five independent additive checks:
  *
  *   1. If no `:root` rule declares `--font-sans`, append the token to
  *      the first `:root` rule (or create a `:root` block if there
@@ -43,10 +43,12 @@ export const backfillThemeDefaults = (css) => {
     // them as standalone Comment nodes. A literal-string check is
     // simpler and tolerant of whatever postcss does on parse / stringify.
     const hasBrowserReset = css.includes(BROWSER_RESET_SENTINEL);
+    const hasListPadding = css.includes(LIST_PADDING_SENTINEL);
     if (hasFontSansToken &&
         hasBoxSizingReset &&
         hasBodyFontFamily &&
-        hasBrowserReset) {
+        hasBrowserReset &&
+        hasListPadding) {
         return { content: css, changed: false };
     }
     if (!hasFontSansToken) {
@@ -64,6 +66,9 @@ export const backfillThemeDefaults = (css) => {
         // comment + commented-style block remain intact through future
         // postcss reads. Trailing newline kept tidy.
         content = content.replace(/\s*$/, '\n\n') + BROWSER_RESET_BLOCK + '\n';
+    }
+    if (!hasListPadding) {
+        content = content.replace(/\s*$/, '\n\n') + LIST_PADDING_BLOCK + '\n';
     }
     return { content, changed: true };
 };

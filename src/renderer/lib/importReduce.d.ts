@@ -27,7 +27,7 @@ import { type ScampElement } from './element';
  * uses, so an imported element and a hand-written one can't disagree.
  * see docs/plans/website-import-plan.md
  */
-export type ImportFindingKind = CaptureNote['kind'] | 'collapsed-wrapper' | 'dropped-computed-size' | 'wrapped-bare-text' | 'inline-kept' | 'block-to-flex' | 'breakpoint-captured' | 'breakpoint-absent' | 'restored-auto-margin' | 'grid-tracks-to-fr' | 'unsupported-display';
+export type ImportFindingKind = CaptureNote['kind'] | 'collapsed-wrapper' | 'dropped-computed-size' | 'wrapped-bare-text' | 'inline-kept' | 'block-to-flex' | 'breakpoint-captured' | 'breakpoint-absent' | 'restored-auto-margin' | 'grid-tracks-to-fr' | 'pseudo-materialized' | 'unsupported-display';
 export type ImportFinding = {
     kind: ImportFindingKind;
     /** Where in the source page, as the capture described it. */
@@ -97,6 +97,28 @@ export type ReduceOptions = {
  * entirely. see docs/notes/import-inherited-typography.md
  */
 export declare const resolveInheritance: (root: CapturedNode) => CapturedNode;
+/**
+ * Turn a recovered `::before` / `::after` into a real text element.
+ *
+ * A page's ticks and toggles are usually pseudo-elements — a "✓" on
+ * every bullet, a "+" on every collapsed row — and dropping them hands
+ * back a design with its punctuation missing. Scamp has no
+ * pseudo-elements, but it does have text elements, and a text element
+ * is the better answer anyway: you can see it in the layers panel and
+ * change it.
+ *
+ * The host's own words move into a child of their own at the same
+ * time, so the order is `[::before, the words, children, ::after]`.
+ * Without that the recovered glyph lands after the text it was meant
+ * to precede.
+ *
+ * Runs AFTER `collapse`, so a wrapper is judged on what the page gave
+ * it rather than on children this pass invented, and after
+ * `resolveInheritance`, which is why each synthesized child is handed
+ * the host's inherited typography explicitly here.
+ * see docs/notes/import-inherited-typography.md
+ */
+export declare const materializePseudos: (root: CapturedNode, findings: ImportFinding[]) => CapturedNode;
 export declare const applyBreakpointCaptures: (base: ImportResult, narrower: ReadonlyArray<{
     breakpointId: string;
     payload: CapturePayload;

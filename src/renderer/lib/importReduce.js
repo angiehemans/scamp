@@ -86,6 +86,11 @@ const flowLayoutFor = (node) => {
     // baseline. Making it a flex container turns each word-run into a
     // flex item, which loses the wrapping and the line box: a 81x43
     // paragraph came back 304x100.
+    //
+    // A host whose words `materializePseudos` moved out is the one case
+    // that does need a layout, and that pass sets one itself rather than
+    // widening this rule — relaxing it here instead turned 24 spans that
+    // had never held text into flex columns.
     if (elementTypeFor(node.tag) === 'text')
         return null;
     // `inline` on the parent means it is part of a line, not building one.
@@ -108,6 +113,10 @@ const isVisuallyMeaningful = (node) => {
     if (Object.keys(node.attrs).length > 0)
         return true;
     if (node.notes.length > 0)
+        return true;
+    // Its `::before` is about to become a real child; collapsing the
+    // node now would take the element that holds it with it.
+    if (node.pseudo !== undefined)
         return true;
     return false;
 };
@@ -460,6 +469,116 @@ export const resolveInheritance = (root) => {
     };
     return walk(root, {});
 };
+/**
+ * Turn a recovered `::before` / `::after` into a real text element.
+ *
+ * A page's ticks and toggles are usually pseudo-elements — a "✓" on
+ * every bullet, a "+" on every collapsed row — and dropping them hands
+ * back a design with its punctuation missing. Scamp has no
+ * pseudo-elements, but it does have text elements, and a text element
+ * is the better answer anyway: you can see it in the layers panel and
+ * change it.
+ *
+ * The host's own words move into a child of their own at the same
+ * time, so the order is `[::before, the words, children, ::after]`.
+ * Without that the recovered glyph lands after the text it was meant
+ * to precede.
+ *
+ * Runs AFTER `collapse`, so a wrapper is judged on what the page gave
+ * it rather than on children this pass invented, and after
+ * `resolveInheritance`, which is why each synthesized child is handed
+ * the host's inherited typography explicitly here.
+ * see docs/notes/import-inherited-typography.md
+ */
+export const materializePseudos = (root, findings) => {
+    let maxId = 0;
+    const scan = (node) => {
+        maxId = Math.max(maxId, node.id);
+        node.children.forEach(scan);
+    };
+    scan(root);
+    const nextNodeId = () => {
+        maxId += 1;
+        return maxId;
+    };
+    /** The host's inherited values, for a child created after the fact. */
+    const inheritedFrom = (host) => {
+        const out = {};
+        for (const prop of INHERITED_PROPERTIES) {
+            // Only a list item draws a marker, and none of these spans is
+            // one. Copying it across just adds a dead line to every glyph.
+            if (prop === 'list-style-type')
+                continue;
+            const value = host.styles[prop];
+            if (value !== undefined)
+                out[prop] = value;
+        }
+        return out;
+    };
+    const spanFor = (host, styles, suffix) => ({
+        id: nextNodeId(),
+        tag: 'span',
+        // No measured box: a pseudo-element has no `getBoundingClientRect`,
+        // and a lifted run of words should hug them. Without this both
+        // land on the model's 100x100 default.
+        styles: { width: 'auto', height: 'auto', ...inheritedFrom(host), ...styles },
+        text: null,
+        attrs: {},
+        children: [],
+        notes: [],
+        ...(host.path === undefined ? {} : { path: `${host.path}${suffix}` }),
+    });
+    const walk = (node) => {
+        const children = node.children.map(walk);
+        const pseudo = node.pseudo;
+        if (pseudo === undefined || (pseudo.before === undefined && pseudo.after === undefined)) {
+            return { ...node, children };
+        }
+        const at = node.path ?? node.tag;
+        const made = (p, which) => {
+            findings.push({ kind: 'pseudo-materialized', at: `${at}::${which}`, detail: p.text });
+            return { ...spanFor(node, p.styles, `::${which}`), text: p.text };
+        };
+        const next = [];
+        if (pseudo.before !== undefined)
+            next.push(made(pseudo.before, 'before'));
+        // The host's own content becomes a sibling of the glyph rather than
+        // staying on the host, which is what puts it in the right order.
+        if (node.text !== null || node.inline !== undefined) {
+            const content = spanFor(node, {}, '>text');
+            next.push({
+                ...content,
+                text: node.text,
+                ...(node.inline === undefined ? {} : { inline: node.inline }),
+            });
+        }
+        next.push(...children);
+        if (pseudo.after !== undefined)
+            next.push(made(pseudo.after, 'after'));
+        const { pseudo: _removed, inline: _inline, ...rest } = node;
+        // The host now has children, and a host with no layout pins every
+        // child at 0,0 — the glyph printed on top of the words. Direction
+        // follows the glyph: one taken out of flow (the `position:
+        // absolute; left: 0` custom-bullet idiom) leaves the words to
+        // stack as block flow did, while one still in flow sat beside
+        // them on a line.
+        const display = rest.styles['display'] ?? 'block';
+        const styles = { ...rest.styles };
+        if (!LAYOUT_DISPLAYS.has(display)) {
+            const glyphs = [pseudo.before, pseudo.after].filter((g) => g !== undefined);
+            const inFlow = glyphs.some((g) => {
+                const p = g.styles['position'];
+                return p !== 'absolute' && p !== 'fixed';
+            });
+            styles['display'] = INLINE_DISPLAYS.has(display) ? 'inline-flex' : 'flex';
+            styles['flex-direction'] = inFlow ? 'row' : 'column';
+            if (inFlow)
+                styles['align-items'] = 'baseline';
+        }
+        return { ...rest, styles, text: null, children: next };
+    };
+    return walk(root);
+};
 export const applyBreakpointCaptures = (base, narrower) => {
     let elements = base.elements;
     const findings = [...base.findings];
@@ -470,7 +589,7 @@ export const applyBreakpointCaptures = (base, narrower) => {
                 byPath.set(node.path, node);
             node.children.forEach(index);
         };
-        index(resolveInheritance(payload.root));
+        index(materializePseudos(resolveInheritance(payload.root), []));
         let changed = 0;
         let absent = 0;
         const next = { ...elements };
@@ -549,7 +668,7 @@ export const reduceCapture = (payload, options = {}) => {
     collectNotes(payload.root);
     for (const note of payload.notes)
         findings.push({ ...note });
-    const pruned = collapse(resolveInheritance(payload.root), findings, [], true);
+    const pruned = materializePseudos(collapse(resolveInheritance(payload.root), findings, [], true), findings);
     let counter = 0;
     const fallbackId = () => {
         counter += 1;

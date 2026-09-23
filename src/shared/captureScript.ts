@@ -171,6 +171,25 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     }
   };
 
+  type PseudoOut = { text: string; styles: Record<string, string> };
+
+  /**
+   * The content value as plain text, or null if it is generated.
+   *
+   * Chromium normalises a static string to one double-quoted run, and
+   * appends ` / "alt text"` when the author gave alternative text for
+   * screen readers. Anything else — `url(...)`, `counter(...)`,
+   * `attr(...)`, or several runs concatenated — depends on state the
+   * model cannot hold.
+   */
+  const staticContent = (raw: string): string | null => {
+    const value = raw.trim().split(' / ')[0]?.trim() ?? '';
+    const m = value.match(/^"((?:[^"\\]|\\.)*)"$/);
+    if (!m || m[1] === undefined) return null;
+    const text = m[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+    return text.trim().length === 0 ? null : text;
+  };
+
   const escapeText = (raw: string): string =>
     raw.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;');
 
@@ -332,13 +351,60 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       }
     }
 
-    // Things with no representation in the model. Detected here, where
-    // the DOM is, and reported rather than silently dropped.
-    for (const pseudo of ['::before', '::after']) {
-      const content = window.getComputedStyle(el, pseudo).content;
-      if (content && content !== 'none' && content !== 'normal' && content !== '""') {
-        notes.push({ kind: 'pseudo-element', at: `${pathOf(el)}${pseudo}`, detail: content });
+    // `::before` / `::after`. Static text is recovered as a real
+    // element by the reducer; anything generated — a url, a counter, an
+    // attr — has nowhere to live in the model and is reported instead.
+    let pseudo: { before?: PseudoOut; after?: PseudoOut } | undefined;
+    for (const which of ['::before', '::after']) {
+      const pseudoStyle = window.getComputedStyle(el, which);
+      const content = pseudoStyle.content;
+      if (!content || content === 'none' || content === 'normal' || content === '""') continue;
+      const text = staticContent(content);
+      if (text === null) {
+        notes.push({ kind: 'pseudo-element', at: `${pathOf(el)}${which}`, detail: content });
+        continue;
       }
+      const pseudoStyles: Record<string, string> = {};
+      for (const prop of props) {
+        const value = pseudoStyle.getPropertyValue(prop);
+        if (!value) continue;
+        const blank = initial[prop];
+        if (blank === value) continue;
+        if (Array.isArray(blank) && blank.indexOf(value) >= 0) continue;
+        // Inherited values are compared against the HOST, which is what
+        // the pseudo-element actually inherits from.
+        if (inherited.has(prop) && computed.getPropertyValue(prop) === value) continue;
+        pseudoStyles[prop] = value;
+      }
+      for (const [prop, requires] of Object.entries(policy.conditional)) {
+        if (!(prop in pseudoStyles)) continue;
+        if (requires === null || !(requires in pseudoStyles)) delete pseudoStyles[prop];
+      }
+      // A pseudo-element's computed width and height are used values
+      // measured around the glyph. Carrying them pins a "✓" to the
+      // width it happened to take in whatever face the page had.
+      delete pseudoStyles['width'];
+      delete pseudoStyles['height'];
+      // Insets on a positioned element read back as USED values, so a
+      // custom bullet written as `position: absolute; left: 0` reports
+      // `right: 251.656px; bottom: 21.6875px` as well — the leftover
+      // space, not a decision. There is no way to ask which one the
+      // author wrote, so keep the inset nearer its edge on each axis:
+      // in this idiom the authored one is the small or zero value and
+      // the resolved one is whatever was left over.
+      const position = pseudoStyles['position'];
+      if (position === 'absolute' || position === 'fixed') {
+        for (const [start, end] of [['left', 'right'], ['top', 'bottom']]) {
+          if (start === undefined || end === undefined) continue;
+          const a = pseudoStyles[start];
+          const b = pseudoStyles[end];
+          if (a === undefined || b === undefined) continue;
+          const loser = Math.abs(parseFloat(b)) < Math.abs(parseFloat(a)) ? start : end;
+          delete pseudoStyles[loser];
+        }
+      }
+      pseudo = pseudo ?? {};
+      pseudo[which === '::before' ? 'before' : 'after'] = { text, styles: pseudoStyles };
     }
     // A shadow host that paints nothing lost nothing. Next.js puts a
     // 0x0 `<next-route-announcer>` on every page it renders, and
@@ -403,6 +469,7 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     if (svgSource !== null) built['svgSource'] = svgSource;
     built['path'] = path;
     if (inline !== null) built['inline'] = inline;
+    if (pseudo !== undefined) built['pseudo'] = pseudo;
     if (policy.includeRects) {
       const box = el.getBoundingClientRect();
       built['rect'] = {

@@ -89,3 +89,58 @@ Dropping the row template *lowered* the harness score, from 86% to
 exactly right while its content pours out of it. The overflow count is
 the honest number for this class of change, which is why the harness
 reports it.
+
+## Recovering `::before` and `::after`
+
+A page's ticks and toggles live in pseudo-elements: nine `"✓"` bullets
+and nine `"+"` FAQ markers on one site. Scamp has no pseudo-elements,
+so the import used to report them as losses and hand back a design with
+its punctuation missing.
+
+The capture now records a pseudo whose `content` is a plain string —
+its text and its own filtered styles — and `materializePseudos` turns
+each into a real text element. That is the better answer than
+supporting pseudo-elements would have been: the glyph shows up in the
+layers panel and can be edited. `content: url(…)`, `counter(…)` and
+`attr(…)` are still reported, because they are generated from state the
+model cannot hold.
+
+Three things this needed that were not obvious:
+
+**Insets read back as used values.** The custom-bullet idiom is
+`position: absolute; left: 0`, and Chromium reports `right: 251.656px;
+bottom: 21.6875px` alongside it — the leftover space, not a decision.
+Nothing distinguishes an authored inset from a resolved one, so the
+capture keeps the inset nearer its edge on each axis: in this idiom the
+authored value is the small or zero one.
+
+**The host's own words have to move.** A recovered `::before` must
+render in front of the text it belongs to, and it cannot if that text
+stays on the host. `materializePseudos` lifts the host's text (or its
+inline run) into a sibling so the order is
+`[::before, the words, children, ::after]`.
+
+**The host then needs a layout.** A host with children and no layout
+display pins every child at 0,0, printing the glyph on top of the
+words. The pass sets one itself, and the direction follows the glyph: a
+glyph taken out of flow leaves the words stacking as block flow did, a
+glyph still in flow sits beside them on a baseline. An earlier attempt
+widened `flowLayoutFor` instead, which caught 24 spans that had never
+held text and turned them into flex columns — the rule has to name the
+case it is for.
+
+## The list-padding bug this uncovered
+
+With the bullets recovered, every imported `<li>` measured 40px narrower
+than its source and wrapped a line early. The cause was not the import:
+`BROWSER_RESET_BLOCK` zeroes the UA margin on every block-level tag so
+the canvas and the export agree, but the UA also sets `ul, ol, menu {
+padding-inline-start: 40px }`, and that was missed. Any `ul`-tagged
+element in Scamp was 40px narrower than the canvas drew it and than the
+properties panel said — the panel reported padding 0 throughout.
+
+Fixed in three places, because all three have to agree: the canvas
+reset, `DEFAULT_THEME_CSS`, and a fifth backfill check in
+`themeBackfill`. The backfill needs its own sentinel: a project created
+before this already carries the browser-reset sentinel, so folding the
+rule into that block would never have reached one.

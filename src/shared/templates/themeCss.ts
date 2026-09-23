@@ -105,6 +105,37 @@ select {
   user-select: text;
 }`;
 
+/**
+ * Sentinel for the list-padding reset. Separate from
+ * `BROWSER_RESET_SENTINEL` because it shipped later: an existing
+ * project already carries that sentinel, so folding this into that
+ * block would never reach one.
+ */
+export const LIST_PADDING_SENTINEL =
+  '/* scamp: list padding — the browser adds 40px the panel does not show */';
+
+/**
+ * Zero the padding a browser puts on a list.
+ *
+ * `BROWSER_RESET_BLOCK` zeroes the UA margin on every block-level tag,
+ * for the stated reason that the canvas already zeroes it and the two
+ * have to agree. The UA also sets `ul, ol, menu { padding-inline-start:
+ * 40px }`, and that was missed — so a `ul`-tagged element rendered 40px
+ * narrower than the canvas showed and than the properties panel said,
+ * which reported padding 0 the whole time.
+ *
+ * It surfaced through the website importer, where a list is the normal
+ * case rather than a rare one: every imported `<li>` came out 40px short
+ * and its text wrapped a line early.
+ */
+export const LIST_PADDING_BLOCK = `${LIST_PADDING_SENTINEL}
+ul,
+ol,
+menu {
+  padding: 0;
+}`;
+
+
 
 /**
  * Default theme.css content for a freshly created project. Provides:
@@ -236,6 +267,8 @@ body {
 }
 
 ${BROWSER_RESET_BLOCK}
+
+${LIST_PADDING_BLOCK}
 `;
 
 

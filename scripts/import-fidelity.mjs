@@ -255,13 +255,13 @@ for (const url of urls) {
     const widthOnly = offenders.filter((o) => o.dw > 2 && o.dh <= 2).length;
     const heightOnly = offenders.filter((o) => o.dh > 2 && o.dw <= 2).length;
     console.log(`  width-only=${widthOnly} height-only=${heightOnly} both=${offenders.length - widthOnly - heightOnly}`);
-    for (const o of offenders.slice(0, 12)) {
+    for (const o of offenders.slice(0, Number(process.env.TOP ?? 12))) {
       console.log(
         `    ${o.cls.padEnd(22)} <${(o.tag ?? '?').padEnd(6)}> ` +
           `${o.src.padStart(10)} → ${o.got.padEnd(10)} ${o.margins ? `m:${o.margins}` : ''}`
       );
     }
-    if (offenders.length > 12) console.log(`    … and ${offenders.length - 12} more`);
+    if (offenders.length > Number(process.env.TOP ?? 12)) console.log(`    … and ${offenders.length - Number(process.env.TOP ?? 12)} more`);
   } catch (err) {
     console.log(`\n${url}\n  FAILED: ${err.message.slice(0, 160)}`);
   } finally {

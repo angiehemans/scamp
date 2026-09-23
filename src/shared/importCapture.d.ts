@@ -32,7 +32,7 @@
  * see docs/plans/website-import-plan.md
  */
 /** Bumped when the payload shape changes, so a stale fixture fails loudly. */
-export declare const CAPTURE_VERSION = 1;
+export declare const CAPTURE_VERSION = 2;
 /** Something the page does that Scamp's model has no room for. */
 export type CaptureNoteKind = 'pseudo-element' | 'shadow-root' | 'canvas' | 'iframe' | 'svg' | 'background-image' | 'depth-capped' | 'node-capped' | 'revealed-on-scroll';
 export type CaptureNote = {
@@ -41,6 +41,26 @@ export type CaptureNote = {
     at?: string;
     /** Free text — the pseudo-element's content, the asset URL, the cap that was hit. */
     detail?: string;
+};
+/**
+ * A `::before` / `::after` whose content is a plain string.
+ *
+ * Page authors use these for things that are unmistakably part of the
+ * design — a "✓" on every bullet, a "+" on every collapsed FAQ row —
+ * and a design tool that drops them hands back a page with its ticks
+ * and its toggles missing. The reducer turns one of these into a real
+ * text element, which is both visible and editable, unlike the
+ * pseudo-element it came from.
+ *
+ * Only static text qualifies. `content: url(…)`, `counter(…)` and
+ * `attr(…)` are still reported as losses: they are generated from
+ * something the model has no place to keep.
+ */
+export type CapturedPseudo = {
+    /** The content string, unquoted. */
+    text: string;
+    /** Computed values, filtered exactly as an element's are. */
+    styles: Record<string, string>;
 };
 export type CapturedNode = {
     /** Assigned by the walk, depth-first from 0. Stable within one capture. */
@@ -66,6 +86,11 @@ export type CapturedNode = {
         y: number;
         w: number;
         h: number;
+    };
+    /** Static `::before` / `::after` content, recoverable as elements. */
+    pseudo?: {
+        before?: CapturedPseudo;
+        after?: CapturedPseudo;
     };
     /**
      * Structural address: `div>nav:0>ul:1>li:2`, tag plus index among

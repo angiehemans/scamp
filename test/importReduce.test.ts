@@ -61,6 +61,238 @@ const reduce = (root: CapturedNode, over: Partial<CapturePayload> = {}) =>
 const kinds = (root: CapturedNode): string[] =>
   reduce(root).findings.map((f) => f.kind);
 
+describe('materializePseudos — ticks and toggles become elements', () => {
+  // Pages put real design in `::before` / `::after`: a "✓" on every
+  // bullet, a "+" on every collapsed row. Scamp has no
+  // pseudo-elements, so these become text elements — which is the
+  // better answer anyway, since you can then see and edit them.
+
+  const bullet = (over: Partial<CapturedNode> = {}): CapturedNode =>
+    node({
+      tag: 'li',
+      text: 'Ships on Friday',
+      styles: { 'font-size': '14px', color: 'rgb(20, 20, 20)' },
+      pseudo: { before: { text: '✓', styles: { color: 'rgb(46, 160, 67)' } } },
+      ...over,
+    });
+
+  const childrenOf = (root: CapturedNode) => {
+    const { elements } = reduce(node({ children: [root] }));
+    const host = Object.values(elements).find((e) => e.name === 'listitem' || e.name === 'box');
+    return { elements, host };
+  };
+
+  it('puts a ::before in front of everything else', () => {
+    const { elements } = reduce(node({ children: [bullet()] }));
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    const host = Object.values(elements).find((e) => e.id === glyph?.parentId);
+    expect(host?.childIds[0]).toBe(glyph?.id);
+  });
+
+  it('puts an ::after behind everything else', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          bullet({
+            pseudo: { after: { text: '+', styles: {} } },
+          }),
+        ],
+      })
+    );
+    const glyph = Object.values(elements).find((e) => e.text === '+');
+    const host = Object.values(elements).find((e) => e.id === glyph?.parentId);
+    expect(host?.childIds[host.childIds.length - 1]).toBe(glyph?.id);
+  });
+
+  it('keeps both ends around the words', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          bullet({
+            pseudo: {
+              before: { text: '«', styles: {} },
+              after: { text: '»', styles: {} },
+            },
+          }),
+        ],
+      })
+    );
+    const open = Object.values(elements).find((e) => e.text === '«');
+    const host = Object.values(elements).find((e) => e.id === open?.parentId);
+    const order = (host?.childIds ?? []).map((id) => elements[id]?.text);
+    expect(order).toEqual(['«', 'Ships on Friday', '»']);
+  });
+
+  it('moves the host\'s own words into a sibling, not the host', () => {
+    // Leaving them on the host would render them before the glyph,
+    // whatever the child order said.
+    const { elements } = reduce(node({ children: [bullet()] }));
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    const host = Object.values(elements).find((e) => e.id === glyph?.parentId);
+    expect(host?.text ?? null).toBeNull();
+    expect(elements[host?.childIds[1] ?? '']?.text).toBe('Ships on Friday');
+  });
+
+  it('carries a host\'s inline markup across with its words', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          bullet({
+            text: null,
+            inline: [
+              { kind: 'text', value: 'Read the ' },
+              { kind: 'markup', source: '<a href="/docs">docs</a>' },
+            ],
+          }),
+        ],
+      })
+    );
+    const words = Object.values(elements).find((e) => e.inlineFragments.length > 0);
+    expect(words?.text).toBe('Read the');
+    const fragment = words?.inlineFragments[0];
+    expect(fragment && 'source' in fragment && fragment.source).toContain('/docs');
+  });
+
+  it('gives the host a layout, so the glyph is not stacked on the words', () => {
+    // An `li` is a text tag. Once its words move out it is a container,
+    // and a container with no layout pins every child at 0,0 — which
+    // would print the tick on top of the sentence.
+    const { baseStyles, elements } = reduce(node({ children: [bullet()] }));
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    const hostId = glyph?.parentId ?? '';
+    expect(baseStyles[hostId]?.['display']).toBe('flex');
+  });
+
+  it('dresses the glyph in the type it was rendered in', () => {
+    const { elements } = reduce(node({ children: [bullet()] }));
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    expect(glyph?.fontSize).toBe('14px');
+  });
+
+  it('lets the glyph\'s own styles beat what it inherited', () => {
+    const { elements } = reduce(node({ children: [bullet()] }));
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    expect(glyph?.color).toBe('rgb(46, 160, 67)');
+  });
+
+  it('works on a host with no words of its own', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            tag: 'div',
+            styles: { 'background-color': 'rgb(1, 2, 3)' },
+            pseudo: { before: { text: '→', styles: {} } },
+          }),
+        ],
+      })
+    );
+    const glyph = Object.values(elements).find((e) => e.text === '→');
+    expect(glyph?.type).toBe('text');
+  });
+
+  it('keeps the wrapper that holds a glyph, rather than collapsing it away', () => {
+    // A `div` whose only distinguishing feature is its `::before` looks
+    // like an empty wrapper to the collapse pass.
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            tag: 'div',
+            pseudo: { before: { text: '→', styles: {} } },
+            children: [node({ id: 2, tag: 'p', text: 'only child' })],
+          }),
+        ],
+      })
+    );
+    expect(Object.values(elements).some((e) => e.text === '→')).toBe(true);
+  });
+
+  it('leaves a node with no pseudo-element exactly as it was', () => {
+    const plain = node({ tag: 'li', text: 'nothing special' });
+    const { elements } = reduce(node({ children: [plain] }));
+    const item = Object.values(elements).find((e) => e.text === 'nothing special');
+    expect(item?.childIds).toEqual([]);
+  });
+
+  it('does not mutate the captured tree', () => {
+    // The narrower captures run through the same pass.
+    const root = node({ children: [bullet()] });
+    reduce(root);
+    expect(root.children[0]?.text).toBe('Ships on Friday');
+    expect(root.children[0]?.pseudo?.before?.text).toBe('✓');
+  });
+
+  it('stacks the words when the glyph is taken out of flow', () => {
+    // `position: absolute; left: 0` is the custom-bullet idiom: the
+    // glyph does not participate, so the words keep block flow.
+    const { baseStyles, elements } = reduce(
+      node({
+        children: [
+          bullet({
+            pseudo: {
+              before: { text: '✓', styles: { position: 'absolute', left: '0px' } },
+            },
+          }),
+        ],
+      })
+    );
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    const host = baseStyles[glyph?.parentId ?? ''];
+    expect(host?.['display']).toBe('flex');
+    expect(host?.['flex-direction']).toBe('column');
+  });
+
+  it('sits the glyph beside the words when it is still in flow', () => {
+    const { baseStyles, elements } = reduce(node({ children: [bullet()] }));
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    const host = baseStyles[glyph?.parentId ?? ''];
+    expect(host?.['flex-direction']).toBe('row');
+    expect(host?.['align-items']).toBe('baseline');
+  });
+
+  it('keeps an inline host part of the line it was in', () => {
+    const { baseStyles, elements } = reduce(
+      node({
+        children: [
+          bullet({ tag: 'span', styles: { display: 'inline' } }),
+        ],
+      })
+    );
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    expect(baseStyles[glyph?.parentId ?? '']?.['display']).toBe('inline-flex');
+  });
+
+  it('leaves a host that already has a layout alone', () => {
+    const { baseStyles, elements } = reduce(
+      node({
+        children: [
+          bullet({ styles: { display: 'grid', 'grid-template-columns': 'repeat(2, 1fr)' } }),
+        ],
+      })
+    );
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    expect(baseStyles[glyph?.parentId ?? '']?.['display']).toBe('grid');
+  });
+
+  it('does not put a list marker on the glyph it made', () => {
+    const { elements } = reduce(
+      node({
+        children: [bullet({ styles: { 'list-style-type': 'none', 'font-size': '14px' } })],
+      })
+    );
+    const glyph = Object.values(elements).find((e) => e.text === '✓');
+    expect(glyph?.customProperties['list-style-type']).toBeUndefined();
+  });
+
+  it('reports what it recovered, so the change is not silent', () => {
+    const { findings } = reduce(node({ children: [bullet()] }));
+    const made = findings.filter((f) => f.kind === 'pseudo-materialized');
+    expect(made).toHaveLength(1);
+    expect(made[0]?.detail).toBe('✓');
+  });
+});
+
 describe('grid templates — used values are not decisions', () => {
   // `getComputedStyle` reads a grid template back as the track sizes it
   // used, never as what was written. `1fr 1fr` comes out
@@ -834,11 +1066,43 @@ describe('against a page captured from a real browser', () => {
     expect(tsx).toContain('data-scamp-id="root"');
   });
 
-  it('finds the decorative pseudo-element the page relies on', () => {
+  it('recovers the page\'s decorative glyph as a real text element', () => {
+    // `.badge::before { content: "★" }`. It used to be reported as a
+    // loss; it is now an element you can see and edit.
     const result = reduceCapture(payload, { randomId: seqIds() });
-    const pseudo = result.findings.filter((f) => f.kind === 'pseudo-element');
-    expect(pseudo).toHaveLength(1);
-    expect(pseudo[0]?.detail).toContain('★');
+    expect(result.findings.filter((f) => f.kind === 'pseudo-element')).toHaveLength(0);
+    const star = Object.values(result.elements).find((e) => e.text === '★');
+    expect(star?.type).toBe('text');
+    expect(result.findings.filter((f) => f.kind === 'pseudo-materialized')).toHaveLength(1);
+  });
+
+  it('keeps the glyph\'s own styling, not just its character', () => {
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const star = Object.values(elements).find((e) => e.text === '★');
+    // `margin-right: 6px` is what holds it off the words beside it, and
+    // the colour is the whole point of a gold star.
+    expect(star?.margin).toEqual([0, 6, 0, 0]);
+    expect(star?.color).toBe('rgb(217, 179, 106)');
+  });
+
+  it('puts the glyph in front of the words it belongs to', () => {
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const star = Object.values(elements).find((e) => e.text === '★');
+    const host = Object.values(elements).find((e) => e.id === star?.parentId);
+    expect(host?.childIds[0]).toBe(star?.id);
+    // The badge's own text moved into a sibling rather than staying on
+    // the host, which is what makes that order possible.
+    const words = elements[host?.childIds[1] ?? ''];
+    expect(words?.text).toContain('No credit card');
+  });
+
+  it('gives the recovered glyph a box that fits it', () => {
+    // Nothing measures a pseudo-element, so without an explicit size it
+    // lands on the model's 100x100 default.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const star = Object.values(elements).find((e) => e.text === '★');
+    expect(star?.widthMode).toBe('auto');
+    expect(star?.heightMode).toBe('auto');
   });
 
   it('collapses the page\'s empty wrappers and keeps its real ones', () => {
