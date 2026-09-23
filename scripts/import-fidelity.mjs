@@ -166,7 +166,12 @@ for (const url of urls) {
       const dw = Math.abs(src.rect.w - got.w);
       const dh = Math.abs(src.rect.h - got.h);
       if (dw > 2 || dh > 2) {
+        const m = ['margin-top', 'margin-bottom']
+          .map((k) => src.styles[k])
+          .filter(Boolean)
+          .join('/');
         offenders.push({
+          margins: m,
           cls,
           tag: src.tag,
           dw: Math.round(dw),
@@ -188,13 +193,33 @@ for (const url of urls) {
     }
 
     offenders.sort((a, b) => b.dw + b.dh - (a.dw + a.dh));
+    const withMargins = offenders.filter((o) => o.margins).length;
     const pct = compared === 0 ? 0 : Math.round(((compared - offenders.length) / compared) * 100);
     console.log(`\n${url}`);
     console.log(`  ${compared} elements compared · ${pct}% within 2px of the source`);
+    console.log(`  ${offenders.length} off · ${withMargins} of them have vertical margins`);
+    // Is the offender inline content sitting inside a text element?
+    const parentOf = new Map();
+    const mark = (n) => n.children.forEach((c) => { parentOf.set(c.id, n); mark(c); });
+    mark(payload.root);
+    const TEXTY = new Set(['p','h1','h2','h3','h4','h5','h6','span','a','li','label','strong','em','b','small','code','kbd','blockquote','figcaption']);
+    const insideText = offenders.filter((o) => {
+      const id = reduced.sourceNodes[o.cls.split('_').pop()];
+      const par = parentOf.get(id);
+      return par && TEXTY.has(par.tag);
+    }).length;
+    console.log(`  ${insideText} of ${offenders.length} sit inside a text element`);
+    const byTag = new Map();
+    for (const o of offenders) byTag.set(o.tag, (byTag.get(o.tag) ?? 0) + 1);
+    console.log('  by tag: ' + [...byTag].sort((a, b) => b[1] - a[1])
+      .map(([t, n]) => `${t}=${n}`).join(' '));
+    const widthOnly = offenders.filter((o) => o.dw > 2 && o.dh <= 2).length;
+    const heightOnly = offenders.filter((o) => o.dh > 2 && o.dw <= 2).length;
+    console.log(`  width-only=${widthOnly} height-only=${heightOnly} both=${offenders.length - widthOnly - heightOnly}`);
     for (const o of offenders.slice(0, 12)) {
       console.log(
         `    ${o.cls.padEnd(22)} <${(o.tag ?? '?').padEnd(6)}> ` +
-          `${o.src.padStart(10)} → ${o.got.padEnd(10)}`
+          `${o.src.padStart(10)} → ${o.got.padEnd(10)} ${o.margins ? `m:${o.margins}` : ''}`
       );
     }
     if (offenders.length > 12) console.log(`    … and ${offenders.length - 12} more`);

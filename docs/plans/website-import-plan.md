@@ -207,21 +207,55 @@ decision that has to be kept. That is why the capture now carries
 rects: four numbers a node, and they are the difference between an
 import that reflows and one that is frozen at 1440px.
 
-### The remaining gap
+### The remaining gap is inline content, not block flow
 
-At 88-91%, most of what is left is `<a>` elements a few pixels off in
-both dimensions. Scamp's own reset sets `all: unset; display: block` on
-anchors, which changes their metrics against the source page's inline
-ones. That is Scamp being Scamp, not the importer being wrong, and
-closing it would mean changing the reset for every project.
+An earlier draft of this section asserted that 1:1 was blocked on Scamp
+having no model for block flow, because flex does not collapse adjacent
+vertical margins and block flow does. **That was a guess, and measuring
+it showed it was wrong.** Of the elements still off by more than 2px,
+the ones carrying vertical margins at all are **0 of 30** on
+`scamp.club` and **5 of 46** on `resovaiq.com`. Margin collapsing is
+not what is costing the last ten points, and block flow would buy
+almost nothing on either page.
 
-**1:1 is not reachable while Scamp has no model for block flow.** The
-importer maps block containers onto flex columns, which is close but
-not identical — most visibly, block flow collapses adjacent vertical
-margins and flex does not, so a stack of margined siblings drifts taller
-with every sibling. Fixing that needs either margin-to-gap rewriting in
-the importer (changes semantics) or block flow in the canvas (changes
-Scamp). Worth deciding deliberately rather than tuning toward.
+What the offenders actually are:
+
+| | scamp.club | resovaiq.com |
+|---|---|---|
+| Inline content inside a text element | 19 of 30 | 16 of 46 |
+| By tag | `a` 17, `li` 10, `br` 3 | `span` 16, `div` 13, `tr`/`tbody`/`table` 9, `a` 5, `b` 2, `kbd` 1 |
+
+The dominant cause is **inline flow**: an `<a>` or `<span>` inside a
+sentence is part of a line box, and the importer turns it into its own
+Scamp element — a block in a flex row, with its own metrics. Scamp's
+reset (`all: unset; display: block` on anchors) makes that worse.
+
+**Scamp already has the mechanism for this and the importer is not
+using it.** `inlineFragments` on a text element holds exactly this:
+loose text and inline markup, kept in source order and emitted
+verbatim, which is how a hand-written `<p>Hello <strong>world</strong>
+</p>` round-trips today. Inline children of a text element should
+become fragments rather than elements. That is importer work against an
+existing capability, not a model change.
+
+The rest is tables (9 on `resovaiq.com`), which Scamp genuinely cannot
+model and which are already reported as `unsupported-display`.
+
+### On adding block flow to Scamp
+
+Rejected for this plan, on two grounds beyond the measurement.
+
+It would not be an addition but a reversal: `agent.md` states flex-first
+as "the single most important layout rule in Scamp… the canvas, the
+panel controls, and the round-trip parser are all built around flex as
+the default container model." Changing that touches the element model,
+the canvas renderer, the properties panel, `generateCode`, `parseCode`,
+the parity harness, and every existing project.
+
+And the importer would be one consumer of it, not its owner. A model
+change designed inside an import plan gets designed for import's needs.
+If block flow is ever wanted, it wants its own plan and its own
+justification — which, on this evidence, it does not yet have.
 
 ## Phases
 
