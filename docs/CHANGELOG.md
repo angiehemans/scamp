@@ -22,7 +22,7 @@ release time.
 
 ## Releases
 
-### Unreleased
+### 0.8.0 (2026-09-23)
 
 **Added**
 
@@ -93,6 +93,22 @@ release time.
   each one rewrote, so an agent can catch up before editing a file it
   read earlier. See [Work with AI agents](user_docs/ai-agents.md).
 
+- **Bind an image's source to data.** An `<img>`'s **Src** and **Alt**
+  appear in the **Data** tab's attribute list, so a card grid or a
+  gallery can take its images from a prop or from a repeat's rows. The
+  **Image** section shows the binding in place of the path and points
+  at the **Data** tab.
+- **Agents can check what a view lost.** The new `scamp_check_view`
+  reports bindings that didn't parse, declarations that render but
+  leave the panel controls blank, tokens `theme.css` doesn't declare,
+  and sample rows that disagree with each other. A file can parse
+  perfectly and still arrive degraded, and the element tree looks
+  correct in every one of those cases.
+- **Agents can read the project's conventions.** The new
+  `scamp_get_conventions` serves `agent.md`'s own content through the
+  MCP server, scoped to the project's format and a section at a time,
+  so an agent can ask for the one rule it needs.
+
 **Changed**
 
 - **Adding a page writes its route.** In a Scamp framework project,
@@ -117,10 +133,36 @@ release time.
   touch different lines, instead of reloading and losing yours. Only a
   real overlap still stops the save.
 
+- **`agent.md` describes the project you actually have.** In a Scamp
+  framework project it still called the project a Next.js App Router
+  project and named files that aren't there — `app/page.tsx`,
+  `app/layout.tsx`, `next.config.ts`. It now documents the framework
+  layout, the route file and its exports, and how an image whose source
+  comes from data binds.
+
 **Fixed**
 
 - **A view's artboard matches the size the toolbar shows.** A view
   opens at the project's page width instead of the component default.
+- **An image whose source comes from data renders on the canvas.**
+  `src={product.image}` on an `<img>` is a binding like any other
+  attribute, but it was read as literal text: the canvas drew a broken
+  image, and the next save wrote the placeholder into the file. Bound
+  `src` and `alt` now resolve, including per row inside a repeat.
+- **Five things that didn't work in a Scamp framework project.** Each
+  read the open *page*, and a framework project has no pages — every
+  page is a view. **Replace image** and **Set background image** did
+  nothing; the **Code** panel labelled both panes "— no page —"; the
+  **Link** section offered no destinations and marked every internal
+  link broken; **Export HTML** wrote an empty folder; and clicking an
+  entry in **History** didn't preview the snapshot.
+- **A failed image import tells you it failed.** Every import path —
+  the image tool, drag-and-drop, **Replace image**, **Set background
+  image** — discarded the error, so a failure was indistinguishable
+  from nothing happening. Failures now appear in the **App Log**.
+- **Saving doesn't rewrite `&` in a URL.** An image source ending
+  `?w=2000&q=80` came back as `&amp;q=80` on the next save. The page
+  rendered the same either way, but it changed a line nobody edited.
 
 ### 0.7.2 (2026-09-15)
 
