@@ -440,10 +440,37 @@ that is not `http(s)`, not an image content-type, or over 20MB. Both
 `<img src>` and `background-image: url(...)` are rewritten to the local
 asset.
 
-Still open in this phase: **fonts** are neither detected nor offered.
-Scamp's Fonts panel manages `@import` lines in `theme.css`, so the
-importer should detect the families a page uses and offer them there
-rather than writing them itself.
+**Fonts, done.** Type is most of a page's character, and an import that
+silently falls back to Helvetica looks nothing like what it copied —
+with nothing in the file to say why. Each family gets a different
+answer, so each is asked about separately:
+
+| | |
+|---|---|
+| Already installed | Left alone. Embedding a face the user has is noise. |
+| On Google Fonts | Embedded — one `@import` covering every family, since `css2` takes repeated `family=` params. |
+| Neither | Named in the report: *install X — not on Google Fonts and not on this machine.* |
+
+Three things make it accurate rather than approximate:
+
+- **Only the head of the stack is a decision.** `getComputedStyle`
+  returns `Fraunces, "Fraunces Fallback", Georgia, serif`; the rest is
+  the author's fallback chain, which the browser applies anyway. A
+  `… Fallback` entry is what Next.js emits for a locally
+  metric-matched face and is never installable.
+- **Google's `css2` endpoint is its own oracle** — 200 with a
+  stylesheet for a family it has, 400 for one it does not. More
+  reliable than shipping a list that goes stale, and it is the same URL
+  that gets embedded.
+- **System stacks are never asked about.** `-apple-system`, `Segoe UI`,
+  `Arial`, `Georgia` and friends are what an OS already answers.
+  Telling someone to install Arial would be absurd, and Google returns
+  200 for `Helvetica Neue` — which it does not actually serve — so
+  filtering first is what stops a wrong embed.
+
+The weight range `300;400;500;600;700;800` is requested rather than the
+default, because a page with a bold heading and a light caption needs
+both and the default would flatten them.
 
 ### Phase 4 — Fidelity and the report.
 

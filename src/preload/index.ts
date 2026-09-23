@@ -7,6 +7,8 @@ import type {
   ImportCapturedArgs,
   ImportOpenArgs,
   ImportResultPayload,
+  ResolveFontsArgs,
+  ResolveFontsResult,
   ChooseFolderResult,
   ChooseImageArgs,
   ChooseImageResult,
@@ -164,6 +166,9 @@ const api = {
   /** Download one remote image into the project's assets. */
   fetchImportImage: (args: FetchImageArgs): Promise<FetchImageResult> =>
     ipcRenderer.invoke(IPC.ImportFetchImage, args),
+  /** Which of these families does Google Fonts serve? */
+  resolveImportFonts: (args: ResolveFontsArgs): Promise<ResolveFontsResult> =>
+    ipcRenderer.invoke(IPC.ImportResolveFonts, args),
   /** Tell the import window how it went. */
   reportImportResult: (payload: ImportResultPayload): Promise<void> =>
     ipcRenderer.invoke(IPC.ImportResultReport, payload),

@@ -6,6 +6,8 @@ import type {
   ChooseImageArgs,
   FetchImageArgs,
   FetchImageResult,
+  ResolveFontsArgs,
+  ResolveFontsResult,
   CopyImageArgs,
   CopyImageResult,
   ChooseImageResult,
@@ -117,6 +119,40 @@ const fetchImage = async (args: FetchImageArgs): Promise<FetchImageResult> => {
   }
 };
 
+/**
+ * Ask Google Fonts which families it actually serves.
+ *
+ * The `css2` endpoint is its own oracle: it answers 200 with a
+ * stylesheet for a family it has and 400 for one it does not, which is
+ * more reliable than shipping a list that goes stale. One request per
+ * family, in parallel, and a network failure reads as "not available"
+ * rather than failing the import — a font we could not check is one the
+ * user should be told to install either way.
+ * see docs/plans/website-import-plan.md
+ */
+const resolveGoogleFonts = async (
+  args: ResolveFontsArgs
+): Promise<ResolveFontsResult> => {
+  const out: ResolveFontsResult = {};
+  await Promise.all(
+    args.families.slice(0, 24).map(async (family) => {
+      const name = encodeURIComponent(family.trim()).replace(/%20/g, '+');
+      try {
+        const response = await net.fetch(
+          `https://fonts.googleapis.com/css2?family=${name}`,
+          // Google serves different formats per UA; any modern one is fine,
+          // and the status is all we read.
+          { headers: { 'user-agent': 'Mozilla/5.0' } }
+        );
+        out[family] = response.ok;
+      } catch {
+        out[family] = false;
+      }
+    })
+  );
+  return out;
+};
+
 export const registerImageIpc = (): void => {
   ipcMain.handle(
     IPC.FileCopyImage,
@@ -141,6 +177,9 @@ export const registerImageIpc = (): void => {
   );
   ipcMain.handle(IPC.FileChooseImage, async (_e, args?: ChooseImageArgs) => chooseImage(args));
   ipcMain.handle(IPC.ImportFetchImage, async (_e, args: FetchImageArgs) => fetchImage(args));
+  ipcMain.handle(IPC.ImportResolveFonts, async (_e, args: ResolveFontsArgs) =>
+    resolveGoogleFonts(args)
+  );
   // Read a file's UTF-8 text. Used to inline an imported `.svg` (the path
   // comes from the native picker) and to reload an SVG whose asset file
   // changed on disk. Only `.svg` files are readable through this channel —

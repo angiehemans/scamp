@@ -46,6 +46,8 @@ const api = {
     },
     /** Download one remote image into the project's assets. */
     fetchImportImage: (args) => ipcRenderer.invoke(IPC.ImportFetchImage, args),
+    /** Which of these families does Google Fonts serve? */
+    resolveImportFonts: (args) => ipcRenderer.invoke(IPC.ImportResolveFonts, args),
     /** Tell the import window how it went. */
     reportImportResult: (payload) => ipcRenderer.invoke(IPC.ImportResultReport, payload),
     openPreview: (args) => ipcRenderer.invoke(IPC.PreviewOpen, args),

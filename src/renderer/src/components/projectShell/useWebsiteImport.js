@@ -3,7 +3,9 @@ import { errorMessage } from '@shared/errorMessage';
 import { viewSlugFor } from '@shared/templates';
 import { generateCode } from '@lib/generateCode';
 import { reduceCapture } from '@lib/importReduce';
+import { fontsNeededBy, googleFontsUrlFor, resolveFonts, } from '@lib/importFonts';
 import { extractTokens } from '@lib/importTokens';
+import { useFontsStore } from '@store/fontsSlice';
 import { parseThemeFile, serializeThemeFile } from '@lib/parseTheme';
 import { useAppLogStore } from '@store/appLogSlice';
 /** One line per finding, collapsed by kind so a report reads at a glance. */
@@ -196,10 +198,55 @@ export const useWebsiteImport = ({ project, onProjectChange, openView, }) => {
                             cssContent: relocated.css,
                         });
                     }
+                    // Type is most of a page's character, and an import that
+                    // silently falls back to Helvetica looks nothing like what it
+                    // copied. Each family needs a different answer, so each one is
+                    // asked about separately. see lib/importFonts.ts
+                    const needs = fontsNeededBy(result.elements);
+                    let fonts = [];
+                    if (needs.length > 0) {
+                        const { systemFonts, systemFontsLoaded, loadSystemFonts } = useFontsStore.getState();
+                        if (!systemFontsLoaded)
+                            await loadSystemFonts();
+                        const installed = useFontsStore.getState().systemFonts;
+                        const unknown = needs
+                            .filter((n) => !installed.some((f) => f.toLowerCase() === n.family.toLowerCase()))
+                            .map((n) => n.family);
+                        const onGoogle = unknown.length > 0
+                            ? await window.scamp.resolveImportFonts({ families: unknown })
+                            : {};
+                        const urls = {};
+                        for (const [family, available] of Object.entries(onGoogle)) {
+                            const url = available ? googleFontsUrlFor([family]) : null;
+                            if (url !== null)
+                                urls[family] = url;
+                        }
+                        fonts = resolveFonts(needs, systemFonts, urls);
+                        // One @import for all of them: the css2 endpoint takes
+                        // repeated family params, so the project gains one line
+                        // rather than one per face.
+                        const embeddable = fonts
+                            .filter((f) => f.status === 'google')
+                            .map((f) => f.family);
+                        const combined = googleFontsUrlFor(embeddable);
+                        if (combined !== null) {
+                            const latest = parseThemeFile(await window.scamp.readTheme({ projectPath: project.path }));
+                            await window.scamp.writeTheme({
+                                projectPath: project.path,
+                                content: serializeThemeFile({
+                                    ...latest,
+                                    fontImportUrls: [...latest.fontImportUrls, combined],
+                                }),
+                            });
+                        }
+                    }
+                    const missingFonts = fonts.filter((f) => f.status === 'missing');
+                    const embedded = fonts.filter((f) => f.status === 'google');
                     const findings = summarize(result.findings);
                     log('info', `Imported ${name} from ${payload.url} — ` +
                         `${Object.keys(result.elements).length} elements` +
                         (renamed.length > 0 ? `, ${renamed.length} colour tokens` : '') +
+                        (embedded.length > 0 ? `, ${embedded.length} fonts embedded` : '') +
                         (findings.length > 0 ? `. Not carried across: ${findings.join(', ')}.` : '.'));
                     report({
                         projectPath,
@@ -207,6 +254,16 @@ export const useWebsiteImport = ({ project, onProjectChange, openView, }) => {
                         viewName: name,
                         elementCount: Object.keys(result.elements).length,
                         findings: [
+                            ...(embedded.length > 0
+                                ? [`${embedded.map((f) => f.family).join(', ')} embedded from Google Fonts`]
+                                : []),
+                            ...(missingFonts.length > 0
+                                ? [
+                                    `install ${missingFonts
+                                        .map((f) => f.family)
+                                        .join(', ')} — not on Google Fonts and not on this machine`,
+                                ]
+                                : []),
                             ...(downloaded.size > 0
                                 ? [`${downloaded.size} images downloaded into the project`]
                                 : []),

@@ -68,6 +68,8 @@ export declare const IPC: {
     readonly ImportOpen: "import:open";
     /** Download one remote image into the project's assets. */
     readonly ImportFetchImage: "import:fetchImage";
+    /** Which of these families does Google Fonts serve? */
+    readonly ImportResolveFonts: "import:resolveFonts";
     readonly ImportClose: "import:close";
     /** Import window → main: a captured page. */
     readonly ImportCaptured: "import:captured";

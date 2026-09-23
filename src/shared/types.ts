@@ -443,6 +443,12 @@ export type CopyImageArgs = {
   projectPath: string;
 };
 
+/** Ask Google Fonts which of these families it serves. */
+export type ResolveFontsArgs = { families: string[] };
+
+/** Family → true when Google Fonts has it. Absent means it does not. */
+export type ResolveFontsResult = Record<string, boolean>;
+
 /** Fetch a remote image into the project's assets. see website-import-plan.md */
 export type FetchImageArgs = {
   /** Absolute http(s) URL, as the capture resolved it. */

@@ -131,6 +131,8 @@ export const IPC = {
   ImportOpen: 'import:open',
   /** Download one remote image into the project's assets. */
   ImportFetchImage: 'import:fetchImage',
+  /** Which of these families does Google Fonts serve? */
+  ImportResolveFonts: 'import:resolveFonts',
   ImportClose: 'import:close',
   /** Import window → main: a captured page. */
   ImportCaptured: 'import:captured',
