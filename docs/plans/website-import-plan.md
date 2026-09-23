@@ -218,7 +218,7 @@ the ones carrying vertical margins at all are **0 of 30** on
 not what is costing the last ten points, and block flow would buy
 almost nothing on either page.
 
-What the offenders actually are:
+What the offenders were:
 
 | | scamp.club | resovaiq.com |
 |---|---|---|
@@ -230,13 +230,39 @@ sentence is part of a line box, and the importer turns it into its own
 Scamp element — a block in a flex row, with its own metrics. Scamp's
 reset (`all: unset; display: block` on anchors) makes that worse.
 
-**Scamp already has the mechanism for this and the importer is not
-using it.** `inlineFragments` on a text element holds exactly this:
-loose text and inline markup, kept in source order and emitted
-verbatim, which is how a hand-written `<p>Hello <strong>world</strong>
-</p>` round-trips today. Inline children of a text element should
-become fragments rather than elements. That is importer work against an
-existing capability, not a model change.
+**Scamp already had the mechanism and the importer was not using it.**
+`inlineFragments` on a text element holds exactly this: loose text and
+inline markup, kept in source order and emitted verbatim, which is how
+a hand-written `<p>Hello <strong>world</strong></p>` round-trips today.
+
+Done, and it was the largest single win of the work:
+
+| | before | after |
+|---|---|---|
+| `scamp.club` | 88% | **100%** |
+| `resovaiq.com` | 91% | **95%** |
+
+The capture now records ordered inline content for a text-bearing tag
+whose element children are all inline, and the reducer maps it onto
+`text` + fragments — a leading text run becomes the element's `text`
+and the rest become fragments, which is exactly the order the generator
+emits. Elements dropped from 242 to 219 and 521 to 483, so the layers
+panel got shorter as well as the layout more faithful.
+
+A fragment's `source` is JSX-safe markup built by the capture, not the
+page's `outerHTML`: it is emitted byte-for-byte into a `.tsx` file, so
+`class=` would be a React error and page-specific attributes would be
+noise. Only `href`, `target`, `rel`, `datetime`, `title` and `cite`
+survive, on the tags where they mean something.
+
+The trade, reported to the user rather than hidden: inline markup is no
+longer separately selectable on the canvas. A link inside a sentence is
+part of that sentence's text now. That is the correct shape — it is
+what a hand-written view does — but it is a change from the previous
+behaviour of making it its own element.
+
+What is left on `resovaiq.com` is 13 `div`s and 9 table elements.
+Tables Scamp genuinely cannot model and already reports.
 
 The rest is tables (9 on `resovaiq.com`), which Scamp genuinely cannot
 model and which are already reported as `unsupported-display`.

@@ -21,6 +21,9 @@ const summarize = (findings) => {
         // a page, and worth saying out loud.
         'block-to-flex': (n) => `${n} block ${n === 1 ? 'container' : 'containers'} became flex`,
         'restored-auto-margin': (n) => `${n} centred ${n === 1 ? 'container' : 'containers'} re-centred`,
+        // Worth saying: the markup renders, but it is no longer separately
+        // selectable on the canvas — it is part of its paragraph's text.
+        'inline-kept': (n) => `${n} ${n === 1 ? 'run' : 'runs'} of inline markup kept as text, not as elements`,
         'depth-capped': (n) => `${n} ${n === 1 ? 'subtree' : 'subtrees'} too deep to read`,
         'node-capped': () => 'the page was larger than one import',
     };

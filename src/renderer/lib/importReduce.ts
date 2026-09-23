@@ -43,6 +43,7 @@ export type ImportFindingKind =
   | 'collapsed-wrapper'
   | 'dropped-computed-size'
   | 'wrapped-bare-text'
+  | 'inline-kept'
   | 'block-to-flex'
   | 'restored-auto-margin'
   | 'unsupported-display';
@@ -307,6 +308,31 @@ const restoreAutoMargins = (
   return { ...styles, 'margin-left': 'auto', 'margin-right': 'auto' };
 };
 
+/**
+ * A captured inline run as the model's `text` + `inlineFragments`.
+ *
+ * The generator emits a text element as: its `text`, then every
+ * fragment whose `afterChildIndex` is -1, in array order. So a leading
+ * text run becomes `text` and everything after it becomes fragments,
+ * which reproduces the source order exactly.
+ */
+const inlineToFragments = (
+  inline: NonNullable<CapturedNode['inline']>
+): { text: string | null; fragments: RawElement['inlineFragments'] } => {
+  const items = [...inline];
+  let text: string | null = null;
+  if (items[0]?.kind === 'text') {
+    text = items[0].value.trim();
+    items.shift();
+  }
+  const fragments = items.map((item) =>
+    item.kind === 'text'
+      ? ({ kind: 'text' as const, value: item.value, afterChildIndex: -1 })
+      : ({ kind: 'jsx' as const, source: item.source, afterChildIndex: -1 })
+  );
+  return { text, fragments };
+};
+
 /** `styles` as the declaration list `applyDeclarations` expects. */
 const toDeclarations = (styles: Record<string, string>): RawDeclaration[] =>
   Object.entries(styles).map(([prop, value]) => ({ prop, value }));
@@ -404,11 +430,22 @@ export const reduceCapture = (
     const name = isRoot ? null : (NAME_FOR_TAG[node.tag] ?? 'box');
     const className = isRoot ? ROOT_ELEMENT_ID : `${name}_${id}`;
 
+    // Running text with inline markup in it stays one element: the
+    // markup becomes fragments rather than boxes. see `inlineToFragments`
+    const inlineRun = node.inline ? inlineToFragments(node.inline) : null;
+    if (inlineRun !== null) {
+      findings.push({
+        kind: 'inline-kept',
+        at,
+        detail: `${node.inline?.length ?? 0} runs`,
+      });
+    }
+
     // Scamp's rule: words live in a text element, never loose in a
     // container. A node with both text and element children gets the
     // text lifted into a child of its own.
     const hasElementChildren = node.children.length > 0;
-    const needsTextChild = node.text !== null && hasElementChildren;
+    const needsTextChild = inlineRun === null && node.text !== null && hasElementChildren;
 
     const sized = dropComputedSizes(node, parentRect, findings, at);
     // Block flow becomes the flex equivalent BEFORE the declarations are
@@ -440,8 +477,8 @@ export const reduceCapture = (
       className,
       parentId,
       childIds: [],
-      text: needsTextChild ? null : node.text,
-      inlineFragments: [],
+      text: inlineRun !== null ? inlineRun.text : needsTextChild ? null : node.text,
+      inlineFragments: inlineRun !== null ? inlineRun.fragments : [],
       name,
       src: type === 'image' && node.tag === 'img' ? (node.attrs['src'] ?? null) : null,
       alt: type === 'image' && node.tag === 'img' ? (node.attrs['alt'] ?? '') : null,

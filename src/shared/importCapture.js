@@ -34,6 +34,25 @@
 /** Bumped when the payload shape changes, so a stale fixture fails loudly. */
 export const CAPTURE_VERSION = 1;
 /**
+ * Tags that are part of a line rather than a box. Their children stay
+ * inline content; they never become elements of their own inside text.
+ */
+export const INLINE_MARKUP_TAGS = new Set([
+    'strong', 'em', 'b', 'i', 'u', 's', 'small', 'code', 'kbd', 'mark',
+    'sub', 'sup', 'abbr', 'cite', 'q', 'span', 'a', 'br', 'time', 'del', 'ins',
+]);
+/**
+ * Attributes kept on inline markup, by tag. Everything else is dropped:
+ * a fragment carries no class, so an attribute that only made sense
+ * with the page's stylesheet would be noise in the file.
+ */
+export const INLINE_MARKUP_ATTRIBUTES = {
+    a: ['href', 'target', 'rel'],
+    time: ['datetime'],
+    abbr: ['title'],
+    q: ['cite'],
+};
+/**
  * Properties the capture keeps when they differ from the baseline.
  *
  * Deliberately an allowlist, and deliberately NOT the same rule

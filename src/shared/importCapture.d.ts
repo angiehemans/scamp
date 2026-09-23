@@ -67,7 +67,40 @@ export type CapturedNode = {
         w: number;
         h: number;
     };
+    /**
+     * Ordered inline content, set instead of `children` when every
+     * element child is inline markup inside running text.
+     *
+     * `<p>Ship <strong>faster</strong> today</p>` is one paragraph, not a
+     * paragraph containing a box: the `<strong>` sits in the line box and
+     * moves with the words around it. Giving it its own Scamp element
+     * makes it a flex item with its own metrics, which measured as the
+     * single largest remaining source of layout drift — 19 of 30 elements
+     * still off on one page sat inside a text element.
+     *
+     * `source` is JSX-safe markup, not the page's HTML: the generator
+     * emits a fragment byte-for-byte into a `.tsx` file, so `class=` and
+     * unknown attributes cannot come along for the ride.
+     */
+    inline?: Array<{
+        kind: 'text';
+        value: string;
+    } | {
+        kind: 'markup';
+        source: string;
+    }>;
 };
+/**
+ * Tags that are part of a line rather than a box. Their children stay
+ * inline content; they never become elements of their own inside text.
+ */
+export declare const INLINE_MARKUP_TAGS: ReadonlySet<string>;
+/**
+ * Attributes kept on inline markup, by tag. Everything else is dropped:
+ * a fragment carries no class, so an attribute that only made sense
+ * with the page's stylesheet would be noise in the file.
+ */
+export declare const INLINE_MARKUP_ATTRIBUTES: Readonly<Record<string, ReadonlyArray<string>>>;
 export type CapturedAsset = {
     /** Absolute URL, resolved against the page. */
     url: string;

@@ -10,6 +10,8 @@ import {
   INHERITED_PROPERTIES,
   INITIAL_VALUES,
   CONDITIONAL_PROPERTIES,
+  INLINE_MARKUP_ATTRIBUTES,
+  INLINE_MARKUP_TAGS,
   KEPT_ATTRIBUTES,
   SKIPPED_TAGS,
   type CapturePayload,
@@ -37,6 +39,10 @@ export type CapturePolicy = {
   initial: Readonly<Record<string, string | ReadonlyArray<string>>>;
   inherited: ReadonlyArray<string>;
   conditional: Readonly<Record<string, string | null>>;
+  inlineTags: ReadonlyArray<string>;
+  inlineAttrs: Readonly<Record<string, ReadonlyArray<string>>>;
+  /** Tags whose content is running text, so inline children stay inline. */
+  textTags: ReadonlyArray<string>;
   keptAttrs: ReadonlyArray<string>;
   skippedTags: ReadonlyArray<string>;
   limits: { maxDepth: number; maxNodes: number; maxTextLength: number };
@@ -59,6 +65,13 @@ export const capturePolicy = (): CapturePolicy => ({
   initial: { ...INITIAL_VALUES },
   inherited: [...INHERITED_PROPERTIES],
   conditional: { ...CONDITIONAL_PROPERTIES },
+  inlineTags: [...INLINE_MARKUP_TAGS],
+  inlineAttrs: { ...INLINE_MARKUP_ATTRIBUTES },
+  textTags: [
+    'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'label', 'blockquote',
+    'figcaption', 'legend', 'dt', 'dd', 'caption', 'th', 'td', 'a', 'span',
+    'strong', 'em', 'small', 'button',
+  ],
   keptAttrs: [...KEPT_ATTRIBUTES],
   skippedTags: [...SKIPPED_TAGS],
   limits: { ...CAPTURE_LIMITS },
@@ -79,6 +92,8 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
   const inherited = new Set(policy.inherited);
   const keptAttrs = new Set(policy.keptAttrs);
   const skipped = new Set(policy.skippedTags);
+  const inlineTags = new Set(policy.inlineTags);
+  const textTags = new Set(policy.textTags);
   const { maxDepth, maxNodes, maxTextLength } = policy.limits;
 
   type Note = { kind: string; at?: string; detail?: string };
@@ -108,6 +123,73 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     } catch {
       return null;
     }
+  };
+
+  const escapeText = (raw: string): string =>
+    raw.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;');
+
+  /**
+   * One inline element as JSX-safe markup.
+   *
+   * Not `outerHTML`: a fragment is emitted verbatim into a `.tsx` file,
+   * so `class=` would be a React error and page-specific attributes
+   * would be noise. Only the attributes that carry meaning survive.
+   */
+  const inlineSource = (el: Element, depth: number): string => {
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'br') return '<br />';
+    if (depth > 4) return escapeText(el.textContent ?? '');
+    const allowed = policy.inlineAttrs[tag] ?? [];
+    const attrs: string[] = [];
+    for (const name of allowed) {
+      const value = el.getAttribute(name);
+      if (value === null) continue;
+      const resolved =
+        name === 'href'
+          ? (() => {
+              try {
+                return new URL(value, document.baseURI).href;
+              } catch {
+                return value;
+              }
+            })()
+          : value;
+      attrs.push(` ${name}="${resolved.replace(/"/g, '&quot;')}"`);
+    }
+    let inner = '';
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === 3) {
+        inner += escapeText(child.textContent ?? '');
+      } else if (child.nodeType === 1) {
+        const childEl = child as Element;
+        inner += inlineTags.has(childEl.tagName.toLowerCase())
+          ? inlineSource(childEl, depth + 1)
+          : escapeText(childEl.textContent ?? '');
+      }
+    }
+    return `<${tag}${attrs.join('')}>${inner}</${tag}>`;
+  };
+
+  /**
+   * Running text with inline markup in it, in source order — or null
+   * when this node is not that shape.
+   */
+  const inlineContentOf = (el: Element): unknown[] | null => {
+    const tag = el.tagName.toLowerCase();
+    if (!textTags.has(tag)) return null;
+    const kids = Array.from(el.children);
+    if (kids.length === 0) return null;
+    if (!kids.every((k) => inlineTags.has(k.tagName.toLowerCase()))) return null;
+    const out: unknown[] = [];
+    for (const child of Array.from(el.childNodes)) {
+      if (child.nodeType === 3) {
+        const value = (child.textContent ?? '').replace(/\s+/g, ' ');
+        if (value.trim().length > 0) out.push({ kind: 'text', value });
+      } else if (child.nodeType === 1) {
+        out.push({ kind: 'markup', source: inlineSource(child as Element, 0) });
+      }
+    }
+    return out.length > 0 ? out : null;
   };
 
   const visit = (el: Element, parentStyle: CSSStyleDeclaration | null, depth: number): unknown => {
@@ -199,8 +281,13 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       .trim();
     if (ownText) text = ownText.slice(0, maxTextLength);
 
+    const inline = inlineContentOf(el);
     const children: unknown[] = [];
-    if (depth >= maxDepth) {
+    if (inline !== null) {
+      // Its children ARE its content; walking them would make boxes of
+      // words. `text` stays null — the ordered run carries everything.
+      text = null;
+    } else if (depth >= maxDepth) {
       if (el.children.length > 0) {
         notes.push({ kind: 'depth-capped', at: pathOf(el), detail: String(maxDepth) });
       }
@@ -214,6 +301,7 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     }
 
     const built: Record<string, unknown> = { id, tag, styles, text, attrs, children, notes };
+    if (inline !== null) built['inline'] = inline;
     if (policy.includeRects) {
       const box = el.getBoundingClientRect();
       built['rect'] = {

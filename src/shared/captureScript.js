@@ -2,13 +2,20 @@
 // The DOM lib is pulled in for this file alone: `src/shared` is compiled
 // by the node project too, where `document` and `Element` are rightly
 // absent. This is the one shared module that runs in a page.
-import { CAPTURED_PROPERTIES, CAPTURE_LIMITS, CAPTURE_VERSION, INHERITED_PROPERTIES, INITIAL_VALUES, CONDITIONAL_PROPERTIES, KEPT_ATTRIBUTES, SKIPPED_TAGS, } from './importCapture';
+import { CAPTURED_PROPERTIES, CAPTURE_LIMITS, CAPTURE_VERSION, INHERITED_PROPERTIES, INITIAL_VALUES, CONDITIONAL_PROPERTIES, INLINE_MARKUP_ATTRIBUTES, INLINE_MARKUP_TAGS, KEPT_ATTRIBUTES, SKIPPED_TAGS, } from './importCapture';
 /** The policy as the page receives it: plain arrays, JSON-safe. */
 export const capturePolicy = () => ({
     properties: [...CAPTURED_PROPERTIES],
     initial: { ...INITIAL_VALUES },
     inherited: [...INHERITED_PROPERTIES],
     conditional: { ...CONDITIONAL_PROPERTIES },
+    inlineTags: [...INLINE_MARKUP_TAGS],
+    inlineAttrs: { ...INLINE_MARKUP_ATTRIBUTES },
+    textTags: [
+        'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'label', 'blockquote',
+        'figcaption', 'legend', 'dt', 'dd', 'caption', 'th', 'td', 'a', 'span',
+        'strong', 'em', 'small', 'button',
+    ],
     keptAttrs: [...KEPT_ATTRIBUTES],
     skippedTags: [...SKIPPED_TAGS],
     limits: { ...CAPTURE_LIMITS },
@@ -28,6 +35,8 @@ export const captureFn = (policy) => {
     const inherited = new Set(policy.inherited);
     const keptAttrs = new Set(policy.keptAttrs);
     const skipped = new Set(policy.skippedTags);
+    const inlineTags = new Set(policy.inlineTags);
+    const textTags = new Set(policy.textTags);
     const { maxDepth, maxNodes, maxTextLength } = policy.limits;
     const pageNotes = [];
     const assets = [];
@@ -55,6 +64,78 @@ export const captureFn = (policy) => {
         catch {
             return null;
         }
+    };
+    const escapeText = (raw) => raw.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\{/g, '&#123;').replace(/\}/g, '&#125;');
+    /**
+     * One inline element as JSX-safe markup.
+     *
+     * Not `outerHTML`: a fragment is emitted verbatim into a `.tsx` file,
+     * so `class=` would be a React error and page-specific attributes
+     * would be noise. Only the attributes that carry meaning survive.
+     */
+    const inlineSource = (el, depth) => {
+        const tag = el.tagName.toLowerCase();
+        if (tag === 'br')
+            return '<br />';
+        if (depth > 4)
+            return escapeText(el.textContent ?? '');
+        const allowed = policy.inlineAttrs[tag] ?? [];
+        const attrs = [];
+        for (const name of allowed) {
+            const value = el.getAttribute(name);
+            if (value === null)
+                continue;
+            const resolved = name === 'href'
+                ? (() => {
+                    try {
+                        return new URL(value, document.baseURI).href;
+                    }
+                    catch {
+                        return value;
+                    }
+                })()
+                : value;
+            attrs.push(` ${name}="${resolved.replace(/"/g, '&quot;')}"`);
+        }
+        let inner = '';
+        for (const child of Array.from(el.childNodes)) {
+            if (child.nodeType === 3) {
+                inner += escapeText(child.textContent ?? '');
+            }
+            else if (child.nodeType === 1) {
+                const childEl = child;
+                inner += inlineTags.has(childEl.tagName.toLowerCase())
+                    ? inlineSource(childEl, depth + 1)
+                    : escapeText(childEl.textContent ?? '');
+            }
+        }
+        return `<${tag}${attrs.join('')}>${inner}</${tag}>`;
+    };
+    /**
+     * Running text with inline markup in it, in source order — or null
+     * when this node is not that shape.
+     */
+    const inlineContentOf = (el) => {
+        const tag = el.tagName.toLowerCase();
+        if (!textTags.has(tag))
+            return null;
+        const kids = Array.from(el.children);
+        if (kids.length === 0)
+            return null;
+        if (!kids.every((k) => inlineTags.has(k.tagName.toLowerCase())))
+            return null;
+        const out = [];
+        for (const child of Array.from(el.childNodes)) {
+            if (child.nodeType === 3) {
+                const value = (child.textContent ?? '').replace(/\s+/g, ' ');
+                if (value.trim().length > 0)
+                    out.push({ kind: 'text', value });
+            }
+            else if (child.nodeType === 1) {
+                out.push({ kind: 'markup', source: inlineSource(child, 0) });
+            }
+        }
+        return out.length > 0 ? out : null;
     };
     const visit = (el, parentStyle, depth) => {
         const tag = el.tagName.toLowerCase();
@@ -152,8 +233,14 @@ export const captureFn = (policy) => {
             .trim();
         if (ownText)
             text = ownText.slice(0, maxTextLength);
+        const inline = inlineContentOf(el);
         const children = [];
-        if (depth >= maxDepth) {
+        if (inline !== null) {
+            // Its children ARE its content; walking them would make boxes of
+            // words. `text` stays null — the ordered run carries everything.
+            text = null;
+        }
+        else if (depth >= maxDepth) {
             if (el.children.length > 0) {
                 notes.push({ kind: 'depth-capped', at: pathOf(el), detail: String(maxDepth) });
             }
@@ -168,6 +255,8 @@ export const captureFn = (policy) => {
             }
         }
         const built = { id, tag, styles, text, attrs, children, notes };
+        if (inline !== null)
+            built['inline'] = inline;
         if (policy.includeRects) {
             const box = el.getBoundingClientRect();
             built['rect'] = {

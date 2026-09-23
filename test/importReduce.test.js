@@ -4,6 +4,7 @@ import { CAPTURE_VERSION } from '@shared/importCapture';
 import { generateCode } from '@lib/generateCode';
 import { parseCode } from '@lib/parseCode';
 import { reduceCapture, viewNameFromTitle } from '@lib/importReduce';
+import { ROOT_ELEMENT_ID } from '@lib/element';
 /**
  * The reducer: a captured page in, an element tree out.
  *
@@ -192,6 +193,63 @@ describe('reduceCapture — text', () => {
         expect(texts.map((t) => t.text).sort()).toEqual(['Child', 'Loose words']);
         expect(kinds(node({ children: [node({ tag: 'div', text: 'Loose', children: [node({ tag: 'p', text: 'c' })] })] })))
             .toContain('wrapped-bare-text');
+    });
+});
+describe('reduceCapture — inline content stays inline', () => {
+    const para = (inline) => node({
+        children: [
+            node({ tag: 'p', rect: { x: 0, y: 0, w: 400, h: 20 }, inline, text: null }),
+        ],
+    });
+    it('keeps a leading text run as the element\'s own text', () => {
+        const result = reduce(para([
+            { kind: 'text', value: 'Ship ' },
+            { kind: 'markup', source: '<strong>faster</strong>' },
+        ]));
+        const p = Object.values(result.elements).find((e) => e.type === 'text');
+        expect(p?.text).toBe('Ship');
+    });
+    it('turns the markup into fragments rather than elements', () => {
+        const result = reduce(para([
+            { kind: 'text', value: 'Ship ' },
+            { kind: 'markup', source: '<strong>faster</strong>' },
+            { kind: 'text', value: ' today' },
+        ]));
+        // One paragraph, not a paragraph plus a box for the <strong>.
+        expect(Object.keys(result.elements)).toHaveLength(2);
+        const p = Object.values(result.elements).find((e) => e.type === 'text');
+        expect(p?.inlineFragments).toEqual([
+            { kind: 'jsx', source: '<strong>faster</strong>', afterChildIndex: -1 },
+            { kind: 'text', value: ' today', afterChildIndex: -1 },
+        ]);
+    });
+    it('handles a run that opens with markup, leaving text null', () => {
+        const result = reduce(para([
+            { kind: 'markup', source: '<em>New</em>' },
+            { kind: 'text', value: ' in beta' },
+        ]));
+        const p = Object.values(result.elements).find((e) => e.type === 'text');
+        expect(p?.text).toBeUndefined();
+        expect(p?.inlineFragments).toHaveLength(2);
+    });
+    it('reports it, because the markup is no longer selectable on canvas', () => {
+        expect(kinds(para([{ kind: 'markup', source: '<b>x</b>' }]))).toContain('inline-kept');
+    });
+    it('emits fragments as JSX that parses back to the same tree', () => {
+        const elements = reduce(para([
+            { kind: 'text', value: 'Read the ' },
+            { kind: 'markup', source: '<a href="/docs">docs</a>' },
+        ])).elements;
+        const out = generateCode({
+            elements,
+            rootId: ROOT_ELEMENT_ID,
+            pageName: 'M',
+            cssModuleImportName: 'M',
+            isComponent: true,
+        });
+        expect(out.tsx).toContain('<a href="/docs">docs</a>');
+        const back = parseCode(out.tsx, out.css, { isComponent: true });
+        expect(Object.keys(back.elements)).toHaveLength(Object.keys(elements).length);
     });
 });
 describe('reduceCapture — reporting', () => {

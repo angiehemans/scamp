@@ -20,6 +20,10 @@ export type CapturePolicy = {
     initial: Readonly<Record<string, string | ReadonlyArray<string>>>;
     inherited: ReadonlyArray<string>;
     conditional: Readonly<Record<string, string | null>>;
+    inlineTags: ReadonlyArray<string>;
+    inlineAttrs: Readonly<Record<string, ReadonlyArray<string>>>;
+    /** Tags whose content is running text, so inline children stay inline. */
+    textTags: ReadonlyArray<string>;
     keptAttrs: ReadonlyArray<string>;
     skippedTags: ReadonlyArray<string>;
     limits: {

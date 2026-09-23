@@ -124,32 +124,14 @@
                             },
                             "text": null,
                             "attrs": {},
-                            "children": [
+                            "children": [],
+                            "notes": [],
+                            "inline": [
                               {
-                                "id": 8,
-                                "tag": "a",
-                                "styles": {
-                                  "display": "inline",
-                                  "width": "auto",
-                                  "height": "auto",
-                                  "color": "rgb(74, 80, 89)",
-                                  "font-size": "14px"
-                                },
-                                "text": "Product",
-                                "attrs": {
-                                  "href": "file:///product"
-                                },
-                                "children": [],
-                                "notes": [],
-                                "rect": {
-                                  "x": 1230.92,
-                                  "y": 19,
-                                  "w": 51.48,
-                                  "h": 19
-                                }
+                                "kind": "markup",
+                                "source": "<a href=\"file:///product\">Product</a>"
                               }
                             ],
-                            "notes": [],
                             "rect": {
                               "x": 1230.92,
                               "y": 17,
@@ -158,7 +140,7 @@
                             }
                           },
                           {
-                            "id": 9,
+                            "id": 8,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -167,32 +149,14 @@
                             },
                             "text": null,
                             "attrs": {},
-                            "children": [
+                            "children": [],
+                            "notes": [],
+                            "inline": [
                               {
-                                "id": 10,
-                                "tag": "a",
-                                "styles": {
-                                  "display": "inline",
-                                  "width": "auto",
-                                  "height": "auto",
-                                  "color": "rgb(74, 80, 89)",
-                                  "font-size": "14px"
-                                },
-                                "text": "Pricing",
-                                "attrs": {
-                                  "href": "file:///pricing"
-                                },
-                                "children": [],
-                                "notes": [],
-                                "rect": {
-                                  "x": 1306.41,
-                                  "y": 19,
-                                  "w": 45.47,
-                                  "h": 19
-                                }
+                                "kind": "markup",
+                                "source": "<a href=\"file:///pricing\">Pricing</a>"
                               }
                             ],
-                            "notes": [],
                             "rect": {
                               "x": 1306.41,
                               "y": 17,
@@ -201,7 +165,7 @@
                             }
                           },
                           {
-                            "id": 11,
+                            "id": 9,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -210,32 +174,14 @@
                             },
                             "text": null,
                             "attrs": {},
-                            "children": [
+                            "children": [],
+                            "notes": [],
+                            "inline": [
                               {
-                                "id": 12,
-                                "tag": "a",
-                                "styles": {
-                                  "display": "inline",
-                                  "width": "auto",
-                                  "height": "auto",
-                                  "color": "rgb(74, 80, 89)",
-                                  "font-size": "14px"
-                                },
-                                "text": "Docs",
-                                "attrs": {
-                                  "href": "file:///docs"
-                                },
-                                "children": [],
-                                "notes": [],
-                                "rect": {
-                                  "x": 1375.88,
-                                  "y": 19,
-                                  "w": 32.13,
-                                  "h": 19
-                                }
+                                "kind": "markup",
+                                "source": "<a href=\"file:///docs\">Docs</a>"
                               }
                             ],
-                            "notes": [],
                             "rect": {
                               "x": 1375.88,
                               "y": 17,
@@ -280,7 +226,7 @@
             }
           },
           {
-            "id": 13,
+            "id": 10,
             "tag": "header",
             "styles": {
               "display": "flex",
@@ -301,7 +247,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 14,
+                "id": 11,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -328,7 +274,7 @@
                 }
               },
               {
-                "id": 15,
+                "id": 12,
                 "tag": "h1",
                 "styles": {
                   "display": "block",
@@ -353,7 +299,7 @@
                 }
               },
               {
-                "id": 16,
+                "id": 13,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -377,7 +323,7 @@
                 }
               },
               {
-                "id": 17,
+                "id": 14,
                 "tag": "div",
                 "styles": {
                   "display": "flex",
@@ -391,7 +337,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 18,
+                    "id": 15,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -436,7 +382,7 @@
                     }
                   },
                   {
-                    "id": 19,
+                    "id": 16,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -489,7 +435,7 @@
                 }
               },
               {
-                "id": 20,
+                "id": 17,
                 "tag": "span",
                 "styles": {
                   "display": "flex",
@@ -526,7 +472,7 @@
             }
           },
           {
-            "id": 21,
+            "id": 18,
             "tag": "section",
             "styles": {
               "display": "flex",
@@ -544,7 +490,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 22,
+                "id": 19,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -582,7 +528,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 23,
+                    "id": 20,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -610,7 +556,7 @@
                     }
                   },
                   {
-                    "id": 24,
+                    "id": 21,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -631,7 +577,7 @@
                     }
                   },
                   {
-                    "id": 25,
+                    "id": 22,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -662,7 +608,7 @@
                 }
               },
               {
-                "id": 26,
+                "id": 23,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -700,7 +646,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 27,
+                    "id": 24,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -728,7 +674,7 @@
                     }
                   },
                   {
-                    "id": 28,
+                    "id": 25,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -749,7 +695,7 @@
                     }
                   },
                   {
-                    "id": 29,
+                    "id": 26,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -780,7 +726,7 @@
                 }
               },
               {
-                "id": 30,
+                "id": 27,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -818,7 +764,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 31,
+                    "id": 28,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -846,7 +792,7 @@
                     }
                   },
                   {
-                    "id": 32,
+                    "id": 29,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -867,7 +813,7 @@
                     }
                   },
                   {
-                    "id": 33,
+                    "id": 30,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -907,7 +853,7 @@
             }
           },
           {
-            "id": 34,
+            "id": 31,
             "tag": "footer",
             "styles": {
               "display": "block",
@@ -956,17 +902,17 @@
     {
       "url": "file:///home/angie-hemans/Documents/github/scamp/test/fixtures/import/pages/shot-sync.png",
       "kind": "image",
-      "fromNodeId": 23
+      "fromNodeId": 20
     },
     {
       "url": "file:///home/angie-hemans/Documents/github/scamp/test/fixtures/import/pages/shot-tokens.png",
       "kind": "image",
-      "fromNodeId": 27
+      "fromNodeId": 24
     },
     {
       "url": "file:///home/angie-hemans/Documents/github/scamp/test/fixtures/import/pages/shot-agents.png",
       "kind": "image",
-      "fromNodeId": 31
+      "fromNodeId": 28
     }
   ],
   "notes": []
