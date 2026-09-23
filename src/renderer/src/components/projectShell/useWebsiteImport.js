@@ -3,6 +3,8 @@ import { errorMessage } from '@shared/errorMessage';
 import { viewSlugFor } from '@shared/templates';
 import { generateCode } from '@lib/generateCode';
 import { reduceCapture } from '@lib/importReduce';
+import { extractTokens } from '@lib/importTokens';
+import { parseThemeFile, serializeThemeFile } from '@lib/parseTheme';
 import { useAppLogStore } from '@store/appLogSlice';
 /** One line per finding, collapsed by kind so a report reads at a glance. */
 const summarize = (findings) => {
@@ -67,7 +69,45 @@ export const useWebsiteImport = ({ project, onProjectChange, openView, }) => {
                     return;
                 }
                 try {
-                    const result = reduceCapture(payload);
+                    const reduced = reduceCapture(payload);
+                    // Lift repeated colours into theme tokens before generating,
+                    // so the view references `var(--color-accent)` rather than the
+                    // same literal forty times. Without this an import is a
+                    // snapshot: correct, and unchangeable from the theme panel.
+                    const themeCss = await window.scamp.readTheme({ projectPath: project.path });
+                    const parsedTheme = parseThemeFile(themeCss);
+                    const existing = new Set(parsedTheme.tokens.map((t) => t.name));
+                    const { tokens, elements } = extractTokens(reduced.elements);
+                    // A name the project already uses means something else here;
+                    // suffix rather than redefine someone's token.
+                    const renamed = tokens.map((t) => existing.has(t.name) ? { ...t, name: `${t.name}-imported` } : t);
+                    const byOld = new Map(tokens.map((t, i) => [t.name, renamed[i]?.name ?? t.name]));
+                    const themed = Object.fromEntries(Object.entries(elements).map(([id, el]) => {
+                        let next = el;
+                        for (const field of ['color', 'backgroundColor', 'borderColor']) {
+                            const value = next[field];
+                            if (typeof value !== 'string' || !value.startsWith('var('))
+                                continue;
+                            const name = value.slice(4, -1);
+                            const mapped = byOld.get(name);
+                            if (mapped && mapped !== name)
+                                next = { ...next, [field]: `var(${mapped})` };
+                        }
+                        return [id, next];
+                    }));
+                    const result = { ...reduced, elements: themed };
+                    if (renamed.length > 0) {
+                        await window.scamp.writeTheme({
+                            projectPath: project.path,
+                            content: serializeThemeFile({
+                                ...parsedTheme,
+                                tokens: [
+                                    ...parsedTheme.tokens,
+                                    ...renamed.map((t) => ({ name: t.name, value: t.value })),
+                                ],
+                            }, themeCss),
+                        });
+                    }
                     const taken = new Set([
                         ...project.components.map((c) => c.name),
                         ...project.pages.map((p) => p.name),
@@ -103,13 +143,19 @@ export const useWebsiteImport = ({ project, onProjectChange, openView, }) => {
                     const findings = summarize(result.findings);
                     log('info', `Imported ${name} from ${payload.url} — ` +
                         `${Object.keys(result.elements).length} elements` +
+                        (renamed.length > 0 ? `, ${renamed.length} colour tokens` : '') +
                         (findings.length > 0 ? `. Not carried across: ${findings.join(', ')}.` : '.'));
                     report({
                         projectPath,
                         ok: true,
                         viewName: name,
                         elementCount: Object.keys(result.elements).length,
-                        findings,
+                        findings: [
+                            ...(renamed.length > 0
+                                ? [`${renamed.length} repeated colours lifted into theme tokens`]
+                                : []),
+                            ...findings,
+                        ],
                     });
                 }
                 catch (err) {

@@ -392,13 +392,44 @@ tags and its three images, the styles are in the module rather than
 inline, and the report names the decorative `::before` it could not
 bring across. A second import of the same page creates `…2`.
 
-### Phase 3 — Assets and tokens.
+### Phase 3 — Assets and tokens. **(tokens landed)**
 
 Images downloaded through `copyImage`. Repeated colours and spacing
 lifted into `design/theme.css` as tokens, with module CSS referencing
 them. Fonts detected and offered.
 
 Deliverable: an import whose colours change from the theme panel.
+
+**Tokens, done.** `lib/importTokens.ts` is pure and tallies every
+colour that is actually in effect, names the ones used more than once,
+and rewrites the elements to reference them; the import then merges
+them into `design/theme.css`. An imported view references
+`var(--color-accent)` rather than the same literal forty times, which
+is the difference between a design and a snapshot.
+
+Three decisions worth keeping:
+
+- **Named by role, not by hue.** `--color-text` says what it is for;
+  `--color-slate-700` says what it looks like, which stops being true
+  the moment someone changes it. The most-used colour in a role takes
+  that role's name.
+- **The accent is claimed before the background.** A strongly saturated
+  colour on two elements is a button, not the ground the page sits on —
+  and `--color-background` is the first thing someone would try to
+  change. Only above 0.35 saturation, so a grey never becomes an accent.
+- **In effect, not merely present.** The model gives every element a
+  `borderColor` of `#000000` whether or not it has a border, so counting
+  the field blindly named black the most popular colour on every page
+  ever imported. Same class of mistake as the computed-style filtering
+  in phase 1, and it showed up the same way: a value that is there
+  without being a decision.
+
+A token name the project already uses is suffixed rather than
+redefined — someone's `--color-accent` means what they said it means.
+
+Still open in this phase: **images are still remote URLs**, and fonts
+are neither detected nor offered. `copyImage` already downloads,
+converts and dedupes; it needs a URL source rather than a local path.
 
 ### Phase 4 — Fidelity and the report.
 

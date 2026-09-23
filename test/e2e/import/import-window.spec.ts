@@ -72,6 +72,34 @@ test.describe('website import', () => {
     expect(tsx).not.toContain('style=');
   });
 
+  test('lifts repeated colours into theme tokens the panel can change', async ({
+    app,
+    window,
+    project,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await openPagesSection(window);
+
+    const opened = app.waitForEvent('window');
+    await window.getByRole('button', { name: /Import a page/ }).click();
+    const importWindow = await opened;
+    await importWindow.waitForLoadState('domcontentloaded');
+    await importWindow.getByLabel('Address').fill(FIXTURE_URL);
+    await importWindow.getByLabel('Address').press('Enter');
+    const btn = importWindow.getByRole('button', { name: 'Import', exact: true });
+    await expect(btn).toBeEnabled();
+    await btn.click();
+    await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 20_000 });
+
+    // The point of the tokens: the view references them, so changing one
+    // in the theme panel changes the design.
+    await expect
+      .poll(async () => project.readTheme(), { timeout: 15_000 })
+      .toMatch(/--color-(text|background|accent|border|\d)/);
+    const { css } = await project.readView('NorthwindShipFaster');
+    expect(css).toMatch(/var\(--color-/);
+  });
+
   test('refuses to overwrite an import that is already there', async ({
     app,
     window,
