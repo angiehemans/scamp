@@ -472,7 +472,7 @@ The weight range `300;400;500;600;700;800` is requested rather than the
 default, because a page with a bold heading and a light caption needs
 both and the default would flatten them.
 
-### Phase 4 — Fidelity and the report.
+### Phase 4 — Fidelity and the report. **(landed)**
 
 Re-capture at each breakpoint width and emit the overrides. The import
 report: what was collapsed, what landed in `customProperties`, which
@@ -480,6 +480,44 @@ pseudo-elements were dropped, which assets failed.
 
 Deliverable: an import you can trust, because it tells you where it
 lied.
+
+**The report.** Findings are grouped by kind, counted, given a few
+locations, and — the part that makes it readable — split into LOSSES
+and TRANSLATIONS. Turning a block container into a flex column changes
+the file and changes nothing you can see; dropping an icon loses an
+icon. Losses sort first, so one dropped `::before` is not buried under
+two hundred collapsed wrappers. The import window opens the report
+automatically when anything was lost, and leaves it folded when nothing
+was.
+
+Every label is written for someone who did not read the code: "3
+decorative ::before/::after elements dropped — icons, dividers,
+counters", not "pseudo-element: 3". A finding kind nobody described
+still gets a line rather than being silently dropped.
+
+**Breakpoints.** The importer re-reads the page at each of the
+project's narrower widths and folds the differences in as breakpoint
+overrides, so an imported view is responsive rather than correct at one
+size.
+
+Two things this required:
+
+- **A structural path on every captured node** (`div>nav:0>ul:1`).
+  Node ids are walk order, which is useless across captures — a mobile
+  menu appearing shifts every id after it. A path holds as long as the
+  structure does, and when the structure genuinely differs the path
+  simply does not match, which is the right answer: an element that
+  exists at only one width has no override to give. Those are counted
+  and reported, because Scamp has no way to say "hidden below 768px".
+- **`flex: none` alongside the width when resizing the webview.** The
+  guest viewport follows the element's size, which is what makes the
+  page's own media queries fire — but the webview is a flex item with
+  `flex: 1 1 auto`, so grow beat the width and the page never actually
+  narrowed. It failed silently: two captures arrived, identical to the
+  base, and produced no overrides.
+
+A width that fails to capture costs one breakpoint's overrides, not the
+import. The base capture never depends on the narrow ones.
 
 ## What this will not do
 

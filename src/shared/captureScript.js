@@ -162,7 +162,7 @@ export const captureFn = (policy) => {
         }
         return out.length > 0 ? out : null;
     };
-    const visit = (el, parentStyle, depth) => {
+    const visit = (el, parentStyle, depth, path) => {
         const tag = el.tagName.toLowerCase();
         if (skipped.has(tag))
             return null;
@@ -298,15 +298,18 @@ export const captureFn = (policy) => {
         else if (tag !== 'svg') {
             // An svg's internals are its own language; the element is kept,
             // its children are not walked.
-            for (const child of Array.from(el.children)) {
-                const built = visit(child, computed, depth + 1);
+            const siblings = Array.from(el.children);
+            siblings.forEach((child, index) => {
+                const childPath = `${path}>${child.tagName.toLowerCase()}:${index}`;
+                const built = visit(child, computed, depth + 1, childPath);
                 if (built)
                     children.push(built);
-            }
+            });
         }
         const built = { id, tag, styles, text, attrs, children, notes };
         if (svgSource !== null)
             built['svgSource'] = svgSource;
+        built['path'] = path;
         if (inline !== null)
             built['inline'] = inline;
         if (policy.includeRects) {
@@ -321,7 +324,7 @@ export const captureFn = (policy) => {
         return built;
     };
     const rootEl = document.body;
-    const root = visit(rootEl, null, 0);
+    const root = visit(rootEl, null, 0, 'body');
     if (nodeBudget <= 0) {
         pageNotes.push({ kind: 'node-capped', detail: String(maxNodes) });
     }

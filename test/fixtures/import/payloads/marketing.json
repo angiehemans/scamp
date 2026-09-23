@@ -92,6 +92,7 @@
                         "attrs": {},
                         "children": [],
                         "notes": [],
+                        "path": "body>div:0>div:0>div:0>nav:0>span:0",
                         "rect": {
                           "x": 32,
                           "y": 16,
@@ -126,6 +127,7 @@
                             "attrs": {},
                             "children": [],
                             "notes": [],
+                            "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:0",
                             "inline": [
                               {
                                 "kind": "markup",
@@ -151,6 +153,7 @@
                             "attrs": {},
                             "children": [],
                             "notes": [],
+                            "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:1",
                             "inline": [
                               {
                                 "kind": "markup",
@@ -176,6 +179,7 @@
                             "attrs": {},
                             "children": [],
                             "notes": [],
+                            "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:2",
                             "inline": [
                               {
                                 "kind": "markup",
@@ -191,6 +195,7 @@
                           }
                         ],
                         "notes": [],
+                        "path": "body>div:0>div:0>div:0>nav:0>ul:1",
                         "rect": {
                           "x": 1230.92,
                           "y": 17,
@@ -200,6 +205,7 @@
                       }
                     ],
                     "notes": [],
+                    "path": "body>div:0>div:0>div:0>nav:0",
                     "rect": {
                       "x": 0,
                       "y": 0,
@@ -209,6 +215,7 @@
                   }
                 ],
                 "notes": [],
+                "path": "body>div:0>div:0>div:0",
                 "rect": {
                   "x": 0,
                   "y": 0,
@@ -218,6 +225,7 @@
               }
             ],
             "notes": [],
+            "path": "body>div:0>div:0",
             "rect": {
               "x": 0,
               "y": 0,
@@ -266,6 +274,7 @@
                 "attrs": {},
                 "children": [],
                 "notes": [],
+                "path": "body>div:0>header:2>p:0",
                 "rect": {
                   "x": 604.92,
                   "y": 153,
@@ -291,6 +300,7 @@
                 "attrs": {},
                 "children": [],
                 "notes": [],
+                "path": "body>div:0>header:2>h1:1",
                 "rect": {
                   "x": 463.75,
                   "y": 201.8,
@@ -315,6 +325,7 @@
                 "attrs": {},
                 "children": [],
                 "notes": [],
+                "path": "body>div:0>header:2>p:2",
                 "rect": {
                   "x": 452.31,
                   "y": 339.39,
@@ -374,6 +385,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>header:2>div:3>button:0",
                     "rect": {
                       "x": 568.39,
                       "y": 416.98,
@@ -418,6 +430,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>header:2>div:3>button:1",
                     "rect": {
                       "x": 723.06,
                       "y": 416.98,
@@ -427,6 +440,7 @@
                   }
                 ],
                 "notes": [],
+                "path": "body>div:0>header:2>div:3",
                 "rect": {
                   "x": 568.39,
                   "y": 416.98,
@@ -455,6 +469,7 @@
                     "detail": "\"★\""
                   }
                 ],
+                "path": "body>div:0>header:2>span:4",
                 "rect": {
                   "x": 640.23,
                   "y": 479.98,
@@ -464,6 +479,7 @@
               }
             ],
             "notes": [],
+            "path": "body>div:0>header:2",
             "rect": {
               "x": 0,
               "y": 57,
@@ -548,6 +564,7 @@
                     },
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:0>img:0",
                     "rect": {
                       "x": 57,
                       "y": 682.98,
@@ -569,6 +586,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:0>h3:1",
                     "rect": {
                       "x": 57,
                       "y": 812.98,
@@ -591,6 +609,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:0>p:2",
                     "rect": {
                       "x": 57,
                       "y": 845.98,
@@ -600,6 +619,7 @@
                   }
                 ],
                 "notes": [],
+                "path": "body>div:0>section:3>article:0",
                 "rect": {
                   "x": 32,
                   "y": 657.98,
@@ -666,6 +686,7 @@
                     },
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:1>img:0",
                     "rect": {
                       "x": 523.66,
                       "y": 682.98,
@@ -687,6 +708,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:1>h3:1",
                     "rect": {
                       "x": 523.66,
                       "y": 812.98,
@@ -709,6 +731,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:1>p:2",
                     "rect": {
                       "x": 523.66,
                       "y": 845.98,
@@ -718,6 +741,7 @@
                   }
                 ],
                 "notes": [],
+                "path": "body>div:0>section:3>article:1",
                 "rect": {
                   "x": 498.66,
                   "y": 657.98,
@@ -784,6 +808,7 @@
                     },
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:2>img:0",
                     "rect": {
                       "x": 990.33,
                       "y": 682.98,
@@ -805,6 +830,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:2>h3:1",
                     "rect": {
                       "x": 990.33,
                       "y": 812.98,
@@ -827,6 +853,7 @@
                     "attrs": {},
                     "children": [],
                     "notes": [],
+                    "path": "body>div:0>section:3>article:2>p:2",
                     "rect": {
                       "x": 990.33,
                       "y": 845.98,
@@ -836,6 +863,7 @@
                   }
                 ],
                 "notes": [],
+                "path": "body>div:0>section:3>article:2",
                 "rect": {
                   "x": 965.33,
                   "y": 657.98,
@@ -845,6 +873,7 @@
               }
             ],
             "notes": [],
+            "path": "body>div:0>section:3",
             "rect": {
               "x": 0,
               "y": 593.98,
@@ -873,6 +902,7 @@
             "attrs": {},
             "children": [],
             "notes": [],
+            "path": "body>div:0>footer:4",
             "rect": {
               "x": 0,
               "y": 978.36,
@@ -882,6 +912,7 @@
           }
         ],
         "notes": [],
+        "path": "body>div:0",
         "rect": {
           "x": 0,
           "y": 0,
@@ -891,6 +922,7 @@
       }
     ],
     "notes": [],
+    "path": "body",
     "rect": {
       "x": 0,
       "y": 0,

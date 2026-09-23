@@ -555,6 +555,12 @@ export type ImportOpenArgs = {
     projectPath: string;
     /** Where to start. Omitted for a blank URL bar. */
     url?: string;
+    /**
+     * The project's breakpoints, widest first. The importer re-reads the
+     * page at each narrower width so the view arrives responsive rather
+     * than correct at one size.
+     */
+    breakpoints?: Breakpoint[];
 };
 /** The import window handing a captured page to the app window. */
 export type ImportCapturedArgs = {
@@ -562,6 +568,26 @@ export type ImportCapturedArgs = {
     /** A `CapturePayload`; typed as unknown here so `shared/types` stays
      *  free of the capture contract, which the app window owns. */
     payload: unknown;
+    /**
+     * The same page read at each narrower breakpoint, for the overrides.
+     * Empty when the importer could not take them — a base import must
+     * never depend on these.
+     */
+    narrower?: Array<{
+        breakpointId: string;
+        payload: unknown;
+    }>;
+};
+/** One kind of thing the import changed or dropped. */
+export type ImportReportGroup = {
+    kind: string;
+    /** One sentence, already pluralised for `count`. */
+    label: string;
+    count: number;
+    /** Where, as the capture described it. A few, not all. */
+    examples: string[];
+    /** True when it is a loss rather than a translation. */
+    lost: boolean;
 };
 /** What became of an import, sent back so the import window can say so. */
 export type ImportResultPayload = {
@@ -571,8 +597,14 @@ export type ImportResultPayload = {
     viewName?: string;
     /** How many elements the page reduced to. */
     elementCount?: number;
-    /** One line per thing that didn't come across. */
-    findings?: string[];
+    /**
+     * What the import changed or could not carry, grouped by kind.
+     *
+     * Structured rather than pre-formatted strings: the window shows
+     * counts and a few locations per group, and a flat list of 300 lines
+     * would be unreadable exactly when it matters most.
+     */
+    findings?: ImportReportGroup[];
     error?: string;
 };
 export type PageCreateArgs = {

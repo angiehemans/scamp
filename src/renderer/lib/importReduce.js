@@ -1,6 +1,6 @@
 import { CAPTURE_VERSION, } from '@shared/importCapture';
 import { ROOT_ELEMENT_ID } from './element';
-import { makeBaseline, applyDeclarations } from './parseCode/apply';
+import { makeBaseline, applyDeclarations, applyDeclarationsAsOverride } from './parseCode/apply';
 /**
  * Tags that become a text element. Mirrors `parseCode`'s own list —
  * a text element is one whose content is words rather than layout.
@@ -269,6 +269,89 @@ export const viewNameFromTitle = (title) => {
         .join('');
     return /^[0-9]/.test(name) ? `Imported${name}` : name;
 };
+/**
+ * Fold captures taken at narrower widths into breakpoint overrides.
+ *
+ * Pure, and separate from `reduceCapture` on purpose: a base import
+ * must not depend on the narrow captures succeeding, and a page whose
+ * mobile layout is a different DOM should still import its desktop one.
+ *
+ * Elements are matched by structural path, never by id — ids are walk
+ * order, and a mobile menu appearing shifts every one after it. A path
+ * that does not appear at the narrow width means the element is not
+ * there, which is not an override but an absence, and Scamp has no way
+ * to say "gone below 768px". Those are counted and reported rather than
+ * guessed at.
+ * see docs/plans/website-import-plan.md
+ */
+export const applyBreakpointCaptures = (base, narrower) => {
+    let elements = base.elements;
+    const findings = [...base.findings];
+    for (const { breakpointId, payload } of narrower) {
+        const byPath = new Map();
+        const index = (node) => {
+            if (node.path !== undefined)
+                byPath.set(node.path, node);
+            node.children.forEach(index);
+        };
+        index(payload.root);
+        let changed = 0;
+        let absent = 0;
+        const next = { ...elements };
+        for (const [id, element] of Object.entries(elements)) {
+            const path = base.sourcePaths[id];
+            if (path === undefined)
+                continue;
+            const narrow = byPath.get(path);
+            if (narrow === undefined) {
+                absent += 1;
+                continue;
+            }
+            // Only the declarations that actually differ at this width. A
+            // width that merely re-measured is not an override — the same
+            // "computed value is not a decision" rule as the base capture.
+            const declarations = [];
+            for (const [prop, value] of Object.entries(narrow.styles)) {
+                if (prop === 'width' || prop === 'height')
+                    continue;
+                if (baseStyleOf(base, id, prop) === value)
+                    continue;
+                declarations.push({ prop, value });
+            }
+            if (declarations.length === 0)
+                continue;
+            const override = applyDeclarationsAsOverride(declarations);
+            if (Object.keys(override).length === 0)
+                continue;
+            next[id] = {
+                ...element,
+                breakpointOverrides: {
+                    ...(element.breakpointOverrides ?? {}),
+                    [breakpointId]: override,
+                },
+            };
+            changed += 1;
+        }
+        elements = next;
+        if (changed > 0) {
+            findings.push({
+                kind: 'breakpoint-captured',
+                at: breakpointId,
+                detail: `${changed} elements`,
+            });
+        }
+        if (absent > 0) {
+            findings.push({
+                kind: 'breakpoint-absent',
+                at: breakpointId,
+                detail: `${absent} elements`,
+            });
+        }
+    }
+    return { ...base, elements, findings };
+};
+/** The base capture's value for one property on one element. */
+const baseStyleOf = (base, id, prop) => base.baseStyles[id]?.[prop];
 /** Reduce a captured page to an element tree. Pure. */
 export const reduceCapture = (payload, options = {}) => {
     if (payload.version !== CAPTURE_VERSION) {
@@ -294,6 +377,8 @@ export const reduceCapture = (payload, options = {}) => {
     const nextId = options.randomId ?? fallbackId;
     const elements = {};
     const sourceNodes = {};
+    const sourcePaths = {};
+    const baseStyles = {};
     const used = new Set([ROOT_ELEMENT_ID]);
     const build = (node, parentId, path, parentIsLayout, 
     /** How the parent arranges this child: down the page, or across it. */
@@ -437,6 +522,9 @@ export const reduceCapture = (payload, options = {}) => {
         }
         elements[id] = { ...element, ...autoSized, childIds };
         sourceNodes[id] = node.id;
+        if (node.path !== undefined)
+            sourcePaths[id] = node.path;
+        baseStyles[id] = styles;
         return id;
     };
     build(pruned, null, [], false, 'column', null);
@@ -446,5 +534,7 @@ export const reduceCapture = (payload, options = {}) => {
         findings,
         suggestedName: viewNameFromTitle(payload.title),
         sourceNodes,
+        sourcePaths,
+        baseStyles,
     };
 };

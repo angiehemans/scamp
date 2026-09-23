@@ -6,7 +6,7 @@ import {
 } from '@shared/importCapture';
 
 import { ROOT_ELEMENT_ID, type ElementType, type ScampElement } from './element';
-import { makeBaseline, applyDeclarations } from './parseCode/apply';
+import { makeBaseline, applyDeclarations, applyDeclarationsAsOverride } from './parseCode/apply';
 import type { RawDeclaration } from './parseCode/css';
 import type { RawElement } from './parseCode/tsx';
 
@@ -45,6 +45,8 @@ export type ImportFindingKind =
   | 'wrapped-bare-text'
   | 'inline-kept'
   | 'block-to-flex'
+  | 'breakpoint-captured'
+  | 'breakpoint-absent'
   | 'restored-auto-margin'
   | 'unsupported-display';
 
@@ -62,6 +64,14 @@ export type ImportResult = {
   findings: ImportFinding[];
   /** A PascalCase view name derived from the page title. */
   suggestedName: string;
+  /** Element id → its source node's structural path, for breakpoints. */
+  sourcePaths: Record<string, string>;
+  /**
+   * The declarations each element was built from, kept so a narrower
+   * capture can be diffed against what the base actually used rather
+   * than against the model's idea of it.
+   */
+  baseStyles: Record<string, Record<string, string>>;
   /**
    * Element id → the captured node it came from. Recorded rather than
    * inferred: the fidelity harness compares each imported element
@@ -372,6 +382,93 @@ export type ReduceOptions = {
   randomId?: () => string;
 };
 
+/**
+ * Fold captures taken at narrower widths into breakpoint overrides.
+ *
+ * Pure, and separate from `reduceCapture` on purpose: a base import
+ * must not depend on the narrow captures succeeding, and a page whose
+ * mobile layout is a different DOM should still import its desktop one.
+ *
+ * Elements are matched by structural path, never by id — ids are walk
+ * order, and a mobile menu appearing shifts every one after it. A path
+ * that does not appear at the narrow width means the element is not
+ * there, which is not an override but an absence, and Scamp has no way
+ * to say "gone below 768px". Those are counted and reported rather than
+ * guessed at.
+ * see docs/plans/website-import-plan.md
+ */
+export const applyBreakpointCaptures = (
+  base: ImportResult,
+  narrower: ReadonlyArray<{ breakpointId: string; payload: CapturePayload }>
+): ImportResult => {
+  let elements = base.elements;
+  const findings = [...base.findings];
+
+  for (const { breakpointId, payload } of narrower) {
+    const byPath = new Map<string, CapturedNode>();
+    const index = (node: CapturedNode): void => {
+      if (node.path !== undefined) byPath.set(node.path, node);
+      node.children.forEach(index);
+    };
+    index(payload.root);
+
+    let changed = 0;
+    let absent = 0;
+    const next: Record<string, ScampElement> = { ...elements };
+    for (const [id, element] of Object.entries(elements)) {
+      const path = base.sourcePaths[id];
+      if (path === undefined) continue;
+      const narrow = byPath.get(path);
+      if (narrow === undefined) {
+        absent += 1;
+        continue;
+      }
+      // Only the declarations that actually differ at this width. A
+      // width that merely re-measured is not an override — the same
+      // "computed value is not a decision" rule as the base capture.
+      const declarations: RawDeclaration[] = [];
+      for (const [prop, value] of Object.entries(narrow.styles)) {
+        if (prop === 'width' || prop === 'height') continue;
+        if (baseStyleOf(base, id, prop) === value) continue;
+        declarations.push({ prop, value });
+      }
+      if (declarations.length === 0) continue;
+
+      const override = applyDeclarationsAsOverride(declarations);
+      if (Object.keys(override).length === 0) continue;
+      next[id] = {
+        ...element,
+        breakpointOverrides: {
+          ...(element.breakpointOverrides ?? {}),
+          [breakpointId]: override,
+        },
+      };
+      changed += 1;
+    }
+    elements = next;
+    if (changed > 0) {
+      findings.push({
+        kind: 'breakpoint-captured',
+        at: breakpointId,
+        detail: `${changed} elements`,
+      });
+    }
+    if (absent > 0) {
+      findings.push({
+        kind: 'breakpoint-absent',
+        at: breakpointId,
+        detail: `${absent} elements`,
+      });
+    }
+  }
+
+  return { ...base, elements, findings };
+};
+
+/** The base capture's value for one property on one element. */
+const baseStyleOf = (base: ImportResult, id: string, prop: string): string | undefined =>
+  base.baseStyles[id]?.[prop];
+
 /** Reduce a captured page to an element tree. Pure. */
 export const reduceCapture = (
   payload: CapturePayload,
@@ -404,6 +501,8 @@ export const reduceCapture = (
 
   const elements: Record<string, ScampElement> = {};
   const sourceNodes: Record<string, number> = {};
+  const sourcePaths: Record<string, string> = {};
+  const baseStyles: Record<string, Record<string, string>> = {};
   const used = new Set<string>([ROOT_ELEMENT_ID]);
 
   const build = (
@@ -566,6 +665,8 @@ export const reduceCapture = (
 
     elements[id] = { ...element, ...autoSized, childIds };
     sourceNodes[id] = node.id;
+    if (node.path !== undefined) sourcePaths[id] = node.path;
+    baseStyles[id] = styles;
     return id;
   };
 
@@ -577,5 +678,7 @@ export const reduceCapture = (
     findings,
     suggestedName: viewNameFromTitle(payload.title),
     sourceNodes,
+    sourcePaths,
+    baseStyles,
   };
 };

@@ -2,16 +2,17 @@ import { useEffect } from 'react';
 
 import { errorMessage } from '@shared/errorMessage';
 import type { CapturePayload } from '@shared/importCapture';
-import type { ProjectData } from '@shared/types';
+import type { Breakpoint, ImportReportGroup, ProjectData } from '@shared/types';
 import { viewSlugFor } from '@shared/templates';
 import { generateCode } from '@lib/generateCode';
-import { reduceCapture, type ImportFinding } from '@lib/importReduce';
+import { applyBreakpointCaptures, reduceCapture, type ImportFinding } from '@lib/importReduce';
 import {
   fontsNeededBy,
   googleFontsUrlFor,
   resolveFonts,
   type FontResolution,
 } from '@lib/importFonts';
+import { buildReport } from '@lib/importReport';
 import { extractTokens } from '@lib/importTokens';
 import { useFontsStore } from '@store/fontsSlice';
 import { parseThemeFile, serializeThemeFile } from '@lib/parseTheme';
@@ -35,42 +36,15 @@ import { useAppLogStore } from '@store/appLogSlice';
 
 type Options = {
   project: ProjectData;
+  /**
+   * The project's breakpoints. `generateCode` emits no `@media` blocks
+   * without them, so the overrides the import read would be computed
+   * and then silently dropped on the way to disk.
+   */
+  breakpoints: Breakpoint[];
   onProjectChange?: (update: (prev: ProjectData) => ProjectData) => void;
   /** Opens the freshly-imported view on the canvas. */
   openView: (name: string) => void;
-};
-
-/** One line per finding, collapsed by kind so a report reads at a glance. */
-const summarize = (findings: ReadonlyArray<ImportFinding>): string[] => {
-  const byKind = new Map<string, number>();
-  for (const f of findings) byKind.set(f.kind, (byKind.get(f.kind) ?? 0) + 1);
-  const phrase: Record<string, (n: number) => string> = {
-    'pseudo-element': (n) => `${n} decorative ::before/::after ${n === 1 ? 'element' : 'elements'}`,
-    'shadow-root': (n) => `${n} shadow ${n === 1 ? 'root' : 'roots'}`,
-    canvas: (n) => `${n} <canvas>`,
-    iframe: (n) => `${n} <iframe>`,
-    svg: (n) => `${n} inline ${n === 1 ? 'icon' : 'icons'} kept as markup, not editable as shapes`,
-    'revealed-on-scroll': (n) =>
-      `${n} ${n === 1 ? 'element' : 'elements'} that fade in on scroll, captured visible`,
-    'background-image': (n) => `${n} background ${n === 1 ? 'image' : 'images'} still remote`,
-    'unsupported-display': (n) => `${n} table or list-item layout`,
-    // Not a loss, but the biggest single thing an import changes about
-    // a page, and worth saying out loud.
-    'block-to-flex': (n) => `${n} block ${n === 1 ? 'container' : 'containers'} became flex`,
-    'restored-auto-margin': (n) => `${n} centred ${n === 1 ? 'container' : 'containers'} re-centred`,
-    // Worth saying: the markup renders, but it is no longer separately
-    // selectable on the canvas — it is part of its paragraph's text.
-    'inline-kept': (n) =>
-      `${n} ${n === 1 ? 'run' : 'runs'} of inline markup kept as text, not as elements`,
-    'depth-capped': (n) => `${n} ${n === 1 ? 'subtree' : 'subtrees'} too deep to read`,
-    'node-capped': () => 'the page was larger than one import',
-  };
-  const out: string[] = [];
-  for (const [kind, n] of byKind) {
-    const say = phrase[kind];
-    if (say) out.push(say(n));
-  }
-  return out;
 };
 
 /**
@@ -88,11 +62,12 @@ const freeViewName = (base: string, taken: ReadonlySet<string>): string => {
 
 export const useWebsiteImport = ({
   project,
+  breakpoints,
   onProjectChange,
   openView,
 }: Options): void => {
   useEffect(() => {
-    return window.scamp.onImportDeliver(({ projectPath, payload }) => {
+    return window.scamp.onImportDeliver(({ projectPath, payload, narrower }) => {
       void (async (): Promise<void> => {
         const log = useAppLogStore.getState().log;
         const report = (p: Parameters<typeof window.scamp.reportImportResult>[0]): void => {
@@ -107,7 +82,16 @@ export const useWebsiteImport = ({
           return;
         }
         try {
-          const reduced = reduceCapture(payload as CapturePayload);
+          // The narrower readings become @media overrides. Folded in
+          // before anything else so tokens and fonts see the whole
+          // design rather than only its widest form.
+          const reduced = applyBreakpointCaptures(
+            reduceCapture(payload as CapturePayload),
+            (narrower ?? []).map((n) => ({
+              breakpointId: n.breakpointId,
+              payload: n.payload as CapturePayload,
+            }))
+          );
 
           // Lift repeated colours into theme tokens before generating,
           // so the view references `var(--color-accent)` rather than the
@@ -166,6 +150,7 @@ export const useWebsiteImport = ({
             pageName: name,
             cssModuleImportName: name,
             isComponent: true,
+            breakpoints,
           });
 
           // A view, not a page: a framework project has no pages, and in
@@ -293,42 +278,44 @@ export const useWebsiteImport = ({
           const missingFonts = fonts.filter((f) => f.status === 'missing');
           const embedded = fonts.filter((f) => f.status === 'google');
 
-          const findings = summarize(result.findings);
+          // Everything the import changed or could not carry, grouped and
+          // ordered losses-first. see lib/importReport.ts
+          const grouped = buildReport(result.findings);
+          const extras: ImportReportGroup[] = [];
+          const note = (kind: string, label: string, count: number, lost: boolean): void => {
+            if (count > 0) extras.push({ kind, label, count, examples: [], lost });
+          };
+          note('font-embedded', `${embedded.map((f) => f.family).join(', ')} embedded from Google Fonts`, embedded.length, false);
+          note(
+            'font-missing',
+            `install ${missingFonts.map((f) => f.family).join(', ')} — not on Google Fonts and not on this machine`,
+            missingFonts.length,
+            true
+          );
+          note('image-downloaded', `${downloaded.size} images downloaded into the project`, downloaded.size, false);
+          note('image-failed', `${failedAssets.length} images could not be fetched (${failedAssets[0] ?? ''})`, failedAssets.length, true);
+          note('token', `${renamed.length} repeated colours lifted into theme tokens`, renamed.length, false);
+          const findings = [
+            ...extras.filter((e) => e.lost),
+            ...grouped,
+            ...extras.filter((e) => !e.lost),
+          ];
           log(
             'info',
             `Imported ${name} from ${(payload as CapturePayload).url} — ` +
               `${Object.keys(result.elements).length} elements` +
               (renamed.length > 0 ? `, ${renamed.length} colour tokens` : '') +
               (embedded.length > 0 ? `, ${embedded.length} fonts embedded` : '') +
-              (findings.length > 0 ? `. Not carried across: ${findings.join(', ')}.` : '.')
+              (findings.length > 0
+                ? `. ${findings.map((f) => f.label).join('; ')}.`
+                : '.')
           );
           report({
             projectPath,
             ok: true,
             viewName: name,
             elementCount: Object.keys(result.elements).length,
-            findings: [
-              ...(embedded.length > 0
-                ? [`${embedded.map((f) => f.family).join(', ')} embedded from Google Fonts`]
-                : []),
-              ...(missingFonts.length > 0
-                ? [
-                    `install ${missingFonts
-                      .map((f) => f.family)
-                      .join(', ')} — not on Google Fonts and not on this machine`,
-                  ]
-                : []),
-              ...(downloaded.size > 0
-                ? [`${downloaded.size} images downloaded into the project`]
-                : []),
-              ...(failedAssets.length > 0
-                ? [`${failedAssets.length} images could not be fetched (${failedAssets[0]})`]
-                : []),
-              ...(renamed.length > 0
-                ? [`${renamed.length} repeated colours lifted into theme tokens`]
-                : []),
-              ...findings,
-            ],
+            findings,
           });
         } catch (err) {
           const message = errorMessage(err);
@@ -337,5 +324,5 @@ export const useWebsiteImport = ({
         }
       })();
     });
-  }, [project, onProjectChange, openView]);
+  }, [project, breakpoints, onProjectChange, openView]);
 };

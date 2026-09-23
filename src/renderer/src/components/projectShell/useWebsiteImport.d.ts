@@ -1,4 +1,4 @@
-import type { ProjectData } from '@shared/types';
+import type { Breakpoint, ProjectData } from '@shared/types';
 /**
  * The app window's half of website import.
  *
@@ -16,9 +16,15 @@ import type { ProjectData } from '@shared/types';
  */
 type Options = {
     project: ProjectData;
+    /**
+     * The project's breakpoints. `generateCode` emits no `@media` blocks
+     * without them, so the overrides the import read would be computed
+     * and then silently dropped on the way to disk.
+     */
+    breakpoints: Breakpoint[];
     onProjectChange?: (update: (prev: ProjectData) => ProjectData) => void;
     /** Opens the freshly-imported view on the canvas. */
     openView: (name: string) => void;
 };
-export declare const useWebsiteImport: ({ project, onProjectChange, openView, }: Options) => void;
+export declare const useWebsiteImport: ({ project, breakpoints, onProjectChange, openView, }: Options) => void;
 export {};

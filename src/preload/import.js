@@ -22,8 +22,8 @@ const importApi = {
         ipcRenderer.on(IPC.ImportResultChanged, handler);
         return () => ipcRenderer.removeListener(IPC.ImportResultChanged, handler);
     },
-    /** Hand a captured page to the app window. */
-    deliver: (projectPath, payload) => ipcRenderer.invoke(IPC.ImportCaptured, { projectPath, payload }),
+    /** Hand a captured page, and its narrower readings, to the app window. */
+    deliver: (projectPath, payload, narrower) => ipcRenderer.invoke(IPC.ImportCaptured, { projectPath, payload, narrower }),
     close: (projectPath) => ipcRenderer.invoke(IPC.ImportClose, { projectPath }),
 };
 contextBridge.exposeInMainWorld('scampImport', importApi);

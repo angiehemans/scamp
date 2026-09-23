@@ -88,6 +88,7 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
     // see docs/plans/website-import-plan.md
     useWebsiteImport({
         project,
+        breakpoints: projectConfig.breakpoints,
         onProjectChange,
         openView: (name) => openComponent(name, null, 'view'),
     });
@@ -304,7 +305,10 @@ export const ProjectShell = ({ project, onClose, onProjectChange, }) => {
                                                         await handleRenameView(name, slug);
                                                         resetPageEdit();
                                                     }, persistActiveSource: persistActiveSource, setActiveComponentState: setActiveComponentState, setActivePageName: setActivePageName, onImportWebsite: () => {
-                                                        void window.scamp.openImport({ projectPath: project.path });
+                                                        void window.scamp.openImport({
+                                                            projectPath: project.path,
+                                                            breakpoints: projectConfig.breakpoints,
+                                                        });
                                                     } }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] })), sidebarSection === 'components' && (_jsxs(_Fragment, { children: [_jsx(ComponentSidebar, { components: project.components, projectPath: project.path, componentEdit: componentEdit, componentEditError: componentEditError, renamingComponent: renamingComponent, creatingComponent: creatingComponent, activeComponent: activeComponent, setComponentEdit: setComponentEdit, setComponentEditError: setComponentEditError, handleAddComponent: handleAddComponent, handleRenameComponent: handleRenameComponent, openComponent: openComponent, openComponentMenu: openComponentMenu }), _jsxs("div", { className: `${styles.sidebarSection} ${styles.sidebarLayers}`, "data-testid": "layers-panel", children: [_jsx("h2", { className: styles.sidebarTitle, children: "Layers" }), _jsx(ElementTree, {})] })] }))] })) }), showThemePanel ? (_jsx(ThemePanel, { projectPath: project.path })) : (_jsxs(_Fragment, { children: [_jsx(CanvasArea, { activeComponent: activeComponent, activePageName: activePageName, projectConfig: projectConfig, artboardScrollRef: artboardScrollRef, onProjectConfigChange: handleProjectConfigChange, onExitComponentEditor: exitComponentEditor }), _jsx(PropertiesPanel, { migrationNotice: project.format === 'nextjs' && !projectConfig.scampMigrationDismissed ? (_jsx(ScampMigrationNotice, { project: project, convertPages: convertAllPagesToViews, onMigrated: (next) => {
                                                 onProjectChange?.(next);
                                                 setActivePageName(null);

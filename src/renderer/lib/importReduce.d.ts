@@ -27,7 +27,7 @@ import { type ScampElement } from './element';
  * uses, so an imported element and a hand-written one can't disagree.
  * see docs/plans/website-import-plan.md
  */
-export type ImportFindingKind = CaptureNote['kind'] | 'collapsed-wrapper' | 'dropped-computed-size' | 'wrapped-bare-text' | 'inline-kept' | 'block-to-flex' | 'restored-auto-margin' | 'unsupported-display';
+export type ImportFindingKind = CaptureNote['kind'] | 'collapsed-wrapper' | 'dropped-computed-size' | 'wrapped-bare-text' | 'inline-kept' | 'block-to-flex' | 'breakpoint-captured' | 'breakpoint-absent' | 'restored-auto-margin' | 'unsupported-display';
 export type ImportFinding = {
     kind: ImportFindingKind;
     /** Where in the source page, as the capture described it. */
@@ -41,6 +41,14 @@ export type ImportResult = {
     findings: ImportFinding[];
     /** A PascalCase view name derived from the page title. */
     suggestedName: string;
+    /** Element id → its source node's structural path, for breakpoints. */
+    sourcePaths: Record<string, string>;
+    /**
+     * The declarations each element was built from, kept so a narrower
+     * capture can be diffed against what the base actually used rather
+     * than against the model's idea of it.
+     */
+    baseStyles: Record<string, Record<string, string>>;
     /**
      * Element id → the captured node it came from. Recorded rather than
      * inferred: the fidelity harness compares each imported element
@@ -58,5 +66,24 @@ export type ReduceOptions = {
      */
     randomId?: () => string;
 };
+/**
+ * Fold captures taken at narrower widths into breakpoint overrides.
+ *
+ * Pure, and separate from `reduceCapture` on purpose: a base import
+ * must not depend on the narrow captures succeeding, and a page whose
+ * mobile layout is a different DOM should still import its desktop one.
+ *
+ * Elements are matched by structural path, never by id — ids are walk
+ * order, and a mobile menu appearing shifts every one after it. A path
+ * that does not appear at the narrow width means the element is not
+ * there, which is not an override but an absence, and Scamp has no way
+ * to say "gone below 768px". Those are counted and reported rather than
+ * guessed at.
+ * see docs/plans/website-import-plan.md
+ */
+export declare const applyBreakpointCaptures: (base: ImportResult, narrower: ReadonlyArray<{
+    breakpointId: string;
+    payload: CapturePayload;
+}>) => ImportResult;
 /** Reduce a captured page to an element tree. Pure. */
 export declare const reduceCapture: (payload: CapturePayload, options?: ReduceOptions) => ImportResult;

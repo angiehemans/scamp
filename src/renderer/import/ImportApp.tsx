@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { captureFn, capturePolicy, prepareFn } from '@shared/captureScript';
-import type { ImportResultPayload } from '@shared/types';
+import type { Breakpoint, ImportResultPayload } from '@shared/types';
 
 import styles from './ImportApp.module.css';
 
@@ -18,7 +18,7 @@ import styles from './ImportApp.module.css';
 
 type Status =
   | { kind: 'idle' }
-  | { kind: 'capturing' }
+  | { kind: 'capturing'; at?: string }
   | { kind: 'done'; result: ImportResultPayload }
   | { kind: 'failed'; message: string };
 
@@ -33,6 +33,7 @@ const normalizeUrl = (raw: string): string => {
 export const ImportApp = (): JSX.Element => {
   const webviewRef = useRef<HTMLElement | null>(null);
   const [projectPath, setProjectPath] = useState<string>('');
+  const [breakpoints, setBreakpoints] = useState<Breakpoint[]>([]);
   const [draftUrl, setDraftUrl] = useState('');
   const [loadedUrl, setLoadedUrl] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
@@ -45,10 +46,12 @@ export const ImportApp = (): JSX.Element => {
    * a button that does nothing.
    */
   const [webviewReady, setWebviewReady] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     const offOpen = window.scampImport.onOpen((args) => {
       setProjectPath(args.projectPath);
+      setBreakpoints(args.breakpoints ?? []);
       if (args.url) {
         setDraftUrl(args.url);
         setLoadedUrl(normalizeUrl(args.url));
@@ -56,6 +59,9 @@ export const ImportApp = (): JSX.Element => {
     });
     const offResult = window.scampImport.onResult((result) => {
       setStatus({ kind: 'done', result });
+      // Opened by default when something was lost, so a real problem is
+      // not one click away from being missed.
+      setReportOpen((result.findings ?? []).some((f) => f.lost));
     });
     return () => {
       offOpen();
@@ -121,27 +127,72 @@ export const ImportApp = (): JSX.Element => {
       return;
     }
     setStatus({ kind: 'capturing' });
+    const frame = webviewRef.current as HTMLElement | null;
+    const restoreWidth = frame?.style.width ?? '';
+    const restoreFlex = frame?.style.flex ?? '';
     try {
       // The capture function is serialized and evaluated in the page,
       // with the policy passed in as data — it cannot import anything
-      // once it is over there.
-      // Scroll the page through first: content that reveals on scroll is
-      // recorded invisible otherwise, which reads as missing.
-      await node.executeJavaScript(`(${prepareFn.toString()})()`);
-      const source = `(${captureFn.toString()})(${JSON.stringify(capturePolicy())})`;
-      const payload = await node.executeJavaScript(source);
-      const sent = await window.scampImport.deliver(projectPath, payload);
+      // once it is over there. The scroll settles reveal-on-scroll
+      // content, which is otherwise recorded invisible.
+      // Called through `node`, not hoisted: `executeJavaScript` is a
+      // method on the webview element and loses its receiver if you
+      // detach it, which hangs rather than throwing.
+      const run = (code: string): Promise<unknown> => node.executeJavaScript!(code);
+      const readPage = async (): Promise<unknown> => {
+        await run(`(${prepareFn.toString()})()`);
+        return run(
+          `(${captureFn.toString()})(${JSON.stringify(capturePolicy())})`
+        );
+      };
+
+      const payload = await readPage();
+
+      // Then the same page at each narrower breakpoint. A `<webview>`'s
+      // guest viewport follows the element's size, so narrowing it is
+      // what makes the page's own media queries fire — there is no other
+      // way to see its tablet layout from out here.
+      const narrower: Array<{ breakpointId: string; payload: unknown }> = [];
+      const smaller = [...breakpoints].sort((a, b) => b.width - a.width).slice(1);
+      for (const bp of smaller) {
+        if (!frame) break;
+        setStatus({ kind: 'capturing', at: bp.label });
+        // `flex: none` as well as the width: the webview is a flex item
+        // with `flex: 1 1 auto`, so grow wins over any width set on it
+        // and the guest never actually narrows.
+        frame.style.flex = '0 0 auto';
+        frame.style.width = `${bp.width}px`;
+        // Let layout settle and the page's own resize handlers run.
+        await new Promise((r) => setTimeout(r, 450));
+        try {
+          narrower.push({ breakpointId: bp.id, payload: await readPage() });
+        } catch {
+          // A width that fails is one breakpoint's worth of overrides,
+          // not a failed import.
+        }
+      }
+      if (frame) {
+        frame.style.width = restoreWidth;
+        frame.style.flex = restoreFlex;
+      }
+
+      setStatus({ kind: 'capturing' });
+      const sent = await window.scampImport.deliver(projectPath, payload, narrower);
       if (!sent.ok) {
         setStatus({ kind: 'failed', message: sent.error ?? 'Scamp could not take the page.' });
       }
       // On success the app window answers over `onResult`.
     } catch (err) {
+      if (frame) {
+        frame.style.width = restoreWidth;
+        frame.style.flex = restoreFlex;
+      }
       setStatus({
         kind: 'failed',
         message: err instanceof Error ? err.message : String(err),
       });
     }
-  }, [projectPath]);
+  }, [projectPath, breakpoints]);
 
   const nav = (method: 'goBack' | 'goForward' | 'reload') => (): void => {
     const node = webviewRef.current as unknown as Record<string, (() => void) | undefined> | null;
@@ -172,7 +223,11 @@ export const ImportApp = (): JSX.Element => {
           onClick={() => void handleImport()}
           disabled={!loadedUrl || !webviewReady || busy || projectPath.length === 0}
         >
-          {busy ? 'Reading the page…' : 'Import'}
+          {busy
+            ? status.kind === 'capturing' && status.at
+              ? `Reading at ${status.at}…`
+              : 'Reading the page…'
+            : 'Import'}
         </button>
       </div>
 
@@ -185,17 +240,43 @@ export const ImportApp = (): JSX.Element => {
           {status.kind === 'failed' ? (
             <span>{status.message}</span>
           ) : status.result.ok ? (
-            <span>
-              Imported <strong>{status.result.viewName}</strong> —{' '}
-              {status.result.elementCount} elements
-              {status.result.findings && status.result.findings.length > 0 && (
-                <span className={styles.findings}>
-                  {' '}· {status.result.findings.length} things didn&apos;t come across:{' '}
-                  {status.result.findings.slice(0, 3).join('; ')}
-                  {status.result.findings.length > 3 ? ' …' : ''}
+            <>
+              <div className={styles.bannerHead}>
+                <span>
+                  Imported <strong>{status.result.viewName}</strong> —{' '}
+                  {status.result.elementCount} elements
                 </span>
+                {(status.result.findings?.length ?? 0) > 0 && (
+                  <button
+                    className={styles.reportToggle}
+                    onClick={() => setReportOpen((v) => !v)}
+                    type="button"
+                  >
+                    {reportOpen ? 'Hide' : 'What changed'} ({status.result.findings?.length})
+                  </button>
+                )}
+              </div>
+              {reportOpen && (
+                // An import is a lossy translation. Losses come first
+                // and are marked; the rest is what it did on purpose.
+                <ul className={styles.report}>
+                  {status.result.findings?.map((f) => (
+                    <li
+                      key={f.kind}
+                      className={f.lost ? styles.reportLost : styles.reportKept}
+                    >
+                      <span className={styles.reportMark}>{f.lost ? '!' : '·'}</span>
+                      <span>
+                        {f.label}
+                        {f.examples.length > 0 && (
+                          <span className={styles.reportWhere}> — {f.examples.join(', ')}</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </span>
+            </>
           ) : (
             <span>{status.result.error ?? 'The import failed.'}</span>
           )}

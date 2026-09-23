@@ -49,10 +49,9 @@ test.describe('website import', () => {
 
     // The importer reports back from the app window, which is the only
     // place that knows whether a view was actually written.
-    await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 20_000 });
-    await expect(
-      importWindow.getByText(/decorative ::before/)
-    ).toBeVisible();
+    await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 30_000 });
+    // The report is a disclosure; losses open it by default.
+    await expect(importWindow.getByText(/decorative ::before/)).toBeVisible();
 
     // And the view is on disk, named after the page's title.
     await expect
@@ -70,6 +69,31 @@ test.describe('website import', () => {
     // And the styles landed in the module, not inline.
     expect(css).toContain('.root');
     expect(tsx).not.toContain('style=');
+  });
+
+  test('reads the page at each breakpoint and writes the overrides', async ({
+    app,
+    window,
+    project,
+  }) => {
+    await expect(pageRoot(window)).toBeVisible();
+    await openPagesSection(window);
+
+    const opened = app.waitForEvent('window');
+    await window.getByRole('button', { name: /Import a page/ }).click();
+    const importWindow = await opened;
+    await importWindow.waitForLoadState('domcontentloaded');
+    await importWindow.getByLabel('Address').fill(FIXTURE_URL);
+    await importWindow.getByLabel('Address').press('Enter');
+    const btn = importWindow.getByRole('button', { name: 'Import', exact: true });
+    await expect(btn).toBeEnabled();
+    await btn.click();
+    await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 30_000 });
+
+    // The fixture's @media blocks should come back as breakpoint
+    // overrides, which Scamp emits as its own @media rules.
+    const { css } = await project.readView('NorthwindShipFaster');
+    expect(css).toMatch(/@media \(max-width: (768|390)px\)/);
   });
 
   test('lifts repeated colours into theme tokens the panel can change', async ({

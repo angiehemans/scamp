@@ -27,9 +27,13 @@ const importApi = {
     return () => ipcRenderer.removeListener(IPC.ImportResultChanged, handler);
   },
 
-  /** Hand a captured page to the app window. */
-  deliver: (projectPath: string, payload: unknown): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke(IPC.ImportCaptured, { projectPath, payload }),
+  /** Hand a captured page, and its narrower readings, to the app window. */
+  deliver: (
+    projectPath: string,
+    payload: unknown,
+    narrower: Array<{ breakpointId: string; payload: unknown }>
+  ): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.ImportCaptured, { projectPath, payload, narrower }),
 
   close: (projectPath: string): Promise<void> =>
     ipcRenderer.invoke(IPC.ImportClose, { projectPath }),

@@ -129,6 +129,7 @@ export const ProjectShell = ({
   // see docs/plans/website-import-plan.md
   useWebsiteImport({
     project,
+    breakpoints: projectConfig.breakpoints,
     onProjectChange,
     openView: (name) => openComponent(name, null, 'view'),
   });
@@ -489,7 +490,10 @@ export const ProjectShell = ({
             setActiveComponentState={setActiveComponentState}
             setActivePageName={setActivePageName}
             onImportWebsite={() => {
-              void window.scamp.openImport({ projectPath: project.path });
+              void window.scamp.openImport({
+                projectPath: project.path,
+                breakpoints: projectConfig.breakpoints,
+              });
             }}
           />
               <div

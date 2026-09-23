@@ -68,6 +68,18 @@ export type CapturedNode = {
         h: number;
     };
     /**
+     * Structural address: `div>nav:0>ul:1>li:2`, tag plus index among
+     * element siblings, all the way from the root.
+     *
+     * Node ids are walk order, which is useless for matching one capture
+     * against another — a mobile nav appearing shifts every id after it.
+     * A path is stable as long as the structure is, and when the
+     * structure genuinely differs the path simply does not match, which
+     * is the right answer: an element that exists at only one width has
+     * no override to give.
+     */
+    path?: string;
+    /**
      * Ordered inline content, set instead of `children` when every
      * element child is inline markup inside running text.
      *

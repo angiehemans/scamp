@@ -13,8 +13,11 @@ declare const importApi: {
     onOpen: (listener: (args: ImportOpenArgs) => void) => (() => void);
     /** What the app window made of the last capture. */
     onResult: (listener: (payload: ImportResultPayload) => void) => (() => void);
-    /** Hand a captured page to the app window. */
-    deliver: (projectPath: string, payload: unknown) => Promise<{
+    /** Hand a captured page, and its narrower readings, to the app window. */
+    deliver: (projectPath: string, payload: unknown, narrower: Array<{
+        breakpointId: string;
+        payload: unknown;
+    }>) => Promise<{
         ok: boolean;
         error?: string;
     }>;

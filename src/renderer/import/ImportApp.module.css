@@ -130,3 +130,63 @@
   line-height: 1.6;
   color: #a9aeb7;
 }
+
+.bannerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reportToggle {
+  flex: none;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  padding: 1px 8px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.report {
+  list-style: none;
+  margin: 8px 0 2px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.report li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  line-height: 1.45;
+}
+
+.reportMark {
+  flex: none;
+  width: 10px;
+  text-align: center;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.reportLost {
+  color: #e08b87;
+}
+
+.reportKept {
+  color: #a9aeb7;
+}
+
+.reportWhere {
+  opacity: 0.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}

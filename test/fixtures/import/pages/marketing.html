@@ -54,6 +54,21 @@
 
   /* Present but hidden — the walk should prune it and its subtree. */
   .mobile-menu { display: none; }
+
+  /* Real responsive rules, so the importer has media queries to read
+     back at its narrower breakpoints. */
+  @media (max-width: 768px) {
+    .hero { padding: 56px 20px; }
+    .hero h1 { font-size: 36px; }
+    .features { flex-direction: column; gap: 16px; }
+    .nav { padding: 12px 20px; }
+  }
+
+  @media (max-width: 390px) {
+    .hero h1 { font-size: 28px; }
+    .hero p { font-size: 15px; }
+    .card { padding: 16px; }
+  }
 </style>
 </head>
 <body>
