@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from '@shared/ipcChannels';
 import type { TitleBarColors } from '@shared/titleBarColors';
 import type {
+  FetchImageArgs,
+  FetchImageResult,
   ImportCapturedArgs,
   ImportOpenArgs,
   ImportResultPayload,
@@ -159,6 +161,9 @@ const api = {
     ipcRenderer.on(IPC.ImportDeliver, handler);
     return () => ipcRenderer.removeListener(IPC.ImportDeliver, handler);
   },
+  /** Download one remote image into the project's assets. */
+  fetchImportImage: (args: FetchImageArgs): Promise<FetchImageResult> =>
+    ipcRenderer.invoke(IPC.ImportFetchImage, args),
   /** Tell the import window how it went. */
   reportImportResult: (payload: ImportResultPayload): Promise<void> =>
     ipcRenderer.invoke(IPC.ImportResultReport, payload),

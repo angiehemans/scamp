@@ -100,6 +100,33 @@ test.describe('website import', () => {
     expect(css).toMatch(/var\(--color-/);
   });
 
+  test('reports an image it could not fetch instead of failing the import', async ({
+    app,
+    window,
+    project,
+  }) => {
+    // The fixture's images are relative paths that resolve to file://,
+    // which the downloader refuses — the right outcome is a named
+    // shortfall and a view that still exists.
+    await expect(pageRoot(window)).toBeVisible();
+    await openPagesSection(window);
+
+    const opened = app.waitForEvent('window');
+    await window.getByRole('button', { name: /Import a page/ }).click();
+    const importWindow = await opened;
+    await importWindow.waitForLoadState('domcontentloaded');
+    await importWindow.getByLabel('Address').fill(FIXTURE_URL);
+    await importWindow.getByLabel('Address').press('Enter');
+    const btn = importWindow.getByRole('button', { name: 'Import', exact: true });
+    await expect(btn).toBeEnabled();
+    await btn.click();
+
+    await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 20_000 });
+    await expect
+      .poll(async () => project.viewExists('NorthwindShipFaster'), { timeout: 15_000 })
+      .toBe(true);
+  });
+
   test('refuses to overwrite an import that is already there', async ({
     app,
     window,

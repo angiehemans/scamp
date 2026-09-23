@@ -66,6 +66,8 @@ export declare const IPC: {
     /** main → renderer: a file under routes/ was added, changed, or removed. */
     readonly RoutesChanged: "routes:changed";
     readonly ImportOpen: "import:open";
+    /** Download one remote image into the project's assets. */
+    readonly ImportFetchImage: "import:fetchImage";
     readonly ImportClose: "import:close";
     /** Import window → main: a captured page. */
     readonly ImportCaptured: "import:captured";

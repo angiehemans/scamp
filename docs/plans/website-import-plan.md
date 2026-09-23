@@ -392,7 +392,7 @@ tags and its three images, the styles are in the module rather than
 inline, and the report names the decorative `::before` it could not
 bring across. A second import of the same page creates `…2`.
 
-### Phase 3 — Assets and tokens. **(tokens landed)**
+### Phase 3 — Assets and tokens. **(landed)**
 
 Images downloaded through `copyImage`. Repeated colours and spacing
 lifted into `design/theme.css` as tokens, with module CSS referencing
@@ -427,9 +427,23 @@ Three decisions worth keeping:
 A token name the project already uses is suffixed rather than
 redefined — someone's `--color-accent` means what they said it means.
 
-Still open in this phase: **images are still remote URLs**, and fonts
-are neither detected nor offered. `copyImage` already downloads,
-converts and dedupes; it needs a URL source rather than a local path.
+**Images, done.** `import:fetchImage` in main downloads one remote
+image and hands the bytes to the existing `copyImage`, which already
+converts to WebP when that is smaller, dedupes, and names the file — an
+importer that wrote its own copy would drift from all three.
+
+It runs AFTER the view exists, and each failure is a returned error
+rather than a throw: an import pulling forty images must not lose the
+other thirty-nine because one host was down, and a view that exists
+with three missing pictures beats no view at all. Refused: anything
+that is not `http(s)`, not an image content-type, or over 20MB. Both
+`<img src>` and `background-image: url(...)` are rewritten to the local
+asset.
+
+Still open in this phase: **fonts** are neither detected nor offered.
+Scamp's Fonts panel manages `@import` lines in `theme.css`, so the
+importer should detect the families a page uses and offer them there
+rather than writing them itself.
 
 ### Phase 4 — Fidelity and the report.
 

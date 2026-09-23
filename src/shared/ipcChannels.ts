@@ -129,6 +129,8 @@ export const IPC = {
   // clicks Import; the payload reaches the app window, which reduces it
   // to a view. see docs/plans/website-import-plan.md
   ImportOpen: 'import:open',
+  /** Download one remote image into the project's assets. */
+  ImportFetchImage: 'import:fetchImage',
   ImportClose: 'import:close',
   /** Import window → main: a captured page. */
   ImportCaptured: 'import:captured',

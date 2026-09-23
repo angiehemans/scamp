@@ -392,6 +392,20 @@ export type CopyImageArgs = {
     sourcePath: string;
     projectPath: string;
 };
+/** Fetch a remote image into the project's assets. see website-import-plan.md */
+export type FetchImageArgs = {
+    /** Absolute http(s) URL, as the capture resolved it. */
+    url: string;
+    projectPath: string;
+};
+export type FetchImageResult = {
+    ok: true;
+    relativePath: string;
+    fileName: string;
+} | {
+    ok: false;
+    error: string;
+};
 export type CopyImageResult = {
     relativePath: string;
     fileName: string;

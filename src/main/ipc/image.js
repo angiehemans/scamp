@@ -1,6 +1,7 @@
-import { dialog, ipcMain } from 'electron';
+import { dialog, ipcMain, net } from 'electron';
 import { promises as fs } from 'fs';
 import { IPC } from '@shared/ipcChannels';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { copyImage, assetsDirFor } from './imageOps';
 import { getProjectFormat } from './projectFormatCache';
@@ -36,6 +37,71 @@ const chooseImage = async (args) => {
     }
     return { canceled: false, path: result.filePaths[0] };
 };
+/** Types we are willing to write into a project's assets. */
+const FETCHABLE = /^image\/(png|jpeg|webp|gif|svg\+xml|avif)$/;
+/** 20MB. A hero image is under a megabyte; anything past this is a mistake. */
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+/**
+ * Download one remote image into the project's assets.
+ *
+ * Written through the existing `copyImage`, which already converts to
+ * WebP when that is smaller, dedupes against what is there, and names
+ * the file — an importer that wrote its own copy would drift from all
+ * three. The only new part is getting the bytes onto disk first.
+ *
+ * Every failure is a returned error rather than a throw: an import that
+ * pulls forty images should not lose the other thirty-nine because one
+ * host was down. see docs/plans/website-import-plan.md
+ */
+const fetchImage = async (args) => {
+    let parsed;
+    try {
+        parsed = new URL(args.url);
+    }
+    catch {
+        return { ok: false, error: `Not a URL: ${args.url}` };
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return { ok: false, error: `Refusing ${parsed.protocol} — only http and https.` };
+    }
+    assertInsideActiveProject(args.projectPath);
+    let tempPath = null;
+    try {
+        const response = await net.fetch(parsed.href, { redirect: 'follow' });
+        if (!response.ok) {
+            return { ok: false, error: `${response.status} from ${parsed.host}` };
+        }
+        const type = (response.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+        if (!FETCHABLE.test(type)) {
+            return { ok: false, error: `${parsed.pathname} is ${type || 'an unknown type'}` };
+        }
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (bytes.byteLength > MAX_IMAGE_BYTES) {
+            return { ok: false, error: `${parsed.pathname} is ${Math.round(bytes.byteLength / 1e6)}MB` };
+        }
+        // `copyImage` reads from a path, so the bytes land in a temp file
+        // first. Named from the URL so the asset keeps a recognisable name.
+        const ext = type === 'image/svg+xml' ? '.svg' : `.${type.split('/')[1]?.replace('jpeg', 'jpg')}`;
+        const base = (parsed.pathname.split('/').pop() ?? 'image').replace(/\.[^.]*$/, '').replace(/[^\w-]+/g, '-') ||
+            'image';
+        tempPath = join(await fs.mkdtemp(join(tmpdir(), 'scamp-import-')), `${base}${ext}`);
+        await fs.writeFile(tempPath, bytes);
+        const format = await getProjectFormat(args.projectPath);
+        const result = await copyImage({ sourcePath: tempPath, projectPath: args.projectPath }, format);
+        if (!result.reused) {
+            suppressNextChange(join(assetsDirFor(args.projectPath, format), result.fileName));
+        }
+        return { ok: true, relativePath: result.relativePath, fileName: result.fileName };
+    }
+    catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+    finally {
+        if (tempPath !== null) {
+            await fs.rm(join(tempPath, '..'), { recursive: true, force: true }).catch(() => undefined);
+        }
+    }
+};
 export const registerImageIpc = () => {
     ipcMain.handle(IPC.FileCopyImage, async (_e, args) => {
         // The copy destination is derived from `projectPath`; keep it inside
@@ -54,6 +120,7 @@ export const registerImageIpc = () => {
         return result;
     });
     ipcMain.handle(IPC.FileChooseImage, async (_e, args) => chooseImage(args));
+    ipcMain.handle(IPC.ImportFetchImage, async (_e, args) => fetchImage(args));
     // Read a file's UTF-8 text. Used to inline an imported `.svg` (the path
     // comes from the native picker) and to reload an SVG whose asset file
     // changed on disk. Only `.svg` files are readable through this channel —

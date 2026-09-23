@@ -183,6 +183,61 @@ export const useWebsiteImport = ({
           }));
           openView(created.name);
 
+          // Images: downloaded after the view exists, so a slow or dead
+          // host delays pictures rather than the whole import. Each
+          // failure is reported and the rest carry on.
+          const assets = (payload as CapturePayload).assets.filter((a) => a.kind === 'image');
+          const downloaded = new Map<string, string>();
+          const failedAssets: string[] = [];
+          for (const asset of assets) {
+            if (downloaded.has(asset.url) || !/^https?:/.test(asset.url)) continue;
+            const got = await window.scamp.fetchImportImage({
+              url: asset.url,
+              projectPath: project.path,
+            });
+            if (got.ok) downloaded.set(asset.url, got.relativePath);
+            else failedAssets.push(`${new URL(asset.url).pathname.split('/').pop()}: ${got.error}`);
+          }
+          if (downloaded.size > 0) {
+            const localised = Object.fromEntries(
+              Object.entries(result.elements).map(([id, el]) => {
+                let next = el;
+                const src = next.src;
+                if (typeof src === 'string' && downloaded.has(src)) {
+                  next = { ...next, src: downloaded.get(src) as string };
+                }
+                const bg = next.customProperties?.['background-image'];
+                if (typeof bg === 'string') {
+                  for (const [url, local] of downloaded) {
+                    if (!bg.includes(url)) continue;
+                    next = {
+                      ...next,
+                      customProperties: {
+                        ...next.customProperties,
+                        'background-image': bg.split(url).join(local),
+                      },
+                    };
+                    break;
+                  }
+                }
+                return [id, next];
+              })
+            );
+            const relocated = generateCode({
+              elements: localised,
+              rootId: result.rootId,
+              pageName: name,
+              cssModuleImportName: name,
+              isComponent: true,
+            });
+            await window.scamp.writeFile({
+              tsxPath: created.tsxPath,
+              cssPath: created.cssPath,
+              tsxContent: relocated.tsx,
+              cssContent: relocated.css,
+            });
+          }
+
           const findings = summarize(result.findings);
           log(
             'info',
@@ -197,6 +252,12 @@ export const useWebsiteImport = ({
             viewName: name,
             elementCount: Object.keys(result.elements).length,
             findings: [
+              ...(downloaded.size > 0
+                ? [`${downloaded.size} images downloaded into the project`]
+                : []),
+              ...(failedAssets.length > 0
+                ? [`${failedAssets.length} images could not be fetched (${failedAssets[0]})`]
+                : []),
               ...(renamed.length > 0
                 ? [`${renamed.length} repeated colours lifted into theme tokens`]
                 : []),

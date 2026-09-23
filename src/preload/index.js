@@ -44,6 +44,8 @@ const api = {
         ipcRenderer.on(IPC.ImportDeliver, handler);
         return () => ipcRenderer.removeListener(IPC.ImportDeliver, handler);
     },
+    /** Download one remote image into the project's assets. */
+    fetchImportImage: (args) => ipcRenderer.invoke(IPC.ImportFetchImage, args),
     /** Tell the import window how it went. */
     reportImportResult: (payload) => ipcRenderer.invoke(IPC.ImportResultReport, payload),
     openPreview: (args) => ipcRenderer.invoke(IPC.PreviewOpen, args),
