@@ -986,10 +986,30 @@ export const reduceCapture = (
     const tagType = elementTypeFor(node.tag);
     const childCount = (inlineRun?.children.length ?? 0) + node.children.length;
     const isContainer = tagType === 'text' && childCount > 0;
-    const type: ElementType = isContainer ? 'rectangle' : tagType;
 
+    // …and the mirror of it: a tag Scamp reads as a box whose only
+    // content is words IS a text element, whatever the tag says. The
+    // generator emits `text` for text elements alone, so a
+    // `<div>Clinical iQ > AI Recorder</div>` was written out as an
+    // empty div — the words gone, with nothing in the report to say so.
+    const isTextLeaf =
+      tagType === 'rectangle' &&
+      childCount === 0 &&
+      node.inline === undefined &&
+      node.text !== null;
+    const type: ElementType = isContainer ? 'rectangle' : isTextLeaf ? 'text' : tagType;
+
+    // The class prefix has to agree with the type, because `parseCode`
+    // reads it before it looks at the tag: `text_` pins a text element,
+    // and anything else lets the tag decide.
     const tagName = NAME_FOR_TAG[node.tag] ?? 'box';
-    const name = isRoot ? null : isContainer && tagName === 'text' ? 'box' : tagName;
+    const name = isRoot
+      ? null
+      : isContainer && tagName === 'text'
+        ? 'box'
+        : isTextLeaf
+          ? 'text'
+          : tagName;
     const className = isRoot ? ROOT_ELEMENT_ID : `${name}_${id}`;
     if (inlineRun !== null) {
       findings.push({
@@ -1081,6 +1101,7 @@ export const reduceCapture = (
         ? 'column'
         : 'row';
     const childIds: string[] = [];
+    let liftedTextId: string | null = null;
     if (needsTextChild) {
       const textId = (() => {
         let candidate = nextId();
@@ -1116,16 +1137,27 @@ export const reduceCapture = (
         lifted,
         selfIsLayoutForText
       );
-      childIds.push(textId);
+      liftedTextId = textId;
     }
     const selfIsLayout = LAYOUT_DISPLAYS.has(display ?? '');
+    // The lifted words go back where they were, not at the front. An
+    // `<h1>` that reads icon-then-title had the title lifted ahead of
+    // its own icon. see `textAfterChildIndex`
+    const wordsAfter = node.textAfterChildIndex ?? -1;
+    if (liftedTextId !== null && wordsAfter < 0) childIds.push(liftedTextId);
     // An inline host's styled spans are its children. The capture
     // leaves `node.children` empty for such a host, so these are the
     // only ones, and their order is the order of the line.
-    for (const child of [...(inlineRun?.children ?? []), ...node.children]) {
+    const built = [...(inlineRun?.children ?? []), ...node.children];
+    built.forEach((child, index) => {
       childIds.push(
         build(child, id, [...path, node.tag], selfIsLayout, ownFlow, node.rect ?? null)
       );
+      if (liftedTextId !== null && wordsAfter === index) childIds.push(liftedTextId);
+    });
+    // A recorded position past the last child still has to land.
+    if (liftedTextId !== null && !childIds.includes(liftedTextId)) {
+      childIds.push(liftedTextId);
     }
 
     elements[id] = { ...element, ...autoSized, childIds };

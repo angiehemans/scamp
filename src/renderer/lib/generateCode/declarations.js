@@ -1,4 +1,5 @@
 // generateCode/declarations.ts — split out of generateCode.ts (4.5).
+import { effectiveDisplay } from "../effectiveDisplay";
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from "../defaults";
 import { ROOT_ELEMENT_ID } from "../element";
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, formatTransformList, formatTransitionShorthand } from "../parsers";
@@ -185,8 +186,9 @@ mustEstablishPositioningContext = false) => {
     // out by that engine and should NOT have absolute positioning —
     // position/left/top become meaningless because the parent owns
     // placement.
-    const inFlexParent = parent?.display === 'flex';
-    const inGridParent = parent?.display === 'grid';
+    const parentDisplay = effectiveDisplay(parent);
+    const inFlexParent = parentDisplay === 'flex';
+    const inGridParent = parentDisplay === 'grid';
     // Slot content — a page-owned child of a component-instance — flows
     // inside the component's slot rect (React `{children}`). It must NOT be
     // absolutely positioned or it escapes the slot to the component root.
@@ -304,7 +306,7 @@ mustEstablishPositioningContext = false) => {
     // Grid-item declarations — apply when this element's PARENT is a
     // grid container. Free-text fields are emitted when non-empty;
     // align/justify-self only when not the default `stretch`.
-    if (parent && parent.display === 'grid') {
+    if (parent && parentDisplay === 'grid') {
         if (el.gridColumn.trim().length > 0) {
             lines.push(`grid-column: ${el.gridColumn};`);
         }
@@ -323,7 +325,7 @@ mustEstablishPositioningContext = false) => {
     // never written, so the fill-height `flex: 1` above stays the one
     // shorthand in a file. `align-self` is skipped when the fill line has
     // already written it.
-    if (parent && parent.display === 'flex') {
+    if (parent && parentDisplay === 'flex') {
         if (el.flexGrow !== BASE.flexGrow) {
             lines.push(`flex-grow: ${el.flexGrow};`);
         }
@@ -340,7 +342,7 @@ mustEstablishPositioningContext = false) => {
     }
     // `order` is a flex AND grid item property.
     if (parent &&
-        (parent.display === 'flex' || parent.display === 'grid') &&
+        (parentDisplay === 'flex' || parentDisplay === 'grid') &&
         el.order !== BASE.order) {
         lines.push(`order: ${el.order};`);
     }

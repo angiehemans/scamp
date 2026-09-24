@@ -356,6 +356,26 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       delete styles['opacity'];
       notes.push({ kind: 'revealed-on-scroll', at: pathOf(el) });
     }
+    // Scamp renders every box as `border-box` — its own reset says so —
+    // but `getComputedStyle` reports `width` and `height` in whatever
+    // box the page chose. A page without a border-box reset reports the
+    // CONTENT size, and reading that back as a border-box size eats the
+    // padding: a header measured 194px tall came out 146px with its
+    // contents spilling, which is exactly its 24px of padding twice.
+    if (computed.boxSizing === 'content-box') {
+      const edge = (...props: string[]): number =>
+        props.reduce((sum, prop) => sum + (parseFloat(computed.getPropertyValue(prop)) || 0), 0);
+      const grow = (prop: string, by: number): void => {
+        const value = styles[prop];
+        if (value === undefined || by === 0) return;
+        const size = parseFloat(value);
+        if (!Number.isFinite(size) || !value.endsWith('px')) return;
+        styles[prop] = `${Math.round((size + by) * 1000) / 1000}px`;
+      };
+      grow('width', edge('padding-left', 'padding-right', 'border-left-width', 'border-right-width'));
+      grow('height', edge('padding-top', 'padding-bottom', 'border-top-width', 'border-bottom-width'));
+    }
+
     // Drop values that are a layout result rather than a decision: a
     // border colour with no border, an origin with no transform.
     for (const [prop, requires] of Object.entries(policy.conditional)) {
@@ -495,6 +515,23 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       .trim();
     if (ownText) text = ownText.slice(0, maxTextLength);
 
+    // Where those words sat among the element children, so the child
+    // they get lifted into can land in the same place.
+    let textAfterChildIndex = -1;
+    if (text !== null) {
+      let seen = 0;
+      for (const child of Array.from(el.childNodes)) {
+        if (child.nodeType === 1) {
+          seen += 1;
+          continue;
+        }
+        if (child.nodeType === 3 && (child.textContent ?? '').trim().length > 0) {
+          textAfterChildIndex = seen - 1;
+          break;
+        }
+      }
+    }
+
     // An element item is walked like any other child, so a styled span
     // arrives as a node and the reducer can make it an element that
     // sits in the line. see docs/notes/import-inline-spans.md
@@ -546,6 +583,9 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     built['path'] = path;
     if (inline !== null) built['inline'] = inline;
     if (pseudo !== undefined) built['pseudo'] = pseudo;
+    if (text !== null && el.children.length > 0) {
+      built['textAfterChildIndex'] = textAfterChildIndex;
+    }
     if (policy.includeRects) {
       const box = el.getBoundingClientRect();
       built['rect'] = {

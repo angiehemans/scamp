@@ -35,6 +35,7 @@ import { formatAnimationShorthand } from '@lib/parsers';
 import type { ThemeToken,
   ProjectFormat,
 } from '@shared/types';
+import { effectiveDisplay } from '@lib/effectiveDisplay';
 import { sanitizeSvgInner } from '../lib/svg';
 import { sanitizeInlineMarkup } from '../lib/inlineMarkup';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
@@ -372,12 +373,13 @@ const renderComponentSubtree = (
 
   // Derive parent display / direction once so children's
   // elementToStyle behaves correctly inside flex / grid parents.
+  // `inline-flex` / `inline-grid` live in customProperties, so the
+  // typed field alone answers "no" for a container that plainly does
+  // lay its children out. see `effectiveDisplay`
+  const ownDisplay = effectiveDisplay(element);
   const childParentDisplay =
-    element.display === 'flex' || element.display === 'grid'
-      ? element.display
-      : 'none';
-  const childParentDirection =
-    element.display === 'flex' ? element.flexDirection : undefined;
+    ownDisplay === 'flex' || ownDisplay === 'grid' ? ownDisplay : 'none';
+  const childParentDirection = ownDisplay === 'flex' ? element.flexDirection : undefined;
 
   const children = expandChildren(elementsMap, element.childIds, scope)
     .map(({ id: childId, row: childRow }) => {
@@ -462,7 +464,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
   // slot. Treat the instance parent as a flex column so children stack.
   // see docs/plans/component-slots-plan.md
   const parentIsInstance = parentResolved?.type === 'component-instance';
-  const parentDisplay = parentIsInstance ? 'flex' : parentResolved?.display;
+  const parentDisplay = parentIsInstance ? 'flex' : effectiveDisplay(parentResolved);
   const parentDirection = parentIsInstance
     ? 'column'
     : parentResolved?.flexDirection;

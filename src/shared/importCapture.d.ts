@@ -93,6 +93,17 @@ export type CapturedNode = {
         after?: CapturedPseudo;
     };
     /**
+     * Where this node's own words sat among its element children, as the
+     * index of the child they follow (`-1` before the first).
+     *
+     * Scamp keeps words in a text element, so a node holding both gets
+     * its text lifted into a child — and that child has to land where the
+     * words actually were. `<h1><span class="ico">…</span>Live capture</h1>`
+     * is an icon and then a title; lifting the title to the front puts the
+     * icon after it. Only present when there is text AND element children.
+     */
+    textAfterChildIndex?: number;
+    /**
      * Structural address: `div>nav:0>ul:1>li:2`, tag plus index among
      * element siblings, all the way from the root.
      *

@@ -230,3 +230,45 @@ and both looked like bugs in the new code. They were not: Playwright
 launches the built bundle in `out/`, and the build predated the edit.
 `npm run build` before an e2e run, the same way `tsc --build` comes
 before a Vitest run.
+
+## A page header, and four separate faults in it
+
+```html
+<h1 class="page-title"><span class="ico"><svg…/></span>Live capture</h1>
+<div class="eyebrow">Clinical iQ &gt; AI Recorder</div>
+<a class="app-home-link"><svg…/><span>Home</span></a>
+```
+
+**A box whose only content is words lost them.** `elementTypeFor` calls
+a `<div>` a rectangle, and the generator emits `text` for text elements
+alone — so `<div class="eyebrow">…</div>` was written out empty, with
+nothing in the report to say the words had gone. A tag Scamp reads as a
+box whose only content is text IS a text element, and it is named
+`text_…` so `parseCode` reads the same thing back.
+
+**Lifted words went to the front.** A node holding both text and
+element children has its text lifted into a child, and that child was
+always pushed first — so an `<h1>` that reads icon-then-title came out
+title-then-icon. The capture now records `textAfterChildIndex`, the
+child the words followed, and the lifted child lands there.
+
+**`inline-flex` collapsed.** Scamp's typed `display` knows `flex`,
+`grid`, and a sentinel for neither, so `inline-flex` goes to
+`customProperties` — correct on the page, but every rule asking "is
+this a layout parent?" answered no. Its children took the tree-shape
+default of `position: absolute`, dropped out of flow, and the row
+measured 76x0. `effectiveDisplay` reads both, and the generator and the
+canvas both ask it now.
+
+**Content-box measurements were read as border-box.** `box-sizing` was
+dropped at capture on the reasoning that Scamp's reset sets border-box
+globally — true, but it means a page WITHOUT a border-box reset reports
+its content size, and reading that back as a border-box size eats the
+padding. A header measured 194px tall came out 146px with its contents
+spilling: exactly its 24px of padding, twice. The capture converts to
+border-box while it still has both numbers.
+
+The block went from 60% of elements within 2px with three overflowing,
+to 90% with none — the remainder being a `max-width: 60ch` that resolves
+per font. resovaiq.com gained three points from the box-sizing fix
+alone.

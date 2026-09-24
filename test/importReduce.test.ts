@@ -61,6 +61,108 @@ const reduce = (root: CapturedNode, over: Partial<CapturePayload> = {}) =>
 const kinds = (root: CapturedNode): string[] =>
   reduce(root).findings.map((f) => f.kind);
 
+describe('boxes that hold words, and words that hold their place', () => {
+  it('keeps the words in a box that is nothing but words', () => {
+    // `elementTypeFor` calls a `<div>` a rectangle, and the generator
+    // emits `text` for text elements alone — so the words were written
+    // nowhere and the div came out empty, with nothing in the report.
+    const { elements } = reduce(
+      node({ children: [node({ id: 1, tag: 'div', text: 'Clinical iQ > AI Recorder' })] })
+    );
+    const words = Object.values(elements).find((e) => e.text === 'Clinical iQ > AI Recorder');
+    expect(words?.type).toBe('text');
+    expect(words?.tag).toBe('div');
+    // The class prefix has to agree, or `parseCode` reads the tag and
+    // calls it a rectangle again on the next load.
+    expect(words?.name).toBe('text');
+  });
+
+  it('still calls a box with children a box', () => {
+    // Given a background so the collapse pass keeps it: a `<div>` that
+    // decides nothing and holds one child is removed on purpose.
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            tag: 'div',
+            styles: { 'background-color': 'rgb(1, 2, 3)' },
+            children: [node({ id: 2, tag: 'p', text: 'x' })],
+          }),
+        ],
+      })
+    );
+    // `tag` is only stored when it differs from the type's default, so
+    // a `<div>` rectangle records none.
+    const box = Object.values(elements).find(
+      (e) => e.childIds.length === 1 && e.id !== ROOT_ELEMENT_ID
+    );
+    expect(box?.type).toBe('rectangle');
+    expect(box?.text ?? null).toBeNull();
+  });
+
+  it('puts lifted words after the children they followed', () => {
+    // `<h1><span class="ico">…</span>Live capture</h1>` is an icon and
+    // then a title. Lifting the title to the front put the icon after it.
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            tag: 'h1',
+            text: 'Live capture',
+            textAfterChildIndex: 0,
+            children: [node({ id: 2, tag: 'span', text: '★' })],
+          }),
+        ],
+      })
+    );
+    const host = Object.values(elements).find((e) => e.childIds.length === 2);
+    expect((host?.childIds ?? []).map((id) => elements[id]?.text)).toEqual([
+      '★',
+      'Live capture',
+    ]);
+  });
+
+  it('puts them first when that is where they were', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            tag: 'h1',
+            text: 'Title first',
+            textAfterChildIndex: -1,
+            children: [node({ id: 2, tag: 'span', text: '★' })],
+          }),
+        ],
+      })
+    );
+    const host = Object.values(elements).find((e) => e.childIds.length === 2);
+    expect((host?.childIds ?? []).map((id) => elements[id]?.text)).toEqual([
+      'Title first',
+      '★',
+    ]);
+  });
+
+  it('still lands them somewhere when the capture said nothing', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            tag: 'h1',
+            text: 'Words',
+            children: [node({ id: 2, tag: 'span', text: '★' })],
+          }),
+        ],
+      })
+    );
+    const host = Object.values(elements).find((e) => e.childIds.length === 2);
+    expect((host?.childIds ?? []).map((id) => elements[id]?.text)).toContain('Words');
+  });
+});
+
 describe('a container is never typed as text', () => {
   // The canvas renders a text element's `text` and ignores its
   // children (`ElementRenderer`), so a tag whose words have moved into
@@ -1340,6 +1442,60 @@ describe('against a page captured from a real browser', () => {
     expect(Object.keys(back.elements)).toHaveLength(Object.keys(result.elements).length);
     expect(tsx).not.toContain('<body');
     expect(tsx).toContain('data-scamp-id="root"');
+  });
+
+  it('keeps an icon in front of the words it labels', () => {
+    // `<h3 class="with-icon"><span class="ico">★</span>Icon before the
+    // words</h3>` — a flex host, so the span is a child rather than
+    // markup, and the heading's own words are lifted into a sibling.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const words = Object.values(elements).find((e) => e.text === 'Icon before the words');
+    const host = Object.values(elements).find((e) => e.id === words?.parentId);
+    expect((host?.childIds ?? []).map((id) => elements[id]?.text)).toEqual([
+      '★',
+      'Icon before the words',
+    ]);
+  });
+
+  it('keeps the words in a div that is nothing but words', () => {
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const words = Object.values(elements).find(
+      (e) => e.text === 'A box whose only content is words.'
+    );
+    expect(words?.type).toBe('text');
+    expect(words?.tag).toBe('div');
+  });
+
+  it('reads an inline-flex row as a layout parent, so it does not collapse', () => {
+    // Its children would otherwise take Scamp's tree-shape default of
+    // `position: absolute`, drop out of flow, and leave the row 0 tall.
+    const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+    const chip = Object.values(elements).find(
+      (e) => e.customProperties['display'] === 'inline-flex'
+    );
+    const { css } = generateCode({
+      elements,
+      rootId,
+      pageName: 'P',
+      cssModuleImportName: 'P',
+      isComponent: true,
+    });
+    const childId = chip?.childIds[0] ?? '';
+    const child = elements[childId];
+    const rule =
+      css.match(new RegExp(`\\.${child?.name}_${childId}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+    expect(rule).not.toContain('position: absolute');
+  });
+
+  it('converts a content-box measurement into the border-box Scamp renders', () => {
+    // 200x40 of content plus 16px of padding each side and a 2px
+    // border is 236x68 once Scamp's own `border-box` reset applies.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const box = Object.values(elements).find(
+      (e) => e.text === 'Measured in content-box'
+    );
+    expect(box?.widthValue).toBe(236);
+    expect(box?.heightValue).toBe(68);
   });
 
   it('makes the legal paragraph a container, not a text element', () => {
