@@ -85,6 +85,14 @@
      neither flex nor grid, so its children used to fall out of flow. */
   .chip-row { display: inline-flex; align-items: center; gap: 6px;
               padding: 4px 10px; border: 1px solid #e4e6eb; }
+  /* An icon painted by a CSS rule rather than an attribute, which is
+     how most pages do it. Captured as `currentColor` so it keeps
+     following the colour around it. */
+  .icon-row { display: flex; align-items: center; gap: 8px; color: #2d4a7c; }
+  .icon-row svg { width: 20px; height: 20px; fill: currentColor; }
+  /* And one painted a fixed colour, which must not become currentColor. */
+  .icon-row svg.icon-fixed { fill: #d9b36a; }
+
   /* Gradient text: the background is clipped to the glyphs and the text
      itself is painted transparent. Capture only half of it and the
      words are simply invisible. */
@@ -169,6 +177,11 @@
     <h3 class="with-icon"><span class="ico">★</span>Icon before the words</h3>
     <div class="just-words">A box whose only content is words.</div>
     <h2 class="gradient-title">Painted by a gradient</h2>
+    <div class="icon-row">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 22h20z"></path></svg>
+      <span>Follows the text</span>
+      <svg class="icon-fixed" viewBox="0 0 24 24"><path d="M4 4h16v16H4z"></path></svg>
+    </div>
     <span class="chip-row"><b>9</b><span>open</span></span>
     <div class="content-box">Measured in content-box</div>
 

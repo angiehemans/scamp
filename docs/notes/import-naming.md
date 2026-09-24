@@ -75,3 +75,32 @@ The page defines its palette in `:root`, and reading it would remove
 the last of the theme work. Deliberately left out — the user decides
 what becomes a theme value and what stays a literal, and an importer
 that lifts every custom property makes that decision for them.
+
+## Icons were still the wrong colour
+
+Converting the inline `style="fill: currentcolor"` to JSX fixed the
+icons that carried their paint as an attribute. Most pages do not: they
+write a rule — `svg { fill: currentColor }`, `.icon { color: … }` — and
+`fill` and `stroke` were not captured at all. Every one of those icons
+arrived with no fill and rendered in the CSS initial, black, on a dark
+page.
+
+They are read on the `<svg>` branch rather than added to
+`CAPTURED_PROPERTIES`, because they mean nothing on the other four
+thousand elements of a page. Scamp already models all three — `fill`,
+`stroke`, `stroke-width` are typed fields with a panel section — so
+they only had to arrive.
+
+**`currentColor` is kept as written.** Where the computed paint equals
+the element's `color`, the keyword goes through instead of the resolved
+rgb. It is what the page meant, it keeps the icon following the colour
+around it, and it is what Scamp's own "current color" swatch edits.
+Where the paint is a colour of its own, that colour is kept.
+
+Two filters stop it being noise: a `fill` of `rgb(0, 0, 0)` is the CSS
+initial and says nothing, and a `stroke` of `none` is most icons.
+
+**And an SVG has no `className`.** It has an `SVGAnimatedString`, so
+`typeof el.className === 'string'` is false and every icon fell out of
+the name-hint check — and out of the report paths, which used the same
+test. Both read `getAttribute('class')` now.

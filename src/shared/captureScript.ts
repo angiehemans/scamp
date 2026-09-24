@@ -159,7 +159,9 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
   ]);
 
   const nameHintOf = (el: Element): string | null => {
-    const raw = typeof el.className === 'string' ? el.className.trim() : '';
+    // `getAttribute`, not `className`: on an SVG element `className` is
+    // an `SVGAnimatedString`, so every icon on the page was skipped.
+    const raw = (el.getAttribute('class') ?? '').trim();
     if (raw.length === 0) return null;
     let single: string | null = null;
     for (const cls of raw.split(/\s+/)) {
@@ -186,7 +188,7 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     const parts: string[] = [];
     let cur: Element | null = el;
     for (let i = 0; cur && i < 4; i += 1) {
-      const cls = typeof cur.className === 'string' ? cur.className.trim().split(/\s+/)[0] : '';
+      const cls = (cur.getAttribute('class') ?? '').trim().split(/\s+/)[0] ?? '';
       parts.unshift(cur.tagName.toLowerCase() + (cls ? `.${cls}` : ''));
       cur = cur.parentElement;
     }
@@ -568,6 +570,30 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       for (const name of ['viewBox', 'fill', 'stroke', 'stroke-width', 'xmlns']) {
         const value = el.getAttribute(name);
         if (value !== null) attrs[name] = value;
+      }
+
+      // An icon's paint is usually a CSS rule — `svg { fill: currentColor }`
+      // — not an attribute, and `fill` and `stroke` are not worth
+      // capturing on the other 4000 elements of a page, so they are read
+      // here. Without them every imported icon arrived with no fill at
+      // all and rendered in the initial black, on a dark page.
+      //
+      // Where the paint IS the text colour, `currentColor` is kept as
+      // written rather than resolved: it is what the page meant, it
+      // keeps the icon following the colour around it, and it is what
+      // Scamp's own "current color" swatch edits.
+      // see docs/notes/svg-recolor.md
+      const asWritten = (value: string): string =>
+        value === computed.color ? 'currentColor' : value;
+      const paint = computed.fill;
+      if (paint && paint !== 'rgb(0, 0, 0)' && paint !== 'none') {
+        styles['fill'] = asWritten(paint);
+      }
+      const line = computed.stroke;
+      if (line && line !== 'none') {
+        styles['stroke'] = asWritten(line);
+        const width = computed.strokeWidth;
+        if (width && width !== '1px') styles['stroke-width'] = width;
       }
       notes.push({ kind: 'svg', at: pathOf(el) });
     }
