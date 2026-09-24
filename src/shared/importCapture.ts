@@ -99,6 +99,16 @@ export type CapturedNode = {
   /** Static `::before` / `::after` content, recoverable as elements. */
   pseudo?: { before?: CapturedPseudo; after?: CapturedPseudo };
   /**
+   * The page's own word for this thing, from its class list.
+   *
+   * Layer names of `box_0090` and `label_00a5` describe nothing, and
+   * the page has already named everything on it. Only a class that
+   * reads like a name is taken: a hash, a CSS-module mangling and a
+   * layout utility all say less than the tag does.
+   * see docs/notes/import-naming.md
+   */
+  nameHint?: string;
+  /**
    * Where this node's own words sat among its element children, as the
    * index of the child they follow (`-1` before the first).
    *
@@ -307,6 +317,12 @@ export const CAPTURED_PROPERTIES: ReadonlyArray<string> = [
   // Paint
   'background-color', 'background-image', 'background-size',
   'background-position', 'background-repeat', 'opacity', 'box-shadow',
+  // Gradient text: a linear-gradient background clipped to the glyphs,
+  // with the text itself painted transparent so the gradient shows
+  // through. Capture the background and the transparency but not the
+  // clip and the words are simply invisible — 82 `color: transparent`
+  // declarations on one page, and a headline nobody could see.
+  'background-clip', '-webkit-background-clip', '-webkit-text-fill-color',
   'mix-blend-mode', 'filter', 'backdrop-filter',
   // Border
   'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
@@ -375,6 +391,8 @@ export const INITIAL_VALUES: Readonly<Record<string, string | ReadonlyArray<stri
   'text-transform': 'none',
   'text-decoration-line': 'none',
   'white-space': 'normal',
+  'background-clip': ['border-box', 'padding-box'],
+  '-webkit-background-clip': ['border-box', 'padding-box'],
   transform: 'none',
   // Chromium normalizes an unset transition to the bare keyword.
   transition: 'all',

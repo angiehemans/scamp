@@ -85,6 +85,13 @@
      neither flex nor grid, so its children used to fall out of flow. */
   .chip-row { display: inline-flex; align-items: center; gap: 6px;
               padding: 4px 10px; border: 1px solid #e4e6eb; }
+  /* Gradient text: the background is clipped to the glyphs and the text
+     itself is painted transparent. Capture only half of it and the
+     words are simply invisible. */
+  .gradient-title { background-image: linear-gradient(90deg, #2d4a7c, #d9b36a);
+                    -webkit-background-clip: text; background-clip: text;
+                    -webkit-text-fill-color: transparent; font-size: 32px; }
+
   /* No border-box reset here, so this one's computed width and height
      are CONTENT size and have to be converted. */
   .content-box { box-sizing: content-box; width: 200px; height: 40px;
@@ -161,6 +168,7 @@
 
     <h3 class="with-icon"><span class="ico">★</span>Icon before the words</h3>
     <div class="just-words">A box whose only content is words.</div>
+    <h2 class="gradient-title">Painted by a gradient</h2>
     <span class="chip-row"><b>9</b><span>open</span></span>
     <div class="content-box">Measured in content-box</div>
 

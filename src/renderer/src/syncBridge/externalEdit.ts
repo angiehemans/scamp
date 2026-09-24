@@ -88,6 +88,29 @@ export const makeFileChangedHandler =
       const nextSource = { tsx: payload.tsxContent, css: payload.cssContent };
       state.setPageSource(nextSource);
 
+      // The canvas is not the only reader of this file. `componentTrees`
+      // is what `scamp_check_view` and `scamp_get_view_props` answer
+      // from, and it is built once, from `project.components`, when the
+      // project loads. Nothing rebuilt it on an external edit — so after
+      // an agent rewrote a view the canvas showed the new structure
+      // while those two reported on the old one, byte-for-byte
+      // identical, which is exactly how it was found.
+      //
+      // Refreshed from the same parse, and before the round-trip bail
+      // below: that bail means the CANVAS needs no reload, not that
+      // these trees were already current.
+      if (target.kind === 'component') {
+        const trees = useCanvasStore.getState().componentTrees;
+        state.setComponentTrees({
+          ...trees,
+          [target.name]: {
+            elements: parsed.elements,
+            rootId: parsed.rootId,
+            kind: trees[target.name]?.kind ?? 'component',
+          },
+        });
+      }
+
       // Skip the canvas reload when the parsed tree round-trips to the
       // same code — prevents flicker during agent edits that don't actually
       // change a canvas-mappable property.

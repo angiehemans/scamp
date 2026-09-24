@@ -93,6 +93,16 @@ export type CapturedNode = {
         after?: CapturedPseudo;
     };
     /**
+     * The page's own word for this thing, from its class list.
+     *
+     * Layer names of `box_0090` and `label_00a5` describe nothing, and
+     * the page has already named everything on it. Only a class that
+     * reads like a name is taken: a hash, a CSS-module mangling and a
+     * layout utility all say less than the tag does.
+     * see docs/notes/import-naming.md
+     */
+    nameHint?: string;
+    /**
      * Where this node's own words sat among its element children, as the
      * index of the child they follow (`-1` before the first).
      *

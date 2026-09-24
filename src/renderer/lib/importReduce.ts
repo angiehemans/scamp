@@ -233,6 +233,21 @@ const isVisuallyMeaningful = (node: CapturedNode): boolean => {
  * notes. A wrapper that centres its child with flex is doing real work
  * and stays, even though it looks redundant in the layers panel.
  */
+/**
+ * Tags a wrapper can be written with and still mean nothing.
+ *
+ * `<div>` was the whole list, which left the other half of the idiom
+ * standing: one page arrived with about 25 spare `<span>`s around group
+ * labels, nav icons and breadcrumbs. A `<span>` used as a box is as
+ * empty a wrapper as a `<div>`, and the conditions around this set are
+ * what make the removal safe — one child, no visual property, no layout
+ * display, no text, no attributes, no notes, no pseudo-element.
+ *
+ * Nothing semantic is here on purpose. A `<nav>` or a `<section>` says
+ * something about the page even when it paints nothing.
+ */
+const COLLAPSIBLE_TAGS: ReadonlySet<string> = new Set(['div', 'span']);
+
 const collapse = (
   node: CapturedNode,
   findings: ImportFinding[],
@@ -249,7 +264,7 @@ const collapse = (
   while (
     current.children.length === 1 &&
     !isVisuallyMeaningful(current) &&
-    current.tag === 'div'
+    COLLAPSIBLE_TAGS.has(current.tag)
   ) {
     const only = current.children[0];
     if (only === undefined) break;
@@ -711,6 +726,13 @@ const toDeclarations = (styles: Record<string, string>): RawDeclaration[] =>
  * A readable class prefix from the tag and its role, so the layers
  * panel reads like a design rather than a DOM dump.
  */
+/**
+ * Prefixes `parseCode` reads as a type before it looks at the tag.
+ * A name from the page that starts with one would re-type the element
+ * on the next load.
+ */
+const RESERVED_NAME_PREFIX = /^(text|rect|img|input)(_|$)/;
+
 const NAME_FOR_TAG: Readonly<Record<string, string>> = {
   nav: 'nav', header: 'header', footer: 'footer', main: 'main',
   section: 'section', article: 'card', aside: 'aside', figure: 'figure',
@@ -1071,13 +1093,27 @@ export const reduceCapture = (
     // reads it before it looks at the tag: `text_` pins a text element,
     // and anything else lets the tag decide.
     const tagName = NAME_FOR_TAG[node.tag] ?? 'box';
+    // The page's own word for it, where it had one. `nav_item_001b`
+    // beats `box_001b` in the layers panel and in the stylesheet, and
+    // the capture already rejected anything that reads like a hash.
+    //
+    // A prefix Scamp reserves is dropped rather than used: `parseCode`
+    // reads `text_`, `rect_`, `img_` and `input_` as the element's TYPE
+    // before it looks at the tag, so a class called `rect-grid` on a
+    // text element would come back a rectangle.
+    const hint =
+      node.nameHint !== undefined && !RESERVED_NAME_PREFIX.test(node.nameHint)
+        ? node.nameHint
+        : null;
     const name = isRoot
       ? null
-      : isContainer && tagName === 'text'
-        ? 'box'
-        : isTextLeaf
+      : isTextLeaf
+        ? // Still has to start with `text` to pin the type, since the
+          // tag on its own says box. `text_page_sub` reads fine.
+          hint === null
           ? 'text'
-          : tagName;
+          : `text_${hint}`
+        : (hint ?? (isContainer && tagName === 'text' ? 'box' : tagName));
     const className = isRoot ? ROOT_ELEMENT_ID : `${name}_${id}`;
     if (inlineRun !== null) {
       findings.push({

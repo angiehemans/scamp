@@ -69,6 +69,46 @@ export const captureFn = (policy) => {
     const assets = [];
     let nextId = 0;
     let nodeBudget = maxNodes;
+    /**
+     * The page's own word for an element, taken from its class list.
+     *
+     * Rejects more than it accepts. `css-182dboe`, `MuiSvgIcon-root` and
+     * `px-4` are all worse than the tag name; `page-title`, `nav-item`
+     * and `eyebrow` are exactly what the layers panel should say.
+     * A CSS-module class carries the author's name after its hash, so
+     * that half is dug out rather than thrown away.
+     * see docs/notes/import-naming.md
+     */
+    const UTILITY_CLASSES = new Set([
+        'flex', 'grid', 'block', 'inline', 'hidden', 'relative', 'absolute',
+        'sticky', 'fixed', 'row', 'col', 'container', 'active', 'open',
+        'show', 'hide', 'left', 'right', 'center', 'top', 'bottom', 'root',
+    ]);
+    const nameHintOf = (el) => {
+        const raw = typeof el.className === 'string' ? el.className.trim() : '';
+        if (raw.length === 0)
+            return null;
+        let single = null;
+        for (const cls of raw.split(/\s+/)) {
+            // `Page-module__a1b2c3__title` → `title`.
+            const moduled = cls.match(/^.+?-module__[A-Za-z0-9]+__(.+)$/);
+            const name = moduled?.[1] ?? cls;
+            if (!/^[A-Za-z][A-Za-z0-9_-]{1,39}$/.test(name))
+                continue;
+            if (UTILITY_CLASSES.has(name.toLowerCase()))
+                continue;
+            const parts = name.split(/[-_]/).filter((part) => part.length > 0);
+            // Every segment alphabetic: `patient-card` yes, `px-4` no, and
+            // `css-182dboe` no. That one test removes most framework noise.
+            if (parts.length >= 2 && parts.every((part) => /^[A-Za-z]{2,}$/.test(part))) {
+                return parts.join('_').toLowerCase();
+            }
+            if (single === null && parts.length === 1 && /^[A-Za-z]{4,}$/.test(name)) {
+                single = name.toLowerCase();
+            }
+        }
+        return single;
+    };
     /** A short, readable path for the report: `div.card > p`. */
     const pathOf = (el) => {
         const parts = [];
@@ -278,6 +318,14 @@ export const captureFn = (policy) => {
             delete styles['opacity'];
             notes.push({ kind: 'revealed-on-scroll', at: pathOf(el) });
         }
+        // `-webkit-text-fill-color` resolves to the element's own `color`
+        // on everything that never set it, so keeping it unconditionally
+        // would put a second colour on every element on the page. It only
+        // says something when it disagrees with `color` — which is exactly
+        // the gradient-text case.
+        if (styles['-webkit-text-fill-color'] === computed.color) {
+            delete styles['-webkit-text-fill-color'];
+        }
         // Scamp renders every box as `border-box` — its own reset says so —
         // but `getComputedStyle` reports `width` and `height` in whatever
         // box the page chose. A page without a border-box reset reports the
@@ -389,6 +437,11 @@ export const captureFn = (policy) => {
                     continue;
                 if (requires === null || !(requires in pseudoStyles))
                     delete pseudoStyles[prop];
+            }
+            // Same rule as an element's: it only says something when it
+            // disagrees with `color`, and on a glyph it never does.
+            if (pseudoStyles['-webkit-text-fill-color'] === pseudoStyle.color) {
+                delete pseudoStyles['-webkit-text-fill-color'];
             }
             // A pseudo-element's computed width and height are used values
             // measured around the glyph. Carrying them pins a "✓" to the
@@ -528,6 +581,9 @@ export const captureFn = (policy) => {
             built['inline'] = inline;
         if (pseudo !== undefined)
             built['pseudo'] = pseudo;
+        const hint = nameHintOf(el);
+        if (hint !== null)
+            built['nameHint'] = hint;
         if (text !== null && el.children.length > 0) {
             built['textAfterChildIndex'] = textAfterChildIndex;
         }

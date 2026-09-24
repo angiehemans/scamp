@@ -1572,6 +1572,38 @@ describe('against a page captured from a real browser', () => {
     expect(tsx).toContain('data-scamp-id="root"');
   });
 
+  it('brings gradient text across whole, or it is invisible', () => {
+    // The background is clipped to the glyphs and the text is painted
+    // transparent. Capture the transparency without the clip — which is
+    // what happened — and the headline simply cannot be seen.
+    const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+    const title = Object.values(elements).find((e) => e.text === 'Painted by a gradient');
+    const { css } = generateCode({
+      elements,
+      rootId,
+      pageName: 'P',
+      cssModuleImportName: 'P',
+      isComponent: true,
+    });
+    const rule =
+      css.match(new RegExp(`\\.${title?.name}_${title?.id}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+    expect(rule).toContain('background-clip: text');
+    // `transparent` computes to its rgba form, which is what a
+    // stylesheet reader gets back.
+    expect(rule).toContain('-webkit-text-fill-color: rgba(0, 0, 0, 0)');
+    expect(rule).toContain('linear-gradient');
+  });
+
+  it('does not put a text-fill colour on everything that never set one', () => {
+    // It resolves to the element's own `color` wherever it is unset, so
+    // keeping it unconditionally would double up every colour on the page.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const withFill = Object.values(elements).filter(
+      (e) => e.customProperties['-webkit-text-fill-color'] !== undefined
+    );
+    expect(withFill).toHaveLength(1);
+  });
+
   it('keeps a link to the same site relative, not pointed back at it', () => {
     // Resolved absolute, every nav item walks the user out of the
     // project and back onto the page it was copied from.
@@ -1838,9 +1870,33 @@ describe('against a page captured from a real browser', () => {
     // `.nav-outer` / `.nav-mid` contribute nothing; `.nav` and `.hero` do.
     expect(result.findings.filter((f) => f.kind === 'collapsed-wrapper').length).toBeGreaterThan(0);
     const names = Object.values(result.elements).map((e) => e.name);
+    // Named by the page's own words rather than by the tag: `.hero` is
+    // a `<header>` and `.card` an `<article>`, and the layers panel
+    // now says what the page called them.
     expect(names).toContain('nav');
-    expect(names).toContain('header');
+    expect(names).toContain('hero');
     expect(names).toContain('card');
+  });
+
+  it('takes the page\'s word for what things are', () => {
+    // `box_0090` and `label_00a5` describe nothing. Every one of these
+    // is a class the page itself wrote.
+    const names = Object.values(
+      reduceCapture(payload, { randomId: seqIds() }).elements
+    ).map((e) => e.name);
+    for (const want of ['brand', 'nav_links', 'eyebrow', 'features', 'badge', 'legal']) {
+      expect(names).toContain(want);
+    }
+  });
+
+  it('ignores a class that reads like a hash or a utility', () => {
+    // The fixture's `.mark` is a name; a `css-182dboe` or a `px-4`
+    // would say less than the tag does, and those are left alone.
+    const names = Object.values(
+      reduceCapture(payload, { randomId: seqIds() }).elements
+    ).map((e) => e.name ?? '');
+    expect(names.every((n) => !/^css[-_]/.test(n))).toBe(true);
+    expect(names.every((n) => !/\d$/.test(n))).toBe(true);
   });
 
   it('names the view after the page', () => {
