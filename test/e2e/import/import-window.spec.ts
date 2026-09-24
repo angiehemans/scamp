@@ -50,8 +50,16 @@ test.describe('website import', () => {
     // The importer reports back from the app window, which is the only
     // place that knows whether a view was actually written.
     await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 30_000 });
-    // The report is a disclosure; losses open it by default.
-    await expect(importWindow.getByText(/decorative ::before/)).toBeVisible();
+    // The report is a disclosure that opens itself when something was
+    // lost, so open it only if it is shut. The `::before` star is no
+    // longer a loss — it comes across as a real text element — and the
+    // report has to say so rather than stay quiet about it.
+    const toggle = importWindow.getByRole('button', { name: /What changed|Hide/ });
+    await expect(toggle).toBeVisible();
+    if (((await toggle.textContent()) ?? '').includes('What changed')) {
+      await toggle.click();
+    }
+    await expect(importWindow.getByText(/recovered as text/)).toBeVisible();
 
     // And the view is on disk, named after the page's title.
     await expect
@@ -63,7 +71,14 @@ test.describe('website import', () => {
     expect(tsx).toContain('data-scamp-id="root"');
     expect(tsx).toContain('<nav');
     expect(tsx).toContain('<header');
-    expect(tsx).toContain('Ship the thing you actually designed');
+    // The heading's highlighted word is its own element — a `<span>`
+    // whose whole appearance came from a class the import cannot
+    // carry — while the one that styled nothing stayed inline markup.
+    expect(tsx).toContain('>thing<');
+    expect(tsx).toContain('<span>actually</span>');
+    // And the wordmark keeps all three of its parts, with their words.
+    expect(tsx).toMatch(/<b [^>]*>wind<\/b>/);
+    expect(tsx).toMatch(/<sup [^>]*>®<\/sup>/);
     // The three cards' images came across as image elements.
     expect(tsx.match(/<img/g)?.length).toBe(3);
     // And the styles landed in the module, not inline.

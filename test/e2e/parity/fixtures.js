@@ -333,6 +333,55 @@ export const PARITY_FIXTURES = [
 `,
     },
     {
+        name: 'text-tag-holding-children-and-inline-markup',
+        why: "A `<p>` holding two element children and a `<strong>` mid-sentence — the shape every website import produces. The canvas rendered a text element's `text` and dropped its children, so both were listed in the layers panel and drew nothing. Sizes are pinned because the two Chromium builds resolve `system-ui` differently; what is being checked is that the children exist, sit in order, and honour `display: block` on tags a browser lays out inline.",
+        tsx: page(`    <div data-scamp-id="root" className={styles.root}>
+      <p data-scamp-id="box_e001" className={styles.box_e001}>
+        <span data-scamp-id="label_e002" className={styles.label_e002}>one</span>
+        <em data-scamp-id="italic_e003" className={styles.italic_e003}>two</em>
+        <strong>three</strong>
+      </p>
+    </div>`),
+        html: `    <div class="root">
+      <p class="box_e001">
+        <span class="label_e002">one</span>
+        <em class="italic_e003">two</em>
+        <strong>three</strong>
+      </p>
+    </div>`,
+        css: `.root {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+}
+
+.box_e001 {
+  width: 400px;
+  height: 160px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+
+.label_e002 {
+  width: 200px;
+  height: 40px;
+  display: block;
+  position: static;
+  background: #334455;
+}
+
+.italic_e003 {
+  width: 300px;
+  height: 30px;
+  display: block;
+  margin: 8px 0px 0px;
+  position: static;
+  background: #556677;
+}
+`,
+    },
+    {
         name: 'component-instance-isolation',
         why: "Two instances of one component beside a page that also names its root `root`. The page's rules must not reach inside an instance, and each instance must get its own copy of the component's rules — what CSS Modules do on disk. The component's `::before` is the part inline styles cannot express, so it only renders once the component's stylesheet reaches the canvas.",
         components: [

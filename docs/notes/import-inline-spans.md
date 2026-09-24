@@ -191,3 +191,42 @@ children, or any canvas interaction that puts a child inside a text
 element, would show in the export and not on the canvas. Fixing it
 means teaching the canvas the same text-then-fragments-then-children
 order the generator uses.
+
+## The canvas now renders what the file says
+
+`generateCode` emits text, then inline fragments, then children
+interleaved by `afterChildIndex`, for any element type. The canvas
+rendered a text element's `text` and nothing else, and never rendered
+inline fragments at all — so a `<strong>` inside a sentence was in the
+file, in the layers panel as `Raw (1)`, and absent from the canvas.
+
+`ElementRenderer` composes the same three things in the same order now.
+Two things that took care:
+
+**Fragments are verbatim source, so they have to be injected as
+markup.** That is the position the svg renderer is already in, and it
+takes the same precaution: `sanitizeInlineMarkup` runs DOMPurify over
+an inline-only allowlist first. A fragment can come from a hand-written
+project file, so it is not trusted input. The wrapper is
+`display: contents` — the closest the canvas gets to the generator's
+"emitted with no wrapper at all".
+
+**A composed element is not editable in place.** `handleEditableBlur`
+commits `textContent`, which would swallow every child's words into the
+parent's `text`. An element with children or fragments no longer offers
+contentEditable; a plain text element, which is the overwhelmingly
+common case, is untouched and still renders as exactly its own string.
+
+Pinned by a parity fixture, which measures the canvas against a browser
+rendering the same files. Its sizes are pinned rather than left to the
+type, because the two Chromium builds resolve `system-ui` differently —
+the first version of the fixture failed on an 8px width difference in a
+run of text, which is the harness's own documented limitation rather
+than a bug.
+
+**A note on how this was nearly mis-diagnosed.** The first run of that
+fixture showed the fragment missing and the `<em>` computing `inline`,
+and both looked like bugs in the new code. They were not: Playwright
+launches the built bundle in `out/`, and the build predated the edit.
+`npm run build` before an e2e run, the same way `tsc --build` comes
+before a Vitest run.
