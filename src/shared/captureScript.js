@@ -324,7 +324,16 @@ export const captureFn = (policy) => {
                     continue;
                 }
                 try {
-                    attrs[name] = new URL(value, document.baseURI).href;
+                    const resolved = new URL(value, document.baseURI);
+                    // A link to somewhere else on the SAME site stays relative.
+                    // Resolving it absolute points the imported project back at
+                    // the page it copied — every nav item leaving the app. `src`
+                    // is the opposite: the downloader needs somewhere to fetch
+                    // from, so it keeps the absolute form.
+                    attrs[name] =
+                        name === 'href' && resolved.origin === location.origin
+                            ? `${resolved.pathname}${resolved.search}${resolved.hash}`
+                            : resolved.href;
                 }
                 catch {
                     attrs[name] = value;

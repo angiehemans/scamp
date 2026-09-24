@@ -208,7 +208,7 @@
                                   },
                                   "text": "Product",
                                   "attrs": {
-                                    "href": "file:///product"
+                                    "href": "/product"
                                   },
                                   "children": [],
                                   "notes": [],
@@ -257,7 +257,7 @@
                                   },
                                   "text": "Pricing",
                                   "attrs": {
-                                    "href": "file:///pricing"
+                                    "href": "/pricing"
                                   },
                                   "children": [],
                                   "notes": [],
@@ -306,7 +306,7 @@
                                   },
                                   "text": "Docs",
                                   "attrs": {
-                                    "href": "file:///docs"
+                                    "href": "/docs"
                                   },
                                   "children": [],
                                   "notes": [],

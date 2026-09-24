@@ -61,6 +61,134 @@ const reduce = (root: CapturedNode, over: Partial<CapturePayload> = {}) =>
 const kinds = (root: CapturedNode): string[] =>
   reduce(root).findings.map((f) => f.kind);
 
+describe('what the page wrote, in the spelling Scamp and React need', () => {
+  // Everything here came out of one agent's clean-up report on a real
+  // import: 834 single-side declarations the panel could not edit, SVGs
+  // React refused to compile, and every link pointing back at the site
+  // the page was copied from.
+
+  it('folds four sides into the shorthand Scamp models', () => {
+    // `getComputedStyle` only ever reports longhands, and Scamp maps
+    // only the shorthand — so all four fell through to
+    // `customProperties`: four lines where one would do, and none of
+    // them editable in the panel.
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            styles: {
+              'padding-top': '8px',
+              'padding-right': '16px',
+              'padding-bottom': '8px',
+              'padding-left': '16px',
+            },
+          }),
+        ],
+      })
+    );
+    const box = Object.values(elements).find((e) => e.id !== ROOT_ELEMENT_ID);
+    expect(box?.padding).toEqual([8, 16, 8, 16]);
+    expect(box?.customProperties['padding-top']).toBeUndefined();
+  });
+
+  it.each([
+    [['4px', '4px', '4px', '4px'], [4, 4, 4, 4]],
+    [['4px', '8px', '4px', '8px'], [4, 8, 4, 8]],
+    [['4px', '8px', '12px', '8px'], [4, 8, 12, 8]],
+    [['4px', '8px', '12px', '16px'], [4, 8, 12, 16]],
+  ])('collapses %j without changing what it means', (sides, want) => {
+    const [top, right, bottom, left] = sides as string[];
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            styles: {
+              'margin-top': top as string,
+              'margin-right': right as string,
+              'margin-bottom': bottom as string,
+              'margin-left': left as string,
+            },
+          }),
+        ],
+      })
+    );
+    const box = Object.values(elements).find((e) => e.id !== ROOT_ELEMENT_ID);
+    expect(box?.margin).toEqual(want);
+  });
+
+  it('leaves a partial set alone, rather than inventing the other sides', () => {
+    const { elements } = reduce(
+      node({ children: [node({ id: 1, styles: { 'padding-left': '16px' } })] })
+    );
+    const box = Object.values(elements).find((e) => e.id !== ROOT_ELEMENT_ID);
+    expect(box?.padding).toEqual([0, 0, 0, 0]);
+    expect(box?.customProperties['padding-left']).toBe('16px');
+  });
+
+  it('folds a border the same way, all three of its sets', () => {
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            styles: {
+              'border-top-width': '1px',
+              'border-right-width': '1px',
+              'border-bottom-width': '1px',
+              'border-left-width': '1px',
+              'border-top-style': 'solid',
+              'border-right-style': 'solid',
+              'border-bottom-style': 'solid',
+              'border-left-style': 'solid',
+              'border-top-color': 'rgb(1, 2, 3)',
+              'border-right-color': 'rgb(1, 2, 3)',
+              'border-bottom-color': 'rgb(1, 2, 3)',
+              'border-left-color': 'rgb(1, 2, 3)',
+            },
+          }),
+        ],
+      })
+    );
+    const box = Object.values(elements).find((e) => e.id !== ROOT_ELEMENT_ID);
+    expect(box?.borderWidth).toEqual([1, 1, 1, 1]);
+    expect(box?.borderStyle).toBe('solid');
+    expect(box?.borderColor).toBe('rgb(1, 2, 3)');
+  });
+
+  it('writes an svg React will accept', () => {
+    // The DOM serialises `style` as a string and keeps the hyphens.
+    // React takes neither, so the icon's own `fill: currentColor` was
+    // captured correctly and then dropped — icons rendered black.
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            tag: 'svg',
+            svgSource: '<path style="fill: currentcolor" fill-rule="evenodd"></path>',
+          }),
+        ],
+      })
+    );
+    const icon = Object.values(elements).find((e) => e.type === 'image');
+    expect(icon?.svgSource).toContain("style={{ fill: 'currentcolor' }}");
+    expect(icon?.svgSource).toContain('fillRule="evenodd"');
+  });
+
+  it('spells a kept attribute the way React spells it', () => {
+    const { elements } = reduce(
+      node({
+        children: [node({ id: 1, tag: 'time', text: 'today', attrs: { datetime: '2026-01-01' } })],
+      })
+    );
+    const time = Object.values(elements).find((e) => e.text === 'today');
+    expect(time?.attributes?.['dateTime']).toBe('2026-01-01');
+    expect(time?.attributes?.['datetime']).toBeUndefined();
+  });
+});
+
 describe('boxes that hold words, and words that hold their place', () => {
   it('keeps the words in a box that is nothing but words', () => {
     // `elementTypeFor` calls a `<div>` a rectangle, and the generator
@@ -1442,6 +1570,18 @@ describe('against a page captured from a real browser', () => {
     expect(Object.keys(back.elements)).toHaveLength(Object.keys(result.elements).length);
     expect(tsx).not.toContain('<body');
     expect(tsx).toContain('data-scamp-id="root"');
+  });
+
+  it('keeps a link to the same site relative, not pointed back at it', () => {
+    // Resolved absolute, every nav item walks the user out of the
+    // project and back onto the page it was copied from.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const hrefs = Object.values(elements)
+      .map((e) => e.attributes?.['href'])
+      .filter((h): h is string => typeof h === 'string');
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(hrefs.every((h) => !h.startsWith('file://'))).toBe(true);
+    expect(hrefs).toContain('/product');
   });
 
   it('keeps the page exactly as it was, beside what it became', () => {

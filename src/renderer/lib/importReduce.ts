@@ -9,6 +9,7 @@ import {
 
 import { ROOT_ELEMENT_ID, type ElementType, type ScampElement } from './element';
 import { makeBaseline, applyDeclarations, applyDeclarationsAsOverride } from './parseCode/apply';
+import { jsxAttributeName, svgSourceToJsx } from './svgJsx';
 import type { RawDeclaration } from './parseCode/css';
 import type { RawElement } from './parseCode/tsx';
 
@@ -614,6 +615,72 @@ const normalizeGridTracks = (
   return next;
 };
 
+/**
+ * Sets of longhands Scamp models as one typed value.
+ *
+ * `getComputedStyle` only ever reports longhands, so a capture carries
+ * `padding-top` … `padding-left` and never `padding`. Scamp maps the
+ * SHORTHAND to its typed field and has no mapper for the sides, so all
+ * four fell through to `customProperties` — emitted verbatim, invisible
+ * to the properties panel, and four lines where one would do. One real
+ * page produced 834 of them and a 87KB stylesheet.
+ */
+const SHORTHAND_SETS: ReadonlyArray<{ shorthand: string; sides: ReadonlyArray<string> }> = [
+  { shorthand: 'padding', sides: ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'] },
+  { shorthand: 'margin', sides: ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'] },
+  {
+    shorthand: 'border-width',
+    sides: ['border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width'],
+  },
+  {
+    shorthand: 'border-style',
+    sides: ['border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style'],
+  },
+  {
+    shorthand: 'border-color',
+    sides: ['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'],
+  },
+  {
+    shorthand: 'border-radius',
+    sides: [
+      'border-top-left-radius',
+      'border-top-right-radius',
+      'border-bottom-right-radius',
+      'border-bottom-left-radius',
+    ],
+  },
+];
+
+/** `10px 10px 10px 10px` → `10px`; `1px 2px 1px 2px` → `1px 2px`. */
+const collapseSides = ([top, right, bottom, left]: ReadonlyArray<string>): string => {
+  if (top === bottom && right === left) {
+    return top === right ? `${top}` : `${top} ${right}`;
+  }
+  if (right === left) return `${top} ${right} ${bottom}`;
+  return `${top} ${right} ${bottom} ${left}`;
+};
+
+/**
+ * Fold every complete longhand set into the shorthand, so the values
+ * land in Scamp's typed fields instead of `customProperties`.
+ *
+ * Only when all four sides are present: a partial set is a value the
+ * page set on one edge, and writing a shorthand would invent the other
+ * three.
+ */
+const foldShorthands = (styles: Record<string, string>): Record<string, string> => {
+  let next = styles;
+  for (const { shorthand, sides } of SHORTHAND_SETS) {
+    if (shorthand in next) continue;
+    const values = sides.map((side) => next[side]);
+    if (values.some((value) => value === undefined)) continue;
+    if (next === styles) next = { ...styles };
+    next[shorthand] = collapseSides(values as string[]);
+    for (const side of sides) delete next[side];
+  }
+  return next;
+};
+
 const normalizedStyles = (
   node: CapturedNode,
   isRoot: boolean,
@@ -627,6 +694,7 @@ const normalizedStyles = (
   let styles = flow === null ? node.styles : { ...node.styles, ...flow };
   styles = restoreAutoMargins(styles, findings, at);
   styles = normalizeGridTracks(node, styles, findings, at);
+  styles = foldShorthands(styles);
   if (isRoot) {
     const rootStyles = { ...styles };
     for (const prop of VIEWPORT_DERIVED) delete rootStyles[prop];
@@ -1051,12 +1119,16 @@ export const reduceCapture = (
       name,
       src: type === 'image' && node.tag === 'img' ? (node.attrs['src'] ?? null) : null,
       alt: type === 'image' && node.tag === 'img' ? (node.attrs['alt'] ?? '') : null,
+      // Spelled the way React spells them: a captured `datetime` is
+      // invalid JSX, and the file it lands in is compiled.
       attributes: Object.fromEntries(
-        Object.entries(node.attrs).filter(
-          ([k]) => !(type === 'image' && node.tag === 'img' && (k === 'src' || k === 'alt'))
-        )
+        Object.entries(node.attrs)
+          .filter(
+            ([k]) => !(type === 'image' && node.tag === 'img' && (k === 'src' || k === 'alt'))
+          )
+          .map(([k, v]) => [jsxAttributeName(k), v])
       ),
-      svgSource: node.svgSource ?? null,
+      svgSource: node.svgSource === undefined ? null : svgSourceToJsx(node.svgSource),
       selectOptions: null,
       componentName: null,
       instanceId: null,
