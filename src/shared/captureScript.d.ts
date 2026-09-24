@@ -34,6 +34,7 @@ export type CapturePolicy = {
         maxDepth: number;
         maxNodes: number;
         maxTextLength: number;
+        maxSourceLength: number;
     };
     version: number;
     /**

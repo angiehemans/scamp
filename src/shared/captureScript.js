@@ -538,6 +538,38 @@ export const captureFn = (policy) => {
     if (nodeBudget <= 0) {
         pageNotes.push({ kind: 'node-capped', detail: String(maxNodes) });
     }
+    // The page exactly as it was, kept beside the reduction. Read AFTER
+    // the walk so it reflects the same settled page the tree describes —
+    // `prepareFn` has already scrolled the reveals in.
+    const readSource = () => {
+        const cap = policy.limits.maxSourceLength;
+        const unreadable = [];
+        const parts = [];
+        for (const sheet of Array.from(document.styleSheets)) {
+            let rules;
+            try {
+                // Cross-origin without CORS throws here rather than returning
+                // nothing, which is why this is a try and not a null check.
+                rules = Array.from(sheet.cssRules);
+            }
+            catch {
+                if (sheet.href)
+                    unreadable.push(sheet.href);
+                continue;
+            }
+            parts.push(sheet.href ? `/* ${sheet.href} */` : '/* <style> */');
+            for (const rule of rules)
+                parts.push(rule.cssText);
+        }
+        const html = document.documentElement.outerHTML;
+        const css = parts.join('\n');
+        return {
+            html: html.slice(0, cap),
+            css: css.slice(0, cap),
+            unreadable,
+            truncated: html.length > cap || css.length > cap,
+        };
+    };
     return {
         version: policy.version,
         url: location.href,
@@ -546,5 +578,6 @@ export const captureFn = (policy) => {
         root,
         assets,
         notes: pageNotes,
+        source: readSource(),
     };
 };

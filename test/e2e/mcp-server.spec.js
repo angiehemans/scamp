@@ -91,11 +91,13 @@ test.describe('MCP server, live', () => {
             'scamp_get_conventions',
             'scamp_get_element_by_id',
             'scamp_get_element_tree',
+            'scamp_get_import_source',
             'scamp_get_recent_edits',
             'scamp_get_selected_element',
             'scamp_get_theme_tokens',
             'scamp_get_view_props',
             'scamp_list_components',
+            'scamp_list_import_sources',
             'scamp_list_pages',
             'scamp_list_routes',
         ]);

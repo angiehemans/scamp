@@ -21,6 +21,7 @@ import { getSettings } from './settings';
 import { watchProject } from '../watcher';
 import { setSentryProjectRoot } from '../sentry';
 import { startMcpForProject } from '../mcp/lifecycle';
+import { setActiveImportProject } from '../importSourceStore';
 import { ensureProjectConfig } from './projectConfig';
 import { detectProjectFormat } from './projectFormat';
 import { setCachedProjectFormat } from './projectFormatCache';
@@ -157,6 +158,9 @@ const createProject = async (args: CreateProjectArgs): Promise<ProjectData> => {
   await watchProject(projectPath);
   setSentryProjectRoot(projectPath);
   await startMcpForProject(projectPath);
+  // Opening a different project drops the last one's kept originals:
+  // they are scratch for tidying up an import, not project state.
+  await setActiveImportProject(projectPath);
   return readProject(projectPath);
 };
 
@@ -219,6 +223,7 @@ const openProject = async (args: OpenProjectArgs): Promise<ProjectData> => {
   await watchProject(args.folderPath);
   setSentryProjectRoot(args.folderPath);
   await startMcpForProject(args.folderPath);
+  await setActiveImportProject(args.folderPath);
   return project;
 };
 

@@ -50,6 +50,11 @@ const api = {
     resolveImportFonts: (args) => ipcRenderer.invoke(IPC.ImportResolveFonts, args),
     /** Tell the import window how it went. */
     reportImportResult: (payload) => ipcRenderer.invoke(IPC.ImportResultReport, payload),
+    /**
+     * Keep the page's original beside the view it became, in a temp
+     * directory the MCP can read. see docs/notes/import-source-store.md
+     */
+    saveImportSource: (args) => ipcRenderer.invoke(IPC.ImportSaveSource, args),
     openPreview: (args) => ipcRenderer.invoke(IPC.PreviewOpen, args),
     /**
      * Push an updated active page + page list to an already-open

@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'path';
 import { IPC } from '@shared/ipcChannels';
+import { saveImportSource } from './importSourceStore';
 /**
  * The import window: a browser you point at a page, and a button that
  * turns what is on screen into a view.
@@ -99,6 +100,19 @@ export const registerImportIpc = () => {
         // still looking at the import window would think nothing happened.
         target.focus();
         return { ok: true };
+    });
+    // App window → main: the page exactly as it was, kept in a temp
+    // directory the MCP can read and the project never sees.
+    // see docs/notes/import-source-store.md
+    ipcMain.handle(IPC.ImportSaveSource, async (_e, args) => {
+        try {
+            return { ok: true, stored: await saveImportSource(args.projectPath, args.view, args.url, args.source) };
+        }
+        catch (err) {
+            // Keeping the original is a convenience. An import that
+            // otherwise succeeded must not fail because temp is full.
+            return { ok: false, error: err instanceof Error ? err.message : String(err) };
+        }
     });
     // App window → import window, so the importer can report the outcome
     // without knowing anything about projects.

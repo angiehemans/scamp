@@ -49,6 +49,7 @@
     "src/main/ipc/imageOps.ts",
     "src/main/ipc/imageOptimize.ts",
     "src/main/ipc/pathContainment.ts",
+    "src/main/importSourceStore.ts",
     "src/main/watcher.ts",
     "src/main/ipc/pageOps.ts",
     "src/main/ipc/pageRename.ts",

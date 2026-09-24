@@ -32,7 +32,7 @@
  * see docs/plans/website-import-plan.md
  */
 /** Bumped when the payload shape changes, so a stale fixture fails loudly. */
-export const CAPTURE_VERSION = 2;
+export const CAPTURE_VERSION = 3;
 /**
  * Tags that are part of a line rather than a box. Their children stay
  * inline content; they never become elements of their own inside text.
@@ -262,4 +262,12 @@ export const CAPTURE_LIMITS = {
     maxNodes: 4000,
     /** A single text run longer than this is truncated — almost always minified junk. */
     maxTextLength: 5000,
+    /**
+     * Cap on each half of the kept original, in characters.
+     *
+     * It travels over IPC as JSON and then sits in a temp file, so it has
+     * to be bounded; 4MB of markup or CSS is far past the point where
+     * reading more of it tells anyone anything new.
+     */
+    maxSourceLength: 4_000_000,
 };

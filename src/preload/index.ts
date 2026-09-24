@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from '@shared/ipcChannels';
+import type { CapturedSource } from '@shared/importCapture';
 import type { TitleBarColors } from '@shared/titleBarColors';
 import type {
   FetchImageArgs,
@@ -172,6 +173,17 @@ const api = {
   /** Tell the import window how it went. */
   reportImportResult: (payload: ImportResultPayload): Promise<void> =>
     ipcRenderer.invoke(IPC.ImportResultReport, payload),
+  /**
+   * Keep the page's original beside the view it became, in a temp
+   * directory the MCP can read. see docs/notes/import-source-store.md
+   */
+  saveImportSource: (args: {
+    projectPath: string;
+    view: string;
+    url: string;
+    source: CapturedSource;
+  }): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.ImportSaveSource, args),
 
   openPreview: (args: PreviewOpenArgs): Promise<{ windowId: number }> =>
     ipcRenderer.invoke(IPC.PreviewOpen, args),

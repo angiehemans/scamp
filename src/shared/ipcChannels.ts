@@ -134,6 +134,8 @@ export const IPC = {
   /** Which of these families does Google Fonts serve? */
   ImportResolveFonts: 'import:resolveFonts',
   ImportClose: 'import:close',
+  /** App window → main: keep this page's original beside the view. */
+  ImportSaveSource: 'import:saveSource',
   /** Import window → main: a captured page. */
   ImportCaptured: 'import:captured',
   /** Main → app window: reduce this and make a view of it. */

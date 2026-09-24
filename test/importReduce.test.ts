@@ -1444,6 +1444,19 @@ describe('against a page captured from a real browser', () => {
     expect(tsx).toContain('data-scamp-id="root"');
   });
 
+  it('keeps the page exactly as it was, beside what it became', () => {
+    // The reduction is lossy by design, so the original is the only
+    // record of what the page actually said.
+    // see docs/notes/import-source-store.md
+    const source = payload.source;
+    expect(source?.html).toContain('<h1>Ship the');
+    expect(source?.css).toContain('.hero h1');
+    // A local fixture has no cross-origin sheets and is nowhere near
+    // the cap, so both of these say "nothing went missing".
+    expect(source?.unreadable).toEqual([]);
+    expect(source?.truncated).toBe(false);
+  });
+
   it('keeps an icon in front of the words it labels', () => {
     // `<h3 class="with-icon"><span class="ico">★</span>Icon before the
     // words</h3>` — a flex host, so the span is a child rather than

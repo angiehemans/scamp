@@ -45,6 +45,7 @@ import {
 import { setDevServerLogSink, stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher, getWatchedPath } from './watcher';
 import { initMcp, stopMcp } from './mcp/lifecycle';
+import { disposeImportSources } from './importSourceStore';
 import { resolveInsideProject } from './ipc/pathContainment';
 import {
   initSentryIfOptedIn,
@@ -415,6 +416,7 @@ const performShutdownCleanup = async (): Promise<void> => {
   await snapshotOnShutdown();
   disposeAuth();
   await stopMcp();
+  await disposeImportSources();
   disposeWatcher();
   setSentryProjectRoot(null);
   closeAllPreviewWindows();

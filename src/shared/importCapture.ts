@@ -33,7 +33,7 @@
  */
 
 /** Bumped when the payload shape changes, so a stale fixture fails loudly. */
-export const CAPTURE_VERSION = 2;
+export const CAPTURE_VERSION = 3;
 
 /** Something the page does that Scamp's model has no room for. */
 export type CaptureNoteKind =
@@ -249,6 +249,33 @@ export type CapturePayload = {
   assets: CapturedAsset[];
   /** Whole-capture notes: caps hit, and anything not tied to one node. */
   notes: CaptureNote[];
+  /**
+   * The page exactly as it was, before any of this module's opinions.
+   *
+   * The reduction is lossy by design — it has to be, to land in a model
+   * far more constrained than a browser. Keeping the original next to
+   * the result means the question "what did the page actually say here?"
+   * has an answer, which is the difference between an agent guessing at
+   * a layout and reading the rule that produced it.
+   * see docs/notes/import-source-store.md
+   */
+  source?: CapturedSource;
+};
+
+export type CapturedSource = {
+  /** `document.documentElement.outerHTML` at capture time. */
+  html: string;
+  /** Every stylesheet the page let us read, in document order. */
+  css: string;
+  /**
+   * Stylesheets that threw on `cssRules` — cross-origin without CORS.
+   * Recorded rather than ignored: "there was more CSS and we could not
+   * see it" is the kind of thing that explains an import nobody can
+   * otherwise account for.
+   */
+  unreadable: string[];
+  /** True when either half hit `maxSourceLength` and was cut. */
+  truncated: boolean;
 };
 
 /**
@@ -415,4 +442,12 @@ export const CAPTURE_LIMITS = {
   maxNodes: 4000,
   /** A single text run longer than this is truncated — almost always minified junk. */
   maxTextLength: 5000,
+  /**
+   * Cap on each half of the kept original, in characters.
+   *
+   * It travels over IPC as JSON and then sits in a temp file, so it has
+   * to be bounded; 4MB of markup or CSS is far past the point where
+   * reading more of it tells anyone anything new.
+   */
+  maxSourceLength: 4_000_000,
 } as const;

@@ -118,6 +118,19 @@ export const useWebsiteImport = ({ project, breakpoints, onProjectChange, openVi
                             : [...prev.components, created],
                     }));
                     openView(created.name);
+                    // Keep the page exactly as it was, next to what it became.
+                    // Best-effort and after the view exists: a full temp
+                    // directory must not cost anyone an import that worked.
+                    // see docs/notes/import-source-store.md
+                    const source = payload.source;
+                    if (source !== undefined) {
+                        void window.scamp.saveImportSource({
+                            projectPath: project.path,
+                            view: created.name,
+                            url: payload.url,
+                            source,
+                        });
+                    }
                     // Images: downloaded after the view exists, so a slow or dead
                     // host delays pictures rather than the whole import. Each
                     // failure is reported and the rest carry on.
