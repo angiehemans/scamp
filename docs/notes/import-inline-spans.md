@@ -95,3 +95,60 @@ With them as text elements, each part keeps its own type: in the
 fixture the `<b>` resolves to weight 900 against its 700 parent and
 takes the brand colour, while the `<sup>` keeps its 10px. That is three
 elements you can edit where there used to be one bare tag.
+
+## `<em>`, `<a>`, and the rule that was about tags
+
+The span fix was scoped to `<span>`, justified as "`<strong>` and `<em>`
+survive as bare tags because the browser styles them". That holds only
+while the page has not restyled them. On one page it had: an `<em>`
+carrying a whole 10px small-print treatment — its own size, weight,
+line-height, top margin and max-width — of which a bare `<em>` keeps
+the italic and nothing else.
+
+So the rule is now per tag rather than per span: `INLINE_TAG_AFFORDANCES`
+lists what each tag brings for free, and anything visible beyond that
+makes an element. `a` and `button` bring **nothing**, deliberately —
+Scamp's own reset does `all: unset` on them, so even the default link
+colour is gone by the time the page renders.
+
+That last point is why an inline `<a>` had to become an element rather
+than stay a fragment. As a bare fragment it got `all: unset; display:
+block` from `theme.css`: grey instead of link-blue, and taking the whole
+paragraph width on a line of its own. A fragment has nowhere to carry a
+colour, so only an element with its own class can hold it.
+
+## Two display values that could not be written down
+
+`display: inline-block` was the first (above). `display: block` on an
+inline tag was the second, and it hid the same way: the model's "not a
+flex or grid container" sentinel is also its default, so it emits
+nothing — which reads as `block` on a div and as `inline` on an `<em>`.
+A block-level `<em>` was therefore inexpressible, and the imported
+disclaimer flowed back into the sentence above it.
+
+The generator now spells out `display: block` for an inline-by-default
+tag, and only where it is observable: not for a flex or grid item, which
+its parent blockifies, and not for an absolutely positioned box, which
+is out of flow. Both exclusions matter — without them every `<span>`
+element in every existing project would gain the declaration, which the
+published contract-0 fixture caught immediately.
+
+## The bug under all of it: a container could not keep its type
+
+`generateCode` emitted typography only for text elements. `parseCode`
+parsed it into typed fields regardless. So a container declaring
+`font-size: 14px` for its children to inherit had it read, held, and
+then dropped on the next save — the file rewriting itself smaller, and
+every text child falling back a size. `color` had already been fixed
+here for exactly this reason; the rest of the inherited set had not.
+
+That single omission is what made the earlier workarounds necessary:
+moving type onto the words, then stripping it from the host. Stripping
+was itself wrong — a container's `font-size` and `line-height` set the
+line box its inline children sit in, so removing them made one
+paragraph seven pixels taller than the page it copied. With the
+generator fixed, the container keeps what it declared, the words keep
+their own copy, and nothing is lost either way.
+
+Measured after: dev.resovaiq.com went to **100%** of elements within
+2px of the source, scamp.club 86% → 89%, resovaiq.com 86% → 88%.

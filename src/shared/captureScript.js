@@ -2,7 +2,7 @@
 // The DOM lib is pulled in for this file alone: `src/shared` is compiled
 // by the node project too, where `document` and `Element` are rightly
 // absent. This is the one shared module that runs in a page.
-import { CAPTURED_PROPERTIES, CAPTURE_LIMITS, CAPTURE_VERSION, INHERITED_PROPERTIES, INITIAL_VALUES, CONDITIONAL_PROPERTIES, INLINE_MARKUP_ATTRIBUTES, INLINE_MARKUP_TAGS, KEPT_ATTRIBUTES, SPAN_VISUAL_PROPERTIES, SKIPPED_TAGS, } from './importCapture';
+import { CAPTURED_PROPERTIES, CAPTURE_LIMITS, CAPTURE_VERSION, INHERITED_PROPERTIES, INITIAL_VALUES, CONDITIONAL_PROPERTIES, INLINE_MARKUP_ATTRIBUTES, INLINE_MARKUP_TAGS, INLINE_TAG_AFFORDANCES, KEPT_ATTRIBUTES, SPAN_VISUAL_PROPERTIES, SKIPPED_TAGS, } from './importCapture';
 /** The policy as the page receives it: plain arrays, JSON-safe. */
 export const capturePolicy = () => ({
     properties: [...CAPTURED_PROPERTIES],
@@ -12,6 +12,7 @@ export const capturePolicy = () => ({
     inlineTags: [...INLINE_MARKUP_TAGS],
     inlineAttrs: { ...INLINE_MARKUP_ATTRIBUTES },
     spanVisual: [...SPAN_VISUAL_PROPERTIES],
+    affordances: { ...INLINE_TAG_AFFORDANCES },
     textTags: [
         'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'label', 'blockquote',
         'figcaption', 'legend', 'dt', 'dd', 'caption', 'th', 'td', 'a', 'span',
@@ -175,21 +176,24 @@ export const captureFn = (policy) => {
         return `<${tag}${attrs.join('')}>${inner}</${tag}>`;
     };
     /**
-     * Is this `<span>` carrying design of its own?
+     * Is this inline tag carrying design a bare tag would not?
      *
-     * `<strong>` and `<em>` survive as bare tags because the browser
-     * styles them. A `<span>` does not: everything it looks like came
-     * from a class the import cannot carry, so emitting it bare loses
-     * the lot. One that differs from its parent on anything visible —
-     * or that is not an inline box at all — becomes a real element.
+     * A `<strong>` emitted on its own is still bold, so weight alone is
+     * no reason to make an element of it. A `<span>` brings nothing at
+     * all, and an `<em>` given a 10px small-print treatment brings only
+     * the italic — the rest came from a class the import cannot carry,
+     * and emitting the tag bare loses it. So: anything visible the tag
+     * does not already account for, or a box that is not inline at all.
      */
-    const spanCarriesDesign = (child, parent) => {
-        if (child.tagName.toLowerCase() !== 'span')
+    const carriesDesign = (child, parent) => {
+        const tag = child.tagName.toLowerCase();
+        if (tag === 'br')
             return false;
         const cs = window.getComputedStyle(child);
         if (cs.display !== 'inline')
             return true;
-        return policy.spanVisual.some((prop) => cs.getPropertyValue(prop) !== parent.getPropertyValue(prop));
+        const free = policy.affordances[tag] ?? [];
+        return policy.spanVisual.some((prop) => free.indexOf(prop) < 0 && cs.getPropertyValue(prop) !== parent.getPropertyValue(prop));
     };
     /**
      * Running text with inline markup in it, in source order — or null
@@ -222,7 +226,7 @@ export const captureFn = (policy) => {
             }
             else if (child.nodeType === 1) {
                 const childEl = child;
-                out.push(spanCarriesDesign(childEl, computed)
+                out.push(carriesDesign(childEl, computed)
                     ? { kind: 'element', el: childEl }
                     : { kind: 'markup', source: inlineSource(childEl, 0) });
             }

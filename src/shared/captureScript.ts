@@ -12,6 +12,7 @@ import {
   CONDITIONAL_PROPERTIES,
   INLINE_MARKUP_ATTRIBUTES,
   INLINE_MARKUP_TAGS,
+  INLINE_TAG_AFFORDANCES,
   KEPT_ATTRIBUTES,
   SPAN_VISUAL_PROPERTIES,
   SKIPPED_TAGS,
@@ -42,8 +43,10 @@ export type CapturePolicy = {
   conditional: Readonly<Record<string, string | null>>;
   inlineTags: ReadonlyArray<string>;
   inlineAttrs: Readonly<Record<string, ReadonlyArray<string>>>;
-  /** What makes a `<span>` worth keeping as an element. */
+  /** What makes an inline tag worth keeping as an element. */
   spanVisual: ReadonlyArray<string>;
+  /** What each inline tag already gives you without one. */
+  affordances: Readonly<Record<string, ReadonlyArray<string>>>;
   /** Tags whose content is running text, so inline children stay inline. */
   textTags: ReadonlyArray<string>;
   keptAttrs: ReadonlyArray<string>;
@@ -71,6 +74,7 @@ export const capturePolicy = (): CapturePolicy => ({
   inlineTags: [...INLINE_MARKUP_TAGS],
   inlineAttrs: { ...INLINE_MARKUP_ATTRIBUTES },
   spanVisual: [...SPAN_VISUAL_PROPERTIES],
+  affordances: { ...INLINE_TAG_AFFORDANCES },
   textTags: [
     'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'label', 'blockquote',
     'figcaption', 'legend', 'dt', 'dd', 'caption', 'th', 'td', 'a', 'span',
@@ -245,20 +249,24 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     | { kind: 'element'; el: Element };
 
   /**
-   * Is this `<span>` carrying design of its own?
+   * Is this inline tag carrying design a bare tag would not?
    *
-   * `<strong>` and `<em>` survive as bare tags because the browser
-   * styles them. A `<span>` does not: everything it looks like came
-   * from a class the import cannot carry, so emitting it bare loses
-   * the lot. One that differs from its parent on anything visible —
-   * or that is not an inline box at all — becomes a real element.
+   * A `<strong>` emitted on its own is still bold, so weight alone is
+   * no reason to make an element of it. A `<span>` brings nothing at
+   * all, and an `<em>` given a 10px small-print treatment brings only
+   * the italic — the rest came from a class the import cannot carry,
+   * and emitting the tag bare loses it. So: anything visible the tag
+   * does not already account for, or a box that is not inline at all.
    */
-  const spanCarriesDesign = (child: Element, parent: CSSStyleDeclaration): boolean => {
-    if (child.tagName.toLowerCase() !== 'span') return false;
+  const carriesDesign = (child: Element, parent: CSSStyleDeclaration): boolean => {
+    const tag = child.tagName.toLowerCase();
+    if (tag === 'br') return false;
     const cs = window.getComputedStyle(child);
     if (cs.display !== 'inline') return true;
+    const free = policy.affordances[tag] ?? [];
     return policy.spanVisual.some(
-      (prop) => cs.getPropertyValue(prop) !== parent.getPropertyValue(prop)
+      (prop) =>
+        free.indexOf(prop) < 0 && cs.getPropertyValue(prop) !== parent.getPropertyValue(prop)
     );
   };
 
@@ -291,7 +299,7 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       } else if (child.nodeType === 1) {
         const childEl = child as Element;
         out.push(
-          spanCarriesDesign(childEl, computed)
+          carriesDesign(childEl, computed)
             ? { kind: 'element', el: childEl }
             : { kind: 'markup', source: inlineSource(childEl, 0) }
         );

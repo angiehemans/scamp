@@ -178,6 +178,22 @@ describe('agent-friendly: unknown enum values fall through to customProperties',
     expect(roundTripCss('  display: inline-block;')).toContain('display: inline-block;');
   });
 
+  it('typography on a container survives, so its children still inherit', () => {
+    // `color` was fixed for this years ago; the rest of the inherited
+    // set was still parsed into typed fields and then dropped, because
+    // the generator only emitted typography for TEXT elements. A
+    // container declaring `font-size: 14px` for its children to inherit
+    // lost it on the first save, and every one of them fell back a size.
+    const out = roundTripCss(
+      '  display: flex;\n  font-family: Inter;\n  font-size: 14px;\n  font-weight: 600;\n  line-height: 20px;\n  letter-spacing: 1px;'
+    );
+    expect(out).toContain('font-family: Inter;');
+    expect(out).toContain('font-size: 14px;');
+    expect(out).toContain('font-weight: 600;');
+    expect(out).toContain('line-height: 20px;');
+    expect(out).toContain('letter-spacing: 1px;');
+  });
+
   it('display: block still means the flow default, and says nothing', () => {
     // The inverse has to keep holding: `block` is what an element
     // already does, so declaring it back would be noise on every rect.

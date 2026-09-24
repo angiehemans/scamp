@@ -167,6 +167,42 @@ export const INLINE_MARKUP_TAGS: ReadonlySet<string> = new Set([
  * span differing from its parent on any of these is carrying design,
  * and has to arrive as an element rather than as a bare `<span>` tag.
  */
+/**
+ * What each inline tag already gives you, and so does not need to
+ * become an element to keep.
+ *
+ * A `<strong>` written out bare is still bold, so weight alone is no
+ * reason to make an element of it. Anything a tag does NOT bring —
+ * `<em>` given a 10px small-print treatment, a `<span>` given a
+ * background — is design that only the page's stylesheet held, and it
+ * is lost the moment the tag is emitted on its own.
+ *
+ * `a` and `button` bring nothing, deliberately: Scamp's own reset does
+ * `all: unset` on them, so even the default link colour is gone by the
+ * time the page renders. Everything they carry has to be declared.
+ * see docs/notes/import-inline-spans.md
+ */
+export const INLINE_TAG_AFFORDANCES: Readonly<Record<string, ReadonlyArray<string>>> = {
+  em: ['font-style'],
+  i: ['font-style'],
+  cite: ['font-style'],
+  var: ['font-style'],
+  strong: ['font-weight'],
+  b: ['font-weight'],
+  small: ['font-size'],
+  sup: ['font-size', 'vertical-align'],
+  sub: ['font-size', 'vertical-align'],
+  code: ['font-family', 'font-size'],
+  kbd: ['font-family', 'font-size'],
+  samp: ['font-family', 'font-size'],
+  mark: ['background-color', 'color'],
+  del: ['text-decoration-line'],
+  s: ['text-decoration-line'],
+  ins: ['text-decoration-line'],
+  u: ['text-decoration-line'],
+  abbr: ['text-decoration-line'],
+};
+
 export const SPAN_VISUAL_PROPERTIES: ReadonlyArray<string> = [
   'background-color', 'background-image', 'background-clip',
   'border-top-width', 'border-right-width', 'border-bottom-width',

@@ -511,7 +511,13 @@ describe('generateCode — CSS', () => {
     expect(extractBlock(css, '.root')).not.toContain('margin:');
   });
 
-  it('emits line-height and letter-spacing only on text elements when set', () => {
+  it('emits line-height and letter-spacing wherever they are set', () => {
+    // Including on a rectangle. These fields are only ever populated by
+    // `parseCode` reading a real declaration, so a container that has
+    // them is one somebody gave them to — and they inherit into its
+    // text children. Dropping them here parsed the file and rewrote it
+    // smaller, which is the same silent loss `color` was fixed for on
+    // the line below these.
     const elements: Record<string, ScampElement> = {
       [ROOT_ELEMENT_ID]: makeRoot(['t001', 'a1b2']),
       t001: makeRect({
@@ -521,8 +527,6 @@ describe('generateCode — CSS', () => {
         lineHeight: '1.5',
         letterSpacing: '2px',
       }),
-      // A rectangle with lineHeight/letterSpacing accidentally set must
-      // not emit them — only text elements get those declarations.
       a1b2: makeRect({ id: 'a1b2', lineHeight: '1.5', letterSpacing: '2px' }),
     };
     const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
@@ -530,8 +534,20 @@ describe('generateCode — CSS', () => {
     expect(textBlock).toContain('line-height: 1.5;');
     expect(textBlock).toContain('letter-spacing: 2px;');
     const rectBlock = extractBlock(css, '.rect_a1b2');
-    expect(rectBlock).not.toContain('line-height');
-    expect(rectBlock).not.toContain('letter-spacing');
+    expect(rectBlock).toContain('line-height: 1.5;');
+    expect(rectBlock).toContain('letter-spacing: 2px;');
+  });
+
+  it('says nothing about type on a rectangle nobody gave any', () => {
+    const elements: Record<string, ScampElement> = {
+      [ROOT_ELEMENT_ID]: makeRoot(['a1b2']),
+      a1b2: makeRect({ id: 'a1b2' }),
+    };
+    const { css } = generateCode({ elements, rootId: ROOT_ELEMENT_ID, pageName: 'home' });
+    const rectBlock = extractBlock(css, '.rect_a1b2');
+    for (const prop of ['font-family', 'font-size', 'font-weight', 'line-height', 'letter-spacing']) {
+      expect(rectBlock).not.toContain(prop);
+    }
   });
 
   it('omits line-height and letter-spacing when undefined on a text element', () => {

@@ -162,6 +162,22 @@ export declare const INLINE_MARKUP_TAGS: ReadonlySet<string>;
  * span differing from its parent on any of these is carrying design,
  * and has to arrive as an element rather than as a bare `<span>` tag.
  */
+/**
+ * What each inline tag already gives you, and so does not need to
+ * become an element to keep.
+ *
+ * A `<strong>` written out bare is still bold, so weight alone is no
+ * reason to make an element of it. Anything a tag does NOT bring —
+ * `<em>` given a 10px small-print treatment, a `<span>` given a
+ * background — is design that only the page's stylesheet held, and it
+ * is lost the moment the tag is emitted on its own.
+ *
+ * `a` and `button` bring nothing, deliberately: Scamp's own reset does
+ * `all: unset` on them, so even the default link colour is gone by the
+ * time the page renders. Everything they carry has to be declared.
+ * see docs/notes/import-inline-spans.md
+ */
+export declare const INLINE_TAG_AFFORDANCES: Readonly<Record<string, ReadonlyArray<string>>>;
 export declare const SPAN_VISUAL_PROPERTIES: ReadonlyArray<string>;
 export declare const INLINE_MARKUP_ATTRIBUTES: Readonly<Record<string, ReadonlyArray<string>>>;
 export type CapturedAsset = {

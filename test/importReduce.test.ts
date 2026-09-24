@@ -113,10 +113,11 @@ describe('the inline run is text, not layout', () => {
     ]);
   });
 
-  it('leaves no typography on a host that cannot keep it', () => {
+  it('keeps the type on the container as well as on its words', () => {
     // A tag with element children parses back as a rectangle, and a
-    // rectangle emits none — so type left on the host is written once
-    // and dropped on the next save. Each child carries its own.
+    // rectangle now emits the typography it was given — so the
+    // container keeps what the page declared, and the words that
+    // inherited it carry their own copy. Neither is lost on a save.
     const { elements } = reduce(
       node({
         children: [
@@ -132,7 +133,7 @@ describe('the inline run is text, not layout', () => {
     const bold = Object.values(elements).find((e) => e.text === 'wind');
     const host = Object.values(elements).find((e) => e.id === bold?.parentId);
     expect(bold?.fontSize).toBe('22px');
-    expect(host?.fontSize).toBeUndefined();
+    expect(host?.fontSize).toBe('22px');
   });
 });
 
@@ -1319,13 +1320,15 @@ describe('against a page captured from a real browser', () => {
     );
   });
 
-  it('leaves the type on the words, not on the box around them', () => {
+  it('puts the type on the words as well as the box around them', () => {
+    // The container keeps what the page declared — it sets the line box
+    // its inline children sit in, and stripping it made a paragraph
+    // seven pixels taller than the one it copied.
     const { elements } = reduceCapture(payload, { randomId: seqIds() });
     const word = Object.values(elements).find((e) => e.text === 'Ship the');
     expect(word?.fontSize).toBe('56px');
-    // And not on the h1, which cannot keep it.
     const host = Object.values(elements).find((e) => e.id === word?.parentId);
-    expect(host?.fontSize).toBeUndefined();
+    expect(host?.fontSize).toBe('56px');
   });
 
   it('brings the heading\'s highlighted word in as an element', () => {

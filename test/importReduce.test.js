@@ -46,6 +46,66 @@ const seqIds = () => {
 };
 const reduce = (root, over = {}) => reduceCapture(payloadOf(root, over), { randomId: seqIds() });
 const kinds = (root) => reduce(root).findings.map((f) => f.kind);
+describe('the inline run is text, not layout', () => {
+    // `<b>`, `<i>`, `<sup>` and the rest were not text tags, so each came
+    // out a rectangle — and a rectangle carries no text at all, which
+    // emitted `<b />` with the word gone. They only reach the tree as
+    // elements now that a flex or grid host's children are elements
+    // rather than one verbatim run.
+    it.each(['b', 'i', 'u', 's', 'sub', 'sup', 'mark', 'abbr', 'cite', 'q', 'kbd', 'del', 'ins'])('keeps the words inside <%s>', (tag) => {
+        const { elements } = reduce(node({
+            styles: { display: 'flex' },
+            children: [node({ id: 1, tag, text: 'kept' })],
+        }));
+        const el = Object.values(elements).find((e) => e.text === 'kept');
+        expect(el?.type).toBe('text');
+    });
+    it('still treats a genuine box tag as a box', () => {
+        const { elements } = reduce(node({ styles: { display: 'flex' }, children: [node({ id: 1, tag: 'section' })] }));
+        expect(Object.values(elements).find((e) => e.name === 'section')?.type).toBe('rectangle');
+    });
+    it('reads a flex host as items rather than as a sentence', () => {
+        // The host is a text tag, so before this its children were flattened
+        // into one verbatim run of bare tags.
+        const { elements } = reduce(node({
+            children: [
+                node({
+                    id: 1,
+                    tag: 'span',
+                    styles: { display: 'flex' },
+                    children: [
+                        node({ id: 2, tag: 'span', text: 'North' }),
+                        node({ id: 3, tag: 'b', text: 'wind' }),
+                    ],
+                }),
+            ],
+        }));
+        expect(Object.values(elements).map((e) => e.text).filter(Boolean).sort()).toEqual([
+            'North',
+            'wind',
+        ]);
+    });
+    it('keeps the type on the container as well as on its words', () => {
+        // A tag with element children parses back as a rectangle, and a
+        // rectangle now emits the typography it was given — so the
+        // container keeps what the page declared, and the words that
+        // inherited it carry their own copy. Neither is lost on a save.
+        const { elements } = reduce(node({
+            children: [
+                node({
+                    id: 1,
+                    tag: 'span',
+                    styles: { display: 'flex', 'font-size': '22px', 'font-weight': '700' },
+                    children: [node({ id: 2, tag: 'b', text: 'wind' })],
+                }),
+            ],
+        }));
+        const bold = Object.values(elements).find((e) => e.text === 'wind');
+        const host = Object.values(elements).find((e) => e.id === bold?.parentId);
+        expect(bold?.fontSize).toBe('22px');
+        expect(host?.fontSize).toBe('22px');
+    });
+});
 describe('styled spans become elements in the line', () => {
     // A `<strong>` survives being written out as a bare tag, because the
     // browser styles it. A `<span>` does not: everything it looks like
@@ -949,6 +1009,37 @@ describe('against a page captured from a real browser', () => {
         expect(tsx).not.toContain('<body');
         expect(tsx).toContain('data-scamp-id="root"');
     });
+    it('brings a wordmark across in all its parts', () => {
+        // `<span class="brand"><span>North</span><b>wind</b><sup>®</sup></span>`
+        // — a flex span. Read as running text it collapsed to one bare
+        // `<span>North</span>`, losing two thirds of the mark.
+        const { elements } = reduceCapture(payload, { randomId: seqIds() });
+        const parts = ['North', 'wind', '®'].map((t) => Object.values(elements).find((e) => e.text === t));
+        expect(parts.map((e) => e?.type)).toEqual(['text', 'text', 'text']);
+    });
+    it('gives each part of it the type it was rendered in', () => {
+        // A rectangle carries no text, so `<b>` and `<sup>` used to be
+        // emitted as empty tags; as text elements they each keep their own
+        // size, weight and colour rather than one shared guess.
+        const { elements } = reduceCapture(payload, { randomId: seqIds() });
+        const bold = Object.values(elements).find((e) => e.text === 'wind');
+        const sup = Object.values(elements).find((e) => e.text === '®');
+        expect(bold?.color).toBe('rgb(45, 74, 124)');
+        expect(sup?.fontSize).toBe('10px');
+        expect(bold?.fontSize).toBe('18px');
+    });
+    it('keeps the tag each part was written with', () => {
+        const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+        const { tsx } = generateCode({
+            elements,
+            rootId,
+            pageName: 'P',
+            cssModuleImportName: 'P',
+            isComponent: true,
+        });
+        expect(tsx).toMatch(/<b [^>]*>wind<\/b>/);
+        expect(tsx).toMatch(/<sup [^>]*>®<\/sup>/);
+    });
     it('generates a page that does not rewrite itself on the first save', () => {
         // The invariant that matters most for an import: what Scamp writes
         // has to survive being read back. It did not. A tag with element
@@ -977,13 +1068,15 @@ describe('against a page captured from a real browser', () => {
         // is generator behaviour rather than anything the import decided.
         expect(twice.css.replace('  min-height: 100vh;\n', '')).toBe(once.css.replace('  min-height: 100vh;\n', ''));
     });
-    it('leaves the type on the words, not on the box around them', () => {
+    it('puts the type on the words as well as the box around them', () => {
+        // The container keeps what the page declared — it sets the line box
+        // its inline children sit in, and stripping it made a paragraph
+        // seven pixels taller than the one it copied.
         const { elements } = reduceCapture(payload, { randomId: seqIds() });
         const word = Object.values(elements).find((e) => e.text === 'Ship the');
         expect(word?.fontSize).toBe('56px');
-        // And not on the h1, which cannot keep it.
         const host = Object.values(elements).find((e) => e.id === word?.parentId);
-        expect(host?.fontSize).toBeUndefined();
+        expect(host?.fontSize).toBe('56px');
     });
     it('brings the heading\'s highlighted word in as an element', () => {
         // `.mark` is a span whose entire appearance is in the stylesheet:

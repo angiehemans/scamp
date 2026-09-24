@@ -326,22 +326,6 @@ const inheritedTypography = (styles) => {
     }
     return out;
 };
-/**
- * The same values stripped off a host that has stopped rendering words.
- *
- * Scamp emits typography only on text elements, and `parseCode` types a
- * tag with element children and no text of its own as a RECTANGLE. So
- * typography left on such a host is written once and then dropped by
- * the very next save — the file rewriting itself, and the heading
- * falling back to 16px. Whatever the host was holding moves onto the
- * children that render the words. see docs/notes/import-inline-spans.md
- */
-const withoutInheritedTypography = (styles) => {
-    const out = { ...styles };
-    for (const prop of INHERITED_PROPERTIES)
-        delete out[prop];
-    return out;
-};
 const inlineToFragments = (host, inline) => {
     const items = [...inline];
     // A host with children cannot also hold words — that is the rule
@@ -671,11 +655,7 @@ export const materializePseudos = (root, findings) => {
         // stack as block flow did, while one still in flow sat beside
         // them on a line.
         const display = rest.styles['display'] ?? 'block';
-        // This pass is what moved the words out, so it is what has to take
-        // the typography off the host — the children already carry a copy,
-        // and a host that parses back as a rectangle would drop it on the
-        // next save.
-        const styles = withoutInheritedTypography(rest.styles);
+        const styles = { ...rest.styles };
         if (!LAYOUT_DISPLAYS.has(display)) {
             const glyphs = [pseudo.before, pseudo.after].filter((g) => g !== undefined);
             const inFlow = glyphs.some((g) => {
@@ -824,16 +804,7 @@ export const reduceCapture = (payload, options = {}) => {
         // text lifted into a child of its own.
         const hasElementChildren = node.children.length > 0;
         const needsTextChild = inlineRun === null && node.text !== null && hasElementChildren;
-        // Any host with children is a container, and `parseCode` types a
-        // tag with element children as a RECTANGLE — which carries no
-        // typography. So type left on such a host is written once and
-        // dropped by the next save. `resolveInheritance` has already put a
-        // copy on every child that renders words, so it is safe to let go
-        // of here, and a leaf text element keeps everything.
-        const childCount = (inlineRun?.children.length ?? 0) + node.children.length;
-        const host = childCount === 0
-            ? node
-            : { ...node, styles: withoutInheritedTypography(node.styles) };
+        const host = node;
         const sized = dropComputedSizes(host, parentRect, findings, at);
         const styles = normalizedStyles({ ...host, styles: sized.styles }, isRoot, findings, at);
         const display = styles['display'];
