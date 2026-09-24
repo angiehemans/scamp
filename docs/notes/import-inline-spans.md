@@ -68,3 +68,30 @@ always did — which is what lets a highlighted word be a box that sits
 in a line.
 
 See also `docs/notes/import-inherited-typography.md`.
+
+## The inline run was not text at all
+
+`<span class="auth-wordmark"><span>Resova</span><b>iQ</b><sup>®</sup></span>`
+lost two of its three parts.
+
+`TEXT_TAGS` — the set that decides whether a tag becomes a text element —
+listed `strong` and `em` but not `b`, `i`, `u`, `s`, `sub`, `sup`,
+`mark`, `abbr`, `cite`, `q`, `kbd`, `del` or `ins`. Those became
+rectangles, and **a rectangle carries no text**, so `<b>iQ</b>` was
+emitted as `<b />`: the element was there, correctly tagged and
+classed, with the word gone. An empty box is what the user saw.
+
+It had never mattered before, because these tags only ever appeared
+inside a verbatim inline run. Making a flex host's children into real
+elements is what first routed them through `elementTypeFor`.
+
+Two lists had to move together. `importReduce`'s `TEXT_TAGS` mirrors
+`parseCode`'s, and the comment on it says so. Adding the tags to the
+importer alone would have written `<b>iQ</b>` once and regenerated it
+empty, because the parser would still have read it as a rectangle —
+the same self-rewriting file as the typography bug above.
+
+With them as text elements, each part keeps its own type: in the
+fixture the `<b>` resolves to weight 900 against its 700 parent and
+takes the brand colour, while the `<sup>` keeps its 10px. That is three
+elements you can edit where there used to be one bare tag.

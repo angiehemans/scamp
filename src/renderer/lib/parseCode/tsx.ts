@@ -296,6 +296,29 @@ const TEXT_TAGS = new Set([
   // structural correction in `onclosetag` — same dual-nature handling as
   // `<a>` and `<li>`.
   'button',
+  // The inline run. A rectangle carries no text, so reading `<b>iQ</b>`
+  // as one silently drops the word — and the importer's mirror of this
+  // list has to agree with it, or an imported `<b>` is written with its
+  // text once and regenerated empty.
+  // see docs/notes/import-inline-spans.md
+  'b',
+  'i',
+  'u',
+  's',
+  'sub',
+  'sup',
+  'mark',
+  'abbr',
+  'cite',
+  'q',
+  'kbd',
+  'samp',
+  'var',
+  'del',
+  'ins',
+  'dt',
+  'dd',
+  'summary',
 ]);
 
 

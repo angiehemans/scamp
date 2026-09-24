@@ -18,7 +18,12 @@
   .nav-mid { }
   .nav { display: flex; align-items: center; justify-content: space-between;
          padding: 16px 32px; border-bottom: 1px solid #e4e6eb; }
-  .brand { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+  /* A wordmark: a flex span whose three parts are span / b / sup. Read
+     as running text it collapsed into one bare <span>. */
+  .brand { display: flex; align-items: baseline; font-weight: 700;
+           font-size: 18px; letter-spacing: -0.01em; }
+  .brand b { color: #2d4a7c; }
+  .brand sup { font-size: 10px; }
   .nav-links { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; }
   .nav-links a { color: #4a5059; text-decoration: none; font-size: 14px; }
 
@@ -81,7 +86,7 @@
   <div class="page">
     <div class="nav-outer"><div class="nav-mid">
       <nav class="nav">
-        <span class="brand">Northwind</span>
+        <span class="brand"><span>North</span><b>wind</b><sup>®</sup></span>
         <ul class="nav-links">
           <li><a href="/product">Product</a></li>
           <li><a href="/pricing">Pricing</a></li>

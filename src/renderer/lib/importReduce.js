@@ -3,12 +3,23 @@ import { ROOT_ELEMENT_ID } from './element';
 import { makeBaseline, applyDeclarations, applyDeclarationsAsOverride } from './parseCode/apply';
 /**
  * Tags that become a text element. Mirrors `parseCode`'s own list —
- * a text element is one whose content is words rather than layout.
+ * a text element is one whose content is words rather than layout, and
+ * the two lists have to agree or an element's words are written once
+ * and then dropped as a rectangle's on the next save.
+ *
+ * The inline run — `b`, `i`, `sup`, `mark` and the rest — is here
+ * because a rectangle carries no text at all: `<b>iQ</b>` came out as
+ * an empty `<b />`, which is how a wordmark lost two thirds of itself.
+ * They only reach this list at all now that a flex or grid host's
+ * children are elements rather than one verbatim run.
+ * see docs/notes/import-inline-spans.md
  */
 const TEXT_TAGS = new Set([
     'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'a', 'label',
     'blockquote', 'pre', 'code', 'strong', 'em', 'small', 'time',
     'figcaption', 'legend', 'li', 'button', 'th', 'td', 'caption',
+    'b', 'i', 'u', 's', 'sub', 'sup', 'mark', 'abbr', 'cite', 'q',
+    'kbd', 'samp', 'var', 'del', 'ins', 'dt', 'dd', 'summary',
 ]);
 const IMAGE_TAGS = new Set(['img', 'video', 'iframe', 'svg']);
 const INPUT_TAGS = new Set(['input', 'textarea', 'select']);
@@ -513,6 +524,11 @@ const NAME_FOR_TAG = {
     svg: 'icon', video: 'video', iframe: 'embed',
     a: 'link', h1: 'title', h2: 'heading', h3: 'subheading',
     p: 'text', span: 'label', form: 'form', input: 'field',
+    strong: 'bold', b: 'bold', em: 'italic', i: 'italic',
+    sup: 'sup', sub: 'sub', mark: 'mark', code: 'code',
+    abbr: 'abbr', cite: 'cite', q: 'quote', kbd: 'key',
+    del: 'deleted', ins: 'inserted', dt: 'term', dd: 'definition',
+    summary: 'summary', small: 'small', time: 'time',
 };
 /** PascalCase view name from a page title, falling back to `Imported`. */
 export const viewNameFromTitle = (title) => {
@@ -808,14 +824,16 @@ export const reduceCapture = (payload, options = {}) => {
         // text lifted into a child of its own.
         const hasElementChildren = node.children.length > 0;
         const needsTextChild = inlineRun === null && node.text !== null && hasElementChildren;
-        // A host whose words have all moved into children stops being a
-        // text element on the way back in, and a rectangle cannot carry
-        // typography — so anything left here is written once and dropped
-        // by the next save. The children carry it now.
-        const wordsMovedOut = (inlineRun !== null && inlineRun.children.length > 0) || needsTextChild;
-        const host = wordsMovedOut
-            ? { ...node, styles: withoutInheritedTypography(node.styles) }
-            : node;
+        // Any host with children is a container, and `parseCode` types a
+        // tag with element children as a RECTANGLE — which carries no
+        // typography. So type left on such a host is written once and
+        // dropped by the next save. `resolveInheritance` has already put a
+        // copy on every child that renders words, so it is safe to let go
+        // of here, and a leaf text element keeps everything.
+        const childCount = (inlineRun?.children.length ?? 0) + node.children.length;
+        const host = childCount === 0
+            ? node
+            : { ...node, styles: withoutInheritedTypography(node.styles) };
         const sized = dropComputedSizes(host, parentRect, findings, at);
         const styles = normalizedStyles({ ...host, styles: sized.styles }, isRoot, findings, at);
         const display = styles['display'];

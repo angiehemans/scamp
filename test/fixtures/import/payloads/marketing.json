@@ -81,27 +81,92 @@
                         "id": 5,
                         "tag": "span",
                         "styles": {
-                          "display": "block",
-                          "width": "96.0938px",
+                          "display": "flex",
+                          "width": "104.234px",
                           "height": "24px",
+                          "align-items": "baseline",
                           "font-size": "18px",
                           "font-weight": "700",
                           "letter-spacing": "-0.18px"
                         },
-                        "text": "Northwind",
+                        "text": null,
                         "attrs": {},
-                        "children": [],
+                        "children": [
+                          {
+                            "id": 6,
+                            "tag": "span",
+                            "styles": {
+                              "display": "block",
+                              "width": "52.6875px",
+                              "height": "24px"
+                            },
+                            "text": "North",
+                            "attrs": {},
+                            "children": [],
+                            "notes": [],
+                            "path": "body>div:0>div:0>div:0>nav:0>span:0>span:0",
+                            "rect": {
+                              "x": 32,
+                              "y": 16,
+                              "w": 52.69,
+                              "h": 24
+                            }
+                          },
+                          {
+                            "id": 7,
+                            "tag": "b",
+                            "styles": {
+                              "display": "block",
+                              "width": "43.4062px",
+                              "height": "24px",
+                              "color": "rgb(45, 74, 124)",
+                              "font-weight": "900"
+                            },
+                            "text": "wind",
+                            "attrs": {},
+                            "children": [],
+                            "notes": [],
+                            "path": "body>div:0>div:0>div:0>nav:0>span:0>b:1",
+                            "rect": {
+                              "x": 84.69,
+                              "y": 16,
+                              "w": 43.41,
+                              "h": 24
+                            }
+                          },
+                          {
+                            "id": 8,
+                            "tag": "sup",
+                            "styles": {
+                              "display": "block",
+                              "width": "8.14062px",
+                              "height": "14px",
+                              "font-size": "10px"
+                            },
+                            "text": "®",
+                            "attrs": {},
+                            "children": [],
+                            "notes": [],
+                            "path": "body>div:0>div:0>div:0>nav:0>span:0>sup:2",
+                            "rect": {
+                              "x": 128.09,
+                              "y": 24,
+                              "w": 8.14,
+                              "h": 14
+                            }
+                          }
+                        ],
                         "notes": [],
                         "path": "body>div:0>div:0>div:0>nav:0>span:0",
                         "rect": {
                           "x": 32,
                           "y": 16,
-                          "w": 96.09,
+                          "w": 104.23,
                           "h": 24
                         }
                       },
                       {
-                        "id": 6,
+                        "id": 9,
                         "tag": "ul",
                         "styles": {
                           "display": "flex",
@@ -116,7 +181,7 @@
                         "attrs": {},
                         "children": [
                           {
-                            "id": 7,
+                            "id": 10,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -142,7 +207,7 @@
                             }
                           },
                           {
-                            "id": 8,
+                            "id": 11,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -168,7 +233,7 @@
                             }
                           },
                           {
-                            "id": 9,
+                            "id": 12,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -234,7 +299,7 @@
             }
           },
           {
-            "id": 10,
+            "id": 13,
             "tag": "header",
             "styles": {
               "display": "flex",
@@ -255,7 +320,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 11,
+                "id": 14,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -283,7 +348,7 @@
                 }
               },
               {
-                "id": 12,
+                "id": 15,
                 "tag": "h1",
                 "styles": {
                   "display": "block",
@@ -309,7 +374,7 @@
                   {
                     "kind": "element",
                     "node": {
-                      "id": 13,
+                      "id": 16,
                       "tag": "span",
                       "styles": {
                         "display": "inline-block",
@@ -358,7 +423,7 @@
                 }
               },
               {
-                "id": 14,
+                "id": 17,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -383,7 +448,7 @@
                 }
               },
               {
-                "id": 15,
+                "id": 18,
                 "tag": "div",
                 "styles": {
                   "display": "flex",
@@ -397,7 +462,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 16,
+                    "id": 19,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -443,7 +508,7 @@
                     }
                   },
                   {
-                    "id": 17,
+                    "id": 20,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -498,7 +563,7 @@
                 }
               },
               {
-                "id": 18,
+                "id": 21,
                 "tag": "span",
                 "styles": {
                   "display": "flex",
@@ -541,7 +606,7 @@
             }
           },
           {
-            "id": 19,
+            "id": 22,
             "tag": "section",
             "styles": {
               "display": "flex",
@@ -559,7 +624,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 20,
+                "id": 23,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -597,7 +662,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 21,
+                    "id": 24,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -626,7 +691,7 @@
                     }
                   },
                   {
-                    "id": 22,
+                    "id": 25,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -648,7 +713,7 @@
                     }
                   },
                   {
-                    "id": 23,
+                    "id": 26,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -681,7 +746,7 @@
                 }
               },
               {
-                "id": 24,
+                "id": 27,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -719,7 +784,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 25,
+                    "id": 28,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -748,7 +813,7 @@
                     }
                   },
                   {
-                    "id": 26,
+                    "id": 29,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -770,7 +835,7 @@
                     }
                   },
                   {
-                    "id": 27,
+                    "id": 30,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -803,7 +868,7 @@
                 }
               },
               {
-                "id": 28,
+                "id": 31,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -841,7 +906,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 29,
+                    "id": 32,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -870,7 +935,7 @@
                     }
                   },
                   {
-                    "id": 30,
+                    "id": 33,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -892,7 +957,7 @@
                     }
                   },
                   {
-                    "id": 31,
+                    "id": 34,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -935,7 +1000,7 @@
             }
           },
           {
-            "id": 32,
+            "id": 35,
             "tag": "footer",
             "styles": {
               "display": "block",

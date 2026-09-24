@@ -949,6 +949,42 @@ describe('against a page captured from a real browser', () => {
         expect(tsx).not.toContain('<body');
         expect(tsx).toContain('data-scamp-id="root"');
     });
+    it('generates a page that does not rewrite itself on the first save', () => {
+        // The invariant that matters most for an import: what Scamp writes
+        // has to survive being read back. It did not. A tag with element
+        // children and no text of its own parses as a RECTANGLE, and a
+        // rectangle carries no typography — so a heading whose words had
+        // moved into spans was written with `font-size: 56px` once and
+        // regenerated without it, falling back to 16px on the next save.
+        const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+        const once = generateCode({
+            elements,
+            rootId,
+            pageName: 'P',
+            cssModuleImportName: 'P',
+            isComponent: true,
+        });
+        const back = parseCode(once.tsx, once.css);
+        const twice = generateCode({
+            elements: back.elements,
+            rootId: ROOT_ELEMENT_ID,
+            pageName: 'P',
+            cssModuleImportName: 'P',
+            isComponent: true,
+        });
+        expect(twice.tsx).toBe(once.tsx);
+        // The root gains the page default on the way back through, which
+        // is generator behaviour rather than anything the import decided.
+        expect(twice.css.replace('  min-height: 100vh;\n', '')).toBe(once.css.replace('  min-height: 100vh;\n', ''));
+    });
+    it('leaves the type on the words, not on the box around them', () => {
+        const { elements } = reduceCapture(payload, { randomId: seqIds() });
+        const word = Object.values(elements).find((e) => e.text === 'Ship the');
+        expect(word?.fontSize).toBe('56px');
+        // And not on the h1, which cannot keep it.
+        const host = Object.values(elements).find((e) => e.id === word?.parentId);
+        expect(host?.fontSize).toBeUndefined();
+    });
     it('brings the heading\'s highlighted word in as an element', () => {
         // `.mark` is a span whose entire appearance is in the stylesheet:
         // background, colour, padding, radius, inline-block. Emitted as a
