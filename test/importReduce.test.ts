@@ -61,6 +61,95 @@ const reduce = (root: CapturedNode, over: Partial<CapturePayload> = {}) =>
 const kinds = (root: CapturedNode): string[] =>
   reduce(root).findings.map((f) => f.kind);
 
+describe('a container is never typed as text', () => {
+  // The canvas renders a text element's `text` and ignores its
+  // children (`ElementRenderer`), so a tag whose words have moved into
+  // children must not be one: its spans were listed in the layers panel
+  // and written to the file, and drew nothing at all.
+  //
+  // `parseCode` already corrects this when it reads a file — but not
+  // when the class name pins the type, and `text_` does. So the name
+  // has to stop saying text as well, or reopening the project does not
+  // fix it either. see docs/notes/import-inline-spans.md
+
+  const paragraph = (): CapturedNode =>
+    node({
+      tag: 'p',
+      text: 'Ships with a warranty',
+      styles: { 'font-size': '11px' },
+      children: [node({ id: 2, tag: 'em', text: 'Terms apply', styles: { display: 'block' } })],
+    });
+
+  it('types a paragraph with element children as a container', () => {
+    const { elements } = reduce(node({ children: [paragraph()] }));
+    const em = Object.values(elements).find((e) => e.text === 'Terms apply');
+    const host = Object.values(elements).find((e) => e.id === em?.parentId);
+    expect(host?.type).toBe('rectangle');
+  });
+
+  it('does not name it `text`, which would pin the type back', () => {
+    const { elements } = reduce(node({ children: [paragraph()] }));
+    const em = Object.values(elements).find((e) => e.text === 'Terms apply');
+    const host = Object.values(elements).find((e) => e.id === em?.parentId);
+    expect(host?.name).not.toBe('text');
+  });
+
+  it('keeps the <p> tag, so only the type changed', () => {
+    const { elements } = reduce(node({ children: [paragraph()] }));
+    const em = Object.values(elements).find((e) => e.text === 'Terms apply');
+    const host = Object.values(elements).find((e) => e.id === em?.parentId);
+    expect(host?.tag).toBe('p');
+  });
+
+  it('leaves a leaf paragraph a text element', () => {
+    const { elements } = reduce(
+      node({ children: [node({ id: 1, tag: 'p', text: 'just words' })] })
+    );
+    const leaf = Object.values(elements).find((e) => e.text === 'just words');
+    expect(leaf?.type).toBe('text');
+    expect(leaf?.name).toBe('text');
+  });
+
+  it('leaves a paragraph that only has inline markup a text element', () => {
+    // Fragments are not children, so nothing moved and the canvas can
+    // still render it as text.
+    const { elements } = reduce(
+      node({
+        children: [
+          node({
+            id: 1,
+            tag: 'p',
+            text: null,
+            inline: [
+              { kind: 'text', value: 'Read the ' },
+              { kind: 'markup', source: '<strong>docs</strong>' },
+            ],
+          }),
+        ],
+      })
+    );
+    const host = Object.values(elements).find((e) => e.inlineFragments.length > 0);
+    expect(host?.type).toBe('text');
+    expect(host?.childIds).toEqual([]);
+  });
+
+  it('agrees with what parseCode makes of it, so a reload changes nothing', () => {
+    const { elements, rootId } = reduce(node({ children: [paragraph()] }));
+    const out = generateCode({
+      elements,
+      rootId,
+      pageName: 'P',
+      cssModuleImportName: 'P',
+      isComponent: true,
+    });
+    const back = parseCode(out.tsx, out.css);
+    for (const [id, before] of Object.entries(elements)) {
+      const after = back.elements[id];
+      if (after !== undefined) expect(after.type).toBe(before.type);
+    }
+  });
+});
+
 describe('the inline run is text, not layout', () => {
   // `<b>`, `<i>`, `<sup>` and the rest were not text tags, so each came
   // out a rectangle — and a rectangle carries no text at all, which
@@ -1251,6 +1340,36 @@ describe('against a page captured from a real browser', () => {
     expect(Object.keys(back.elements)).toHaveLength(Object.keys(result.elements).length);
     expect(tsx).not.toContain('<body');
     expect(tsx).toContain('data-scamp-id="root"');
+  });
+
+  it('makes the legal paragraph a container, not a text element', () => {
+    // `<p class="legal">Ships with a warranty<em class="fineprint">…</em></p>`
+    // — the shape that drew nothing on the canvas while appearing in
+    // both the layers panel and the code.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const em = Object.values(elements).find((e) => (e.text ?? '').startsWith('Terms apply'));
+    const host = Object.values(elements).find((e) => e.id === em?.parentId);
+    expect(host?.tag).toBe('p');
+    expect(host?.type).toBe('rectangle');
+    expect(host?.name).not.toBe('text');
+    expect(host?.childIds).toHaveLength(2);
+  });
+
+  it('gives the block-level <em> inside it a display it can keep', () => {
+    // Its `display: block` is what separates the small print from the
+    // line above; without it the two ran together.
+    const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+    const em = Object.values(elements).find((e) => (e.text ?? '').startsWith('Terms apply'));
+    const { css } = generateCode({
+      elements,
+      rootId,
+      pageName: 'P',
+      cssModuleImportName: 'P',
+      isComponent: true,
+    });
+    const block = css.match(new RegExp(`\\.${em?.name}_${em?.id}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+    expect(block).toContain('display: block;');
+    expect(block).toContain('font-size: 10px;');
   });
 
   it('brings a wordmark across in all its parts', () => {

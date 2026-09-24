@@ -960,7 +960,6 @@ export const reduceCapture = (
     parentRect: { w: number; h: number } | null
   ): string => {
     const isRoot = parentId === null;
-    const type = elementTypeFor(node.tag);
     const at = [...path, node.tag].join(' > ');
 
     let id = ROOT_ELEMENT_ID;
@@ -971,12 +970,27 @@ export const reduceCapture = (
       used.add(id);
     }
 
-    const name = isRoot ? null : (NAME_FOR_TAG[node.tag] ?? 'box');
-    const className = isRoot ? ROOT_ELEMENT_ID : `${name}_${id}`;
-
     // Running text with inline markup in it stays one element: the
     // markup becomes fragments rather than boxes. see `inlineToFragments`
     const inlineRun = node.inline ? inlineToFragments(node, node.inline) : null;
+
+    // A tag whose words have moved into children is a CONTAINER, not a
+    // text element. The canvas renders a text element's `text` and
+    // ignores its children, so typing it text makes every one of them
+    // invisible while the layers panel and the code still list them.
+    //
+    // `parseCode` already corrects this on the way in — but not when the
+    // class name pins the type, and `text_` does. So the name has to
+    // stop saying `text` as well, or a reload does not fix it either.
+    // see docs/notes/import-inline-spans.md
+    const tagType = elementTypeFor(node.tag);
+    const childCount = (inlineRun?.children.length ?? 0) + node.children.length;
+    const isContainer = tagType === 'text' && childCount > 0;
+    const type: ElementType = isContainer ? 'rectangle' : tagType;
+
+    const tagName = NAME_FOR_TAG[node.tag] ?? 'box';
+    const name = isRoot ? null : isContainer && tagName === 'text' ? 'box' : tagName;
+    const className = isRoot ? ROOT_ELEMENT_ID : `${name}_${id}`;
     if (inlineRun !== null) {
       findings.push({
         kind: 'inline-kept',

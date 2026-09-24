@@ -152,3 +152,42 @@ their own copy, and nothing is lost either way.
 
 Measured after: dev.resovaiq.com went to **100%** of elements within
 2px of the source, scamp.club 86% → 89%, resovaiq.com 86% → 88%.
+
+## Why a container must not be typed `text`
+
+The last symptom of this work was the strangest: the elements were in
+the layers panel, they were in the code panel, and the canvas drew
+nothing.
+
+`ElementRenderer` renders a text element's `text` and **ignores its
+children**:
+
+```ts
+const children = isText ? (resolveText(...) ?? element.text ?? '') : expandChildren(...)
+```
+
+So a `<p>` typed `text` whose words had moved into a `<span>` and an
+`<em>` rendered as the empty string it now held, and both children were
+never mounted.
+
+`parseCode` has guarded this for a long time — it upgrades a text-typed
+tag with element children to a rectangle on the way in, and its comment
+describes exactly this failure. But the guard is skipped when the class
+name pins the type, and `text_` does. The importer named every `<p>`
+`text_…`, so the guard could not fire and reopening the project did not
+help either.
+
+The reducer now types any text tag with element children as a
+rectangle, and stops naming it `text`. That is also what `parseCode`
+concludes, so the two agree and nothing shifts on a reload — a
+type-drift check over the whole fixture pins it.
+
+**Still divergent, and worth knowing.** `generateCode` emits `text`,
+then fragments, then children for *any* element type; the canvas drops
+children for text-typed ones. Nothing the importer or the parser
+produces lands in that state now, so it is latent rather than live —
+but a hand-written file with a `text_`-prefixed element that has
+children, or any canvas interaction that puts a child inside a text
+element, would show in the export and not on the canvas. Fixing it
+means teaching the canvas the same text-then-fragments-then-children
+order the generator uses.

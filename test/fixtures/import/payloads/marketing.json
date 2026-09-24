@@ -12,7 +12,7 @@
     "styles": {
       "display": "block",
       "width": "1440px",
-      "height": "1061.36px",
+      "height": "1140.77px",
       "color": "rgb(26, 29, 36)",
       "font-family": "Inter, system-ui, sans-serif",
       "font-size": "16px",
@@ -29,7 +29,7 @@
         "styles": {
           "display": "flex",
           "width": "1440px",
-          "height": "1061.36px",
+          "height": "1140.77px",
           "flex-direction": "column"
         },
         "text": null,
@@ -195,8 +195,31 @@
                             "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:0",
                             "inline": [
                               {
-                                "kind": "markup",
-                                "source": "<a href=\"file:///product\">Product</a>"
+                                "kind": "element",
+                                "node": {
+                                  "id": 11,
+                                  "tag": "a",
+                                  "styles": {
+                                    "display": "inline",
+                                    "width": "auto",
+                                    "height": "auto",
+                                    "color": "rgb(74, 80, 89)",
+                                    "font-size": "14px"
+                                  },
+                                  "text": "Product",
+                                  "attrs": {
+                                    "href": "file:///product"
+                                  },
+                                  "children": [],
+                                  "notes": [],
+                                  "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:0>a:0",
+                                  "rect": {
+                                    "x": 1230.92,
+                                    "y": 19,
+                                    "w": 51.48,
+                                    "h": 19
+                                  }
+                                }
                               }
                             ],
                             "rect": {
@@ -207,7 +230,7 @@
                             }
                           },
                           {
-                            "id": 11,
+                            "id": 12,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -221,8 +244,31 @@
                             "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:1",
                             "inline": [
                               {
-                                "kind": "markup",
-                                "source": "<a href=\"file:///pricing\">Pricing</a>"
+                                "kind": "element",
+                                "node": {
+                                  "id": 13,
+                                  "tag": "a",
+                                  "styles": {
+                                    "display": "inline",
+                                    "width": "auto",
+                                    "height": "auto",
+                                    "color": "rgb(74, 80, 89)",
+                                    "font-size": "14px"
+                                  },
+                                  "text": "Pricing",
+                                  "attrs": {
+                                    "href": "file:///pricing"
+                                  },
+                                  "children": [],
+                                  "notes": [],
+                                  "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:1>a:0",
+                                  "rect": {
+                                    "x": 1306.41,
+                                    "y": 19,
+                                    "w": 45.47,
+                                    "h": 19
+                                  }
+                                }
                               }
                             ],
                             "rect": {
@@ -233,7 +279,7 @@
                             }
                           },
                           {
-                            "id": 12,
+                            "id": 14,
                             "tag": "li",
                             "styles": {
                               "display": "list-item",
@@ -247,8 +293,31 @@
                             "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:2",
                             "inline": [
                               {
-                                "kind": "markup",
-                                "source": "<a href=\"file:///docs\">Docs</a>"
+                                "kind": "element",
+                                "node": {
+                                  "id": 15,
+                                  "tag": "a",
+                                  "styles": {
+                                    "display": "inline",
+                                    "width": "auto",
+                                    "height": "auto",
+                                    "color": "rgb(74, 80, 89)",
+                                    "font-size": "14px"
+                                  },
+                                  "text": "Docs",
+                                  "attrs": {
+                                    "href": "file:///docs"
+                                  },
+                                  "children": [],
+                                  "notes": [],
+                                  "path": "body>div:0>div:0>div:0>nav:0>ul:1>li:2>a:0",
+                                  "rect": {
+                                    "x": 1375.88,
+                                    "y": 19,
+                                    "w": 32.13,
+                                    "h": 19
+                                  }
+                                }
                               }
                             ],
                             "rect": {
@@ -299,7 +368,7 @@
             }
           },
           {
-            "id": 13,
+            "id": 16,
             "tag": "header",
             "styles": {
               "display": "flex",
@@ -320,7 +389,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 14,
+                "id": 17,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -348,7 +417,7 @@
                 }
               },
               {
-                "id": 15,
+                "id": 18,
                 "tag": "h1",
                 "styles": {
                   "display": "block",
@@ -374,7 +443,7 @@
                   {
                     "kind": "element",
                     "node": {
-                      "id": 16,
+                      "id": 19,
                       "tag": "span",
                       "styles": {
                         "display": "inline-block",
@@ -423,7 +492,7 @@
                 }
               },
               {
-                "id": 17,
+                "id": 20,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -448,7 +517,7 @@
                 }
               },
               {
-                "id": 18,
+                "id": 21,
                 "tag": "div",
                 "styles": {
                   "display": "flex",
@@ -462,7 +531,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 19,
+                    "id": 22,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -508,7 +577,7 @@
                     }
                   },
                   {
-                    "id": 20,
+                    "id": 23,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -563,7 +632,7 @@
                 }
               },
               {
-                "id": 21,
+                "id": 24,
                 "tag": "span",
                 "styles": {
                   "display": "flex",
@@ -606,7 +675,7 @@
             }
           },
           {
-            "id": 22,
+            "id": 25,
             "tag": "section",
             "styles": {
               "display": "flex",
@@ -624,7 +693,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 23,
+                "id": 26,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -662,7 +731,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 24,
+                    "id": 27,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -691,7 +760,7 @@
                     }
                   },
                   {
-                    "id": 25,
+                    "id": 28,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -713,7 +782,7 @@
                     }
                   },
                   {
-                    "id": 26,
+                    "id": 29,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -746,7 +815,7 @@
                 }
               },
               {
-                "id": 27,
+                "id": 30,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -784,7 +853,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 28,
+                    "id": 31,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -813,7 +882,7 @@
                     }
                   },
                   {
-                    "id": 29,
+                    "id": 32,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -835,7 +904,7 @@
                     }
                   },
                   {
-                    "id": 30,
+                    "id": 33,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -868,7 +937,7 @@
                 }
               },
               {
-                "id": 31,
+                "id": 34,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -906,7 +975,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 32,
+                    "id": 35,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -935,7 +1004,7 @@
                     }
                   },
                   {
-                    "id": 33,
+                    "id": 36,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -957,7 +1026,7 @@
                     }
                   },
                   {
-                    "id": 34,
+                    "id": 37,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -1000,7 +1069,7 @@
             }
           },
           {
-            "id": 35,
+            "id": 38,
             "tag": "footer",
             "styles": {
               "display": "block",
@@ -1027,6 +1096,64 @@
               "w": 1440,
               "h": 83
             }
+          },
+          {
+            "id": 39,
+            "tag": "p",
+            "styles": {
+              "display": "block",
+              "width": "1440px",
+              "height": "79.4062px",
+              "color": "rgb(118, 125, 136)",
+              "font-size": "11px",
+              "line-height": "15.4px",
+              "letter-spacing": "1.32px"
+            },
+            "text": null,
+            "attrs": {},
+            "children": [],
+            "notes": [],
+            "path": "body>div:0>p:5",
+            "inline": [
+              {
+                "kind": "text",
+                "value": " Ships with a warranty "
+              },
+              {
+                "kind": "element",
+                "node": {
+                  "id": 40,
+                  "tag": "em",
+                  "styles": {
+                    "display": "block",
+                    "width": "220.391px",
+                    "height": "58px",
+                    "max-width": "220.4px",
+                    "margin-top": "6px",
+                    "font-size": "10px",
+                    "font-style": "italic",
+                    "line-height": "14.5px"
+                  },
+                  "text": "Terms apply. Read them before you rely on any of this, because the small print is where the interesting parts live.",
+                  "attrs": {},
+                  "children": [],
+                  "notes": [],
+                  "path": "body>div:0>p:5>em:0",
+                  "rect": {
+                    "x": 0,
+                    "y": 1082.77,
+                    "w": 220.39,
+                    "h": 58
+                  }
+                }
+              }
+            ],
+            "rect": {
+              "x": 0,
+              "y": 1061.36,
+              "w": 1440,
+              "h": 79.41
+            }
           }
         ],
         "notes": [],
@@ -1035,7 +1162,7 @@
           "x": 0,
           "y": 0,
           "w": 1440,
-          "h": 1061.36
+          "h": 1140.77
         }
       }
     ],
@@ -1045,7 +1172,7 @@
       "x": 0,
       "y": 0,
       "w": 1440,
-      "h": 1061.36
+      "h": 1140.77
     }
   },
   "assets": [],
