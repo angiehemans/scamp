@@ -124,10 +124,9 @@ inline run) into a sibling so the order is
 display pins every child at 0,0, printing the glyph on top of the
 words. The pass sets one itself, and the direction follows the glyph: a
 glyph taken out of flow leaves the words stacking as block flow did, a
-glyph still in flow sits beside them on a baseline. An earlier attempt
-widened `flowLayoutFor` instead, which caught 24 spans that had never
-held text and turned them into flex columns — the rule has to name the
-case it is for.
+glyph still in flow sits beside them on a baseline. `materializePseudos`
+sets it rather than `flowLayoutFor` because only this pass knows which
+of those the glyph is.
 
 ## The list-padding bug this uncovered
 

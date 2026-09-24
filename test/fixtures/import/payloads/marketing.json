@@ -296,11 +296,60 @@
                   "letter-spacing": "-1.68px",
                   "text-align": "center"
                 },
-                "text": "Ship the thing you actually designed",
+                "text": null,
                 "attrs": {},
                 "children": [],
                 "notes": [],
                 "path": "body>div:0>header:2>h1:1",
+                "inline": [
+                  {
+                    "kind": "text",
+                    "value": "Ship the "
+                  },
+                  {
+                    "kind": "element",
+                    "node": {
+                      "id": 13,
+                      "tag": "span",
+                      "styles": {
+                        "display": "inline-block",
+                        "width": "158.031px",
+                        "height": "58.7969px",
+                        "padding-right": "8px",
+                        "padding-left": "8px",
+                        "background-color": "rgb(217, 232, 255)",
+                        "border-top-left-radius": "6px",
+                        "border-top-right-radius": "6px",
+                        "border-bottom-right-radius": "6px",
+                        "border-bottom-left-radius": "6px",
+                        "color": "rgb(22, 34, 58)"
+                      },
+                      "text": "thing",
+                      "attrs": {},
+                      "children": [],
+                      "notes": [],
+                      "path": "body>div:0>header:2>h1:1>span:0",
+                      "rect": {
+                        "x": 699.58,
+                        "y": 201.8,
+                        "w": 158.03,
+                        "h": 58.8
+                      }
+                    }
+                  },
+                  {
+                    "kind": "text",
+                    "value": " you "
+                  },
+                  {
+                    "kind": "markup",
+                    "source": "<span>actually</span>"
+                  },
+                  {
+                    "kind": "text",
+                    "value": " designed"
+                  }
+                ],
                 "rect": {
                   "x": 463.75,
                   "y": 201.8,
@@ -309,7 +358,7 @@
                 }
               },
               {
-                "id": 13,
+                "id": 14,
                 "tag": "p",
                 "styles": {
                   "display": "block",
@@ -334,7 +383,7 @@
                 }
               },
               {
-                "id": 14,
+                "id": 15,
                 "tag": "div",
                 "styles": {
                   "display": "flex",
@@ -348,7 +397,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 15,
+                    "id": 16,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -394,7 +443,7 @@
                     }
                   },
                   {
-                    "id": 16,
+                    "id": 17,
                     "tag": "button",
                     "styles": {
                       "display": "block",
@@ -449,7 +498,7 @@
                 }
               },
               {
-                "id": 17,
+                "id": 18,
                 "tag": "span",
                 "styles": {
                   "display": "flex",
@@ -492,7 +541,7 @@
             }
           },
           {
-            "id": 18,
+            "id": 19,
             "tag": "section",
             "styles": {
               "display": "flex",
@@ -510,7 +559,7 @@
             "attrs": {},
             "children": [
               {
-                "id": 19,
+                "id": 20,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -548,7 +597,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 20,
+                    "id": 21,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -577,7 +626,7 @@
                     }
                   },
                   {
-                    "id": 21,
+                    "id": 22,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -599,7 +648,7 @@
                     }
                   },
                   {
-                    "id": 22,
+                    "id": 23,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -632,7 +681,7 @@
                 }
               },
               {
-                "id": 23,
+                "id": 24,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -670,7 +719,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 24,
+                    "id": 25,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -699,7 +748,7 @@
                     }
                   },
                   {
-                    "id": 25,
+                    "id": 26,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -721,7 +770,7 @@
                     }
                   },
                   {
-                    "id": 26,
+                    "id": 27,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -754,7 +803,7 @@
                 }
               },
               {
-                "id": 27,
+                "id": 28,
                 "tag": "article",
                 "styles": {
                   "display": "flex",
@@ -792,7 +841,7 @@
                 "attrs": {},
                 "children": [
                   {
-                    "id": 28,
+                    "id": 29,
                     "tag": "img",
                     "styles": {
                       "display": "block",
@@ -821,7 +870,7 @@
                     }
                   },
                   {
-                    "id": 29,
+                    "id": 30,
                     "tag": "h3",
                     "styles": {
                       "display": "block",
@@ -843,7 +892,7 @@
                     }
                   },
                   {
-                    "id": 30,
+                    "id": 31,
                     "tag": "p",
                     "styles": {
                       "display": "block",
@@ -886,7 +935,7 @@
             }
           },
           {
-            "id": 31,
+            "id": 32,
             "tag": "footer",
             "styles": {
               "display": "block",

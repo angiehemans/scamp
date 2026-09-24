@@ -49,11 +49,14 @@ describe('cssToScampProperty', () => {
         it('maps display: none to visibilityMode', () => {
             expect(apply('display', 'none')).toEqual({ visibilityMode: 'none' });
         });
-        it('maps `block` and `inline-block` to the non-flex / non-grid sentinel', () => {
+        it('maps `block` to the non-flex / non-grid sentinel', () => {
             expect(apply('display', 'block')).toEqual({ display: 'none' });
-            expect(apply('display', 'inline-block')).toEqual({ display: 'none' });
         });
         it('refuses other display values (preserved via customProperties)', () => {
+            // `inline-block` included. Folding it onto the sentinel lost it
+            // entirely: the sentinel is also the default, so nothing emitted
+            // the value back and it vanished on the next save.
+            expect(apply('display', 'inline-block')).toBeNull();
             expect(apply('display', 'inline')).toBeNull();
             expect(apply('display', 'contents')).toBeNull();
         });

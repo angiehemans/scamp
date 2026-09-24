@@ -13,6 +13,7 @@ import {
   INLINE_MARKUP_ATTRIBUTES,
   INLINE_MARKUP_TAGS,
   KEPT_ATTRIBUTES,
+  SPAN_VISUAL_PROPERTIES,
   SKIPPED_TAGS,
   type CapturePayload,
 } from './importCapture';
@@ -41,6 +42,8 @@ export type CapturePolicy = {
   conditional: Readonly<Record<string, string | null>>;
   inlineTags: ReadonlyArray<string>;
   inlineAttrs: Readonly<Record<string, ReadonlyArray<string>>>;
+  /** What makes a `<span>` worth keeping as an element. */
+  spanVisual: ReadonlyArray<string>;
   /** Tags whose content is running text, so inline children stay inline. */
   textTags: ReadonlyArray<string>;
   keptAttrs: ReadonlyArray<string>;
@@ -67,6 +70,7 @@ export const capturePolicy = (): CapturePolicy => ({
   conditional: { ...CONDITIONAL_PROPERTIES },
   inlineTags: [...INLINE_MARKUP_TAGS],
   inlineAttrs: { ...INLINE_MARKUP_ATTRIBUTES },
+  spanVisual: [...SPAN_VISUAL_PROPERTIES],
   textTags: [
     'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'label', 'blockquote',
     'figcaption', 'legend', 'dt', 'dd', 'caption', 'th', 'td', 'a', 'span',
@@ -235,23 +239,62 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
     return `<${tag}${attrs.join('')}>${inner}</${tag}>`;
   };
 
+  type InlineItem =
+    | { kind: 'text'; value: string }
+    | { kind: 'markup'; source: string }
+    | { kind: 'element'; el: Element };
+
+  /**
+   * Is this `<span>` carrying design of its own?
+   *
+   * `<strong>` and `<em>` survive as bare tags because the browser
+   * styles them. A `<span>` does not: everything it looks like came
+   * from a class the import cannot carry, so emitting it bare loses
+   * the lot. One that differs from its parent on anything visible —
+   * or that is not an inline box at all — becomes a real element.
+   */
+  const spanCarriesDesign = (child: Element, parent: CSSStyleDeclaration): boolean => {
+    if (child.tagName.toLowerCase() !== 'span') return false;
+    const cs = window.getComputedStyle(child);
+    if (cs.display !== 'inline') return true;
+    return policy.spanVisual.some(
+      (prop) => cs.getPropertyValue(prop) !== parent.getPropertyValue(prop)
+    );
+  };
+
   /**
    * Running text with inline markup in it, in source order — or null
    * when this node is not that shape.
    */
-  const inlineContentOf = (el: Element): unknown[] | null => {
+  const inlineContentOf = (el: Element, computed: CSSStyleDeclaration): InlineItem[] | null => {
     const tag = el.tagName.toLowerCase();
     if (!textTags.has(tag)) return null;
+    // A flex or grid container has no inline content: its children are
+    // items it lays out, whatever tags they happen to be. Reading them
+    // as running text turned a three-part logo into one bare
+    // `<span>Resova</span>` with its weight and size gone.
+    const display = computed.display;
+    if (
+      display === 'flex' || display === 'inline-flex' ||
+      display === 'grid' || display === 'inline-grid'
+    ) {
+      return null;
+    }
     const kids = Array.from(el.children);
     if (kids.length === 0) return null;
     if (!kids.every((k) => inlineTags.has(k.tagName.toLowerCase()))) return null;
-    const out: unknown[] = [];
+    const out: InlineItem[] = [];
     for (const child of Array.from(el.childNodes)) {
       if (child.nodeType === 3) {
         const value = (child.textContent ?? '').replace(/\s+/g, ' ');
         if (value.trim().length > 0) out.push({ kind: 'text', value });
       } else if (child.nodeType === 1) {
-        out.push({ kind: 'markup', source: inlineSource(child as Element, 0) });
+        const childEl = child as Element;
+        out.push(
+          spanCarriesDesign(childEl, computed)
+            ? { kind: 'element', el: childEl }
+            : { kind: 'markup', source: inlineSource(childEl, 0) }
+        );
       }
     }
     return out.length > 0 ? out : null;
@@ -444,7 +487,32 @@ export const captureFn = (policy: CapturePolicy): CapturePayload => {
       .trim();
     if (ownText) text = ownText.slice(0, maxTextLength);
 
-    const inline = inlineContentOf(el);
+    // An element item is walked like any other child, so a styled span
+    // arrives as a node and the reducer can make it an element that
+    // sits in the line. see docs/notes/import-inline-spans.md
+    const inlineItems = inlineContentOf(el, computed);
+    let inline: unknown[] | null = null;
+    if (inlineItems !== null) {
+      const built: unknown[] = [];
+      let index = 0;
+      for (const item of inlineItems) {
+        if (item.kind !== 'element') {
+          built.push(item);
+          continue;
+        }
+        const childPath = `${path}>${item.el.tagName.toLowerCase()}:${index}`;
+        index += 1;
+        const node = depth >= maxDepth ? null : visit(item.el, computed, depth + 1, childPath);
+        // Hidden, or too deep to walk: keep the words rather than the
+        // box, which is still better than losing the run.
+        built.push(
+          node === null
+            ? { kind: 'markup', source: inlineSource(item.el, 0) }
+            : { kind: 'element', node }
+        );
+      }
+      inline = built;
+    }
     const children: unknown[] = [];
     if (inline !== null) {
       // Its children ARE its content; walking them would make boxes of

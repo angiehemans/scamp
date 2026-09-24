@@ -61,6 +61,117 @@ const reduce = (root: CapturedNode, over: Partial<CapturePayload> = {}) =>
 const kinds = (root: CapturedNode): string[] =>
   reduce(root).findings.map((f) => f.kind);
 
+describe('styled spans become elements in the line', () => {
+  // A `<strong>` survives being written out as a bare tag, because the
+  // browser styles it. A `<span>` does not: everything it looks like
+  // came from a class the import cannot carry, so a bare `<span>` is
+  // the whole loss. see docs/notes/import-inline-spans.md
+
+  const run = (
+    ...items: NonNullable<CapturedNode['inline']>
+  ): CapturedNode => node({ tag: 'h1', text: null, inline: items, children: [] });
+
+  const styledSpan = (text: string, styles: Record<string, string> = {}): CapturedNode =>
+    node({
+      id: 9,
+      tag: 'span',
+      text,
+      styles: { 'background-color': 'rgb(1, 2, 3)', ...styles },
+      children: [],
+    });
+
+  it('makes a styled span a real element rather than bare markup', () => {
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'text', value: 'Stop the ' },
+      { kind: 'element', node: styledSpan('busywork') }
+    )] }));
+    const span = Object.values(elements).find((e) => e.text === 'busywork');
+    expect(span?.type).toBe('text');
+    expect(span?.backgroundColor).toBe('rgb(1, 2, 3)');
+  });
+
+  it('leaves it in the line rather than pinning it at 0,0', () => {
+    // A child of a text host is `position: absolute` under Scamp's
+    // tree-shape rule, which would lift the word out of the sentence.
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'text', value: 'Stop the ' },
+      { kind: 'element', node: styledSpan('busywork') }
+    )] }));
+    const span = Object.values(elements).find((e) => e.text === 'busywork');
+    expect(span?.position).toBe('static');
+  });
+
+  it('lets the span hug its words instead of pinning a measured width', () => {
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'element', node: styledSpan('busywork', { width: '425px', height: '89px' }) }
+    )] }));
+    const span = Object.values(elements).find((e) => e.text === 'busywork');
+    expect(span?.widthMode).toBe('auto');
+    expect(span?.heightMode).toBe('auto');
+  });
+
+  it('moves the surrounding words into siblings, in source order', () => {
+    // A host cannot hold both words and children — the generator drops
+    // the words — so once one span is an element they all have to be.
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'text', value: 'Stop the ' },
+      { kind: 'element', node: styledSpan('busywork') },
+      { kind: 'text', value: ' today' }
+    )] }));
+    const span = Object.values(elements).find((e) => e.text === 'busywork');
+    const host = Object.values(elements).find((e) => e.id === span?.parentId);
+    expect((host?.childIds ?? []).map((id) => elements[id]?.text)).toEqual([
+      'Stop the',
+      'busywork',
+      'today',
+    ]);
+    expect(host?.text ?? null).toBeNull();
+  });
+
+  it('keeps those lifted runs inline, so they still read as one line', () => {
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'text', value: 'Stop the ' },
+      { kind: 'element', node: styledSpan('busywork') }
+    )] }));
+    const words = Object.values(elements).find((e) => e.text === 'Stop the');
+    expect(words?.customProperties['display']).toBe('inline');
+  });
+
+  it('places markup between the children it sat between', () => {
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'element', node: styledSpan('one') },
+      { kind: 'markup', source: '<em>and</em>' },
+      { kind: 'element', node: styledSpan('two') }
+    )] }));
+    const span = Object.values(elements).find((e) => e.text === 'one');
+    const host = Object.values(elements).find((e) => e.id === span?.parentId);
+    const fragment = host?.inlineFragments[0];
+    // After the first child, before the second — which is what puts it
+    // back where the sentence had it.
+    expect(fragment?.afterChildIndex).toBe(0);
+  });
+
+  it('changes nothing for a run with no styled span in it', () => {
+    // The leading text stays on the host and the rest stay fragments,
+    // exactly as before — this is the common case and it must not move.
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'text', value: 'Read the ' },
+      { kind: 'markup', source: '<a href="/docs">docs</a>' }
+    )] }));
+    const host = Object.values(elements).find((e) => e.text === 'Read the');
+    expect(host?.childIds).toEqual([]);
+    expect(host?.inlineFragments[0]?.afterChildIndex).toBe(-1);
+  });
+
+  it('lets a span that positions itself keep what it asked for', () => {
+    const { elements } = reduce(node({ children: [run(
+      { kind: 'element', node: styledSpan('badge', { position: 'relative' }) }
+    )] }));
+    const span = Object.values(elements).find((e) => e.text === 'badge');
+    expect(span?.position).toBe('relative');
+  });
+});
+
 describe('materializePseudos — ticks and toggles become elements', () => {
   // Pages put real design in `::before` / `::after`: a "✓" on every
   // bullet, a "+" on every collapsed row. Scamp has no
@@ -1064,6 +1175,81 @@ describe('against a page captured from a real browser', () => {
     expect(Object.keys(back.elements)).toHaveLength(Object.keys(result.elements).length);
     expect(tsx).not.toContain('<body');
     expect(tsx).toContain('data-scamp-id="root"');
+  });
+
+  it('generates a page that does not rewrite itself on the first save', () => {
+    // The invariant that matters most for an import: what Scamp writes
+    // has to survive being read back. It did not. A tag with element
+    // children and no text of its own parses as a RECTANGLE, and a
+    // rectangle carries no typography — so a heading whose words had
+    // moved into spans was written with `font-size: 56px` once and
+    // regenerated without it, falling back to 16px on the next save.
+    const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+    const once = generateCode({
+      elements,
+      rootId,
+      pageName: 'P',
+      cssModuleImportName: 'P',
+      isComponent: true,
+    });
+    const back = parseCode(once.tsx, once.css);
+    const twice = generateCode({
+      elements: back.elements,
+      rootId: ROOT_ELEMENT_ID,
+      pageName: 'P',
+      cssModuleImportName: 'P',
+      isComponent: true,
+    });
+    expect(twice.tsx).toBe(once.tsx);
+    // The root gains the page default on the way back through, which
+    // is generator behaviour rather than anything the import decided.
+    expect(twice.css.replace('  min-height: 100vh;\n', '')).toBe(
+      once.css.replace('  min-height: 100vh;\n', '')
+    );
+  });
+
+  it('leaves the type on the words, not on the box around them', () => {
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const word = Object.values(elements).find((e) => e.text === 'Ship the');
+    expect(word?.fontSize).toBe('56px');
+    // And not on the h1, which cannot keep it.
+    const host = Object.values(elements).find((e) => e.id === word?.parentId);
+    expect(host?.fontSize).toBeUndefined();
+  });
+
+  it('brings the heading\'s highlighted word in as an element', () => {
+    // `.mark` is a span whose entire appearance is in the stylesheet:
+    // background, colour, padding, radius, inline-block. Emitted as a
+    // bare `<span>` it kept none of it.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const mark = Object.values(elements).find((e) => e.text === 'thing');
+    expect(mark?.backgroundColor).toBe('rgb(217, 232, 255)');
+    expect(mark?.color).toBe('rgb(22, 34, 58)');
+    expect(mark?.customProperties['display']).toBe('inline-block');
+    expect(mark?.position).toBe('static');
+  });
+
+  it('leaves a span that carries nothing of its own as inline markup', () => {
+    // `.plain-span` adds no appearance, so a bare `<span>` loses
+    // nothing — and making an element of it would be noise in the tree.
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const sources = Object.values(elements)
+      .flatMap((e) => e.inlineFragments)
+      .map((f) => ('source' in f ? f.source : ''));
+    expect(sources).toContain('<span>actually</span>');
+    expect(Object.values(elements).some((e) => e.text === 'actually')).toBe(false);
+  });
+
+  it('keeps the heading\'s own words around it, in order', () => {
+    const { elements } = reduceCapture(payload, { randomId: seqIds() });
+    const mark = Object.values(elements).find((e) => e.text === 'thing');
+    const host = Object.values(elements).find((e) => e.id === mark?.parentId);
+    expect((host?.childIds ?? []).map((id) => elements[id]?.text)).toEqual([
+      'Ship the',
+      'thing',
+      'you',
+      'designed',
+    ]);
   });
 
   it('recovers the page\'s decorative glyph as a real text element', () => {

@@ -22,6 +22,8 @@ export type CapturePolicy = {
     conditional: Readonly<Record<string, string | null>>;
     inlineTags: ReadonlyArray<string>;
     inlineAttrs: Readonly<Record<string, ReadonlyArray<string>>>;
+    /** What makes a `<span>` worth keeping as an element. */
+    spanVisual: ReadonlyArray<string>;
     /** Tags whose content is running text, so inline children stay inline. */
     textTags: ReadonlyArray<string>;
     keptAttrs: ReadonlyArray<string>;

@@ -87,12 +87,14 @@ const flowLayoutFor = (node) => {
     // flex item, which loses the wrapping and the line box: a 81x43
     // paragraph came back 304x100.
     //
-    // A host whose words `materializePseudos` moved out is the one case
-    // that does need a layout, and that pass sets one itself rather than
-    // widening this rule — relaxing it here instead turned 24 spans that
-    // had never held text into flex columns.
-    if (elementTypeFor(node.tag) === 'text')
+    // …but only where there are words to wrap. A text-tagged node with
+    // element children and no text of its own is a container whatever
+    // its tag says — a `<span>` used as a 34x34 icon box, say — and
+    // without a layout Scamp pins its children at 0,0 and lets the box
+    // collapse to nothing around them.
+    if (elementTypeFor(node.tag) === 'text' && (node.text !== null || node.inline !== undefined)) {
         return null;
+    }
     // `inline` on the parent means it is part of a line, not building one.
     if (display === 'inline')
         return null;
@@ -200,7 +202,12 @@ const dropComputedSizes = (node, parentRect, findings, at) => {
     // It also hid itself from the fidelity harness, which compares boxes:
     // a pinned box measures exactly right while its content pours out of
     // it. Overflow is checked separately now.
-    if (elementTypeFor(node.tag) === 'text') {
+    // …but only where there are words. A `<span>` with no text of its
+    // own is not running text at all, whatever its tag says: a 34x34
+    // icon box with `line-height: 0` is a square someone chose, and
+    // dropping its height collapsed it onto its own contents.
+    const holdsWords = node.text !== null || node.inline !== undefined;
+    if (elementTypeFor(node.tag) === 'text' && holdsWords) {
         // Round a text box's width UP, never down. Scamp's model is whole
         // pixels (`parseSizeValue` rounds), so a measured `129.484px` would
         // land at `129px` — a fraction narrower than the words it was
@@ -290,17 +297,116 @@ const restoreAutoMargins = (styles, findings, at) => {
  * text run becomes `text` and everything after it becomes fragments,
  * which reproduces the source order exactly.
  */
-const inlineToFragments = (inline) => {
+/**
+ * The inherited values an element declares, for copying onto a child
+ * created after the capture.
+ *
+ * `list-style-type` is left behind: only a list item draws a marker,
+ * and none of these children is one.
+ */
+const inheritedTypography = (styles) => {
+    const out = {};
+    for (const prop of INHERITED_PROPERTIES) {
+        if (prop === 'list-style-type')
+            continue;
+        const value = styles[prop];
+        if (value !== undefined)
+            out[prop] = value;
+    }
+    return out;
+};
+/**
+ * The same values stripped off a host that has stopped rendering words.
+ *
+ * Scamp emits typography only on text elements, and `parseCode` types a
+ * tag with element children and no text of its own as a RECTANGLE. So
+ * typography left on such a host is written once and then dropped by
+ * the very next save — the file rewriting itself, and the heading
+ * falling back to 16px. Whatever the host was holding moves onto the
+ * children that render the words. see docs/notes/import-inline-spans.md
+ */
+const withoutInheritedTypography = (styles) => {
+    const out = { ...styles };
+    for (const prop of INHERITED_PROPERTIES)
+        delete out[prop];
+    return out;
+};
+const inlineToFragments = (host, inline) => {
     const items = [...inline];
+    // A host with children cannot also hold words — that is the rule
+    // `needsTextChild` exists for, and the generator drops the text
+    // rather than render both. So once one span in the run becomes an
+    // element, every text run has to become one too, and the host is
+    // left a pure container whose children flow as a line.
+    //
+    // With no element in the run nothing changes: the leading text stays
+    // on the host and the rest stay fragments, exactly as before.
+    const hasElement = items.some((item) => item.kind === 'element');
     let text = null;
-    if (items[0]?.kind === 'text') {
+    if (!hasElement && items[0]?.kind === 'text') {
         text = items[0].value.trim();
         items.shift();
     }
-    const fragments = items.map((item) => item.kind === 'text'
-        ? ({ kind: 'text', value: item.value, afterChildIndex: -1 })
-        : ({ kind: 'jsx', source: item.source, afterChildIndex: -1 }));
-    return { text, fragments };
+    const fragments = [];
+    const children = [];
+    // `afterChildIndex` places a run relative to the children around it,
+    // so it has to track the elements as they are added — a run before
+    // the first one is -1, which is also where a run with no elements
+    // beside it belongs.
+    let afterChildIndex = -1;
+    /** A run of words as a child that sits in the line. */
+    const wordsAsChild = (value) => ({
+        // Negative so it never collides with a captured node's id, and so
+        // anything looking a source node up by it simply misses: there is
+        // no source node, this run was part of its parent's text.
+        id: -1 - children.length,
+        tag: 'span',
+        styles: {
+            ...inheritedTypography(host.styles),
+            display: 'inline',
+            position: 'static',
+            width: 'auto',
+            height: 'auto',
+        },
+        text: value,
+        attrs: {},
+        children: [],
+        notes: [],
+    });
+    for (const item of items) {
+        if (hasElement && item.kind === 'text') {
+            if (item.value.trim().length > 0) {
+                children.push(wordsAsChild(item.value.trim()));
+                afterChildIndex += 1;
+            }
+            continue;
+        }
+        if (item.kind === 'element') {
+            children.push({
+                ...item.node,
+                styles: {
+                    ...inheritedTypography(host.styles),
+                    ...item.node.styles,
+                    // A child of a text host is `position: absolute` by Scamp's
+                    // tree-shape rule unless it says otherwise, which would lift
+                    // the span out of the sentence and pin it at 0,0. `static`
+                    // is the typed escape hatch that leaves it in the line, and
+                    // a span that positions itself keeps what it asked for.
+                    position: item.node.styles['position'] ?? 'static',
+                    // An inline box hugs its words. A measured width would
+                    // decide where they wrap instead of the line doing it.
+                    width: 'auto',
+                    height: 'auto',
+                },
+            });
+            afterChildIndex += 1;
+            continue;
+        }
+        fragments.push(item.kind === 'text'
+            ? { kind: 'text', value: item.value, afterChildIndex }
+            : { kind: 'jsx', source: item.source, afterChildIndex });
+    }
+    return { text, fragments, children };
 };
 /**
  * The styles an element is built from, after every translation this
@@ -501,27 +607,13 @@ export const materializePseudos = (root, findings) => {
         maxId += 1;
         return maxId;
     };
-    /** The host's inherited values, for a child created after the fact. */
-    const inheritedFrom = (host) => {
-        const out = {};
-        for (const prop of INHERITED_PROPERTIES) {
-            // Only a list item draws a marker, and none of these spans is
-            // one. Copying it across just adds a dead line to every glyph.
-            if (prop === 'list-style-type')
-                continue;
-            const value = host.styles[prop];
-            if (value !== undefined)
-                out[prop] = value;
-        }
-        return out;
-    };
     const spanFor = (host, styles, suffix) => ({
         id: nextNodeId(),
         tag: 'span',
         // No measured box: a pseudo-element has no `getBoundingClientRect`,
         // and a lifted run of words should hug them. Without this both
         // land on the model's 100x100 default.
-        styles: { width: 'auto', height: 'auto', ...inheritedFrom(host), ...styles },
+        styles: { width: 'auto', height: 'auto', ...inheritedTypography(host.styles), ...styles },
         text: null,
         attrs: {},
         children: [],
@@ -563,7 +655,11 @@ export const materializePseudos = (root, findings) => {
         // stack as block flow did, while one still in flow sat beside
         // them on a line.
         const display = rest.styles['display'] ?? 'block';
-        const styles = { ...rest.styles };
+        // This pass is what moved the words out, so it is what has to take
+        // the typography off the host — the children already carry a copy,
+        // and a host that parses back as a rectangle would drop it on the
+        // next save.
+        const styles = withoutInheritedTypography(rest.styles);
         if (!LAYOUT_DISPLAYS.has(display)) {
             const glyphs = [pseudo.before, pseudo.after].filter((g) => g !== undefined);
             const inFlow = glyphs.some((g) => {
@@ -699,7 +795,7 @@ export const reduceCapture = (payload, options = {}) => {
         const className = isRoot ? ROOT_ELEMENT_ID : `${name}_${id}`;
         // Running text with inline markup in it stays one element: the
         // markup becomes fragments rather than boxes. see `inlineToFragments`
-        const inlineRun = node.inline ? inlineToFragments(node.inline) : null;
+        const inlineRun = node.inline ? inlineToFragments(node, node.inline) : null;
         if (inlineRun !== null) {
             findings.push({
                 kind: 'inline-kept',
@@ -712,8 +808,16 @@ export const reduceCapture = (payload, options = {}) => {
         // text lifted into a child of its own.
         const hasElementChildren = node.children.length > 0;
         const needsTextChild = inlineRun === null && node.text !== null && hasElementChildren;
-        const sized = dropComputedSizes(node, parentRect, findings, at);
-        const styles = normalizedStyles({ ...node, styles: sized.styles }, isRoot, findings, at);
+        // A host whose words have all moved into children stops being a
+        // text element on the way back in, and a rectangle cannot carry
+        // typography — so anything left here is written once and dropped
+        // by the next save. The children carry it now.
+        const wordsMovedOut = (inlineRun !== null && inlineRun.children.length > 0) || needsTextChild;
+        const host = wordsMovedOut
+            ? { ...node, styles: withoutInheritedTypography(node.styles) }
+            : node;
+        const sized = dropComputedSizes(host, parentRect, findings, at);
+        const styles = normalizedStyles({ ...host, styles: sized.styles }, isRoot, findings, at);
         const display = styles['display'];
         if (display !== undefined && UNSUPPORTED_DISPLAYS.has(display)) {
             findings.push({ kind: 'unsupported-display', at, detail: display });
@@ -811,7 +915,10 @@ export const reduceCapture = (payload, options = {}) => {
             childIds.push(textId);
         }
         const selfIsLayout = LAYOUT_DISPLAYS.has(display ?? '');
-        for (const child of node.children) {
+        // An inline host's styled spans are its children. The capture
+        // leaves `node.children` empty for such a host, so these are the
+        // only ones, and their order is the order of the line.
+        for (const child of [...(inlineRun?.children ?? []), ...node.children]) {
             childIds.push(build(child, id, [...path, node.tag], selfIsLayout, ownFlow, node.rect ?? null));
         }
         elements[id] = { ...element, ...autoSized, childIds };

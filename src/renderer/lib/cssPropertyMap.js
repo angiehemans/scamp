@@ -58,11 +58,17 @@ export const cssToScampProperty = {
             return { display: 'grid' };
         if (trimmed === 'none')
             return { visibilityMode: 'none' };
-        if (trimmed === 'block' || trimmed === 'inline-block') {
+        if (trimmed === 'block')
             return { display: 'none' };
-        }
-        // Other display values (`inline`, `contents`, `flow-root`, …) get
-        // preserved verbatim via customProperties.
+        // Other display values (`inline`, `inline-block`, `contents`,
+        // `flow-root`, …) get preserved verbatim via customProperties.
+        //
+        // `inline-block` used to be folded onto the sentinel alongside
+        // `block`, and since the sentinel is also the default the value
+        // was then emitted by nothing: `display: inline-block` written
+        // into a CSS module disappeared on the next save. Both are "not a
+        // flex or grid container", but only `block` is what an element
+        // already does without saying so.
         return null;
     },
     visibility: (v) => {

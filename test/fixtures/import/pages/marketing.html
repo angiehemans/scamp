@@ -29,6 +29,12 @@
              text-transform: uppercase; color: #2d4a7c; }
   .hero h1 { font-size: 56px; line-height: 1.05; letter-spacing: -0.03em;
              max-width: 16ch; text-align: center; }
+  /* A highlighted word. All of its appearance comes from this class, so
+     a bare <span> in the output would lose every bit of it. */
+  .hero h1 .mark { background: #d9e8ff; color: #16223a; padding: 0 8px;
+                   border-radius: 6px; display: inline-block; }
+  /* A span carrying nothing of its own — it must stay inline markup. */
+  .plain-span { }
   .hero p { font-size: 18px; line-height: 1.6; color: #4a5059;
             max-width: 52ch; text-align: center; }
   .cta { display: flex; gap: 12px; }
@@ -91,7 +97,7 @@
 
     <header class="hero">
       <p class="eyebrow">Now in public beta</p>
-      <h1>Ship the thing you actually designed</h1>
+      <h1>Ship the <span class="mark">thing</span> you <span class="plain-span">actually</span> designed</h1>
       <p>Northwind keeps your design and your code the same artifact, so the
          handoff you keep rewriting stops existing.</p>
       <div class="cta">

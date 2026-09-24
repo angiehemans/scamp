@@ -141,6 +141,20 @@ describe('agent-friendly: unknown enum values fall through to customProperties',
         const out = roundTripCss('  display: flex;\n  justify-content: space-evenly;');
         expect(out).toContain('justify-content: space-evenly;');
     });
+    it('display: inline-block survives', () => {
+        // It used to be folded onto the same sentinel as `display: block`.
+        // The sentinel is also the default, so nothing emitted the value
+        // back and `inline-block` disappeared on the next save — the one
+        // spelling of "a box that sits in a line" simply could not be
+        // written down. A highlighted word in an imported heading is
+        // exactly that box.
+        expect(roundTripCss('  display: inline-block;')).toContain('display: inline-block;');
+    });
+    it('display: block still means the flow default, and says nothing', () => {
+        // The inverse has to keep holding: `block` is what an element
+        // already does, so declaring it back would be noise on every rect.
+        expect(roundTripCss('  display: block;')).not.toContain('display: block;');
+    });
 });
 describe('agent-friendly: loose text + unclassed JSX preserved in source order', () => {
     const TSX_TEMPLATE = (innerSource) => `import styles from './home.module.css';

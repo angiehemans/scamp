@@ -125,7 +125,18 @@ export type CapturedNode = {
    * emits a fragment byte-for-byte into a `.tsx` file, so `class=` and
    * unknown attributes cannot come along for the ride.
    */
-  inline?: Array<{ kind: 'text'; value: string } | { kind: 'markup'; source: string }>;
+  inline?: Array<
+    | { kind: 'text'; value: string }
+    | { kind: 'markup'; source: string }
+    /**
+     * A `<span>` that carried its own styling. `<strong>` and friends
+     * survive being emitted as bare tags because the browser styles
+     * them; a `<span>` stripped of its class renders as nothing at
+     * all, so it comes across as a node and becomes a real element
+     * sitting in the line. see docs/notes/import-inline-spans.md
+     */
+    | { kind: 'element'; node: CapturedNode }
+  >;
   /**
    * An inline `<svg>`'s inner markup, verbatim. Scamp keeps this on the
    * element and re-emits it byte-for-byte, so an icon survives the
@@ -148,6 +159,24 @@ export const INLINE_MARKUP_TAGS: ReadonlySet<string> = new Set([
  * a fragment carries no class, so an attribute that only made sense
  * with the page's stylesheet would be noise in the file.
  */
+/**
+ * Properties that decide whether a `<span>` was doing anything.
+ *
+ * A span has no appearance of its own — everything it looks like comes
+ * from the page's stylesheet, which the import does not carry. So a
+ * span differing from its parent on any of these is carrying design,
+ * and has to arrive as an element rather than as a bare `<span>` tag.
+ */
+export const SPAN_VISUAL_PROPERTIES: ReadonlyArray<string> = [
+  'background-color', 'background-image', 'background-clip',
+  'border-top-width', 'border-right-width', 'border-bottom-width',
+  'border-left-width', 'border-top-left-radius', 'border-top-right-radius',
+  'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'color', '-webkit-text-fill-color', 'font-weight', 'font-size',
+  'font-family', 'font-style', 'text-decoration-line', 'text-transform',
+  'letter-spacing', 'box-shadow',
+];
+
 export const INLINE_MARKUP_ATTRIBUTES: Readonly<Record<string, ReadonlyArray<string>>> = {
   a: ['href', 'target', 'rel'],
   time: ['datetime'],
