@@ -142,3 +142,34 @@ test.describe('start-screen project thumbnail', () => {
         expect(transforms.filter((t) => t !== before)).toEqual([]);
     });
 });
+/**
+ * The same thing in a framework project.
+ *
+ * Pinned separately because the block above pins `format: 'nextjs'`,
+ * and that is exactly why nobody noticed: a framework project has no
+ * pages — its home is a VIEW, whose edit target is a `component` — so
+ * the capture was gated on a kind that never occurs there and every
+ * one of these has had a blank start-screen card since the format
+ * shipped. see docs/notes/project-thumbnails.md
+ */
+test.describe('start-screen project thumbnail: framework format', () => {
+    test.use({
+        projectOptions: {
+            format: 'scamp',
+            pageContent: { home: { tsx: HOME_TSX, css: HOME_CSS } },
+        },
+    });
+    test('a home-view save writes a thumbnail with the view actually in it', async ({ window, project, }) => {
+        await expect(pageRoot(window)).toBeVisible();
+        await expect(canvasElement(window, 'rect_swatch')).toBeVisible();
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 200, y: 600 }, { x: 260, y: 660 });
+        await waitForSaved(window);
+        const png = await waitForThumbnail(project.dir);
+        expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+        // A blank capture is a valid PNG of the right size, so only the
+        // pixels tell the two apart.
+        const blue = await countPixelsNear(window, png, [0, 128, 255]);
+        expect(blue).toBeGreaterThan(1000);
+    });
+});

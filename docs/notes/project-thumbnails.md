@@ -124,3 +124,27 @@ every time it appears.
 - **Not shared between machines.** `.scamp/` is gitignored, so a cloned
   project shows its placeholder until opened and saved locally. A
   screenshot is a local cache, not project source.
+
+
+## A framework project never captured one
+
+Every Scamp-framework project has had a blank card on the start screen
+since the format shipped.
+
+The capture is scheduled from a save, gated on `target.kind === 'page'`.
+A framework project has no pages: every page is a view, opened through
+`activeComponent`, so its edit target is always a `component` and the
+gate never fired.
+
+The name needed translating as well as the kind. A page is `home`; the
+view that serves `/` is `Home`, and the capture drops anything whose
+name is not `home` — so even a loosened kind check would have thrown it
+away one line later. `thumbnailNameFor` answers both at once: the page's
+own name for a page, the SLUG for a view, and null for a reusable
+component however it is named. It takes the tree's kind rather than
+guessing from the name, because a component called `Home` is not a
+front page.
+
+The e2e that covers this pinned `format: 'nextjs'`, which is why it was
+never caught — the same test now runs against both formats, and the
+framework one fails without the fix.
