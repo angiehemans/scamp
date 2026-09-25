@@ -192,3 +192,26 @@ scheme either way.
 Pinned by an e2e that seeds a real asset, references it from the page
 CSS, and counts the pixels in the resulting PNG — a blank capture is a
 valid PNG of the right size, so only the pixels tell the two apart.
+
+## One project's screenshot on another project's card
+
+The capture reads the canvas that is on screen and writes to a path
+decided 1.5 seconds earlier, and nothing checked that the two still
+agreed. Close one project and open another inside that debounce and
+they do not: the photograph is of the project that just opened, filed
+under the one that just closed.
+
+`runCapture` drops the capture when the open project is no longer the
+one it was scheduled for. The close path is unaffected — it flushes
+while its own project is still open, which is exactly why it runs
+before `setProject(null)` rather than after.
+
+The consequence of dropping rather than redirecting: closing a project
+in the second after an edit can leave the thumbnail one edit behind,
+because `flushPendingPageWrite` schedules its capture through a
+`requestAnimationFrame` that lands after the close. A stale thumbnail
+is a better failure than the wrong project's.
+
+The component equivalent has the same shape and is not affected: it has
+no debounce, so its window is a single frame rather than a second and a
+half, and a user would have to change component inside it.

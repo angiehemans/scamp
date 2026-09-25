@@ -5,6 +5,8 @@ import {
   type ThumbnailFrame,
 } from '@lib/thumbnailCrop';
 
+import { useCanvasStore } from '@store/canvasSlice';
+
 import { captureIsolatedPng } from './exportCapture';
 
 /**
@@ -159,6 +161,17 @@ export const flushPendingProjectThumbnail = (projectPath: string): void => {
 };
 
 const runCapture = (projectPath: string): void => {
+  // The canvas on screen belongs to whatever project is open NOW, but
+  // this capture was scheduled against the project that was open when
+  // the save happened. Close one project and open another inside the
+  // debounce and the two disagree: the photograph is of the new
+  // project and it is filed under the old one, which is how a card
+  // ended up wearing another project's screenshot.
+  //
+  // The close path is unaffected — it flushes while its own project is
+  // still the open one, which is the whole reason it runs before the
+  // unmount. see docs/notes/project-thumbnails.md
+  if (useCanvasStore.getState().projectPath !== projectPath) return;
   if (inFlight.has(projectPath)) return;
   inFlight.add(projectPath);
 
