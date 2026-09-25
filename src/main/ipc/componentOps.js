@@ -56,6 +56,29 @@ export const wrapperPagePathsFor = (projectPath, slug) => {
         pageDir,
     };
 };
+/** The route file that renders a view, for a Scamp-framework project. */
+const viewRouteTsx = (viewName) => `import ${viewName} from '@/views/${viewName}/${viewName}';\n\nexport const render = 'static';\n\nexport default function ${viewName}Route() {\n  return <${viewName} />;\n}\n`;
+/**
+ * Give a new view a URL.
+ *
+ * The two formats serve pages from different places, and this wrote
+ * only one of them: `app/<slug>/page.tsx`, which is Next.js's. A
+ * Scamp-framework project routes from `routes/`, so an imported or
+ * newly created view had no URL at all there — the preview loaded the
+ * home page, and every link or page-picker jump after it was a 404 and
+ * a blank white screen.
+ */
+const writeViewUrl = async (projectPath, viewName, slug, replacePage, format) => {
+    if (format === 'scamp') {
+        const file = join(projectPath, 'routes', slug === 'home' ? 'index.tsx' : `${slug}.tsx`);
+        if ((await pathExists(file)) && !replacePage)
+            return;
+        await fs.mkdir(join(projectPath, 'routes'), { recursive: true });
+        await fs.writeFile(file, viewRouteTsx(viewName), 'utf-8');
+        return;
+    }
+    await writeViewWrapper(projectPath, viewName, slug, replacePage);
+};
 /**
  * Write the one-line wrapper page that renders a view. A page already
  * at the slug is left alone unless `replacePage` — the convert path —
@@ -116,7 +139,7 @@ export const createComponent = async (args, format) => {
     await fs.writeFile(tsxPath, tsxContent, 'utf-8');
     await fs.writeFile(cssPath, cssContent, 'utf-8');
     if (kind === 'view' && typeof args.wrapperSlug === 'string') {
-        await writeViewWrapper(args.projectPath, args.componentName, args.wrapperSlug, args.replacePage === true);
+        await writeViewUrl(args.projectPath, args.componentName, args.wrapperSlug, args.replacePage === true, format);
     }
     return {
         name: args.componentName,
@@ -136,6 +159,10 @@ export const deleteComponent = async (args, format) => {
     const { componentDir } = componentPathsFor(args.projectPath, args.componentName, kind);
     await fs.rm(componentDir, { recursive: true, force: true });
     if (kind === 'view') {
+        // Wrapper only. The route that renders a view in a Scamp-framework
+        // project is the user's file, and a rename depends on it surviving
+        // until `renameRouteForView` moves it — deleting it here turned
+        // every page rename into a page with no route at all.
         await removeViewWrapper(args.projectPath, args.componentName, viewSlugFor(args.componentName));
     }
 };
