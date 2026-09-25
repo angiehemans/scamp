@@ -22,6 +22,64 @@ release time.
 
 ## Releases
 
+### 0.8.5 (2026-09-25)
+
+**Added**
+
+- **Import a page from the web.** **↧ Import a page…** in the **Pages**
+  sidebar opens a browser. Navigate to any page, click **Import**, and
+  Scamp reads it as it appears on screen and writes a
+  [view](user_docs/views.md) from it—real elements on the canvas, real
+  TSX and CSS Module files on disk. The page's images are downloaded
+  into the project, its fonts are installed or named, repeated colors
+  become theme tokens, and the page's own class names become element
+  names. See [Import a page from the web](user_docs/website-import.md).
+- **Every import says what it changed.** An import is a translation into
+  a smaller model, so the import window ends with a report: what came
+  across differently, and what couldn't come at all. Losses are marked
+  and listed first, and the report opens on its own when there is one,
+  so a `<canvas>` you now have to rebuild isn't filed beside the
+  bookkeeping.
+- **An imported page arrives responsive.** After reading the page at
+  full width, Scamp narrows the browser to each of your project's
+  [breakpoints](user_docs/breakpoints.md) and reads it again, so the
+  view carries the page's own media queries as per-breakpoint
+  overrides rather than one fixed layout.
+- **An agent can see the page an import came from.** Two MCP tools,
+  `scamp_list_import_sources` and `scamp_get_import_source`, return the
+  original HTML and CSS, so tidying an imported view starts from what
+  the page actually said instead of a guess. The copy lives in a
+  temporary folder, never in your project, and is deleted when you
+  close the project. See [Work with AI agents](user_docs/ai-agents.md).
+
+**Fixed**
+
+- **Preview no longer goes blank when you leave the first page.** In a
+  Scamp framework project, an added or imported page had no route, so
+  following a link or picking a page in the preview toolbar asked the
+  dev server for a URL that didn't exist. Adding a page now writes the
+  route that renders it, renaming a page moves its route, and
+  **Project settings** lists every route in the project. A view that
+  already lost its route gets a **Generate route** button.
+- **A project's start-screen card shows the project again.** Scamp
+  framework projects have no pages, only views, and the card's capture
+  only ever ran for a page—so every framework project had a blank card
+  from the day the format shipped. Captures also now keep the design's
+  own fonts and its background images, and a capture can no longer be
+  filed under the project you just closed.
+- **An element's inline markup renders on the canvas.** A `<b>`,
+  `<em>`, or link inside a sentence, and children of a text element,
+  appeared in the layers panel and in the code but not on the canvas.
+- **A link points again.** Scamp's reset uses `all: unset` on `a`, which
+  is what makes a linked element look like the box you drew—and it took
+  `cursor: pointer` with it, so a link behaved like a div under the
+  mouse in the preview and the export. `theme.css` puts it back for
+  `a[href]`, and an existing project gets the rule when you open it. The
+  canvas keeps the drawing cursor.
+- **The terminal's output goes to the window that asked for it.** With
+  more than one project open, a shell's output could arrive in the wrong
+  window, which read as a terminal that wouldn't start.
+
 ### 0.8.0 (2026-09-23)
 
 **Added**
@@ -641,6 +699,9 @@ Everything Scamp does today. Each entry links to its user documentation.
 - A start screen with recent and discovered projects, shown as cards
   with a thumbnail of each project's home page.
   [Get started](user_docs/getting-started.md)
+- Import a live web page as a view, with a report of what the
+  translation changed and what it could not carry.
+  [Import a page from the web](user_docs/website-import.md)
 
 ### Output and preview
 
