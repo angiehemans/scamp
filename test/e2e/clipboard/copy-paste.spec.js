@@ -38,6 +38,12 @@ async function addPage(window, name) {
     await nameInput.fill(name);
     await nameInput.press('Enter');
     await expect(nameInput).toBeHidden();
+    // And wait for the new page's canvas, not just for the dialog. The
+    // callers gate on `rects === 0`, which is ALSO true in the gap where
+    // the old page has gone and the new one has not arrived — so a paste
+    // straight after it had no root to land on and produced nothing.
+    await expect(pageRoot(window)).toBeVisible();
+    await waitForSaved(window);
 }
 test.describe('clipboard: copy, cut, paste', () => {
     test('the clipboard survives a page switch', async ({ window }) => {
