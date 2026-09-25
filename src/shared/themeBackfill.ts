@@ -3,6 +3,8 @@ import {
   BROWSER_RESET_BLOCK,
   BROWSER_RESET_SENTINEL,
   DEFAULT_BODY_FONT_FAMILY,
+  LINK_CURSOR_BLOCK,
+  LINK_CURSOR_SENTINEL,
   LIST_PADDING_BLOCK,
   LIST_PADDING_SENTINEL,
 } from './agentMd';
@@ -19,7 +21,7 @@ export type BackfillResult = {
  * string. Pure: takes the raw CSS, returns the (possibly-updated) CSS
  * plus a `changed` flag.
  *
- * Five independent additive checks:
+ * Six independent additive checks:
  *
  *   1. If no `:root` rule declares `--font-sans`, append the token to
  *      the first `:root` rule (or create a `:root` block if there
@@ -58,13 +60,15 @@ export const backfillThemeDefaults = (css: string): BackfillResult => {
   // simpler and tolerant of whatever postcss does on parse / stringify.
   const hasBrowserReset = css.includes(BROWSER_RESET_SENTINEL);
   const hasListPadding = css.includes(LIST_PADDING_SENTINEL);
+  const hasLinkCursor = css.includes(LINK_CURSOR_SENTINEL);
 
   if (
     hasFontSansToken &&
     hasBoxSizingReset &&
     hasBodyFontFamily &&
     hasBrowserReset &&
-    hasListPadding
+    hasListPadding &&
+    hasLinkCursor
   ) {
     return { content: css, changed: false };
   }
@@ -88,6 +92,9 @@ export const backfillThemeDefaults = (css: string): BackfillResult => {
   }
   if (!hasListPadding) {
     content = content.replace(/\s*$/, '\n\n') + LIST_PADDING_BLOCK + '\n';
+  }
+  if (!hasLinkCursor) {
+    content = content.replace(/\s*$/, '\n\n') + LINK_CURSOR_BLOCK + '\n';
   }
   return { content, changed: true };
 };

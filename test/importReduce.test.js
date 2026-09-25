@@ -1280,6 +1280,50 @@ describe('against a page captured from a real browser', () => {
         expect(tsx).not.toContain('<body');
         expect(tsx).toContain('data-scamp-id="root"');
     });
+    it('paints an icon the colour the page painted it', () => {
+        // Most pages colour an icon with a CSS rule, not an attribute, and
+        // `fill` was not captured at all — so every icon arrived with no
+        // fill and rendered in the initial black, on a dark page.
+        const { elements } = reduceCapture(payload, { randomId: seqIds() });
+        const icons = Object.values(elements).filter((e) => e.tag === 'svg');
+        expect(icons.length).toBeGreaterThanOrEqual(2);
+        // Kept as written where the paint IS the text colour: that is what
+        // the page meant, and it keeps the icon following its surroundings.
+        expect(icons.some((i) => i.fill === 'currentColor')).toBe(true);
+    });
+    it('leaves an icon with a colour of its own alone', () => {
+        const { elements } = reduceCapture(payload, { randomId: seqIds() });
+        const fixed = Object.values(elements).find((e) => e.name === 'icon_fixed');
+        expect(fixed?.fill).toBe('rgb(217, 179, 106)');
+        expect(fixed?.fill).not.toBe('currentColor');
+    });
+    it('brings gradient text across whole, or it is invisible', () => {
+        // The background is clipped to the glyphs and the text is painted
+        // transparent. Capture the transparency without the clip — which is
+        // what happened — and the headline simply cannot be seen.
+        const { elements, rootId } = reduceCapture(payload, { randomId: seqIds() });
+        const title = Object.values(elements).find((e) => e.text === 'Painted by a gradient');
+        const { css } = generateCode({
+            elements,
+            rootId,
+            pageName: 'P',
+            cssModuleImportName: 'P',
+            isComponent: true,
+        });
+        const rule = css.match(new RegExp(`\\.${title?.name}_${title?.id}\\s*\\{[^}]*\\}`))?.[0] ?? '';
+        expect(rule).toContain('background-clip: text');
+        // `transparent` computes to its rgba form, which is what a
+        // stylesheet reader gets back.
+        expect(rule).toContain('-webkit-text-fill-color: rgba(0, 0, 0, 0)');
+        expect(rule).toContain('linear-gradient');
+    });
+    it('does not put a text-fill colour on everything that never set one', () => {
+        // It resolves to the element's own `color` wherever it is unset, so
+        // keeping it unconditionally would double up every colour on the page.
+        const { elements } = reduceCapture(payload, { randomId: seqIds() });
+        const withFill = Object.values(elements).filter((e) => e.customProperties['-webkit-text-fill-color'] !== undefined);
+        expect(withFill).toHaveLength(1);
+    });
     it('keeps a link to the same site relative, not pointed back at it', () => {
         // Resolved absolute, every nav item walks the user out of the
         // project and back onto the page it was copied from.
