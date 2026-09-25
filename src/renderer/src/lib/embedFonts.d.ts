@@ -36,8 +36,30 @@ export declare const familyOf: (fontFace: string) => string | null;
  * the page uses into every capture.
  */
 export declare const familiesUsedIn: (root: Element) => Set<string>;
-/** Every `@font-face` block in some CSS, for a family that is in use. */
-export declare const fontFacesFor: (css: string, families: ReadonlySet<string>) => string[];
+/** Every code point in some text, for matching against a `unicode-range`. */
+export declare const codePointsOf: (text: string) => Set<number>;
+/**
+ * Does a `unicode-range` include any of these code points?
+ *
+ * A face with no range covers everything, which is what a self-hosted
+ * single-file font looks like.
+ */
+export declare const rangeCovers: (unicodeRange: string | null, codePoints: ReadonlySet<number>) => boolean;
+/** The `unicode-range` a rule declares, or null when it declares none. */
+export declare const unicodeRangeOf: (fontFace: string) => string | null;
+/**
+ * The `@font-face` blocks a capture actually needs: a family that is in
+ * use, covering a character that is on the page.
+ *
+ * The second half is not an optimisation. A Google Fonts stylesheet is
+ * a face per weight PER SUBSET — six weights of one family is 42 rules
+ * — and it orders `latin` LAST in each group of seven. Embedding them
+ * in order filled the byte cap on cyrillic, greek and vietnamese that
+ * no English page renders, and stopped before the latin faces the text
+ * was actually set in. The font fell back, and only on the projects
+ * with enough weights or families to reach the cap.
+ */
+export declare const fontFacesFor: (css: string, families: ReadonlySet<string>, codePoints: ReadonlySet<number>) => string[];
 /**
  * Build the CSS to hand html-to-image as `fontEmbedCSS`.
  *

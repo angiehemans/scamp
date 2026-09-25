@@ -60,13 +60,81 @@ export const familiesUsedIn = (root) => {
         add(el);
     return out;
 };
-/** Every `@font-face` block in some CSS, for a family that is in use. */
-export const fontFacesFor = (css, families) => {
+/** Every code point in some text, for matching against a `unicode-range`. */
+export const codePointsOf = (text) => {
+    const out = new Set();
+    for (const ch of text) {
+        const cp = ch.codePointAt(0);
+        if (cp !== undefined)
+            out.add(cp);
+    }
+    return out;
+};
+/**
+ * Does a `unicode-range` include any of these code points?
+ *
+ * A face with no range covers everything, which is what a self-hosted
+ * single-file font looks like.
+ */
+export const rangeCovers = (unicodeRange, codePoints) => {
+    if (unicodeRange === null)
+        return true;
+    for (const part of unicodeRange.split(',')) {
+        const token = part.trim().toUpperCase();
+        if (!token.startsWith('U+'))
+            continue;
+        const body = token.slice(2);
+        let low;
+        let high;
+        if (body.includes('-')) {
+            const [from, to] = body.split('-');
+            low = Number.parseInt(from ?? '', 16);
+            high = Number.parseInt(to ?? '', 16);
+        }
+        else if (body.includes('?')) {
+            // `U+30??` is the wildcard form: a range with the digits filled in.
+            low = Number.parseInt(body.replace(/\?/g, '0'), 16);
+            high = Number.parseInt(body.replace(/\?/g, 'F'), 16);
+        }
+        else {
+            low = Number.parseInt(body, 16);
+            high = low;
+        }
+        if (!Number.isFinite(low) || !Number.isFinite(high))
+            continue;
+        for (const cp of codePoints) {
+            if (cp >= low && cp <= high)
+                return true;
+        }
+    }
+    return false;
+};
+/** The `unicode-range` a rule declares, or null when it declares none. */
+export const unicodeRangeOf = (fontFace) => {
+    const match = fontFace.match(/unicode-range\s*:\s*([^;}]+)/i);
+    return match?.[1]?.trim() ?? null;
+};
+/**
+ * The `@font-face` blocks a capture actually needs: a family that is in
+ * use, covering a character that is on the page.
+ *
+ * The second half is not an optimisation. A Google Fonts stylesheet is
+ * a face per weight PER SUBSET — six weights of one family is 42 rules
+ * — and it orders `latin` LAST in each group of seven. Embedding them
+ * in order filled the byte cap on cyrillic, greek and vietnamese that
+ * no English page renders, and stopped before the latin faces the text
+ * was actually set in. The font fell back, and only on the projects
+ * with enough weights or families to reach the cap.
+ */
+export const fontFacesFor = (css, families, codePoints) => {
     const out = [];
     for (const block of css.match(FONT_FACE_RE) ?? []) {
         const family = familyOf(block);
-        if (family !== null && families.has(family))
-            out.push(block);
+        if (family === null || !families.has(family))
+            continue;
+        if (!rangeCovers(unicodeRangeOf(block), codePoints))
+            continue;
+        out.push(block);
     }
     return out;
 };
@@ -129,7 +197,7 @@ export const buildFontEmbedCss = async (root) => {
     if (families.size === 0)
         return '';
     const sheets = await Promise.all(Array.from(document.styleSheets).map((sheet) => cssTextOf(sheet)));
-    const faces = fontFacesFor(sheets.join('\n'), families);
+    const faces = fontFacesFor(sheets.join('\n'), families, codePointsOf(root.textContent ?? ''));
     if (faces.length === 0)
         return '';
     const out = [];
@@ -153,8 +221,12 @@ export const buildFontEmbedCss = async (root) => {
         }
         if (ok)
             out.push(rewritten);
-        if (bytes >= MAX_EMBED_BYTES)
+        if (bytes >= MAX_EMBED_BYTES) {
+            // Said out loud: the symptom of hitting this is a thumbnail in
+            // the wrong typeface, with nothing anywhere to explain it.
+            console.warn(`[embedFonts] stopped at ${MAX_EMBED_BYTES} bytes with ${faces.length - out.length} faces left; the capture may fall back`);
             break;
+        }
     }
     return out.join('\n');
 };

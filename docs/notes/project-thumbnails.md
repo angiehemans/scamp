@@ -215,3 +215,24 @@ is a better failure than the wrong project's.
 The component equivalent has the same shape and is not affected: it has
 no debounce, so its window is a single frame rather than a second and a
 half, and a user would have to change component inside it.
+
+### …and then still wrong on some projects
+
+Filtering to the families in use was not enough. A Google Fonts
+stylesheet is a face per weight PER SUBSET — `Inter` at six weights is
+**42 rules** — and it orders them `cyrillic-ext, cyrillic, greek-ext,
+greek, vietnamese, latin-ext, latin`. The one an English page renders
+in is LAST of every seven.
+
+Embedding them in document order spent the byte cap on alphabets
+nothing on the page uses and stopped before reaching the latin faces
+the text was actually set in, so the font fell back — and only on the
+projects with enough weights or families to reach the cap, which is
+what made it look intermittent.
+
+Faces are now matched against the code points in the captured text, the
+way a browser picks them. Measured against the real response for that
+six-weight family: **42 faces down to 6**, and about 400KB of base64
+instead of over two megabytes. The cap is a backstop again rather than
+the thing deciding the outcome, and hitting it now says so in the
+console instead of silently producing the wrong typeface.
