@@ -173,3 +173,54 @@ test.describe('start-screen project thumbnail: framework format', () => {
         expect(blue).toBeGreaterThan(1000);
     });
 });
+/**
+ * A design that uses a background image and a webfont.
+ *
+ * The capture rasterises through `<img src="data:image/svg+xml,…">`,
+ * which cannot fetch — so anything the page loads over the network, or
+ * through the app's own `scamp-asset://` scheme, has to be inlined
+ * first or it simply is not there.
+ * see docs/notes/project-thumbnails.md
+ */
+test.describe('start-screen project thumbnail: paint that has to be inlined', () => {
+    // A solid green PNG, 2x2, so a background-image that renders is
+    // unmistakable against the white page behind it.
+    const GREEN_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFUlEQVR4nGNk+M/wn4GBgYkBBEAMADevAgv1mn5oAAAAAElFTkSuQmCC', 'base64');
+    test.use({
+        projectOptions: {
+            format: 'scamp',
+            pageContent: {
+                home: {
+                    tsx: HOME_TSX,
+                    css: `.root {
+  background-color: rgb(255, 255, 255);
+}
+
+.rect_swatch {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 1440px;
+  height: 500px;
+  background-image: url("/assets/swatch.png");
+  background-size: cover;
+}
+`,
+                },
+            },
+        },
+    });
+    test('inlines a background image so it survives the rasterise', async ({ window, project, }) => {
+        await fs.writeFile(path.join(project.assetsDirPath, 'swatch.png'), GREEN_PNG);
+        await expect(pageRoot(window)).toBeVisible();
+        await expect(canvasElement(window, 'rect_swatch')).toBeVisible();
+        await selectTool(window, 'r');
+        await dragInFrame(window, { x: 200, y: 600 }, { x: 260, y: 660 });
+        await waitForSaved(window);
+        const png = await waitForThumbnail(project.dir);
+        // The swatch is 1440x500 of it; anything less than this and the
+        // background image did not make it into the capture.
+        const green = await countPixelsNear(window, png, [0, 255, 0]);
+        expect(green).toBeGreaterThan(1000);
+    });
+});

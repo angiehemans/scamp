@@ -148,3 +148,47 @@ front page.
 The e2e that covers this pinned `format: 'nextjs'`, which is why it was
 never caught — the same test now runs against both formats, and the
 framework one fails without the fix.
+
+## The card had the wrong font and no background images
+
+Both come from the same fact about how a capture is made: it rasterises
+through `<img src="data:image/svg+xml,…">`, and that document can fetch
+nothing at all. Anything the page pulls over the network — or through
+the app's own `scamp-asset://` scheme — has to be inlined before the
+rasterise or it simply is not there.
+
+**The font.** `skipFonts: true` was set for a real reason:
+html-to-image's own walk reads `cssRules` on every sheet, which throws
+for a cross-origin one — Google Fonts — and it logs each failure. That
+much was right. What followed it, "those fonts could never be embedded
+anyway", was not. The SHEET cannot be READ cross-origin, but it can be
+FETCHED by href, and the font files it points at serve CORS headers.
+
+`embedFonts.ts` does that and hands the result to html-to-image as
+`fontEmbedCSS`, which makes it skip its own walk entirely — so the
+console noise the flag was protecting against does not come back. Only
+the families actually set on the captured node are inlined, because a
+Google Fonts stylesheet is a face per weight per unicode range and none
+of the unused ones belong in a thumbnail. A design on system fonts
+produces nothing, and then `skipFonts` stays on and nothing is fetched.
+
+**The background images.** `fetch('scamp-asset://…')` threw. The scheme
+was registered `supportFetchAPI: true` but not `corsEnabled`, so the
+renderer could RENDER an asset and not read one — the canvas showed the
+image and the capture could not inline it.
+
+The scheme is `corsEnabled` now, and the handler decides which origins
+that applies to. Deliberately not `Access-Control-Allow-Origin: *`:
+this scheme lives on the default session, which the IMPORT window's
+`<webview>` shares, and that webview points at whatever site is being
+imported. A blanket allow would let any page it loads read the open
+project's files by guessing paths. The app's own windows send no Origin
+(`file://`) or the dev server's and get the header; a third-party page
+sends its own, gets nothing, and its fetch fails exactly as before.
+
+The preview's webview is on its own partition, so it never reached this
+scheme either way.
+
+Pinned by an e2e that seeds a real asset, references it from the page
+CSS, and counts the pixels in the resulting PNG — a blank capture is a
+valid PNG of the right size, so only the pixels tell the two apart.

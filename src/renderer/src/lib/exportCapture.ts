@@ -1,4 +1,6 @@
 import { toPng, toSvg } from 'html-to-image';
+
+import { buildFontEmbedCss } from './embedFonts';
 import elementStyles from '../canvas/ElementRenderer.module.css';
 
 /**
@@ -219,6 +221,9 @@ export const captureIsolatedPng = async (inputs: {
 
   host.appendChild(clone);
   document.body.appendChild(host);
+  // After the clone is in the document: the families in use are read
+  // from its computed styles, which need the page stylesheet to apply.
+  const fontEmbedCss = await buildFontEmbedCss(clone);
   try {
     return await toPng(clone, {
       width,
@@ -227,12 +232,19 @@ export const captureIsolatedPng = async (inputs: {
       // No cache-busting: this runs on a timer, not on demand, and
       // re-fetching every image on every capture is pure waste.
       cacheBust: false,
-      // Font embedding walks `document.styleSheets` and reads `cssRules`,
-      // which throws on every cross-origin sheet — Google Fonts here — and
-      // html-to-image logs each failure. Those fonts could never be
-      // embedded anyway, so all the attempt bought was a console full of
-      // DOMExceptions and two network round-trips on every save.
-      skipFonts: true,
+      // A capture rasterises inside an `<img src="data:image/svg+xml,…">`,
+      // which cannot fetch: a webfont the page loads over the network is
+      // unavailable there and the text falls back, so every thumbnail of
+      // a design that uses one came out in the wrong typeface.
+      //
+      // `skipFonts` is still right about html-to-image's own walk — it
+      // reads `cssRules` on every sheet and logs a DOMException for each
+      // cross-origin one. `fontEmbedCSS` replaces that walk rather than
+      // re-enabling it: the sheets it cannot READ are FETCHED by href,
+      // and only the families actually on the node are inlined. Empty
+      // when the design is on system fonts, and then nothing is fetched
+      // at all. see docs/notes/project-thumbnails.md
+      ...(fontEmbedCss.length > 0 ? { fontEmbedCSS: fontEmbedCss } : { skipFonts: true }),
       filter: (n) => !isChromeNode(n),
       ...(inputs.backgroundColor !== null
         ? { backgroundColor: inputs.backgroundColor }
