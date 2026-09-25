@@ -47,12 +47,20 @@ async function selectPageRoot(window: Win): Promise<void> {
   await dragInFrame(window, { x: 700, y: 550 }, { x: 700, y: 550 });
 }
 
-/** Add a page and switch to it. */
+/**
+ * Add a page and switch to it, returning once the switch has happened.
+ *
+ * Waits for the name field to go: until it does, focus is still in it,
+ * and a `ControlOrMeta+V` typed straight after went into the input
+ * instead of the canvas. Both tests that paste onto a new page failed
+ * that way, intermittently and on different lines each run.
+ */
 async function addPage(window: Win, name: string): Promise<void> {
   await window.getByRole('button', { name: /\+ Add Page/ }).click();
   const nameInput = window.getByPlaceholder('page-name');
   await nameInput.fill(name);
   await nameInput.press('Enter');
+  await expect(nameInput).toBeHidden();
 }
 
 test.describe('clipboard: copy, cut, paste', () => {
@@ -66,6 +74,9 @@ test.describe('clipboard: copy, cut, paste', () => {
 
     await addPage(window, 'about');
     await expect(rects(window)).toHaveCount(0);
+    // Put the canvas back in the state a user would paste from: the
+    // select tool, and the new page's root selected.
+    await selectPageRoot(window);
 
     await window.keyboard.press('ControlOrMeta+v');
     await waitForSaved(window);
@@ -178,6 +189,7 @@ test.describe('clipboard: copy, cut, paste', () => {
 
     await addPage(window, 'about');
     await expect(rects(window)).toHaveCount(0);
+    await selectPageRoot(window);
     await window.keyboard.press('ControlOrMeta+v');
     await waitForSaved(window);
 

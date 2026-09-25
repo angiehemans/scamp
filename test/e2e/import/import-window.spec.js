@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { test, expect } from '../fixtures/app';
@@ -68,6 +70,37 @@ test.describe('website import', () => {
         expect(css).toContain('.root');
         expect(tsx).not.toContain('style=');
     });
+    test('gives the imported view a URL the framework actually serves', async ({ app, window, project, }) => {
+        // Without this the view lands on disk, shows in the layers panel and
+        // the page picker, and 404s: the preview loaded the home page and
+        // every link or picker jump after it was a blank white screen.
+        // Scamp-format projects route from `routes/`; only Next.js serves
+        // `app/<slug>/page.tsx`. see docs/notes/imported-view-routes.md
+        await expect(pageRoot(window)).toBeVisible();
+        await openPagesSection(window);
+        const opened = app.waitForEvent('window');
+        await window.getByRole('button', { name: /Import a page/ }).click();
+        const importWindow = await opened;
+        await importWindow.waitForLoadState('domcontentloaded');
+        await importWindow.getByLabel('Address').fill(FIXTURE_URL);
+        await importWindow.getByLabel('Address').press('Enter');
+        const btn = importWindow.getByRole('button', { name: 'Import', exact: true });
+        await expect(btn).toBeEnabled();
+        await btn.click();
+        await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 30_000 });
+        await expect
+            .poll(async () => project.viewExists('NorthwindShipFaster'), { timeout: 15_000 })
+            .toBe(true);
+        const route = path.join(project.dir, 'routes', 'northwind-ship-faster.tsx');
+        await expect.poll(async () => existsSync(route), { timeout: 15_000 }).toBe(true);
+        const tsx = await fs.readFile(route, 'utf-8');
+        expect(tsx).toContain("import NorthwindShipFaster from '@/views/NorthwindShipFaster/NorthwindShipFaster'");
+        expect(tsx).toContain('<NorthwindShipFaster />');
+        // The framework needs one, and the migration writes it too.
+        expect(tsx).toContain("export const render = 'static'");
+        // And no Next.js wrapper, which this project would never serve.
+        expect(existsSync(path.join(project.dir, 'app', 'northwind-ship-faster', 'page.tsx'))).toBe(false);
+    });
     test('reads the page at each breakpoint and writes the overrides', async ({ app, window, project, }) => {
         await expect(pageRoot(window)).toBeVisible();
         await openPagesSection(window);
@@ -106,6 +139,47 @@ test.describe('website import', () => {
             .toMatch(/--color-(text|background|accent|border|\d)/);
         const { css } = await project.readView('NorthwindShipFaster');
         expect(css).toMatch(/var\(--color-/);
+    });
+    test('reuses a token it already wrote rather than writing a second one', async ({ app, window, project, }) => {
+        // Importing the same site twice generates the same names for the
+        // same colours. Comparing only names wrote `--color-1-imported`
+        // beside the identical `--color-1` already there — a second palette
+        // nothing referenced. see docs/notes/import-svg-jsx.md
+        await expect(pageRoot(window)).toBeVisible();
+        await openPagesSection(window);
+        const importOnce = async () => {
+            const opened = app.waitForEvent('window');
+            await window.getByRole('button', { name: /Import a page/ }).click();
+            const importWindow = await opened;
+            await importWindow.waitForLoadState('domcontentloaded');
+            await importWindow.getByLabel('Address').fill(FIXTURE_URL);
+            await importWindow.getByLabel('Address').press('Enter');
+            const btn = importWindow.getByRole('button', { name: 'Import', exact: true });
+            await expect(btn).toBeEnabled();
+            await btn.click();
+            await expect(importWindow.getByText(/Imported/)).toBeVisible({ timeout: 30_000 });
+            await importWindow.close();
+        };
+        await importOnce();
+        await expect
+            .poll(async () => project.viewExists('NorthwindShipFaster'), { timeout: 15_000 })
+            .toBe(true);
+        const first = await project.readTheme();
+        expect(first).toContain('--color-');
+        await importOnce();
+        await expect
+            .poll(async () => project.viewExists('NorthwindShipFaster2'), { timeout: 15_000 })
+            .toBe(true);
+        const after = await project.readTheme();
+        // No token declared twice. A `-imported` suffix is still right when
+        // the name clashes with a DIFFERENT value — the default theme's
+        // `--color-text` is not this page's — so the test is about
+        // duplicates, not about the suffix.
+        const names = [...after.matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1]);
+        expect(new Set(names).size).toBe(names.length);
+        // And the font import is fetched once, not once per import.
+        const imports = [...after.matchAll(/^@import /gm)];
+        expect(imports).toHaveLength(1);
     });
     test('reports an image it could not fetch instead of failing the import', async ({ app, window, project, }) => {
         // The fixture's images are relative paths that resolve to file://,

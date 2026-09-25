@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { backfillThemeDefaults } from '../src/shared/themeBackfill';
-import { BROWSER_RESET_SENTINEL, LIST_PADDING_SENTINEL, DEFAULT_BODY_FONT_FAMILY, } from '../src/shared/agentMd';
+import { BROWSER_RESET_SENTINEL, LINK_CURSOR_SENTINEL, LIST_PADDING_SENTINEL, DEFAULT_BODY_FONT_FAMILY, } from '../src/shared/agentMd';
 describe('backfillThemeDefaults', () => {
     describe('--font-sans token', () => {
         it('adds the token to an existing :root rule when missing', () => {
@@ -87,6 +87,7 @@ body {
 
 ${BROWSER_RESET_SENTINEL}
 ${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
             const result = backfillThemeDefaults(input);
             expect(result.changed).toBe(false);
@@ -111,6 +112,7 @@ body {
 
 ${BROWSER_RESET_SENTINEL}
 ${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
             const result = backfillThemeDefaults(input);
             expect(result.changed).toBe(false);
@@ -136,6 +138,7 @@ body {
 
 ${BROWSER_RESET_SENTINEL}
 ${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
             const result = backfillThemeDefaults(input);
             expect(result.changed).toBe(false);
@@ -248,6 +251,7 @@ body {
 
 ${BROWSER_RESET_SENTINEL}
 ${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 /* user has customised the rules, but the sentinel marks our presence */
 p { margin: 8px 0; }
 `;
@@ -274,6 +278,7 @@ body {
 
 ${BROWSER_RESET_SENTINEL}
 ${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
             const result = backfillThemeDefaults(input);
             expect(result.changed).toBe(false);
@@ -287,6 +292,19 @@ ${LIST_PADDING_SENTINEL}
             expect(result.changed).toBe(true);
             expect(result.content).toContain(LIST_PADDING_SENTINEL);
             expect(result.content).toContain('padding: 0;');
+        });
+        it('gives a link back its pointer in a project that predates it', () => {
+            // `all: unset` on `a` takes the browser's cursor with it, so an
+            // element marked as a link did not behave like one under the
+            // mouse. The same restoration `cursor: text` does for inputs.
+            const css = `:root {\n  --font-sans: system-ui;\n}\n\n${BROWSER_RESET_SENTINEL}\n${LIST_PADDING_SENTINEL}\n`;
+            const result = backfillThemeDefaults(css);
+            expect(result.changed).toBe(true);
+            expect(result.content).toContain(LINK_CURSOR_SENTINEL);
+            expect(result.content).toContain('cursor: pointer;');
+            // An anchor with no destination is not a link, and a browser
+            // does not point at one either.
+            expect(result.content).toContain('a[href]');
         });
         it('adds every missing piece to a bare :root file', () => {
             const input = `:root {

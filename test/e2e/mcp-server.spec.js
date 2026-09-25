@@ -102,6 +102,26 @@ test.describe('MCP server, live', () => {
             'scamp_list_routes',
         ]);
     });
+    test('answers about an imported page from main, not from the canvas', async ({ window, project, }) => {
+        // Both tools read a temp directory rather than the canvas store, so
+        // they take the main-side path `scamp_list_routes` uses. The suite
+        // asserted they were ADVERTISED; nothing called them.
+        // see docs/notes/import-source-store.md
+        await expect(pageRoot(window)).toBeVisible();
+        const config = await readConfig(project.dir);
+        // Nothing imported in this project: an empty list, not an error.
+        const list = await callTool(config, 'scamp_list_import_sources');
+        expect(JSON.parse(list)).toEqual([]);
+        // And a view nobody imported says where to look rather than failing
+        // in a way an agent cannot act on.
+        const body = await rpc(config, 'tools/call', {
+            name: 'scamp_get_import_source',
+            arguments: { name: 'Ghost' },
+        });
+        const result = body['result'];
+        expect(result.isError).toBe(true);
+        expect(result.content[0]?.text).toContain('scamp_list_import_sources');
+    });
     test('answers from the live canvas, across the main↔renderer seam', async ({ window, project, }) => {
         // The whole point of the feature: draw something, select it, and have an
         // agent learn about it without the user describing anything.

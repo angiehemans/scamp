@@ -53,11 +53,23 @@ export const useWebsiteImport = ({ project, breakpoints, onProjectChange, openVi
                     // snapshot: correct, and unchangeable from the theme panel.
                     const themeCss = await window.scamp.readTheme({ projectPath: project.path });
                     const parsedTheme = parseThemeFile(themeCss);
-                    const existing = new Set(parsedTheme.tokens.map((t) => t.name));
+                    const existing = new Map(parsedTheme.tokens.map((t) => [t.name, t.value]));
                     const { tokens, elements } = extractTokens(reduced.elements);
                     // A name the project already uses means something else here;
                     // suffix rather than redefine someone's token.
-                    const renamed = tokens.map((t) => existing.has(t.name) ? { ...t, name: `${t.name}-imported` } : t);
+                    //
+                    // Unless it means the SAME thing. Importing a site twice
+                    // generates the same names for the same colours, and
+                    // comparing only names wrote `--color-1-imported` beside the
+                    // identical `--color-1` already there — a second palette
+                    // nothing referenced. A token whose value already matches is
+                    // the one that was wanted, so it is reused.
+                    const renamed = tokens.map((t) => {
+                        const held = existing.get(t.name);
+                        if (held === undefined || held === t.value)
+                            return t;
+                        return { ...t, name: `${t.name}-imported` };
+                    });
                     const byOld = new Map(tokens.map((t, i) => [t.name, renamed[i]?.name ?? t.name]));
                     const themed = Object.fromEntries(Object.entries(elements).map(([id, el]) => {
                         let next = el;
@@ -73,14 +85,17 @@ export const useWebsiteImport = ({ project, breakpoints, onProjectChange, openVi
                         return [id, next];
                     }));
                     const result = { ...reduced, elements: themed };
-                    if (renamed.length > 0) {
+                    // Only what the theme does not already hold. A reused token is
+                    // referenced by the view and declared once, where it was.
+                    const added = renamed.filter((t) => !existing.has(t.name));
+                    if (added.length > 0) {
                         await window.scamp.writeTheme({
                             projectPath: project.path,
                             content: serializeThemeFile({
                                 ...parsedTheme,
                                 tokens: [
                                     ...parsedTheme.tokens,
-                                    ...renamed.map((t) => ({ name: t.name, value: t.value })),
+                                    ...added.map((t) => ({ name: t.name, value: t.value })),
                                 ],
                             }, themeCss),
                         });
@@ -220,13 +235,18 @@ export const useWebsiteImport = ({ project, breakpoints, onProjectChange, openVi
                         const combined = googleFontsUrlFor(embeddable);
                         if (combined !== null) {
                             const latest = parseThemeFile(await window.scamp.readTheme({ projectPath: project.path }));
-                            await window.scamp.writeTheme({
-                                projectPath: project.path,
-                                content: serializeThemeFile({
-                                    ...latest,
-                                    fontImportUrls: [...latest.fontImportUrls, combined],
-                                }),
-                            });
+                            // Appending blind wrote the same Google Fonts line twice
+                            // when a site was imported twice — the second `@import`
+                            // fetching exactly what the first already had.
+                            if (!latest.fontImportUrls.includes(combined)) {
+                                await window.scamp.writeTheme({
+                                    projectPath: project.path,
+                                    content: serializeThemeFile({
+                                        ...latest,
+                                        fontImportUrls: [...latest.fontImportUrls, combined],
+                                    }),
+                                });
+                            }
                         }
                     }
                     const missingFonts = fonts.filter((f) => f.status === 'missing');

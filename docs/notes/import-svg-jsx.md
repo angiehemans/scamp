@@ -54,13 +54,6 @@ Most of that report has since been dealt with — gradient text, wrapper
 spans, element names and the stale `scamp_check_view` each have their
 own section in `import-naming.md`. What is left:
 
-- **Duplicate tokens on re-import.** Importing the same site twice
-  writes `--color-N-imported` beside the `--color-N` already there.
-  The suffix rule is right in general — "a name the project already
-  uses means something else here" — but it does not check the VALUE,
-  so an identical colour is duplicated instead of reused. The fix is to
-  reuse a token whose value already matches and suffix only on a real
-  clash.
 - **Empty boxes survive the collapse.** An empty `<section>`, and a
   zero-size `<svg>` holding nothing but gradient `<defs>`. The collapse
   pass removes a wrapper with exactly one child; neither of these has
@@ -72,3 +65,24 @@ own section in `import-naming.md`. What is left:
   it is a decision the user should make rather than the importer: which
   values become theme tokens and which stay literals is design, not
   translation.
+
+## Importing the same site twice
+
+Two things duplicated themselves on a second import, both from the same
+habit of appending without looking:
+
+- **Tokens.** The suffix rule — "a name the project already uses means
+  something else here, so suffix rather than redefine it" — compared
+  only names. A second import generates the same names for the same
+  colours, so every one of them collided with itself and arrived again
+  as `--color-N-imported`: a whole second palette that nothing
+  referenced. A token whose value already matches is the one that was
+  wanted, and is reused. The suffix still applies where the value
+  genuinely differs, which is what it was for: the default theme's
+  `--color-text` is not the imported page's.
+- **The font import.** `@import url(…Inter…)` was appended each time,
+  so a second import fetched exactly what the first already had.
+
+Both are pinned by an e2e that imports the same fixture twice and
+checks no token name is declared more than once and that one `@import`
+line remains.
