@@ -25,11 +25,27 @@ const defaultShell = () => {
     }
     return process.env['SHELL'] ?? '/bin/bash';
 };
-const findWindow = () => {
-    const wins = BrowserWindow.getAllWindows();
-    return wins[0] ?? null;
+/**
+ * Where a pty's output goes.
+ *
+ * The window that ASKED for the terminal, not whichever one happens to
+ * be first. Scamp runs three kinds — the app, the preview, and the
+ * importer — and `getAllWindows()[0]` is only the app window while the
+ * app window is the oldest one alive. Close and reopen it with a
+ * preview or an importer still up and every byte of the shell goes to
+ * a window that has no terminal in it: a cursor, no prompt, and nothing
+ * anywhere saying why.
+ *
+ * Falls back to the first window so a terminal whose owner has gone
+ * still lands somewhere rather than silently stopping.
+ */
+const windowFor = (term) => {
+    const owner = term.owner;
+    if (owner !== null && !owner.isDestroyed())
+        return owner;
+    return BrowserWindow.getAllWindows()[0] ?? null;
 };
-const createTerminal = (args) => {
+const createTerminal = (args, owner) => {
     // Pin the shell's working directory to the active project. Without this
     // a compromised renderer could spawn a shell anywhere on disk.
     const cwd = assertInsideActiveProject(args.cwd);
@@ -48,25 +64,24 @@ const createTerminal = (args) => {
         cwd,
         env: { ...process.env, TERM: 'xterm-256color' },
     });
+    const term = { id, proc, owner, foregroundTimer: null, lastForeground: null };
     proc.onData((data) => {
-        const win = findWindow();
+        const win = windowFor(term);
         if (!win)
             return;
         const payload = { id, data };
         win.webContents.send(IPC.TerminalData, payload);
     });
     proc.onExit(({ exitCode }) => {
-        const term = terminals.get(id);
-        if (term?.foregroundTimer)
+        if (term.foregroundTimer)
             clearInterval(term.foregroundTimer);
-        const win = findWindow();
+        const win = windowFor(term);
         terminals.delete(id);
         if (!win)
             return;
         const payload = { id, exitCode };
         win.webContents.send(IPC.TerminalExit, payload);
     });
-    const term = { id, proc, foregroundTimer: null, lastForeground: null };
     terminals.set(id, term);
     startForegroundPolling(term);
     return { id };
@@ -95,7 +110,7 @@ const startForegroundPolling = (term) => {
         term.lastForeground = next;
         // eslint-disable-next-line no-console
         console.log(`[terminal ${term.id}] foreground changed → ${next ?? '(idle shell)'}`);
-        const win = findWindow();
+        const win = windowFor(term);
         if (!win)
             return;
         const payload = {
@@ -194,7 +209,7 @@ export const disposeAllTerminals = async () => {
     await Promise.all(all.map(killAndWait));
 };
 export const registerTerminalIpc = () => {
-    ipcMain.handle(IPC.TerminalCreate, (_e, args) => createTerminal(args));
+    ipcMain.handle(IPC.TerminalCreate, (e, args) => createTerminal(args, BrowserWindow.fromWebContents(e.sender)));
     ipcMain.handle(IPC.TerminalWrite, (_e, args) => writeTerminal(args));
     ipcMain.handle(IPC.TerminalResize, (_e, args) => resizeTerminal(args));
     ipcMain.handle(IPC.TerminalKill, (_e, args) => killTerminal(args));

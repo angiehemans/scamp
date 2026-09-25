@@ -188,14 +188,16 @@ export default defineConfig(({ mode }) => {
                     '@shared': resolve(__dirname, 'src/shared'),
                 },
             },
-            // Two preloads, one per window: the main app's preload and
-            // a smaller preview-window preload that exposes only the
-            // dev-server lifecycle API.
+            // One preload per window. The two secondary windows get much
+            // smaller surfaces than the app's: the preview exposes the
+            // dev-server lifecycle, and the importer — which hosts a
+            // third-party page — can only hand over a captured payload.
             build: {
                 rollupOptions: {
                     input: {
                         index: resolve(__dirname, 'src/preload/index.ts'),
                         preview: resolve(__dirname, 'src/preload/preview.ts'),
+                        import: resolve(__dirname, 'src/preload/import.ts'),
                     },
                 },
             },
@@ -209,9 +211,10 @@ export default defineConfig(({ mode }) => {
                     '@shared': resolve(__dirname, 'src/shared'),
                 },
             },
-            // Two HTML entry points, one per BrowserWindow:
+            // Three HTML entry points, one per BrowserWindow:
             //   - `index` (default) is the main app window
             //   - `preview` is the preview window opened by Cmd+P
+            //   - `import` is the website importer's browser
             // Both entries live INSIDE the renderer source root so
             // electron-vite's renderer build picks them up.
             build: {
@@ -219,6 +222,7 @@ export default defineConfig(({ mode }) => {
                     input: {
                         index: resolve(__dirname, 'src/renderer/index.html'),
                         preview: resolve(__dirname, 'src/renderer/preview/index.html'),
+                        import: resolve(__dirname, 'src/renderer/import/index.html'),
                     },
                 },
             },

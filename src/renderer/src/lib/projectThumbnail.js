@@ -1,4 +1,6 @@
+import { viewSlugFor } from '@shared/templates';
 import { needsBackfill, thumbnailFrame, } from '@lib/thumbnailCrop';
+import { useCanvasStore } from '@store/canvasSlice';
 import { captureIsolatedPng } from './exportCapture';
 /**
  * Start-screen thumbnail capture. The component-sidebar equivalent one
@@ -16,6 +18,31 @@ import { captureIsolatedPng } from './exportCapture';
  */
 /** The page whose capture represents the whole project. */
 export const THUMBNAIL_PAGE_NAME = 'home';
+/**
+ * The name to capture under for a target that was just saved, or null
+ * when this save is not the project's home.
+ *
+ * A Scamp-framework project has no pages: every page is a view, opened
+ * through `activeComponent`, so its edit target is always a
+ * `component`. The capture was gated on `kind === 'page'` and so never
+ * ran at all — every framework project has had a blank card on the
+ * start screen since the format shipped.
+ *
+ * The name needs translating as well as the kind. A page is `home`; the
+ * view that serves `/` is `Home`, and the slug is what the two formats
+ * agree on.
+ *
+ * A reusable component is not a page however it is named, which is why
+ * this takes the tree's kind rather than guessing from the name.
+ * see docs/notes/project-thumbnails.md
+ */
+export const thumbnailNameFor = (target, treeKind) => {
+    if (target.kind === 'page')
+        return target.name;
+    if (treeKind !== 'view')
+        return null;
+    return viewSlugFor(target.name);
+};
 const inFlight = new Set();
 /**
  * Trailing debounce. A save fires on a 200ms debounce while you type, and
@@ -93,6 +120,18 @@ export const flushPendingProjectThumbnail = (projectPath) => {
     runCapture(projectPath);
 };
 const runCapture = (projectPath) => {
+    // The canvas on screen belongs to whatever project is open NOW, but
+    // this capture was scheduled against the project that was open when
+    // the save happened. Close one project and open another inside the
+    // debounce and the two disagree: the photograph is of the new
+    // project and it is filed under the old one, which is how a card
+    // ended up wearing another project's screenshot.
+    //
+    // The close path is unaffected — it flushes while its own project is
+    // still the open one, which is the whole reason it runs before the
+    // unmount. see docs/notes/project-thumbnails.md
+    if (useCanvasStore.getState().projectPath !== projectPath)
+        return;
     if (inFlight.has(projectPath))
         return;
     inFlight.add(projectPath);

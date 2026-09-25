@@ -1,4 +1,5 @@
 // generateCode/declarations.ts — split out of generateCode.ts (4.5).
+import { effectiveDisplay } from "../effectiveDisplay";
 import { DEFAULT_RECT_STYLES, DEFAULT_ROOT_STYLES } from "../defaults";
 import { ROOT_ELEMENT_ID } from "../element";
 import { formatAnimationShorthand, formatBoxShadowShorthand, formatFilterList, formatTransformList, formatTransitionShorthand } from "../parsers";
@@ -51,6 +52,20 @@ export const fillHeightKind = (el, parent) => {
         return 'flex';
     return el.alignSelf === 'auto' || el.alignSelf === 'stretch' ? 'align-self' : null;
 };
+/**
+ * Tags a browser lays out inline unless told otherwise, and that
+ * Scamp's own reset does not already force to block.
+ *
+ * `a`, `button` and the replaced media tags are absent on purpose:
+ * `theme.css` sets those to `display: block` itself, so spelling it
+ * out again would be noise on every one of them.
+ * see docs/notes/import-inline-spans.md
+ */
+const INLINE_BY_DEFAULT = new Set([
+    'span', 'em', 'i', 'b', 'strong', 'u', 's', 'small', 'sub', 'sup',
+    'mark', 'abbr', 'cite', 'q', 'code', 'kbd', 'samp', 'var', 'time',
+    'del', 'ins', 'label',
+]);
 export const sizeDeclarationLines = (el, parent) => {
     // Fill-height in a flex ROW cannot be `height: 100%`.
     //
@@ -171,8 +186,9 @@ mustEstablishPositioningContext = false) => {
     // out by that engine and should NOT have absolute positioning —
     // position/left/top become meaningless because the parent owns
     // placement.
-    const inFlexParent = parent?.display === 'flex';
-    const inGridParent = parent?.display === 'grid';
+    const parentDisplay = effectiveDisplay(parent);
+    const inFlexParent = parentDisplay === 'flex';
+    const inGridParent = parentDisplay === 'grid';
     // Slot content — a page-owned child of a component-instance — flows
     // inside the component's slot rect (React `{children}`). It must NOT be
     // absolutely positioned or it escapes the slot to the component root.
@@ -202,6 +218,25 @@ mustEstablishPositioningContext = false) => {
     else {
         if (el.display !== BASE.display) {
             lines.push(`display: ${el.display};`);
+        }
+        else if (INLINE_BY_DEFAULT.has(el.tag ?? '') &&
+            el.customProperties['display'] === undefined &&
+            // Only where inline-vs-block is observable: in normal flow. A
+            // flex or grid item is blockified by its parent, and an
+            // absolutely positioned box is out of flow — both moot, and
+            // saying it there would rewrite every `<span>` in every project
+            // that already exists.
+            !inLayoutParent &&
+            (el.position === 'static' || el.position === 'relative')) {
+            // The model's "not a flex or grid container" sentinel is also its
+            // default, so it emits nothing — which reads as `block` on a div
+            // and as `inline` on an `<em>`. A block-level `<em>` could
+            // therefore not be written down: an imported small-print
+            // disclaimer flowed back into the sentence above it.
+            //
+            // `customProperties` wins where it has an opinion, so an element
+            // that really is inline keeps saying so and this stays quiet.
+            lines.push('display: block;');
         }
         if (el.display === 'grid') {
             // Grid container fields. Empty template strings + zero gaps
@@ -271,7 +306,7 @@ mustEstablishPositioningContext = false) => {
     // Grid-item declarations — apply when this element's PARENT is a
     // grid container. Free-text fields are emitted when non-empty;
     // align/justify-self only when not the default `stretch`.
-    if (parent && parent.display === 'grid') {
+    if (parent && parentDisplay === 'grid') {
         if (el.gridColumn.trim().length > 0) {
             lines.push(`grid-column: ${el.gridColumn};`);
         }
@@ -290,7 +325,7 @@ mustEstablishPositioningContext = false) => {
     // never written, so the fill-height `flex: 1` above stays the one
     // shorthand in a file. `align-self` is skipped when the fill line has
     // already written it.
-    if (parent && parent.display === 'flex') {
+    if (parent && parentDisplay === 'flex') {
         if (el.flexGrow !== BASE.flexGrow) {
             lines.push(`flex-grow: ${el.flexGrow};`);
         }
@@ -307,7 +342,7 @@ mustEstablishPositioningContext = false) => {
     }
     // `order` is a flex AND grid item property.
     if (parent &&
-        (parent.display === 'flex' || parent.display === 'grid') &&
+        (parentDisplay === 'flex' || parentDisplay === 'grid') &&
         el.order !== BASE.order) {
         lines.push(`order: ${el.order};`);
     }
@@ -369,11 +404,34 @@ mustEstablishPositioningContext = false) => {
             emit('typography', `letter-spacing: ${el.letterSpacing};`);
         }
     }
-    else if (el.tag !== 'svg' && el.color !== undefined && el.color.length > 0) {
-        // `color` on a container inherits into its text children, so a
-        // hand-written one must round-trip; it used to be parsed and then
-        // silently dropped here. Svg emits its own `color` below.
-        lines.push(`color: ${el.color};`);
+    else {
+        // Inherited typography on a container reaches its text children
+        // through the cascade, so a declared one has to round-trip. `color`
+        // was fixed here first, for exactly that reason; the rest of the
+        // inherited set was still parsed and then silently dropped, which
+        // is how a container could be written with `font-size: 56px` and
+        // regenerated without it — the file rewriting itself, and every
+        // text child inside it falling back a size.
+        //
+        // Only ever emitted when something set them: a rectangle nobody
+        // gave type to has these undefined and stays quiet.
+        if (el.fontFamily !== undefined)
+            lines.push(`font-family: ${el.fontFamily};`);
+        if (el.fontSize !== undefined)
+            lines.push(`font-size: ${el.fontSize};`);
+        if (el.fontWeight !== undefined)
+            lines.push(`font-weight: ${el.fontWeight};`);
+        // Svg emits its own `color` below.
+        if (el.tag !== 'svg' && el.color !== undefined && el.color.length > 0) {
+            lines.push(`color: ${el.color};`);
+        }
+        if (el.textAlign !== undefined)
+            lines.push(`text-align: ${el.textAlign};`);
+        if (el.lineHeight !== undefined)
+            lines.push(`line-height: ${el.lineHeight};`);
+        if (el.letterSpacing !== undefined) {
+            lines.push(`letter-spacing: ${el.letterSpacing};`);
+        }
     }
     // Visibility + opacity — NOT togglable. These always emit
     // actively. (See `propertyGroups.ts` for why Visibility isn't

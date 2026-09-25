@@ -108,6 +108,25 @@ export const IPC = {
     DevServerLog: 'preview:devLog',
     /** main → renderer: a file under routes/ was added, changed, or removed. */
     RoutesChanged: 'routes:changed',
+    // Website import. A third window kind: the user browses to a page and
+    // clicks Import; the payload reaches the app window, which reduces it
+    // to a view. see docs/plans/website-import-plan.md
+    ImportOpen: 'import:open',
+    /** Download one remote image into the project's assets. */
+    ImportFetchImage: 'import:fetchImage',
+    /** Which of these families does Google Fonts serve? */
+    ImportResolveFonts: 'import:resolveFonts',
+    ImportClose: 'import:close',
+    /** App window → main: keep this page's original beside the view. */
+    ImportSaveSource: 'import:saveSource',
+    /** Import window → main: a captured page. */
+    ImportCaptured: 'import:captured',
+    /** Main → app window: reduce this and make a view of it. */
+    ImportDeliver: 'import:deliver',
+    /** App window → main: how the import went, for the import window's UI. */
+    ImportResultReport: 'import:result',
+    /** Main → import window: the app window's verdict. */
+    ImportResultChanged: 'import:resultChanged',
     // Preview mode
     PreviewOpen: 'preview:open',
     PreviewStop: 'preview:stop',

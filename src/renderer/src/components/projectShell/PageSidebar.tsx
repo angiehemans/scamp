@@ -34,6 +34,8 @@ type Props = {
   openViewMenu: (e: ReactMouseEvent, viewName: string) => void;
   handleRenameView: (viewName: string, newSlug: string) => Promise<void>;
   persistActiveSource: () => void;
+  /** Opens the importer's browser window. Absent hides the entry point. */
+  onImportWebsite?: () => void;
   setActiveComponentState: (next: ActiveComponent | null) => void;
   setActivePageName: (name: string | null) => void;
 };
@@ -77,6 +79,7 @@ export const PageSidebar = ({
   openViewMenu,
   handleRenameView,
   persistActiveSource,
+  onImportWebsite,
   setActiveComponentState,
   setActivePageName,
 }: Props): JSX.Element => {
@@ -239,6 +242,16 @@ export const PageSidebar = ({
           type="button"
         >
           + Add Page
+        </button>
+      )}
+      {pageEdit !== 'new' && onImportWebsite && (
+        <button
+          className={styles.addPageButton}
+          onClick={onImportWebsite}
+          type="button"
+          title="Open a browser, navigate to a page, and import it as a view"
+        >
+          ↧ Import a page…
         </button>
       )}
     </div>

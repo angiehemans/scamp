@@ -24,12 +24,26 @@ async function selectPageRoot(window) {
     await selectTool(window, 'v');
     await dragInFrame(window, { x: 700, y: 550 }, { x: 700, y: 550 });
 }
-/** Add a page and switch to it. */
+/**
+ * Add a page and switch to it, returning once the switch has happened.
+ *
+ * Waits for the name field to go: until it does, focus is still in it,
+ * and a `ControlOrMeta+V` typed straight after went into the input
+ * instead of the canvas. Both tests that paste onto a new page failed
+ * that way, intermittently and on different lines each run.
+ */
 async function addPage(window, name) {
     await window.getByRole('button', { name: /\+ Add Page/ }).click();
     const nameInput = window.getByPlaceholder('page-name');
     await nameInput.fill(name);
     await nameInput.press('Enter');
+    await expect(nameInput).toBeHidden();
+    // And wait for the new page's canvas, not just for the dialog. The
+    // callers gate on `rects === 0`, which is ALSO true in the gap where
+    // the old page has gone and the new one has not arrived — so a paste
+    // straight after it had no root to land on and produced nothing.
+    await expect(pageRoot(window)).toBeVisible();
+    await waitForSaved(window);
 }
 test.describe('clipboard: copy, cut, paste', () => {
     test('the clipboard survives a page switch', async ({ window }) => {
@@ -41,6 +55,9 @@ test.describe('clipboard: copy, cut, paste', () => {
         await window.keyboard.press('ControlOrMeta+c');
         await addPage(window, 'about');
         await expect(rects(window)).toHaveCount(0);
+        // Put the canvas back in the state a user would paste from: the
+        // select tool, and the new page's root selected.
+        await selectPageRoot(window);
         await window.keyboard.press('ControlOrMeta+v');
         await waitForSaved(window);
         await expect(rects(window)).toHaveCount(1);
@@ -119,6 +136,7 @@ test.describe('clipboard: copy, cut, paste', () => {
         await clickContextMenuItem(window, 'Copy', true);
         await addPage(window, 'about');
         await expect(rects(window)).toHaveCount(0);
+        await selectPageRoot(window);
         await window.keyboard.press('ControlOrMeta+v');
         await waitForSaved(window);
         // Both rects came across, not the page frame.

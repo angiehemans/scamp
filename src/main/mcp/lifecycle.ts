@@ -13,7 +13,8 @@ import { detectDisabledAgents, writeAgentConfigs } from './agentConfig';
 import { ensureToken, markMcpStopped, writeMcpConfig } from './mcpOps';
 import { createQueryRegistry, type QueryRegistry } from './pendingQueries';
 import { startMcpServer, type RunningMcpServer } from './server';
-import { createToolInvoker, TOOL_DESCRIPTORS } from './tools';
+import { createToolInvoker, IMPORT_SOURCE_REPLY_LIMIT, TOOL_DESCRIPTORS } from './tools';
+import { listImportSources, readImportSource } from '../importSourceStore';
 import { listRoutes } from '../ipc/routeOps';
 import { getProjectFormat } from '../ipc/projectFormatCache';
 
@@ -84,6 +85,22 @@ export const startMcpForProject = async (projectPath: string): Promise<void> => 
           {
             listRoutes: async () =>
               (await getProjectFormat(projectPath)) === 'scamp' ? listRoutes(projectPath) : [],
+            listImportSources: () => listImportSources(projectPath),
+            readImportSource: async (view, part) => {
+              const found = await readImportSource(
+                projectPath,
+                view,
+                part,
+                IMPORT_SOURCE_REPLY_LIMIT
+              );
+              if (found === null) return null;
+              return {
+                text: found.text,
+                truncated: found.truncated,
+                path: part === 'html' ? found.stored.htmlPath : found.stored.cssPath,
+                url: found.stored.url,
+              };
+            },
           }
         ),
       },

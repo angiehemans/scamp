@@ -25,11 +25,13 @@ import { registerHtmlExportIpc } from './ipc/htmlExport';
 import { registerUpdaterIpc } from './ipc/updater';
 import { initAutoUpdater } from './updater';
 import { registerPreviewIpc } from './ipc/preview';
+import { registerImportIpc } from './importWindow';
 import { registerRoutesIpc } from './ipc/routes';
 import { closeAllPreviewWindows, closePreviewWindow, openPreviewWindow, updatePreviewWindow, } from './previewWindow';
 import { setDevServerLogSink, stopAllDevServers } from './devServer/devServerManager';
 import { initWatcher, disposeWatcher, getWatchedPath } from './watcher';
 import { initMcp, stopMcp } from './mcp/lifecycle';
+import { disposeImportSources } from './importSourceStore';
 import { resolveInsideProject } from './ipc/pathContainment';
 import { initSentryIfOptedIn, setSentryEnabled, setSentryProjectRoot, } from './sentry';
 import { installIdForConsent } from './installId';
@@ -208,7 +210,16 @@ const createWindow = () => {
 // uses `scamp-asset://<absolute-path>` URLs for `<img>` elements so they
 // resolve correctly regardless of the dev-server or production origin.
 protocol.registerSchemesAsPrivileged([
-    { scheme: 'scamp-asset', privileges: { standard: true, bypassCSP: true, supportFetchAPI: true } },
+    // `corsEnabled` so the app's own renderer can `fetch()` an asset, not
+    // just render one. The thumbnail capture inlines every image before
+    // rasterising — it renders through a data: URL that can fetch
+    // nothing — and without this the fetch threw and every background
+    // image was missing from the card. The handler below decides WHICH
+    // origins that applies to. see docs/notes/project-thumbnails.md
+    {
+        scheme: 'scamp-asset',
+        privileges: { standard: true, bypassCSP: true, supportFetchAPI: true, corsEnabled: true },
+    },
 ]);
 /**
  * One Scamp at a time.
@@ -256,7 +267,7 @@ app.whenReady().then(() => {
             return true;
         return false;
     });
-    protocol.handle('scamp-asset', (request) => {
+    protocol.handle('scamp-asset', async (request) => {
         // URL form: `scamp-asset://localhost/<encoded-absolute-path>`
         // Parse with URL to get a correctly decoded pathname.
         const parsed = new URL(request.url);
@@ -276,7 +287,26 @@ app.whenReady().then(() => {
         catch {
             return new Response(null, { status: 404 });
         }
-        return net.fetch(`file://${resolved}`);
+        const response = await net.fetch(`file://${resolved}`);
+        // CORS, and deliberately not `*`.
+        //
+        // This scheme is registered on the default session, which the
+        // IMPORT window's `<webview>` shares — and that webview points at
+        // whatever site the user is importing. A blanket allow would let
+        // any page it loads read the open project's files by guessing
+        // paths. The app's own windows send no Origin (`file://`) or the
+        // dev server's; a third-party page sends its own and gets no
+        // header, so its fetch fails exactly as it did before.
+        const origin = request.headers.get('origin');
+        const ours = origin === null ||
+            origin === 'null' ||
+            origin.startsWith('file://') ||
+            origin === process.env['ELECTRON_RENDERER_URL'];
+        if (!ours)
+            return response;
+        const headers = new Headers(response.headers);
+        headers.set('Access-Control-Allow-Origin', origin ?? '*');
+        return new Response(response.body, { status: response.status, headers });
     });
     registerProjectIpc();
     registerFileIpc();
@@ -296,6 +326,7 @@ app.whenReady().then(() => {
     registerExportIpc();
     registerAuthIpc();
     registerHtmlExportIpc();
+    registerImportIpc();
     registerUpdaterIpc();
     registerPreviewIpc({
         open: openPreviewWindow,
@@ -375,6 +406,7 @@ const performShutdownCleanup = async () => {
     await snapshotOnShutdown();
     disposeAuth();
     await stopMcp();
+    await disposeImportSources();
     disposeWatcher();
     setSentryProjectRoot(null);
     closeAllPreviewWindows();

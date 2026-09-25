@@ -36,6 +36,25 @@ const api = {
      * Returns the window id so callers can correlate; main spawns the
      * dev server in parallel as the window opens.
      */
+    // Website import. see docs/plans/website-import-plan.md
+    openImport: (args) => ipcRenderer.invoke(IPC.ImportOpen, args),
+    /** A captured page arriving from the import window. */
+    onImportDeliver: (listener) => {
+        const handler = (_e, args) => listener(args);
+        ipcRenderer.on(IPC.ImportDeliver, handler);
+        return () => ipcRenderer.removeListener(IPC.ImportDeliver, handler);
+    },
+    /** Download one remote image into the project's assets. */
+    fetchImportImage: (args) => ipcRenderer.invoke(IPC.ImportFetchImage, args),
+    /** Which of these families does Google Fonts serve? */
+    resolveImportFonts: (args) => ipcRenderer.invoke(IPC.ImportResolveFonts, args),
+    /** Tell the import window how it went. */
+    reportImportResult: (payload) => ipcRenderer.invoke(IPC.ImportResultReport, payload),
+    /**
+     * Keep the page's original beside the view it became, in a temp
+     * directory the MCP can read. see docs/notes/import-source-store.md
+     */
+    saveImportSource: (args) => ipcRenderer.invoke(IPC.ImportSaveSource, args),
     openPreview: (args) => ipcRenderer.invoke(IPC.PreviewOpen, args),
     /**
      * Push an updated active page + page list to an already-open

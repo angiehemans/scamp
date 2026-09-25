@@ -4,6 +4,7 @@ import {
   FocusEvent,
   KeyboardEvent,
   PointerEvent,
+  type ReactNode,
   createElement,
   useEffect,
   useMemo,
@@ -34,7 +35,9 @@ import { formatAnimationShorthand } from '@lib/parsers';
 import type { ThemeToken,
   ProjectFormat,
 } from '@shared/types';
+import { effectiveDisplay } from '@lib/effectiveDisplay';
 import { sanitizeSvgInner } from '../lib/svg';
+import { sanitizeInlineMarkup } from '../lib/inlineMarkup';
 import { EMPTY_FRAME_MIN_HEIGHT } from './Viewport';
 import styles from './ElementRenderer.module.css';
 
@@ -370,12 +373,13 @@ const renderComponentSubtree = (
 
   // Derive parent display / direction once so children's
   // elementToStyle behaves correctly inside flex / grid parents.
+  // `inline-flex` / `inline-grid` live in customProperties, so the
+  // typed field alone answers "no" for a container that plainly does
+  // lay its children out. see `effectiveDisplay`
+  const ownDisplay = effectiveDisplay(element);
   const childParentDisplay =
-    element.display === 'flex' || element.display === 'grid'
-      ? element.display
-      : 'none';
-  const childParentDirection =
-    element.display === 'flex' ? element.flexDirection : undefined;
+    ownDisplay === 'flex' || ownDisplay === 'grid' ? ownDisplay : 'none';
+  const childParentDirection = ownDisplay === 'flex' ? element.flexDirection : undefined;
 
   const children = expandChildren(elementsMap, element.childIds, scope)
     .map(({ id: childId, row: childRow }) => {
@@ -460,7 +464,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
   // slot. Treat the instance parent as a flex column so children stack.
   // see docs/plans/component-slots-plan.md
   const parentIsInstance = parentResolved?.type === 'component-instance';
-  const parentDisplay = parentIsInstance ? 'flex' : parentResolved?.display;
+  const parentDisplay = parentIsInstance ? 'flex' : effectiveDisplay(parentResolved);
   const parentDirection = parentIsInstance
     ? 'column'
     : parentResolved?.flexDirection;
@@ -570,6 +574,17 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
   const isText = element.type === 'text';
   const isImage = element.type === 'image';
   const isComponentInstance = element.type === 'component-instance';
+  /**
+   * Does this element hold more than its own words?
+   *
+   * A composed element renders children and inline markup as well as
+   * text, the way `generateCode` writes it. It is also NOT editable in
+   * place: `handleEditableBlur` commits `textContent`, which would
+   * swallow every child's words into the parent's `text`.
+   * see docs/notes/import-inline-spans.md
+   */
+  const isComposed =
+    element.childIds.length > 0 || element.inlineFragments.length > 0;
   const projectDir = projectPath ? projectPath.replace(/\\/g, '/') : null;
   const baseStyle = elementToStyle(
     element,
@@ -910,7 +925,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
       : {}),
     className: `${styles.element} ${classNameFor(element)} ${
       isSelected ? styles.selected : ''
-    } ${isText && isEditing ? styles.textEditing : ''} ${
+    } ${isText && isEditing && !isComposed ? styles.textEditing : ''} ${
       element.visibilityMode === 'none' ? styles.hiddenNone : ''
     }`.trim(),
     style,
@@ -941,7 +956,7 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
     };
   }
 
-  if (isText && isEditing) {
+  if (isText && isEditing && !isComposed) {
     props['contentEditable'] = true;
     props['suppressContentEditableWarning'] = true;
     props['onBlur'] = handleEditableBlur;
@@ -1024,17 +1039,73 @@ export const ElementRenderer = ({ elementId, row }: Props): JSX.Element | null =
     );
   }
 
-  const children = isText
-    ? (resolveText(element, scope) ?? element.text ?? '')
-    : expandChildren(useCanvasStore.getState().elements, element.childIds, scope).map(
-        ({ id: childId, row: childRow }) => (
+  // Text, then inline markup and children interleaved by
+  // `afterChildIndex` — the same order `generateCode` writes, because
+  // the canvas and the file have to show the same thing. The canvas
+  // used to render a text element's text and drop its children
+  // entirely, so an imported paragraph's spans were listed in the
+  // layers panel and drew nothing.
+  const ownText = isText ? (resolveText(element, scope) ?? element.text ?? '') : '';
+  let children: ReactNode | ReactNode[];
+  if (!isComposed) {
+    // The overwhelmingly common case, and the shape contentEditable
+    // needs: a text element that is exactly its own words.
+    children = ownText;
+  } else {
+    const composed: ReactNode[] = [];
+    if (ownText.length > 0) composed.push(ownText);
+    const fragmentsAt = (at: number): void => {
+      element.inlineFragments.forEach((fragment, index) => {
+        if (fragment.afterChildIndex !== at) return;
+        if (fragment.kind === 'text') {
+          composed.push(fragment.value);
+          return;
+        }
+        // Verbatim source, so it has to be injected as markup to show
+        // at all — the position the svg renderer is already in, and it
+        // takes the same precaution. A fragment can come from a
+        // hand-written file, so it is not trusted.
+        const html = sanitizeInlineMarkup(fragment.source);
+        if (html.length === 0) return;
+        composed.push(
+          createElement('span', {
+            key: `fragment-${at}-${index}`,
+            // A run inside a line, not a box of its own: `contents`
+            // is the closest the canvas gets to the generator's
+            // "emitted with no wrapper at all".
+            style: { display: 'contents' },
+            dangerouslySetInnerHTML: { __html: html },
+          })
+        );
+      });
+    };
+    // `expandChildren` walks `childIds` in order, so each child's rows
+    // are contiguous and a cursor is enough to keep fragment positions
+    // lined up with the indices they were recorded against.
+    const expanded = expandChildren(
+      useCanvasStore.getState().elements,
+      element.childIds,
+      scope
+    );
+    let cursor = 0;
+    fragmentsAt(-1);
+    element.childIds.forEach((childId, index) => {
+      while (cursor < expanded.length && expanded[cursor]?.id === childId) {
+        const entry = expanded[cursor];
+        cursor += 1;
+        if (entry === undefined) continue;
+        composed.push(
           <ElementRenderer
-            key={childRow !== null ? `${childId}:${childRow.index}` : childId}
-            elementId={childId}
-            {...(childRow !== null ? { row: childRow } : {})}
+            key={entry.row !== null ? `${entry.id}:${entry.row.index}` : entry.id}
+            elementId={entry.id}
+            {...(entry.row !== null ? { row: entry.row } : {})}
           />
-        )
-      );
+        );
+      }
+      fragmentsAt(index);
+    });
+    children = composed;
+  }
   // `childBindings` is read so a child's show or repeat change re-expands
   // this list; the value itself is the subscription key.
   void childBindings;

@@ -65,6 +65,22 @@ export declare const IPC: {
     readonly DevServerLog: "preview:devLog";
     /** main → renderer: a file under routes/ was added, changed, or removed. */
     readonly RoutesChanged: "routes:changed";
+    readonly ImportOpen: "import:open";
+    /** Download one remote image into the project's assets. */
+    readonly ImportFetchImage: "import:fetchImage";
+    /** Which of these families does Google Fonts serve? */
+    readonly ImportResolveFonts: "import:resolveFonts";
+    readonly ImportClose: "import:close";
+    /** App window → main: keep this page's original beside the view. */
+    readonly ImportSaveSource: "import:saveSource";
+    /** Import window → main: a captured page. */
+    readonly ImportCaptured: "import:captured";
+    /** Main → app window: reduce this and make a view of it. */
+    readonly ImportDeliver: "import:deliver";
+    /** App window → main: how the import went, for the import window's UI. */
+    readonly ImportResultReport: "import:result";
+    /** Main → import window: the app window's verdict. */
+    readonly ImportResultChanged: "import:resultChanged";
     readonly PreviewOpen: "preview:open";
     readonly PreviewStop: "preview:stop";
     readonly PreviewClose: "preview:close";

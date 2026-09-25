@@ -98,6 +98,56 @@ select {
   user-select: text;
 }`;
 /**
+ * Sentinel for the list-padding reset. Separate from
+ * `BROWSER_RESET_SENTINEL` because it shipped later: an existing
+ * project already carries that sentinel, so folding this into that
+ * block would never reach one.
+ */
+/**
+ * Sentinel for the link-cursor rule. Its own, like the one below it,
+ * because a project created before this already carries those and a
+ * rule folded into them would never reach it.
+ */
+export const LINK_CURSOR_SENTINEL = '/* scamp: a link points — the reset above took the browser\'s cursor with it */';
+/**
+ * Give a link back its pointer.
+ *
+ * `all: unset` on `a` is what makes an `a`-tagged element look like the
+ * box the user drew instead of a system link — and it takes
+ * `cursor: pointer` with it, so marking something as a link in Scamp
+ * produced something that did not behave like one under the mouse.
+ * The same restoration `cursor: text` already does for inputs.
+ *
+ * `a[href]`, not `a`: an anchor with no destination is not a link, and
+ * a browser does not point at one either. Scamp's Link field always
+ * writes an href, so this matches exactly what "set as a link" means.
+ */
+export const LINK_CURSOR_BLOCK = `${LINK_CURSOR_SENTINEL}
+a[href] {
+  cursor: pointer;
+}`;
+export const LIST_PADDING_SENTINEL = '/* scamp: list padding — the browser adds 40px the panel does not show */';
+/**
+ * Zero the padding a browser puts on a list.
+ *
+ * `BROWSER_RESET_BLOCK` zeroes the UA margin on every block-level tag,
+ * for the stated reason that the canvas already zeroes it and the two
+ * have to agree. The UA also sets `ul, ol, menu { padding-inline-start:
+ * 40px }`, and that was missed — so a `ul`-tagged element rendered 40px
+ * narrower than the canvas showed and than the properties panel said,
+ * which reported padding 0 the whole time.
+ *
+ * It surfaced through the website importer, where a list is the normal
+ * case rather than a rare one: every imported `<li>` came out 40px short
+ * and its text wrapped a line early.
+ */
+export const LIST_PADDING_BLOCK = `${LIST_PADDING_SENTINEL}
+ul,
+ol,
+menu {
+  padding: 0;
+}`;
+/**
  * Default theme.css content for a freshly created project. Provides:
  *
  *   - A structured colour system: five primitive palettes (brand,
@@ -227,6 +277,10 @@ body {
 }
 
 ${BROWSER_RESET_BLOCK}
+
+${LIST_PADDING_BLOCK}
+
+${LINK_CURSOR_BLOCK}
 `;
 /**
  * Default page CSS module content.

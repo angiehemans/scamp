@@ -1,7 +1,15 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 import { IPC } from '@shared/ipcChannels';
+import type { CapturedSource } from '@shared/importCapture';
 import type { TitleBarColors } from '@shared/titleBarColors';
 import type {
+  FetchImageArgs,
+  FetchImageResult,
+  ImportCapturedArgs,
+  ImportOpenArgs,
+  ImportResultPayload,
+  ResolveFontsArgs,
+  ResolveFontsResult,
   ChooseFolderResult,
   ChooseImageArgs,
   ChooseImageResult,
@@ -145,6 +153,38 @@ const api = {
    * Returns the window id so callers can correlate; main spawns the
    * dev server in parallel as the window opens.
    */
+  // Website import. see docs/plans/website-import-plan.md
+  openImport: (args: ImportOpenArgs): Promise<{ id: number }> =>
+    ipcRenderer.invoke(IPC.ImportOpen, args),
+  /** A captured page arriving from the import window. */
+  onImportDeliver: (
+    listener: (args: ImportCapturedArgs) => void
+  ): (() => void) => {
+    const handler = (_e: IpcRendererEvent, args: ImportCapturedArgs): void => listener(args);
+    ipcRenderer.on(IPC.ImportDeliver, handler);
+    return () => ipcRenderer.removeListener(IPC.ImportDeliver, handler);
+  },
+  /** Download one remote image into the project's assets. */
+  fetchImportImage: (args: FetchImageArgs): Promise<FetchImageResult> =>
+    ipcRenderer.invoke(IPC.ImportFetchImage, args),
+  /** Which of these families does Google Fonts serve? */
+  resolveImportFonts: (args: ResolveFontsArgs): Promise<ResolveFontsResult> =>
+    ipcRenderer.invoke(IPC.ImportResolveFonts, args),
+  /** Tell the import window how it went. */
+  reportImportResult: (payload: ImportResultPayload): Promise<void> =>
+    ipcRenderer.invoke(IPC.ImportResultReport, payload),
+  /**
+   * Keep the page's original beside the view it became, in a temp
+   * directory the MCP can read. see docs/notes/import-source-store.md
+   */
+  saveImportSource: (args: {
+    projectPath: string;
+    view: string;
+    url: string;
+    source: CapturedSource;
+  }): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC.ImportSaveSource, args),
+
   openPreview: (args: PreviewOpenArgs): Promise<{ windowId: number }> =>
     ipcRenderer.invoke(IPC.PreviewOpen, args),
 

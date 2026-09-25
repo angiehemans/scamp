@@ -12,5 +12,21 @@ export declare const TOOL_NAMES: ReadonlyArray<string>;
 export type ToolInvokerOptions = {
     /** Answers scamp_list_routes from disk; the routes aren't canvas state. */
     listRoutes?: () => Promise<unknown>;
+    /** Imported pages' originals; they live in temp, not on the canvas. */
+    listImportSources?: () => Promise<unknown>;
+    readImportSource?: (view: string, part: 'css' | 'html') => Promise<{
+        text: string;
+        truncated: boolean;
+        path: string;
+        url: string;
+    } | null>;
 };
+/**
+ * How much of an original one call returns.
+ *
+ * A stylesheet runs to megabytes and an agent's context does not. The
+ * reply names the file, so the rest is one file read away for anything
+ * that genuinely needs it.
+ */
+export declare const IMPORT_SOURCE_REPLY_LIMIT = 120000;
 export declare const createToolInvoker: (runQuery: (tool: string, args: Record<string, unknown>) => Promise<unknown>, options?: ToolInvokerOptions) => ToolInvoker;

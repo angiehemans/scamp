@@ -23,8 +23,10 @@ type Props = {
     openViewMenu: (e: ReactMouseEvent, viewName: string) => void;
     handleRenameView: (viewName: string, newSlug: string) => Promise<void>;
     persistActiveSource: () => void;
+    /** Opens the importer's browser window. Absent hides the entry point. */
+    onImportWebsite?: () => void;
     setActiveComponentState: (next: ActiveComponent | null) => void;
     setActivePageName: (name: string | null) => void;
 };
-export declare const PageSidebar: ({ pages, views, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, openView, openViewMenu, handleRenameView, persistActiveSource, setActiveComponentState, setActivePageName, }: Props) => JSX.Element;
+export declare const PageSidebar: ({ pages, views, existingPageNames, pageEdit, pageEditError, pageEditBusy, isEditingPage, activePageName, activeComponent, setPageEdit, setPageEditError, resetPageEdit, handleAddPage, handleDuplicatePage, handleRenamePage, openPageMenu, openView, openViewMenu, handleRenameView, persistActiveSource, onImportWebsite, setActiveComponentState, setActivePageName, }: Props) => JSX.Element;
 export {};

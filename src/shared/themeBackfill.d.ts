@@ -9,7 +9,7 @@ export type BackfillResult = {
  * string. Pure: takes the raw CSS, returns the (possibly-updated) CSS
  * plus a `changed` flag.
  *
- * Four independent additive checks:
+ * Six independent additive checks:
  *
  *   1. If no `:root` rule declares `--font-sans`, append the token to
  *      the first `:root` rule (or create a `:root` block if there

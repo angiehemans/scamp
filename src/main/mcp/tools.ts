@@ -139,6 +139,33 @@ export const TOOL_DESCRIPTORS: ToolDescriptor[] = [
     inputSchema: { ...NO_ARGS },
   },
   {
+    name: 'scamp_list_import_sources',
+    description:
+      "Views made by importing a web page, and where that page's ORIGINAL html and css are kept. An import is a lossy translation into Scamp's model, so the original is the only record of what the page actually said. Call this to find out whether a view you are asked to tidy up came from an import, then read the source with scamp_get_import_source. Empty when nothing has been imported this session — the originals are scratch and go when the project closes.",
+    inputSchema: { ...NO_ARGS },
+  },
+  {
+    name: 'scamp_get_import_source',
+    description:
+      "The original html or css of the page a view was imported from, before Scamp reduced it. Use it to answer 'what did the page actually do here?' — the authored rule behind a layout, a value the capture rounded, a selector the model has no place for — rather than inferring it from the generated output. Defaults to the css, which is where the answers usually are. Large files come back truncated; the reply carries the path on disk so you can read the rest with your own file tools.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description: 'The view name, as scamp_list_import_sources reports it.',
+        },
+        part: {
+          type: 'string',
+          enum: ['css', 'html'],
+          description: "Which half to read. Defaults to 'css'.",
+        },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'scamp_get_recent_edits',
     description:
       'What the designer has changed in Scamp, newest last: one entry per save, with the file, the line each change starts at, and the text that replaced what was there. Call it after the user says they changed something, or before editing a file you read earlier, so you work from what is on disk now. Pass the `revision` from a previous call as `since` to get only what happened after it; omit it for everything this session.',
@@ -248,7 +275,22 @@ const componentScaffoldResult = (name: unknown): ToolResult => {
 export type ToolInvokerOptions = {
   /** Answers scamp_list_routes from disk; the routes aren't canvas state. */
   listRoutes?: () => Promise<unknown>;
+  /** Imported pages' originals; they live in temp, not on the canvas. */
+  listImportSources?: () => Promise<unknown>;
+  readImportSource?: (
+    view: string,
+    part: 'css' | 'html'
+  ) => Promise<{ text: string; truncated: boolean; path: string; url: string } | null>;
 };
+
+/**
+ * How much of an original one call returns.
+ *
+ * A stylesheet runs to megabytes and an agent's context does not. The
+ * reply names the file, so the rest is one file read away for anything
+ * that genuinely needs it.
+ */
+export const IMPORT_SOURCE_REPLY_LIMIT = 120_000;
 
 export const createToolInvoker = (
   runQuery: (tool: string, args: Record<string, unknown>) => Promise<unknown>,
@@ -283,6 +325,54 @@ export const createToolInvoker = (
     // function of the name and needs no canvas state.
     if (name === 'scamp_get_component_scaffold') {
       return componentScaffoldResult(args['name']);
+    }
+    // Imported originals live in a temp directory, not on the canvas.
+    if (name === 'scamp_list_import_sources') {
+      if (options.listImportSources === undefined) return textResult('[]');
+      try {
+        return textResult(JSON.stringify(await options.listImportSources(), null, 2));
+      } catch (err) {
+        return errorResult(
+          `scamp_list_import_sources failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+    if (name === 'scamp_get_import_source') {
+      const view = args['name'];
+      if (typeof view !== 'string' || view.length === 0) {
+        return errorResult(
+          'scamp_get_import_source requires a non-empty string "name" argument — a view name from scamp_list_import_sources.'
+        );
+      }
+      const rawPart = args['part'] ?? 'css';
+      if (rawPart !== 'css' && rawPart !== 'html') {
+        return errorResult('scamp_get_import_source "part" must be "css" or "html".');
+      }
+      if (options.readImportSource === undefined) {
+        return errorResult('No imported page is being kept for this project.');
+      }
+      try {
+        const found = await options.readImportSource(view, rawPart);
+        if (found === null) {
+          return errorResult(
+            `No imported original is kept for "${view}". scamp_list_import_sources says what there is.`
+          );
+        }
+        const header = [
+          `/* ${rawPart} of ${found.url}, as imported into ${view} */`,
+          `/* on disk: ${found.path} */`,
+          found.truncated
+            ? `/* TRUNCATED at ${IMPORT_SOURCE_REPLY_LIMIT} characters — read the file for the rest */`
+            : null,
+        ]
+          .filter((line): line is string => line !== null)
+          .join('\n');
+        return textResult(`${header}\n${found.text}`);
+      } catch (err) {
+        return errorResult(
+          `scamp_get_import_source failed: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
     }
     // Routes live on disk, not on the canvas.
     if (name === 'scamp_list_routes') {

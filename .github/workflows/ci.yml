@@ -1,0 +1,62 @@
+name: CI
+
+# Everything except the end-to-end suite, which stays local on purpose.
+# It is 501 Playwright tests against a real Electron build — about 20
+# minutes on one worker — and running it per push would cost more in
+# runner minutes than the rest of this workflow put together once the
+# repository is private. Run it before tagging:
+#
+#     npm run build && npx playwright test
+#
+# This job is the cheap 95%: it catches a type error, a broken pure
+# function and a broken file round-trip in about two minutes.
+on:
+  # Every branch, not just main. Work here happens on long-lived
+  # branches that are merged locally, so main-only would mean thirty
+  # commits with nothing checking them.
+  #
+  # No `pull_request` trigger: for a branch in this repository that
+  # would run the same commit twice. Add one if pull requests ever
+  # arrive from forks, which `push` does not cover.
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+# A newer push supersedes the one before it. Without this, pushing
+# three times in a minute pays for three full runs and reports on the
+# two that no longer describe the branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # Linux only, deliberately. Runner minutes are billed 1x here, 2x on
+    # Windows and 10x on macOS, and none of these tests touch a platform
+    # difference — the ones that do are in the e2e suite.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # `postinstall` is `patch-package && electron-rebuild -f -w
+      # node-pty`, so Electron's download is NOT skippable here even
+      # though nothing below launches it.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Separate steps rather than `npm test`, so a red run says which
+      # of the two it was without opening the log.
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests
+        run: npm run test:integration

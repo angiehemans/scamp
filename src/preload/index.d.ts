@@ -1,5 +1,6 @@
+import type { CapturedSource } from '@shared/importCapture';
 import type { TitleBarColors } from '@shared/titleBarColors';
-import type { ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, AuthSignInResult, AuthStatusResult, ExportHtmlArgs, ExportHtmlChooseFolderResult, ExportHtmlResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, DevServerLogPayload, DevVarsReadArgs, DevVarsReadResult, RouteFile, RouteReadArgs, RouteSetRenderArgs, RouteRenameViewArgs, RouteWriteArgs, RoutesListArgs, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ProjectReadThumbnailArgs, ProjectReadThumbnailResult, ProjectWriteThumbnailArgs, ProjectWriteThumbnailResult, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
+import type { FetchImageArgs, FetchImageResult, ImportCapturedArgs, ImportOpenArgs, ImportResultPayload, ResolveFontsArgs, ResolveFontsResult, ChooseFolderResult, ChooseImageArgs, ChooseImageResult, ClipboardReadResult, ClipboardWriteArgs, ClipboardSaveImageArgs, CopyImageArgs, CopyImageResult, CreateProjectArgs, ExportChooseSavePathArgs, ExportChooseSavePathResult, AuthSignInResult, AuthStatusResult, ExportHtmlArgs, ExportHtmlChooseFolderResult, ExportHtmlResult, ExportPngArgs, ExportResult, ExportSvgArgs, FileChangedPayload, DevServerLogPayload, DevVarsReadArgs, DevVarsReadResult, RouteFile, RouteReadArgs, RouteSetRenderArgs, RouteRenameViewArgs, RouteWriteArgs, RoutesListArgs, SvgAssetChangedPayload, FilePatchArgs, FilePatchResult, FileWriteAckPayload, FileWriteArgs, FileWriteResult, OpenProjectArgs, ComponentCreateArgs, ComponentDeleteArgs, ComponentFile, ComponentReadArgs, ComponentReadThumbnailArgs, ComponentReadThumbnailResult, ComponentWriteThumbnailArgs, ProjectReadThumbnailArgs, ProjectReadThumbnailResult, ProjectWriteThumbnailArgs, ProjectWriteThumbnailResult, ContextWriteArgs, McpQueryArgs, McpQueryResultArgs, McpStatusResult, ComponentWriteThumbnailResult, PageCreateArgs, PageDeleteArgs, PageDuplicateArgs, PageFile, PageRenameArgs, ProjectConfig, ProjectConfigReadArgs, ProjectConfigWriteArgs, ProjectData, PreviewOpenArgs, ProjectMigrateArgs, ProjectMigrateResult, Settings, SnapshotCreateArgs, SnapshotCreateResult, SnapshotDeleteArgs, SnapshotDeleteResult, SnapshotListArgs, SnapshotListResult, SnapshotReadPageArgs, SnapshotReadPageResult, SnapshotRestoreArgs, SnapshotRestoreResult, StartScreenProject, TerminalCreateArgs, TerminalCreateResult, TerminalDataPayload, TerminalExitPayload, TerminalForegroundProcessPayload, TerminalKillArgs, TerminalResizeArgs, TerminalWriteArgs, TestBootstrap, UpdaterInfoPayload, UpdaterProgressPayload } from '@shared/types';
 /**
  * Minimal API surface exposed to the renderer. Keep this small — every
  * function here is a potential attack surface and a contract that must
@@ -26,6 +27,30 @@ declare const api: {
      * Returns the window id so callers can correlate; main spawns the
      * dev server in parallel as the window opens.
      */
+    openImport: (args: ImportOpenArgs) => Promise<{
+        id: number;
+    }>;
+    /** A captured page arriving from the import window. */
+    onImportDeliver: (listener: (args: ImportCapturedArgs) => void) => (() => void);
+    /** Download one remote image into the project's assets. */
+    fetchImportImage: (args: FetchImageArgs) => Promise<FetchImageResult>;
+    /** Which of these families does Google Fonts serve? */
+    resolveImportFonts: (args: ResolveFontsArgs) => Promise<ResolveFontsResult>;
+    /** Tell the import window how it went. */
+    reportImportResult: (payload: ImportResultPayload) => Promise<void>;
+    /**
+     * Keep the page's original beside the view it became, in a temp
+     * directory the MCP can read. see docs/notes/import-source-store.md
+     */
+    saveImportSource: (args: {
+        projectPath: string;
+        view: string;
+        url: string;
+        source: CapturedSource;
+    }) => Promise<{
+        ok: boolean;
+        error?: string;
+    }>;
     openPreview: (args: PreviewOpenArgs) => Promise<{
         windowId: number;
     }>;

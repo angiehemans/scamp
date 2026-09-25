@@ -14,7 +14,7 @@ import { errorMessage } from '@shared/errorMessage';
 import { selectAnyAgentActive, selectPauseReason, useTerminalActivityStore, } from '@store/terminalActivitySlice';
 import { externalEditTracker } from '../lib/externalEditTracker';
 import { captureAndPersistComponentThumbnail } from '../lib/componentThumbnail';
-import { captureAndPersistProjectThumbnail } from '../lib/projectThumbnail';
+import { captureAndPersistProjectThumbnail, thumbnailNameFor, } from '../lib/projectThumbnail';
 import { importNameForTarget, toEditTarget } from './editTarget';
 import { notifyWriteAborted } from './pendingSaves';
 import { dispatchPageWrite } from './writeDispatch';
@@ -287,15 +287,17 @@ export const makeWriteIfDirty = (ctx) => (elements, rootElementId, target, custo
             });
         }
     }
-    // Start-screen card capture, home page only.
-    // see docs/notes/project-thumbnails.md
-    if (target.kind === 'page') {
+    // Start-screen card capture, home page only. A framework project
+    // has no pages — its home is a view — so this asks the rule rather
+    // than the kind. see docs/notes/project-thumbnails.md
+    const thumbName = thumbnailNameFor(target, store.componentTrees[target.name]?.kind);
+    if (thumbName !== null) {
         const projectPath = store.projectPath;
         if (projectPath) {
             requestAnimationFrame(() => {
                 captureAndPersistProjectThumbnail({
                     projectPath,
-                    pageName: target.name,
+                    pageName: thumbName,
                 });
             });
         }

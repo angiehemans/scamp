@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { backfillThemeDefaults } from '../src/shared/themeBackfill';
 import {
   BROWSER_RESET_SENTINEL,
+  LINK_CURSOR_SENTINEL,
+  LIST_PADDING_SENTINEL,
   DEFAULT_BODY_FONT_FAMILY,
 } from '../src/shared/agentMd';
 
@@ -95,6 +97,8 @@ body {
 }
 
 ${BROWSER_RESET_SENTINEL}
+${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
       const result = backfillThemeDefaults(input);
       expect(result.changed).toBe(false);
@@ -119,6 +123,8 @@ body {
 }
 
 ${BROWSER_RESET_SENTINEL}
+${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
       const result = backfillThemeDefaults(input);
       expect(result.changed).toBe(false);
@@ -144,6 +150,8 @@ body {
 }
 
 ${BROWSER_RESET_SENTINEL}
+${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
       const result = backfillThemeDefaults(input);
       expect(result.changed).toBe(false);
@@ -260,6 +268,8 @@ body {
 }
 
 ${BROWSER_RESET_SENTINEL}
+${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 /* user has customised the rules, but the sentinel marks our presence */
 p { margin: 8px 0; }
 `;
@@ -270,7 +280,7 @@ p { margin: 8px 0; }
   });
 
   describe('combined behaviour', () => {
-    it('is a no-op when all four pieces are already present', () => {
+    it('is a no-op when every piece is already present', () => {
       const input = `:root {
   --font-sans: 'Inter', sans-serif;
 }
@@ -286,13 +296,39 @@ body {
 }
 
 ${BROWSER_RESET_SENTINEL}
+${LIST_PADDING_SENTINEL}
+${LINK_CURSOR_SENTINEL}
 `;
       const result = backfillThemeDefaults(input);
       expect(result.changed).toBe(false);
       expect(result.content).toBe(input);
     });
 
-    it('adds all four to a bare :root file', () => {
+    it('adds the list-padding reset to a project that predates it', () => {
+      // The browser-reset sentinel is already there, so folding this
+      // rule into that block would never have reached such a project.
+      const css = `:root {\n  --font-sans: system-ui;\n}\n\n*, *::before, *::after {\n  box-sizing: border-box;\n}\n\nbody {\n  font-family: var(--font-sans);\n}\n\n${BROWSER_RESET_SENTINEL}\n`;
+      const result = backfillThemeDefaults(css);
+      expect(result.changed).toBe(true);
+      expect(result.content).toContain(LIST_PADDING_SENTINEL);
+      expect(result.content).toContain('padding: 0;');
+    });
+
+    it('gives a link back its pointer in a project that predates it', () => {
+      // `all: unset` on `a` takes the browser's cursor with it, so an
+      // element marked as a link did not behave like one under the
+      // mouse. The same restoration `cursor: text` does for inputs.
+      const css = `:root {\n  --font-sans: system-ui;\n}\n\n${BROWSER_RESET_SENTINEL}\n${LIST_PADDING_SENTINEL}\n`;
+      const result = backfillThemeDefaults(css);
+      expect(result.changed).toBe(true);
+      expect(result.content).toContain(LINK_CURSOR_SENTINEL);
+      expect(result.content).toContain('cursor: pointer;');
+      // An anchor with no destination is not a link, and a browser
+      // does not point at one either.
+      expect(result.content).toContain('a[href]');
+    });
+
+    it('adds every missing piece to a bare :root file', () => {
       const input = `:root {
   --color-primary: #3b82f6;
 }

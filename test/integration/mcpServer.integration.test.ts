@@ -127,7 +127,9 @@ describe('MCP HTTP server', () => {
     it('lists every tool with a schema', async () => {
       const res = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
       const body = await res.json();
-      expect(body.result.tools).toHaveLength(14);
+      // Counted from the descriptors rather than pinned: the number is
+      // not the contract, "every one of them is advertised" is.
+      expect(body.result.tools).toHaveLength(TOOL_DESCRIPTORS.length);
       expect(body.result.tools[0]).toHaveProperty('inputSchema');
     });
 

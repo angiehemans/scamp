@@ -7,8 +7,65 @@ import { createToolInvoker, TOOL_DESCRIPTORS, TOOL_NAMES } from '../src/main/mcp
  * see docs/plans/mcp-server-plan.md
  */
 const invoker = (data = { ok: true }) => createToolInvoker(async () => data);
+describe('imported originals', () => {
+    // The originals live in a temp directory, so these two are answered in
+    // main from disk rather than by the canvas — the same shape
+    // `scamp_list_routes` uses. see docs/notes/import-source-store.md
+    const never = () => Promise.reject(new Error('should not ask the canvas'));
+    it('lists what has been imported', async () => {
+        const invoke = createToolInvoker(never, {
+            listImportSources: async () => [{ view: 'Lobby', url: 'https://x.test/' }],
+        });
+        const out = await invoke('scamp_list_import_sources', {});
+        expect(out.content[0]?.text).toContain('Lobby');
+    });
+    it('says so plainly when nothing has been imported', async () => {
+        const invoke = createToolInvoker(never, {});
+        expect((await invoke('scamp_list_import_sources', {})).content[0]?.text).toBe('[]');
+    });
+    it('reads the css by default, since that is where the answers are', async () => {
+        let asked = null;
+        const invoke = createToolInvoker(never, {
+            readImportSource: async (_view, part) => {
+                asked = part;
+                return { text: '.a { color: red; }', truncated: false, path: '/tmp/a.css', url: 'u' };
+            },
+        });
+        const out = await invoke('scamp_get_import_source', { name: 'Lobby' });
+        expect(asked).toBe('css');
+        expect(out.content[0]?.text).toContain('.a { color: red; }');
+    });
+    it('names the file on disk, so the rest is one read away', async () => {
+        const invoke = createToolInvoker(never, {
+            readImportSource: async () => ({
+                text: 'x',
+                truncated: true,
+                path: '/tmp/scamp/page.html',
+                url: 'https://x.test/',
+            }),
+        });
+        const out = await invoke('scamp_get_import_source', { name: 'Lobby', part: 'html' });
+        expect(out.content[0]?.text).toContain('/tmp/scamp/page.html');
+        expect(out.content[0]?.text).toContain('TRUNCATED');
+    });
+    it('refuses a part it does not have', async () => {
+        const invoke = createToolInvoker(never, { readImportSource: async () => null });
+        const out = await invoke('scamp_get_import_source', { name: 'Lobby', part: 'sass' });
+        expect(out.isError).toBe(true);
+    });
+    it('refuses a call with no view name', async () => {
+        const invoke = createToolInvoker(never, { readImportSource: async () => null });
+        expect((await invoke('scamp_get_import_source', {})).isError).toBe(true);
+    });
+    it('tells the agent where to look when the view was never imported', async () => {
+        const invoke = createToolInvoker(never, { readImportSource: async () => null });
+        const out = await invoke('scamp_get_import_source', { name: 'Ghost' });
+        expect(out.isError).toBe(true);
+        expect(out.content[0]?.text).toContain('scamp_list_import_sources');
+    });
+});
 describe('TOOL_DESCRIPTORS', () => {
-    it('exposes the canvas tools plus the component scaffold, view props, and routes', () => {
+    it('exposes the canvas tools plus the scaffold, view props, routes, and imported originals', () => {
         expect(TOOL_NAMES).toEqual([
             'scamp_get_active_page',
             'scamp_get_selected_element',
@@ -21,6 +78,8 @@ describe('TOOL_DESCRIPTORS', () => {
             'scamp_get_view_props',
             'scamp_check_view',
             'scamp_list_routes',
+            'scamp_list_import_sources',
+            'scamp_get_import_source',
             'scamp_get_recent_edits',
             'scamp_get_conventions',
             'scamp_get_theme_tokens',
@@ -38,7 +97,7 @@ describe('TOOL_DESCRIPTORS', () => {
             expect(tool.description.length).toBeGreaterThan(40);
         }
     });
-    it('requires an id on get_element_by_id, a name on the three name-taking tools, and nothing else', () => {
+    it('requires an id on get_element_by_id, a name on the name-taking tools, and nothing else', () => {
         const byId = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_element_by_id');
         expect(byId?.inputSchema['required']).toEqual(['id']);
         const scaffold = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_component_scaffold');
@@ -47,10 +106,13 @@ describe('TOOL_DESCRIPTORS', () => {
         expect(viewProps?.inputSchema['required']).toEqual(['name']);
         const check = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_check_view');
         expect(check?.inputSchema['required']).toEqual(['name']);
+        const source = TOOL_DESCRIPTORS.find((t) => t.name === 'scamp_get_import_source');
+        expect(source?.inputSchema['required']).toEqual(['name']);
         const takesName = new Set([
             'scamp_get_component_scaffold',
             'scamp_get_view_props',
             'scamp_check_view',
+            'scamp_get_import_source',
         ]);
         for (const tool of TOOL_DESCRIPTORS) {
             if (tool.name === 'scamp_get_element_by_id')
