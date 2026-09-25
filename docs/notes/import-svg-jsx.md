@@ -50,26 +50,25 @@ the way React spells them, the same conversion the SVG markup gets.
 
 ## Still open, and why they are listed here
 
-The report named more than this. Left for now, in rough order of what
-they would cost:
+Most of that report has since been dealt with — gradient text, wrapper
+spans, element names and the stale `scamp_check_view` each have their
+own section in `import-naming.md`. What is left:
 
-- **The page's own design tokens.** The original defines its palette in
-  `:root`; the capture reads computed values, so every use arrives as a
-  resolved colour and the token itself is lost. `extractTokens` then
-  invents `--color-1` … `--color-13` from the values. Reading the
-  page's custom properties — now that the original CSS is kept beside
-  the view — would give real names instead.
-- **Duplicate tokens on re-import.** A second import into the same
-  project wrote `--color-N-imported` next to the `--color-N` it had
-  written before.
-- **Gradient text arrives half-imported.** 82 `color: transparent`
-  declarations and no `background-clip`, so the text is invisible
-  rather than gradient-filled. Either capture the idiom whole or refuse
-  a transparent colour with nothing painting behind it.
-- **Wrapper spans and empty boxes.** ~25 wrappers, an empty `<section>`,
-  and two zero-size `<svg>`s holding only gradient definitions. The
-  collapse pass only removes single-child `<div>`s.
-- **Generic names.** `box_0090`, `label_00a5`. The page's own class
-  names are right there in the capture.
-- **`scamp_check_view` returned a stale report** after the file
-  changed — reported, not yet investigated.
+- **Duplicate tokens on re-import.** Importing the same site twice
+  writes `--color-N-imported` beside the `--color-N` already there.
+  The suffix rule is right in general — "a name the project already
+  uses means something else here" — but it does not check the VALUE,
+  so an identical colour is duplicated instead of reused. The fix is to
+  reuse a token whose value already matches and suffix only on a real
+  clash.
+- **Empty boxes survive the collapse.** An empty `<section>`, and a
+  zero-size `<svg>` holding nothing but gradient `<defs>`. The collapse
+  pass removes a wrapper with exactly one child; neither of these has
+  any.
+- **The page's own design tokens are deliberately NOT imported.** The
+  original defines its palette in `:root` and the capture reads
+  computed values, so every use arrives as a resolved colour. Reading
+  those custom properties would remove the last of the theme work — and
+  it is a decision the user should make rather than the importer: which
+  values become theme tokens and which stay literals is design, not
+  translation.
