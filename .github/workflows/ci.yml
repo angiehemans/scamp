@@ -19,6 +19,13 @@ on:
   # would run the same commit twice. Add one if pull requests ever
   # arrive from forks, which `push` does not cover.
   push:
+    # Branches only. Without this, a `push` with no ref filter matches
+    # TAG pushes as well — so `git push origin v0.8.5` ran this whole
+    # workflow a second time, duplicating the gate `release.yml` already
+    # runs on the same commit. Two paid runs, one of them reporting on
+    # something nothing was waiting for.
+    branches:
+      - '**'
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
