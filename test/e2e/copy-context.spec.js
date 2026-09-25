@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures/app';
 import { dragInFrame, frameToClient, measureFrame, selectTool, } from './fixtures/canvas';
 import { clickContextMenuItem, } from './fixtures/components';
-import { contextMenuItem, pageRoot } from './fixtures/selectors';
+import { canvasElementsByPrefix, contextMenuItem, pageRoot, } from './fixtures/selectors';
 /**
  * Copy context, end to end. The unit tests cover what the string says; this
  * is the only level that proves the right-click item and the shortcut reach
@@ -57,10 +57,18 @@ test.describe('copy context', () => {
         // Right-click selects before opening the menu, so the copied text and the
         // properties panel always agree — even when another element was selected.
         await expect(pageRoot(window)).toBeVisible();
+        const rects = canvasElementsByPrefix(window, 'rect_');
         await selectTool(window, 'r');
         await dragInFrame(window, { x: 60, y: 60 }, { x: 160, y: 140 });
+        // Wait for each rectangle before drawing the next. A drag that
+        // lands before the tool has taken selects instead of draws, and
+        // the test then right-clicks empty canvas and copies the ROOT —
+        // which reads as "the wrong element" rather than "a draw was
+        // lost". It only ever missed under the full suite.
+        await expect(rects).toHaveCount(1);
         await selectTool(window, 'r');
         await dragInFrame(window, { x: 220, y: 60 }, { x: 340, y: 160 });
+        await expect(rects).toHaveCount(2);
         // Second rectangle is selected; right-click the FIRST one.
         await seedClipboard(app, 'SENTINEL');
         await rightClickInFrame(window, { x: 110, y: 100 });
