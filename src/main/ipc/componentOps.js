@@ -56,7 +56,15 @@ export const wrapperPagePathsFor = (projectPath, slug) => {
         pageDir,
     };
 };
-/** The route file that renders a view, for a Scamp-framework project. */
+/**
+ * The route file that renders a view, for a Scamp-framework project.
+ *
+ * Byte-identical to `generateRoute.ts`'s output for a view with no
+ * props, which an imported one never has — that module builds a
+ * `load()` from a view's sample data and lives in the renderer, where
+ * it backs the Routes section's "Generate route". Kept here rather
+ * than reached for across the process boundary; change both together.
+ */
 const viewRouteTsx = (viewName) => `import ${viewName} from '@/views/${viewName}/${viewName}';\n\nexport const render = 'static';\n\nexport default function ${viewName}Route() {\n  return <${viewName} />;\n}\n`;
 /**
  * Give a new view a URL.
