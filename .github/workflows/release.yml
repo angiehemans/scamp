@@ -13,7 +13,44 @@ on:
       - "v*"
 
 jobs:
+  # Nothing signs or publishes until this passes.
+  #
+  # `npm run build` below is `electron-vite build` — a bundle, not a
+  # typecheck — so before this job a tag went straight to
+  # `--publish always` with nothing having checked anything. A type
+  # error shipped.
+  #
+  # The same three commands `ci.yml` runs on every push, repeated here
+  # because a tag can be pushed without ever having gone through it.
+  # Once, on Linux, at the 1x multiplier: about two minutes a release.
+  #
+  # It is a floor, not a ceiling. The end-to-end suite is not here — it
+  # is 501 Playwright tests against a real Electron build and stays
+  # local on purpose — so this stops a type error or a broken round
+  # trip reaching an auto-updater, not a rendering bug. Run
+  # `npm run build && npx playwright test` before you tag.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Integration tests
+        run: npm run test:integration
+
   release:
+    # A failed check skips this job on all three platforms, so nothing
+    # is built, nothing is published, and the R2 feed is untouched. The
+    # tag stays pushed: fix, then move it or bump to the next version.
+    needs: check
     runs-on: ${{ matrix.os }}
     # WIN_CERTS is surfaced as an env var so the Windows signing step can
     # gate on it (secrets can't be referenced directly in `if:`). When the
